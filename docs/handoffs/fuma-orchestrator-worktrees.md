@@ -1,0 +1,40 @@
+# Fuma isolated orchestrator worktrees
+
+Status date: 2026-07-27
+
+Base checkpoint: `integration/fuma-batch-7-20260727` at `be94761596c8b533587a172bbd0b0df5b454a0ee` in private `justinelut/fuma`.
+
+## Conductor-owned integration surface
+
+Worker branches must not edit these files unless the conductor gives that branch exclusive ownership in writing:
+
+- `apps/studio/server/fuma/db/migrations/index.ts` and finalized migration checksums
+- central composition, runtime, route, and worker registries
+- `apps/studio/server/index.ts` and `apps/studio/server/router.ts`
+- root `package.json`, `bun.lock`, workspace/config orchestration, and remote configuration
+- `docs/plans/fuma-execution-backlog.md`
+- `docs/handoffs/fuma-tracker-closure-audit.md`
+- aggregate validation logs, tracker state, closure decisions, and release manifests
+
+Workers may add ticket-local contracts, repositories, services, routes, adapters, UI, CSS Modules/app-local primitives, focused tests, architecture gates, demos, reference docs, and an unregistered candidate migration only when the ticket requires one. The conductor assigns/finalizes migration IDs, composes central seams, runs live PostgreSQL, resolves conflicts, executes aggregate validation, updates audit/tracker state, and pushes integration branches.
+
+All work remains TypeBox-only with no app-to-app imports, no shared UI package, one root lock plus the approved vendor exception, Studio CSS Modules/app-local primitives, and Blyss HTTPS-only browser acceptance. Docker, buildx, QEMU, emulation, protected publication, signing, scans, deployment, and production/external operations remain unauthorized.
+
+## Worktree and branch registry
+
+| Orchestrator | Path | Branch | Ownership/readiness |
+|---|---|---|---|
+| 01 | `/home/ubuntu/worktrees/fuma-orch-01` | `orchestrator/01-email-preview` | **Ready:** FUMA-045 preview, test send, and template versioning. Candidate migration ID `000053` is reserved if required; registry/checksum remain conductor-owned. |
+| 02 | `/home/ubuntu/worktrees/fuma-orch-02` | `orchestrator/02-ghost-import` | **Ready:** FUMA-075 reusable structured Ghost import. Reuse existing authorities/migrations unless a demonstrated additive schema gap requires a conductor-assigned candidate. |
+| 03 | `/home/ubuntu/worktrees/fuma-orch-03` | `orchestrator/03-email-campaigns` | Reserved for FUMA-046 only after FUMA-045 closes. |
+| 04 | `/home/ubuntu/worktrees/fuma-orch-04` | `orchestrator/04-deliverability` | Reserved for FUMA-047 only after FUMA-046 closes. |
+| 05 | `/home/ubuntu/worktrees/fuma-orch-05` | `orchestrator/05-edge-delivery` | Reserved for FUMA-051 only after FUMA-047 closes. |
+| 06 | `/home/ubuntu/worktrees/fuma-orch-06` | `orchestrator/06-metering` | Reserved for FUMA-052 only after FUMA-051 closes. |
+| 07 | `/home/ubuntu/worktrees/fuma-orch-07` | `orchestrator/07-entitlements` | Reserved for FUMA-054 and its commercial successors after FUMA-052 closes, one dependency wave at a time. |
+| 08 | `/home/ubuntu/worktrees/fuma-orch-08` | `orchestrator/08-public-authority` | Reserved for FUMA-WEB-009/010 authority-backed public work after their server dependencies close. |
+| 09 | `/home/ubuntu/worktrees/fuma-orch-09` | `orchestrator/09-domains` | Reserved for FUMA-059..062 after FUMA-057 and prerequisite edge/metering work close. |
+| 10 | `/home/ubuntu/worktrees/fuma-orch-10` | `orchestrator/10-governance-launch` | Reserved for dependency-ready AI/plugin/operations/public launch work; no external launch operation is authorized. |
+
+## Agent release rule
+
+Only FUMA-045 and FUMA-075 are dependency-ready after batch 7. That is fewer than the four independent complete tickets required by the repository's exactly-four-agent delegation policy, so no subagent invocation is authorized for this wave. Worktrees 03–10 are intentionally idle rather than populated with invented or dependency-blocked work. Recompute dependencies after each conductor closure; start an agent invocation only when exactly four non-overlapping complete-ticket/phase assignments are ready, with all four stages parallel and pinned to `gpt-5.6-sol`.
