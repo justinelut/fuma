@@ -445,7 +445,7 @@ describe('FUMA-053 centrally mounted bounded webhook authority', () => {
     expect(router).toContain('tryServePaystackWebhooks')
     expect(router.indexOf('tryServePaystackWebhooks')).toBeLessThan(router.indexOf('tryServeFumaScopedApi'))
     expect(startup).toContain('createHostedPaystackRuntime')
-    expect(startup).toContain('paystackWebhooks: paystackRuntime?.webhooks')
+    expect(startup).toContain('paystackWebhooks: platformBillingRuntime?.webhooks ?? paystackRuntime?.webhooks')
     expect(migrationIndex).toContain('000045_paystack_reconciliation')
     expect(paystackReconciliationMigration.id).toBe('000045_paystack_reconciliation')
     expect(paystackReconciliationMigration.sql).not.toMatch(/\b(?:drop|truncate|delete\s+from|alter\s+table)\b/i)

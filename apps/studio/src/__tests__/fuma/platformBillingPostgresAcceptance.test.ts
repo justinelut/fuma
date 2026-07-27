@@ -8,8 +8,8 @@ import {
 import {
   PlatformBillingReconciler,
   PostgresBillingRepository,
-  platformBillingReconciliationMigrationCandidate,
 } from '../../../server/fuma/billing'
+import { platformBillingReconciliationMigration } from '../../../server/fuma/db/migrations/000059_platform_billing_reconciliation'
 import { workspacesMigration } from '../../../server/fuma/db/migrations/000005_workspaces'
 import { sitesMigration } from '../../../server/fuma/db/migrations/000006_sites'
 import { paystackPrimitivesMigration } from '../../../server/fuma/db/migrations/000025_paystack_primitives'
@@ -190,7 +190,7 @@ describe('FUMA-056 optional live PostgreSQL acceptance', () => {
           entitlementEvidenceMigration,
           platformCheckoutAuthorityMigration,
         ]) await tx.unsafe(migration.sql)
-        await tx.unsafe(platformBillingReconciliationMigrationCandidate.sql)
+        await tx.unsafe(platformBillingReconciliationMigration.sql)
       })
       await db.unsafe(`
         insert into auth_organizations(id) values ('organization-private'),('organization-public');

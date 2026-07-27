@@ -406,17 +406,15 @@ export class PostgresBillingRepository implements BillingRepository {
         throw new BillingReconciliationError('contract', 'Checkout has no settlement obligations.')
       }
       const complete = Number(value.total) === Number(value.settled)
-      if (current.entitlementCandidateId !== null) {
-        const candidateState = complete ? 'paid-transfer-pending' : 'partially-paid'
+      if (current.entitlementCandidateId !== null && complete) {
         const candidate = await tx`
           update fuma_contract_candidates set
             setup_fee_settled=${value.has_setup ? value.setup_settled : complete},
-            recurring_settled=${value.recurring_settled},state=${candidateState},
-            activated_at=case when ${complete}
-              then coalesce(activated_at,${this.#now().toISOString()}) else null end,
-            paid_transfer_pending=${complete}
+            recurring_settled=${value.recurring_settled},state='paid-transfer-pending',
+            activated_at=coalesce(activated_at,${this.#now().toISOString()}),
+            paid_transfer_pending=true
           where candidate_id=${current.entitlementCandidateId}
-            and state in ('awaiting-payment','partially-paid','paid-transfer-pending')
+            and state in ('awaiting-payment','paid-transfer-pending')
         `
         if (candidate.rowCount !== 1) {
           throw new BillingReconciliationError('mismatch', 'Exact entitlement candidate transition failed.')

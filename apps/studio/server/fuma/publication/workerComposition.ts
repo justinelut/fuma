@@ -1,5 +1,11 @@
 import { createPostgresClient } from '../../db/postgres'
 import { PostgresFumaJobContextAuthority } from '../context'
+import { createPlatformBillingRuntime } from '../billing'
+import {
+  PostgresPlatformCheckoutRepository,
+  registerPlatformCheckoutPurposes,
+} from '../checkout'
+import { createHostedPaystackRuntime } from '../paystack/runtime'
 import { readFumaConfig } from '../config'
 import { createFumaJobWorkerComponentFactory } from '../jobs'
 import { AnonymousEdgeVisitorAuthority, createHostedEdgeRuntime, PublicationAccessEdgeHoleResolver } from '../edgeDelivery'
@@ -39,6 +45,13 @@ export function createPublicationWorkerComponentFactory(
       async start(context) {
         const config = readFumaConfig(env)
         const db = createPostgresClient(config.database.url)
+        const paystack = createHostedPaystackRuntime({ db, config })
+        const checkoutRepository = new PostgresPlatformCheckoutRepository(db)
+        registerPlatformCheckoutPurposes(paystack.registry, checkoutRepository)
+        const billing = createPlatformBillingRuntime({
+          db,
+          transport: paystack.platformBilling,
+        })
         const metering = createHostedMeteringRuntime({ db })
         await Promise.all(HOSTED_COST_BASELINE_V1.map((input) => metering.costs.append(input)))
         await metering.costs.assertComplete()
@@ -65,6 +78,7 @@ export function createPublicationWorkerComponentFactory(
           ...publishing.jobHandlers,
           ...edge.jobs,
           ...metering.jobs,
+          ...billing.jobs,
           'publication.newsletter-send': withNewsletterMetering(newsletterHandler, metering.collector),
           'fuma.publish-release': withPublishMetering(publishHandler, metering.collector),
         })

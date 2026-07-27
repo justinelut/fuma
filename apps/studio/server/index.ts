@@ -33,6 +33,7 @@ import {
 import { createHostedPaystackRuntime } from './fuma/paystack/runtime'
 import { createHostedEntitlementRuntime, readHostedKesCostConversion } from './fuma/entitlements'
 import { createHostedPlatformCheckoutRuntime } from './fuma/checkout'
+import { createHostedPlatformBillingRuntime } from './fuma/billing'
 import {
   createHostedMemberIdentityRuntime,
   createMemberImportBoundary,
@@ -241,6 +242,14 @@ const platformCheckoutRuntime = hostedFumaConfig
     resolvePayer: (request) => hostedStaffAuthRuntime.resolveSession(request.headers),
   })
   : undefined
+const platformBillingRuntime = platformCheckoutRuntime && paystackRuntime && hostedFumaConfig
+  ? await createHostedPlatformBillingRuntime({
+    db,
+    config: hostedFumaConfig,
+    platformBilling: paystackRuntime.platformBilling,
+    customerMerchant: paystackRuntime.customerMerchant,
+  })
+  : undefined
 const fumaScopedApi = createHostedFumaScopedApi({
   db,
   hostedStaffAuth: hostedStaffAuthRuntime,
@@ -371,7 +380,7 @@ const server = Bun.serve<PublicationSocketData>({
         freeHostPublic: freeHostRuntime?.boundary,
         memberAuth: memberIdentityRuntime?.boundary,
         memberImports: memberImportBoundary,
-        paystackWebhooks: paystackRuntime?.webhooks,
+        paystackWebhooks: platformBillingRuntime?.webhooks ?? paystackRuntime?.webhooks,
         fumaScopedApi,
       })
       for (const [k, v] of Object.entries(cors)) {
@@ -410,6 +419,7 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   try {
     await server.stop(true)
     await Promise.all([
+      platformBillingRuntime?.close(),
       publicationSockets?.close(),
       hostedStaffAuthRuntime?.close(),
       publicProjectionRuntime?.close(),

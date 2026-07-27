@@ -56,8 +56,17 @@ describe('FUMA-056 platform billing reconciliation architecture', () => {
     expect(runtime).toContain('idempotencyKey: `platform-billing-event:${eventId}`')
   })
 
-  it('keeps the migration additive and historical billing/checkout migrations untouched', () => {
-    const migration = source('migration.ts')
+  it('finalizes additive migration 000059 without modifying historical billing/checkout migrations', () => {
+    const migration = readFileSync(
+      join(ROOT, 'server/fuma/db/migrations/000059_platform_billing_reconciliation.ts'),
+      'utf8',
+    )
+    const migrationExport = source('migration.ts')
+    const manifest = readFileSync(join(ROOT, 'server/fuma/db/migrations/index.ts'), 'utf8')
+    const releaseMigrationTest = readFileSync(
+      join(ROOT, 'src/__tests__/fuma/releaseMigration.test.ts'),
+      'utf8',
+    )
     const historicalBilling = readFileSync(
       join(ROOT, 'server/fuma/db/migrations/000028_billing_reconciliation.ts'),
       'utf8',
@@ -66,13 +75,34 @@ describe('FUMA-056 platform billing reconciliation architecture', () => {
       join(ROOT, 'server/fuma/db/migrations/000027_checkout.ts'),
       'utf8',
     )
-    expect(migration).not.toMatch(/\b(?:drop table|truncate)\b|^\s*delete\s+from/im)
+    expect(migration).not.toMatch(/\b(?:drop table|drop constraint|truncate)\b|^\s*delete\s+from/im)
+    expect(migration).toContain("id: '000059_platform_billing_reconciliation'")
     expect(migration).toContain('fuma_platform_subscription_reductions_v2')
     expect(migration).toContain('fuma_platform_obligation_settlement_guard_v2')
     expect(migration).toContain('fuma_settled_checkout_cancel_guard_v2')
     expect(migration).toContain('fuma_organization_contract_identity_guard_v2')
+    expect(migrationExport).toContain("../db/migrations/000059_platform_billing_reconciliation")
+    expect(manifest).toContain("'000059_platform_billing_reconciliation': '2e66877da6c258cb060cd0d525c70274509d8134248d7bb6c686fbb505e3d4a3'")
+    expect(releaseMigrationTest).toContain(".toBe('000060_release_followup')")
     expect(historicalBilling).toContain("id:'000028_billing_reconciliation'")
     expect(historicalCheckout).toContain("id:'000027_checkout'")
+  })
+
+  it('composes hosted webhooks, shutdown, and durable worker registration centrally', () => {
+    const server = readFileSync(join(ROOT, 'server/index.ts'), 'utf8')
+    const worker = readFileSync(
+      join(ROOT, 'server/fuma/publication/workerComposition.ts'),
+      'utf8',
+    )
+    expect(server).toContain('await createHostedPlatformBillingRuntime({')
+    expect(server).toContain('platformCheckoutRuntime && paystackRuntime && hostedFumaConfig')
+    expect(server).toContain('platformBillingRuntime?.webhooks ?? paystackRuntime?.webhooks')
+    expect(server).toContain('platformBillingRuntime?.close()')
+    expect(worker).toContain('createHostedPaystackRuntime({ db, config })')
+    expect(worker.indexOf('registerPlatformCheckoutPurposes(paystack.registry, checkoutRepository)'))
+      .toBeLessThan(worker.indexOf('createPlatformBillingRuntime({'))
+    expect(worker).toContain('...billing.jobs')
+    expect(source('runtime.ts')).toContain("PLATFORM_BILLING_RECONCILE_JOB = 'fuma.billing-reconcile'")
   })
 
   it('keeps all new billing modules below the repository source ceiling', () => {

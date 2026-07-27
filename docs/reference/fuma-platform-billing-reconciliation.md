@@ -25,4 +25,4 @@ The handoff outbox does not mutate site ownership. FUMA-074 remains the sole tra
 
 ## Migration ownership
 
-The worker exports an additive migration candidate. The conductor assigns its final hosted ID and checksum only after native PostgreSQL acceptance. Historical migrations `000027_checkout`, `000028_billing_reconciliation`, and finalized FUMA-055 migration `000058_platform_checkout_authority` remain immutable.
+The conductor finalized the additive authority as `000059_platform_billing_reconciliation` and registered its immutable checksum in the hosted migration manifest. Historical migrations `000027_checkout`, `000028_billing_reconciliation`, and finalized FUMA-055 migration `000058_platform_checkout_authority` remain immutable.
