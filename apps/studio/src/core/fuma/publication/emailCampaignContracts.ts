@@ -67,8 +67,17 @@ export const NewsletterVersionSchema = Type.Object({
 }, { additionalProperties: false })
 export type NewsletterVersion = DeepReadonly<Static<typeof NewsletterVersionSchema>>
 
+export const NewsletterFixtureKindSchema = Type.Union([
+  Type.Literal('public'),
+  Type.Literal('free-member'),
+  Type.Literal('paid-member'),
+])
+export type NewsletterFixtureKind = Static<typeof NewsletterFixtureKindSchema>
+
 export const NewsletterPreviewSchema = Type.Object({
   versionId: IdSchema,
+  fixture: NewsletterFixtureKindSchema,
+  fixtureLabel: Type.String({ minLength: 1, maxLength: 80 }),
   resolvedSubject: Type.String({ minLength: 1, maxLength: 300 }),
   html: Type.String({ minLength: 1, maxLength: 524288 }),
   text: Type.String({ maxLength: 524288 }),
@@ -76,8 +85,19 @@ export const NewsletterPreviewSchema = Type.Object({
 }, { additionalProperties: false })
 export type NewsletterPreview = DeepReadonly<Static<typeof NewsletterPreviewSchema>>
 
+export const NewsletterVersionComparisonSchema = Type.Object({
+  newsletterId: IdSchema,
+  fromVersionId: IdSchema,
+  toVersionId: IdSchema,
+  fromOrdinal: VersionSchema,
+  toOrdinal: VersionSchema,
+  changed: Type.Array(Type.Union([Type.Literal('subject'), Type.Literal('previewText'), Type.Literal('document')]), { maxItems: 3, uniqueItems: true }),
+}, { additionalProperties: false })
+export type NewsletterVersionComparison = DeepReadonly<Static<typeof NewsletterVersionComparisonSchema>>
+
 export const NewsletterTestSendCommandSchema = Type.Object({
   versionId: IdSchema,
+  fixture: Type.Optional(NewsletterFixtureKindSchema),
   recipient: EmailSchema,
   idempotencyKey: IdSchema,
 }, { additionalProperties: false })

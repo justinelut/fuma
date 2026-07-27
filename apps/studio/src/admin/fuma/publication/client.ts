@@ -8,6 +8,7 @@ import {
   EmailSettingsLayerSchema,
   NewsletterPreviewSchema,
   NewsletterSchema,
+  NewsletterVersionComparisonSchema,
   NewsletterVersionSchema,
   PublicationAnalyticsSummarySchema,
   PublicationAccessEvaluationSchema,
@@ -45,8 +46,10 @@ import {
   type DeliverabilitySummary,
   type EmailSettingsLayer,
   type Newsletter,
+  type NewsletterFixtureKind,
   type NewsletterPreview,
   type NewsletterVersion,
+  type NewsletterVersionComparison,
   type PublicationAnalyticsSummary,
   type PublicationAccessEvaluation,
   type PublicationAccessEvaluationRequest,
@@ -180,8 +183,9 @@ export class PublicationHttpClient {
   saveNewsletter(newsletter:Newsletter):Promise<Newsletter>{return this.#request('POST','/newsletters',NewsletterSchema,newsletter)}
   async newsletterVersions(newsletterId:string|null=null){return (await this.#request('GET',`/newsletter-versions${newsletterId?`?newsletterId=${encodeURIComponent(newsletterId)}`:''}`,NewsletterVersionListSchema)).versions}
   createNewsletterVersion(version:Omit<NewsletterVersion,'createdBy'|'createdAt'|'lockedAt'>):Promise<NewsletterVersion>{return this.#request('POST','/newsletter-versions',NewsletterVersionSchema,version)}
-  preview(versionId:string):Promise<NewsletterPreview>{return this.#request('GET',`/newsletter-preview/${encodeURIComponent(versionId)}`,NewsletterPreviewSchema)}
-  async testSend(versionId:string,recipient:string,idempotencyKey:string):Promise<string>{return (await this.#request('POST','/newsletter-test',MessageSchema,{versionId,recipient,idempotencyKey})).providerMessageId}
+  compareNewsletterVersions(newsletterId:string,from:string,to:string):Promise<NewsletterVersionComparison>{return this.#request('GET',`/newsletter-versions/compare?newsletterId=${encodeURIComponent(newsletterId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,NewsletterVersionComparisonSchema)}
+  preview(versionId:string,fixture:NewsletterFixtureKind='public'):Promise<NewsletterPreview>{return this.#request('GET',`/newsletter-preview/${encodeURIComponent(versionId)}?fixture=${encodeURIComponent(fixture)}`,NewsletterPreviewSchema)}
+  async testSend(versionId:string,recipient:string,idempotencyKey:string,fixture:NewsletterFixtureKind='public'):Promise<string>{return (await this.#request('POST','/newsletter-test',MessageSchema,{versionId,recipient,idempotencyKey,fixture})).providerMessageId}
   createCampaign(input:Readonly<{campaignId:string;newsletterId:string;versionId:string;segmentId:string;scheduledAt:string|null}>):Promise<CampaignSnapshot>{return this.#request('POST','/campaigns',CampaignSnapshotSchema,input)}
   async sendCampaign(campaignId:string){return (await this.#request('POST',`/campaigns/${encodeURIComponent(campaignId)}/send`,DeliveryListSchema)).deliveries}
   deliverability(from:string,to:string):Promise<DeliverabilitySummary>{return this.#request('GET',`/deliverability?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,DeliverabilitySummarySchema)}
