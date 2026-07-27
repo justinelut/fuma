@@ -36,8 +36,8 @@ const IGNORED_DIRECTORIES = new Set([
   'out',
 ])
 
-if (EXPECTED_PLATFORM !== 'linux' || (EXPECTED_ARCH !== 'arm64' && EXPECTED_ARCH !== 'x64')) {
-  throw new Error('FUMA-041 target gate requires linux and an arm64 or x64 architecture')
+if (EXPECTED_PLATFORM !== 'linux' || EXPECTED_ARCH !== 'arm64') {
+  throw new Error('FUMA-041 target gate requires exactly linux/arm64')
 }
 if (process.platform !== EXPECTED_PLATFORM || process.arch !== EXPECTED_ARCH) {
   throw new Error(

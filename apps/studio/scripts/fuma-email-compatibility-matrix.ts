@@ -6,21 +6,18 @@ import { FUMA_EMAIL_ARCHITECTURE_MATRIX } from '../server/fuma/email/compatibili
 const WORKSPACE_ROOT = resolve(import.meta.dir, '../../..')
 const targetArgument = process.argv[2]
 const receiptPath = process.env.FUMA_EMAIL_RECEIPT_PATH
-const aliases = Object.freeze({ arm64: 'arm64', amd64: 'x64' } as const)
 
-if (process.argv.length !== 3 || (targetArgument !== 'arm64' && targetArgument !== 'amd64')) {
-  throw new Error('FUMA-041 native matrix requires exactly one target argument: arm64 or amd64')
+if (process.argv.length !== 3 || targetArgument !== 'arm64') {
+  throw new Error('FUMA-041 native matrix requires exactly one supported target argument: arm64')
 }
 if (receiptPath === undefined || receiptPath.trim() === '') {
   throw new Error('FUMA-041 native matrix requires FUMA_EMAIL_RECEIPT_PATH')
 }
 
-const expectedArch = aliases[targetArgument]
-const contract = FUMA_EMAIL_ARCHITECTURE_MATRIX.find(({ arch }) => arch === expectedArch)
-if (contract === undefined) throw new Error(`FUMA-041 target ${targetArgument} is outside the declared matrix`)
+const contract = FUMA_EMAIL_ARCHITECTURE_MATRIX[0]
 if (process.platform !== contract.platform || process.arch !== contract.arch) {
   throw new Error(
-    `FUMA-041 native matrix target mismatch: ${targetArgument} requires ${contract.platform}/${contract.arch}, received ${process.platform}/${process.arch}; run it on ${contract.runner}`,
+    `FUMA-041 native matrix target mismatch: arm64 requires ${contract.platform}/${contract.arch}, received ${process.platform}/${process.arch}; run it on ${contract.runner}`,
   )
 }
 
