@@ -25,7 +25,7 @@ All work remains TypeBox-only with no app-to-app imports, no shared UI package, 
 | Orchestrator | Path | Branch | Ownership/readiness |
 |---|---|---|---|
 | 01 | `/home/ubuntu/worktrees/fuma-orch-01` | `orchestrator/01-email-preview` | **Closed:** FUMA-045 integrated as `08aef557`; validated worker commit `623a2a1b` is pushed to `fuma`. No migration was required. |
-| 02 | `/home/ubuntu/worktrees/fuma-orch-02` | `orchestrator/02-ghost-import` | **Ready:** FUMA-075 reusable structured Ghost import. Reuse existing authorities/migrations unless a demonstrated additive schema gap requires a conductor-assigned candidate. |
+| 02 | `/home/ubuntu/worktrees/fuma-orch-02` | `orchestrator/02-ghost-import` | **Closed:** FUMA-075 integrated as `6c3008fe`; validated worker commit `017a0965` is pushed to `fuma`. Existing finalized migration `000038` was reused; no migration was added. |
 | 03 | `/home/ubuntu/worktrees/fuma-orch-03` | `orchestrator/03-email-campaigns` | **Closed:** FUMA-046 integrated as `bd36d5c8`; validated worker commit `134c76d6` is pushed to `fuma`. Migration `000053` is conductor-finalized. |
 | 04 | `/home/ubuntu/worktrees/fuma-orch-04` | `orchestrator/04-deliverability` | **Ready:** FUMA-047 suppression, unsubscribe, provider events, sender/domain health, and privacy-aware engagement/deliverability. Candidate migration ID `000054` is reserved only for a demonstrated additive gap. |
 | 05 | `/home/ubuntu/worktrees/fuma-orch-05` | `orchestrator/05-edge-delivery` | Reserved for FUMA-051 only after FUMA-047 closes. |
@@ -37,4 +37,4 @@ All work remains TypeBox-only with no app-to-app imports, no shared UI package, 
 
 ## Agent release rule
 
-FUMA-047 and FUMA-075 are dependency-ready after FUMA-046 closure. That is still fewer than the four independent complete tickets required by the repository's exactly-four-agent delegation policy, so no subagent invocation is authorized for this wave. Worktrees 05–10 remain intentionally idle rather than populated with invented or dependency-blocked work. Recompute dependencies after each conductor closure; start an agent invocation only when exactly four non-overlapping complete-ticket/phase assignments are ready, with all four stages parallel and pinned to `gpt-5.6-sol`.
+FUMA-047 is the only dependency-ready ticket after FUMA-075 closure. FUMA-076 remains blocked on open FUMA-058 even though its FUMA-075 dependency is now complete. One ready ticket is fewer than the four independent complete tickets required by the repository's exactly-four-agent delegation policy, so no subagent invocation is authorized for this wave. Worktrees 02 and 05–10 remain intentionally idle rather than populated with invented or dependency-blocked work. Recompute dependencies after each conductor closure; start an agent invocation only when exactly four non-overlapping complete-ticket/phase assignments are ready, with all four stages parallel and pinned to `gpt-5.6-sol`.
