@@ -40,6 +40,7 @@ import {
   type PublicationTemplate,
   type PublicationWorkflowTransition,
   type ResolvedEmailSettings,
+  type ScopedEmailSuppression,
   type Suppression,
   type UnsubscribeTokenClaims,
 } from '@core/fuma/publication'
@@ -459,15 +460,21 @@ export class PublicationNewsletterService {
   }
 }
 
+export interface PublicationScopedSuppressionControl {
+  suppress(scope:PublicationRepositoryScope,input:ScopedEmailSuppression):Promise<ScopedEmailSuppression>
+}
+
 export class PublicationDeliverabilityService {
   readonly #store: PublicationDomainStore
   readonly #ids: PublicationIdAuthority
   readonly #now: () => Date
+  readonly #scopedSuppressions:PublicationScopedSuppressionControl|null
 
-  constructor(store: PublicationDomainStore, ids: PublicationIdAuthority, now: () => Date = () => new Date()) {
+  constructor(store: PublicationDomainStore, ids: PublicationIdAuthority, now: () => Date = () => new Date(), scopedSuppressions:PublicationScopedSuppressionControl|null=null) {
     this.#store = store
     this.#ids = ids
     this.#now = now
+    this.#scopedSuppressions=scopedSuppressions
   }
   async suppress(scope: PublicationRepositoryScope, input: Suppression): Promise<Suppression> {
     const suppression = parsePublicationContract('suppression', SuppressionSchema, input)
@@ -502,20 +509,23 @@ export class PublicationDeliverabilityService {
     if (!claims || claims.memberId !== member.memberId) {
       throw new PublicationDomainError('token-invalid', 'Unsubscribe token is invalid, expired, or already consumed.')
     }
+    if(this.#scopedSuppressions)await this.#scopedSuppressions.suppress(scope,{...suppression,level:token.newsletterId===null?'site':'newsletter',newsletterId:token.newsletterId})
     return suppression
   }
   async ingestOciEvent(scope: PublicationRepositoryScope, rawBody: string, input: OciEmailProviderEvent): Promise<boolean> {
     const event = parsePublicationContract('OCI provider event', OciEmailProviderEventSchema, input)
-    const suppression = event.eventType === 'bounced' || event.eventType === 'complained'
+    const suppression = event.eventType === 'bounced' || event.eventType === 'complained' || event.eventType === 'unsubscribed'
       ? parsePublicationContract('suppression', SuppressionSchema, {
           suppressionId: this.#ids.id('suppression'),
           emailHashSha256: this.#ids.sha256(event.recipientEmail.trim().toLowerCase()),
-          reason: event.eventType === 'bounced' ? 'hard-bounce' : 'complaint',
+          reason: event.eventType === 'bounced' ? 'hard-bounce' : event.eventType === 'complained' ? 'complaint' : 'unsubscribe',
           sourceId: event.eventId,
           createdAt: event.occurredAt,
         })
       : null
-    return await this.#store.recordProviderEvent(scope, event, this.#ids.sha256(rawBody), suppression)
+    const recorded=await this.#store.recordProviderEvent(scope, event, this.#ids.sha256(rawBody), suppression)
+    if(recorded&&suppression&&this.#scopedSuppressions)await this.#scopedSuppressions.suppress(scope,{...suppression,level:'global',newsletterId:null})
+    return recorded
   }
 
   summary(scope: PublicationRepositoryScope, from: string, to: string): Promise<DeliverabilitySummary> {

@@ -23,6 +23,8 @@ import { createDynamicPublicationComposition } from './dynamicPublicationComposi
 import { createPublicationPrivacyAnalyticsFeature } from './privacyAnalyticsComposition'
 import { createNewsletterComposerServiceGraph } from './newsletterComposerComposition'
 import { PublicationCampaignService } from './campaignDelivery'
+import { PublicationDeliverabilityControlService } from './deliverability'
+import { PostgresPublicationDeliverabilityControlStore } from './deliverabilityPostgres'
 import {
   PublicationAnalyticsService,
   PublicationAudienceService,
@@ -55,6 +57,7 @@ export type FumaPublicationServiceGraph=Readonly<PublicationRoutePorts&{
   dynamicPublication:ReturnType<typeof createDynamicPublicationComposition>
   privacyAnalytics:ReturnType<typeof createPublicationPrivacyAnalyticsFeature>
   newsletterComposer:ReturnType<typeof createNewsletterComposerServiceGraph>
+  deliverabilityControls:PublicationDeliverabilityControlService
   scopedRoutes:readonly FumaScopedRouteDeclaration[]
 }>
 
@@ -67,9 +70,10 @@ export function createFumaPublicationServiceGraph(input:FumaPublicationServicesI
   const workflow=new PublicationWorkflowService(new PostgresPublicationWorkflowStore(input.db),store,now)
   const editorial=new PublicationEditorialService(store,input.jobs??null,workflow)
   const identity=new PublicationIdentityService(store)
-  const deliverability=new PublicationDeliverabilityService(store,input.ids,input.now)
+  const deliverabilityControls=new PublicationDeliverabilityControlService(new PostgresPublicationDeliverabilityControlStore(input.db),input.ids,input.now)
+  const deliverability=new PublicationDeliverabilityService(store,input.ids,input.now,deliverabilityControls)
   const unsubscribe=input.unsubscribe??input.unsubscribeFactory?.(deliverability)
-  const campaigns=new PublicationCampaignService({store,audience,newsletters,ids:input.ids,oci:input.oci,...(input.jobs?{jobs:input.jobs}:{}),...(unsubscribe?{unsubscribe}:{}),...(input.now?{now:input.now}:{})})
+  const campaigns=new PublicationCampaignService({store,audience,newsletters,ids:input.ids,oci:input.oci,deliverabilityControls,...(input.jobs?{jobs:input.jobs}:{}),...(unsubscribe?{unsubscribe}:{}),...(input.now?{now:input.now}:{})})
   const collaboration=new PublicationCollaborationService(new PostgresPublicationCollaborationStore(input.db),now,new PublicationCollaborationEvents(input.redis))
   const revisions=new PublicationRevisionService({repository:new PostgresPublicationRevisionRepository(input.db),snapshots:new PublicationRevisionSnapshotStore(input.objectStorage),ids:input.ids,...(input.now?{now:input.now}:{})})
   const memberAccess=new PublicationMemberAccessService({repository:new PostgresPublicationMemberAccessRepository(input.db),domain:store,ids:input.ids,...(input.now?{now:input.now}:{})})
@@ -92,7 +96,7 @@ export function createFumaPublicationServiceGraph(input:FumaPublicationServicesI
     ids:input.ids,
     ...(input.now?{now:input.now}:{}),
   })
-  const routePorts:PublicationRoutePorts={store,ids:input.ids,presence:new PublicationPresenceService(input.redis),collaboration,revisions,workflow,editorial,identity,audience,memberAccess,analytics:new PublicationAnalyticsService(store),settings,newsletters,campaigns,deliverability,...(input.now?{now:input.now}:{})}
+  const routePorts:PublicationRoutePorts={store,ids:input.ids,presence:new PublicationPresenceService(input.redis),collaboration,revisions,workflow,editorial,identity,audience,memberAccess,analytics:new PublicationAnalyticsService(store),settings,newsletters,campaigns,deliverability,deliverabilityControls,...(input.now?{now:input.now}:{})}
   const scopedRoutes=Object.freeze([
     ...createPublicationScopedRouteDeclarations(routePorts),
     ...createPublicationSchedulingScopedRoutes(scheduling),
@@ -109,6 +113,7 @@ export function createFumaPublicationServiceGraph(input:FumaPublicationServicesI
     dynamicPublication,
     privacyAnalytics,
     newsletterComposer,
+    deliverabilityControls,
     scopedRoutes,
   })
 }

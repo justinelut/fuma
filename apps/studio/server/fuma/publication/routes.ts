@@ -5,6 +5,10 @@ import {
   CollaborationReconcileCommandSchema,
   CollaborationReconcileResultSchema,
   DeliverabilitySummarySchema,
+  PublicationEngagementConsentSchema,
+  PublicationEngagementSummarySchema,
+  ScopedEmailSuppressionSchema,
+  SenderDomainHealthSchema,
   EmailSettingsLayerSchema,
   NewsletterFixtureKindSchema,
   NewsletterPreviewSchema,
@@ -63,6 +67,7 @@ import type { PublicationCollaborationService, PublicationPresenceService } from
 import type { PublicationRevisionService } from './revisions'
 import { decidePublicationPresentation } from './presentation'
 import type { PublicationCampaignService } from './campaignDelivery'
+import type { PublicationDeliverabilityControlService } from './deliverability'
 import type {
   PublicationAnalyticsService,
   PublicationAudienceService,
@@ -122,6 +127,8 @@ const NewsletterVersionCommandSchema = Type.Omit(NewsletterVersionSchema, ['crea
 const NewsletterFixtureQuerySchema = Type.Object({ fixture: NewsletterFixtureKindSchema }, { additionalProperties: false })
 const NewsletterVersionComparisonQuerySchema = Type.Object({ newsletterId: Type.String({ minLength: 1, maxLength: 255 }), from: Type.String({ minLength: 1, maxLength: 255 }), to: Type.String({ minLength: 1, maxLength: 255 }) }, { additionalProperties: false })
 const UnsubscribeCommandSchema = Type.Object({ tokenId: Type.String({ minLength: 1, maxLength: 255 }) }, { additionalProperties: false })
+const SenderDomainHealthListSchema=Type.Object({domains:Type.Array(SenderDomainHealthSchema,{maxItems:1000})},{additionalProperties:false})
+const EngagementConsentCommandSchema=Type.Object({consent:PublicationEngagementConsentSchema,expectedVersion:Type.Union([Type.Integer({minimum:1}),Type.Null()])},{additionalProperties:false})
 
 export type PublicationRoutePorts = Readonly<{
   store: PublicationDomainStore
@@ -139,6 +146,7 @@ export type PublicationRoutePorts = Readonly<{
   newsletters: PublicationNewsletterService
   campaigns: PublicationCampaignService
   deliverability: PublicationDeliverabilityService
+  deliverabilityControls: PublicationDeliverabilityControlService
   now?: () => Date
 }>
 
@@ -264,6 +272,12 @@ export function createPublicationScopedRouteDeclarations(ports: PublicationRoute
     route('POST', '/publication/campaigns/:campaignId/cancel', 'publication.newsletters.send', async (input) => json(CampaignSnapshotSchema, await ports.campaigns.cancel(scoped(input), input.params.campaignId!))),
     route('POST', '/publication/campaigns/:campaignId/send', 'publication.newsletters.send', async (input) => json(DeliveryListSchema, { deliveries: await ports.campaigns.send(scoped(input), input.params.campaignId!) })),
     route('POST', '/publication/unsubscribe', 'publication.members.write', async (input) => { const command=await body(input,UnsubscribeCommandSchema); await ports.deliverability.unsubscribe(scoped(input),command.tokenId); return json(BooleanResultSchema,{accepted:true}) }),
+    route('POST', '/publication/deliverability/suppressions', 'publication.newsletters.send', async (input) => json(ScopedEmailSuppressionSchema,await ports.deliverabilityControls.suppress(scoped(input),await body(input,ScopedEmailSuppressionSchema)),201)),
+    route('POST', '/publication/deliverability/domains', 'publication.newsletters.send', async (input) => json(SenderDomainHealthSchema,await ports.deliverabilityControls.saveDomainHealth(scoped(input),await body(input,SenderDomainHealthSchema)))),
+    route('GET', '/publication/deliverability/domains', 'publication.analytics.read', async (input) => json(SenderDomainHealthListSchema,{domains:await ports.deliverabilityControls.domainHealth(scoped(input))})),
+    route('POST', '/publication/engagement/consent', 'publication.members.write', async (input) => {const command=await body(input,EngagementConsentCommandSchema);return json(PublicationEngagementConsentSchema,await ports.deliverabilityControls.setEngagementConsent(scoped(input),command.consent,command.expectedVersion))}),
+    route('POST', '/publication/engagement/:memberId/opt-out', 'publication.members.write', async (input) => json(PublicationEngagementConsentSchema,await ports.deliverabilityControls.optOut(scoped(input),input.params.memberId!))),
+    route('GET', '/publication/engagement', 'publication.analytics.read', async (input) => json(PublicationEngagementSummarySchema,await ports.deliverabilityControls.summary(scoped(input),query(input).get('from')??'',query(input).get('to')??''))),
     route('GET', '/publication/deliverability', 'publication.analytics.read', async (input) => json(DeliverabilitySummarySchema, await ports.deliverability.summary(scoped(input), query(input).get('from') ?? '', query(input).get('to') ?? ''))),
   ])
 }

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type {
   CampaignProgress,
   DeliverabilitySummary,
+  PublicationEngagementSummary,
+  SenderDomainHealth,
   Newsletter,
   NewsletterFixtureKind,
   NewsletterPreview,
@@ -104,10 +106,10 @@ function AudienceSurface({client,canWrite,members,segments,onMember,onSegment}:{
 }
 
 function AnalyticsSurface({ client }: {client:PublicationHttpClient}) {
-  const [summary,setSummary]=useState<PublicationAnalyticsSummary|null>(null);const [delivery,setDelivery]=useState<DeliverabilitySummary|null>(null);const [error,setError]=useState('')
-  useEffect(()=>{const to=new Date().toISOString();const from=new Date(Date.now()-30*86400000).toISOString();void Promise.all([client.analytics(from,to),client.deliverability(from,to)]).then(([analytics,deliverability])=>{setSummary(analytics);setDelivery(deliverability)}).catch(reason=>setError(getErrorMessage(reason, 'Analytics failed.')))},[client])
+  const [summary,setSummary]=useState<PublicationAnalyticsSummary|null>(null);const [delivery,setDelivery]=useState<DeliverabilitySummary|null>(null);const [engagement,setEngagement]=useState<PublicationEngagementSummary|null>(null);const [domains,setDomains]=useState<readonly SenderDomainHealth[]>([]);const [error,setError]=useState('')
+  useEffect(()=>{const to=new Date().toISOString();const from=new Date(Date.now()-30*86400000).toISOString();void Promise.all([client.analytics(from,to),client.deliverability(from,to),client.engagement(from,to),client.senderDomainHealth()]).then(([analytics,deliverability,nextEngagement,nextDomains])=>{setSummary(analytics);setDelivery(deliverability);setEngagement(nextEngagement);setDomains(nextDomains)}).catch(reason=>setError(getErrorMessage(reason, 'Analytics failed.')))},[client])
   if(error)return <Status error>{error}</Status>
-  return <div className={styles.metrics}><Panel title="Views" description="Privacy-bounded publication activity."><strong>{summary?.views??'—'}</strong><span>{summary?.uniqueVisitors??'—'} unique</span></Panel><Panel title="Members" description="New readers in this range."><strong>{summary?.memberSignups??'—'}</strong></Panel><Panel title="Email" description="Provider-confirmed delivery health."><strong>{delivery?`${Math.round(delivery.deliveryRate*100)}%`:'—'}</strong><span>{delivery?.bounced??'—'} bounced · {delivery?.complained??'—'} complaints</span></Panel></div>
+  return <div className={styles.metrics}><Panel title="Views" description="Privacy-bounded publication activity."><strong>{summary?.views??'—'}</strong><span>{summary?.uniqueVisitors??'—'} unique</span></Panel><Panel title="Members" description="New readers in this range."><strong>{summary?.memberSignups??'—'}</strong></Panel><Panel title="Email" description="Provider-confirmed delivery health."><strong>{delivery?`${Math.round(delivery.deliveryRate*100)}%`:'—'}</strong><span>{delivery?.bounced??'—'} bounced · {delivery?.complained??'—'} complaints</span></Panel><Panel title="First-party engagement" description="Consent-only Fuma open/click events, separate from OCI logs."><strong>{engagement?.opens??'—'}</strong><span>{engagement?.clicks??'—'} clicks · {engagement?.optedOutMembers??'—'} opted out · {engagement?.expiredPurged??'—'} expired purged</span></Panel><Panel title="Sender domain health" description="Approved senders and current SPF, DKIM, and DMARC status.">{domains.length?<ul>{domains.map(domain=><li key={domain.domainId}><strong>{domain.domain}</strong> · {domain.productionReady?'Ready':'Not ready'}<br/><span>SPF {domain.spf} · DKIM {domain.dkim} · DMARC {domain.dmarc}</span>{domain.diagnostics.length?<ul>{domain.diagnostics.map(item=><li key={item}>{item}</li>)}</ul>:null}</li>)}</ul>:<Status>No sender domains configured.</Status>}</Panel></div>
 }
 
 function NewsletterSurface({ client,canWrite,canSend,newsletters,versions,segments,onNewsletter,onVersion }: {client:PublicationHttpClient;canWrite:boolean;canSend:boolean;newsletters:readonly Newsletter[];versions:readonly NewsletterVersion[];segments:readonly PublicationSegment[];onNewsletter:(value:Newsletter)=>void;onVersion:(value:NewsletterVersion)=>void}) {

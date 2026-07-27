@@ -6,10 +6,13 @@ import { clientIp } from '../../auth/security'
 import type { FumaRedisCoordination } from '../redis'
 import { PublicationRepositoryScopeSchema, type PublicationRepositoryScope } from './scope'
 import type { PublicationDeliverabilityService } from './services'
+import type { PublicationDeliverabilityControlService } from './deliverability'
+import type { PublicationEngagementTokenSigner } from './engagementTokens'
 import type { PublicationUnsubscribeTokenSigner } from './unsubscribeTokens'
 
 const UNSUBSCRIBE_PATH = '/_fuma/publication/unsubscribe'
 const OCI_EVENTS_PATH = '/_fuma/publication/oci-events'
+const ENGAGEMENT_PATH = '/_fuma/publication/engagement'
 const MAX_EVENT_BYTES = 256 * 1024
 
 export interface PublicationProviderEventVerifier {
@@ -52,6 +55,7 @@ export type PublicationPublicBoundaryOptions=Readonly<{
   deliverability:PublicationDeliverabilityService
   authority:PublicationPublicAuthority
   verifier:PublicationProviderEventVerifier
+  engagement?:Readonly<{signer:PublicationEngagementTokenSigner;control:PublicationDeliverabilityControlService}>
   redis:Pick<FumaRedisCoordination,'consumeLimit'>
   now?:()=>Date
 }>
@@ -62,11 +66,12 @@ function key(request:Request,kind:string):string{return `publication-public:${ki
 export class PublicationPublicBoundary {
   readonly #options:PublicationPublicBoundaryOptions
   constructor(options:PublicationPublicBoundaryOptions){this.#options=options}
-  handles(request:Request):boolean{const path=new URL(request.url).pathname;return path===UNSUBSCRIBE_PATH||path===OCI_EVENTS_PATH}
+  handles(request:Request):boolean{const path=new URL(request.url).pathname;return path===UNSUBSCRIBE_PATH||path===OCI_EVENTS_PATH||(path===ENGAGEMENT_PATH&&this.#options.engagement!==undefined)}
   async handle(request:Request):Promise<Response|null>{
     const url=new URL(request.url)
     if(url.pathname===UNSUBSCRIBE_PATH)return await this.#unsubscribe(request,url)
     if(url.pathname===OCI_EVENTS_PATH)return await this.#event(request)
+    if(url.pathname===ENGAGEMENT_PATH&&this.#options.engagement)return await this.#engagement(request,url)
     return null
   }
   async #unsubscribe(request:Request,url:URL):Promise<Response>{
@@ -76,6 +81,16 @@ export class PublicationPublicBoundary {
     const token=url.searchParams.get('token')??''
     const payload=this.#options.signer.verify(token,(this.#options.now??(()=>new Date()))())
     if(payload){try{await this.#options.deliverability.unsubscribe(payload.scope,payload.claims.tokenId)}catch(_error){/* non-oracular */}}
+    return response()
+  }
+  async #engagement(request:Request,url:URL):Promise<Response>{
+    if(request.method!=='GET'&&request.method!=='POST')return response(405)
+    const limit=await this.#options.redis.consumeLimit(key(request,'engagement'),{limit:300,windowMs:60_000})
+    if(!limit.allowed)return response(429)
+    const now=(this.#options.now??(()=>new Date()))()
+    const engagement=this.#options.engagement
+    const payload=engagement?.signer.verify(url.searchParams.get('token')??'',now)
+    if(payload&&engagement){await engagement.control.recordEngagement(payload.scope,{kind:payload.claims.kind,campaignId:payload.claims.campaignId,memberId:payload.claims.memberId,targetUrlHashSha256:payload.claims.targetUrlHashSha256,occurredAt:now.toISOString()})}
     return response()
   }
   async #event(request:Request):Promise<Response>{
