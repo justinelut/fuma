@@ -115,11 +115,34 @@ export const CampaignSnapshotSchema = Type.Object({
   html: Type.String({ minLength: 1, maxLength: 524288 }),
   text: Type.String({ maxLength: 524288 }),
   sender: ResolvedEmailSettingsSchema,
+  audienceSha256: Sha256Schema,
+  contentSha256: Sha256Schema,
+  messageSizeBytes: Type.Integer({ minimum: 1, maximum: 2097152 }),
   snapshotSha256: Sha256Schema,
   scheduledAt: NullableTimestampSchema,
   createdAt: TimestampSchema,
 }, { additionalProperties: false })
 export type CampaignSnapshot = DeepReadonly<Static<typeof CampaignSnapshotSchema>>
+
+export const CampaignProgressSchema = Type.Object({
+  campaignId: IdSchema,
+  status: CampaignStatusSchema,
+  recipientCount: Type.Integer({ minimum: 0, maximum: 100000 }),
+  queued: Type.Integer({ minimum: 0, maximum: 100000 }),
+  submitted: Type.Integer({ minimum: 0, maximum: 100000 }),
+  delivered: Type.Integer({ minimum: 0, maximum: 100000 }),
+  deferred: Type.Integer({ minimum: 0, maximum: 100000 }),
+  bounced: Type.Integer({ minimum: 0, maximum: 100000 }),
+  complained: Type.Integer({ minimum: 0, maximum: 100000 }),
+  suppressed: Type.Integer({ minimum: 0, maximum: 100000 }),
+  failed: Type.Integer({ minimum: 0, maximum: 100000 }),
+  completed: Type.Integer({ minimum: 0, maximum: 100000 }),
+  audienceSha256: Sha256Schema,
+  contentSha256: Sha256Schema,
+  snapshotSha256: Sha256Schema,
+  messageSizeBytes: Type.Integer({ minimum: 1, maximum: 2097152 }),
+}, { additionalProperties: false })
+export type CampaignProgress = DeepReadonly<Static<typeof CampaignProgressSchema>>
 
 export const CampaignDeliverySchema = Type.Object({
   deliveryId: IdSchema,

@@ -2,6 +2,7 @@ import { apiRequest, type FetchLike } from '@core/http'
 import { Type, safeParseValue, type Static, type TSchema } from '@core/utils/typeboxHelpers'
 import {
   CampaignDeliverySchema,
+  CampaignProgressSchema,
   CampaignSnapshotSchema,
   CollaborationReconcileResultSchema,
   DeliverabilitySummarySchema,
@@ -40,6 +41,7 @@ import {
   PublicationTagSchema,
   PublicationTemplateSchema,
   ResolvedEmailSettingsSchema,
+  type CampaignProgress,
   type CampaignSnapshot,
   type CollaborationOperationInput,
   type CollaborationReconcileResult,
@@ -187,6 +189,8 @@ export class PublicationHttpClient {
   preview(versionId:string,fixture:NewsletterFixtureKind='public'):Promise<NewsletterPreview>{return this.#request('GET',`/newsletter-preview/${encodeURIComponent(versionId)}?fixture=${encodeURIComponent(fixture)}`,NewsletterPreviewSchema)}
   async testSend(versionId:string,recipient:string,idempotencyKey:string,fixture:NewsletterFixtureKind='public'):Promise<string>{return (await this.#request('POST','/newsletter-test',MessageSchema,{versionId,recipient,idempotencyKey,fixture})).providerMessageId}
   createCampaign(input:Readonly<{campaignId:string;newsletterId:string;versionId:string;segmentId:string;scheduledAt:string|null}>):Promise<CampaignSnapshot>{return this.#request('POST','/campaigns',CampaignSnapshotSchema,input)}
+  campaignProgress(campaignId:string):Promise<CampaignProgress>{return this.#request('GET',`/campaigns/${encodeURIComponent(campaignId)}/progress`,CampaignProgressSchema)}
+  cancelCampaign(campaignId:string):Promise<CampaignSnapshot>{return this.#request('POST',`/campaigns/${encodeURIComponent(campaignId)}/cancel`,CampaignSnapshotSchema)}
   async sendCampaign(campaignId:string){return (await this.#request('POST',`/campaigns/${encodeURIComponent(campaignId)}/send`,DeliveryListSchema)).deliveries}
   deliverability(from:string,to:string):Promise<DeliverabilitySummary>{return this.#request('GET',`/deliverability?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,DeliverabilitySummarySchema)}
   workflowInbox(){return this.#request('GET','/workflow/inbox',PublicationWorkflowInboxSchema)}

@@ -1,5 +1,5 @@
 import { Type, safeParseValue } from '@core/utils/typeboxHelpers'
-import type { OciEmailDeliveryProvider } from './services'
+import type { OciEmailDeliveryProvider } from './servicePorts'
 
 const OciSubmitResponseSchema = Type.Object({
   messageId: Type.String({ minLength: 1, maxLength: 255 }),
