@@ -37,7 +37,7 @@ describe('FUMA-048 release hosted migration', () => {
     expect(hostedMigrations[releaseIndex - 1]?.id).toBe('000010_editor_resources')
     expect(runnableHostedMigrations).toContain(releasesMigration)
     expect(nextHostedMigrationId(hostedMigrations, 'release followup'))
-      .toBe('000057_release_followup')
+      .toBe('000058_release_followup')
     expect(HOSTED_MIGRATION_CHECKSUMS).toMatchObject(PRIOR_CHECKSUMS)
     expect(HOSTED_MIGRATION_CHECKSUMS[releasesMigration.id]).toBe(RELEASES_CHECKSUM)
     expect(hostedMigrationChecksum(releasesMigration.sql)).toBe(RELEASES_CHECKSUM)

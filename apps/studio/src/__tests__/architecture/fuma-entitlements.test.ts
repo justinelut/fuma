@@ -43,6 +43,7 @@ describe('FUMA-054 entitlement architecture', () => {
   it('ships PostgreSQL repository/runtime authority and atomic awaiting-payment acceptance only', () => {
     const postgres = source('postgres.ts')
     const runtime = source('runtime.ts')
+    const server = readFileSync(join(ROOT, 'server/index.ts'), 'utf8')
     expect(postgres).toContain('class PostgresEntitlementRepository')
     expect(postgres).toContain('class PostgresOfferDestinationAuthority')
     expect(postgres).toContain('for update of o')
@@ -50,18 +51,24 @@ describe('FUMA-054 entitlement architecture', () => {
     expect(postgres).not.toContain("state='active'")
     expect(runtime).toContain('PostgresProviderCostCatalog')
     expect(runtime).toContain('PostgresEntitlementRepository')
+    expect(runtime).toContain('FUMA_KES_FX_VERSION')
+    expect(runtime).toContain('(usdMicros * numerator + denominator - 1n) / denominator')
+    expect(server).toContain('createHostedEntitlementRuntime({')
+    expect(server).toContain('costConversionVersion: hostedKesCostConversion.version')
   })
 
-  it('keeps the candidate migration unregistered, additive, immutable, and lifecycle-exact', () => {
-    const migration = source('migration.ts')
+  it('keeps finalized migration 000057 registered, additive, immutable, and lifecycle-exact', () => {
+    const migration = readFileSync(join(ROOT, 'server/fuma/db/migrations/000057_entitlement_evidence.ts'), 'utf8')
     const index = readFileSync(join(ROOT, 'server/fuma/db/migrations/index.ts'), 'utf8')
-    expect(index).not.toContain('entitlementEvidenceMigrationCandidate')
+    expect(index).toContain("import { entitlementEvidenceMigration } from './000057_entitlement_evidence'")
+    expect(index).toContain("'000057_entitlement_evidence': '0aa1ce2983b7e4781c03f2d8f437be1779a75f3cd5d31f7b0e24197a87c6f016'")
     expect(migration).not.toMatch(/\b(?:drop|truncate)\b|^\s*delete\s+from/im)
     for (const table of ['fuma_price_book_evidence', 'fuma_custom_offer_evidence', 'fuma_entitlement_assignments', 'fuma_entitlement_snapshots', 'fuma_grandfathered_assignments']) {
       expect(migration).toContain(`create table ${table}`)
     }
-    expect(migration).toContain("old.state='issued' and new.state in ('accepted','withdrawn','expired')")
-    expect(migration).toContain("state='awaiting-payment' and activated_at is null")
+    expect(migration).toContain("old.state = 'issued' and new.state in ('accepted', 'withdrawn', 'expired')")
+    expect(migration).toContain("state <> 'awaiting-payment'")
+    expect(migration).toContain('pre-FUMA-054 commercial rows require reviewed immutable-evidence backfill')
   })
 
   it('keeps every entitlement module within the repository source ceiling', () => {

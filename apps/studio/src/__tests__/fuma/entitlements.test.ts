@@ -13,6 +13,7 @@ import {
   EntitlementService,
   MemoryEntitlementRepository,
   PriceBookDraftSchema,
+  readHostedKesCostConversion,
   type CustomOfferDraft,
   type OfferDestinationAuthority,
   type PriceBookDraft,
@@ -69,7 +70,7 @@ function harness(now: () => Date = () => NOW, inputs: readonly ProviderCostInput
   const destinations = new Destinations()
   const service = new EntitlementService({
     repository, destinations, catalog: new VersionedCostCatalog(inputs, now),
-    usdMicrosToKesMinor: (value) => Number(value / 100n), now,
+    usdMicrosToKesMinor: (value) => Number(value / 100n), costConversionVersion: 'test-kes-fx-v1', now,
   })
   return { repository, destinations, service }
 }
@@ -79,6 +80,21 @@ async function issued(service: EntitlementService, draft: CustomOfferDraft = off
 }
 
 describe('FUMA-054 plans, offers, and entitlement behavior', () => {
+  it('uses versioned positive integer FX authority and rounds provider cost upward', () => {
+    const conversion = readHostedKesCostConversion({
+      FUMA_KES_FX_VERSION: 'central-bank-2026-07-v1',
+      FUMA_KES_MINOR_NUMERATOR: '13',
+      FUMA_USD_MICROS_DENOMINATOR: '1000',
+    })
+    expect(conversion.convert(1n)).toBe(1)
+    expect(conversion.convert(1_000n)).toBe(13)
+    expect(() => readHostedKesCostConversion({
+      FUMA_KES_FX_VERSION: 'missing-rate',
+      FUMA_KES_MINOR_NUMERATOR: '0',
+      FUMA_USD_MICROS_DENOMINATOR: '1000',
+    })).toThrow(TypeError)
+  })
+
   it('accepts strict TypeBox drafts and emits a strictly public pricing projection with no private economics', async () => {
     const { service } = harness()
     expect(Value.Check(PriceBookDraftSchema, priceBook())).toBe(true)
@@ -87,6 +103,7 @@ describe('FUMA-054 plans, offers, and entitlement behavior', () => {
     expect(Object.keys(book.publicJson)).toEqual(['items'])
     expect(book.publicJson.items.every((item) => Value.Check(PublicPricingPlanSchema, item))).toBe(true)
     expect(book.publicJson.items).toHaveLength(2)
+    expect(new Set(book.plans.map(({ economics }) => economics.conversionVersion))).toEqual(new Set(['test-kes-fx-v1']))
     const publicText = JSON.stringify(book.publicJson)
     for (const forbidden of ['economics', 'workloadAssumptions', 'costModelVersion', 'provider', 'discount']) expect(publicText).not.toContain(forbidden)
     expect(book.publicJson.items[0]?.quotas.find(({ key }) => key === 'email-recipients-day')).toEqual({ key: 'email-recipients-day', label: 'Email recipients per day', limit: 100, unit: 'count' })

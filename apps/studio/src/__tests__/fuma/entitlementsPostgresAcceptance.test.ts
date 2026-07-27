@@ -4,13 +4,13 @@ import { workspacesMigration } from '../../../server/fuma/db/migrations/000005_w
 import { sitesMigration } from '../../../server/fuma/db/migrations/000006_sites'
 import { meteringMigration } from '../../../server/fuma/db/migrations/000024_metering'
 import { entitlementsMigration } from '../../../server/fuma/db/migrations/000026_entitlements'
+import { entitlementEvidenceMigration } from '../../../server/fuma/db/migrations/000057_entitlement_evidence'
 import { PLATFORM_ORGANIZATION_ID } from '../../../server/fuma/organizations/contracts'
 import { HOSTED_COST_BASELINE_V1, METER_CLASSES, PostgresProviderCostCatalog } from '../../../server/fuma/metering'
 import {
   EntitlementService,
   PostgresEntitlementRepository,
   PostgresOfferDestinationAuthority,
-  entitlementEvidenceMigrationCandidate,
   evidenceSha256,
   type QuotaEnvelope,
   type WorkloadAssumptions,
@@ -46,7 +46,7 @@ describe('FUMA-054 optional live PostgreSQL acceptance', () => {
         await tx.unsafe(sitesMigration.sql)
         await tx.unsafe(meteringMigration.sql)
         await tx.unsafe(entitlementsMigration.sql)
-        await tx.unsafe(entitlementEvidenceMigrationCandidate.sql)
+        await tx.unsafe(entitlementEvidenceMigration.sql)
       })
       await db.unsafe("insert into auth_organizations(id) values ('org-a'),('fuma-platform'); insert into fuma_workspaces(id,organization_id,slug,name,status,is_default) values ('workspace-a','org-a','primary','Primary','active',true); insert into fuma_sites(organization_id,workspace_id,id,slug,name,status,profile_id) values ('org-a','workspace-a','site-a','site-a','Site A','active','website')")
       const catalog = new PostgresProviderCostCatalog(db, () => NOW)
@@ -56,7 +56,7 @@ describe('FUMA-054 optional live PostgreSQL acceptance', () => {
       await catalog.append({ ...siteBaseline, version: 'sites-invoice', source: 'invoice', effectiveAt: '2026-07-10T00:00:00.000Z' })
       expect(await catalog.cost('sites', 1)).toMatchObject({ version: 'sites-invoice', source: 'invoice' })
       const repository = new PostgresEntitlementRepository(db)
-      const service = new EntitlementService({ repository, catalog, destinations: new PostgresOfferDestinationAuthority(db), usdMicrosToKesMinor: (value) => Number(value / 100n), now: () => NOW })
+      const service = new EntitlementService({ repository, catalog, destinations: new PostgresOfferDestinationAuthority(db), usdMicrosToKesMinor: (value) => Number(value / 100n), costConversionVersion: 'test-kes-fx-v1', now: () => NOW })
 
       const internal = await Promise.all(Array.from({ length: 8 }, () => service.ensureInternalGrant(PLATFORM_ORGANIZATION_ID, quotas)))
       expect(new Set(internal.map((value) => evidenceSha256(value)))).toHaveLength(1)
@@ -77,7 +77,8 @@ describe('FUMA-054 optional live PostgreSQL acceptance', () => {
       expect(Number(counts.rows[0]!.evidence)).toBe(1)
       expect(Number(counts.rows[0]!.grants)).toBe(1)
       await expect(db.unsafe("update fuma_custom_offers set recurring_amount_minor=1 where offer_id='offer-postgres'")).rejects.toThrow()
-      await expect(db.unsafe("update fuma_contract_candidates set state='active' where candidate_id='candidate:offer-postgres:1'")).rejects.toThrow()
+      const stored = await db.unsafe<{ state: string; setup_fee_settled: boolean; recurring_settled: boolean; activated_at: string | null; paid_transfer_pending: boolean }>("select state,setup_fee_settled,recurring_settled,activated_at,paid_transfer_pending from fuma_contract_candidates where candidate_id='candidate:offer-postgres:1'")
+      expect(stored.rows[0]).toEqual({ state: 'awaiting-payment', setup_fee_settled: false, recurring_settled: false, activated_at: null, paid_transfer_pending: false })
       process.stdout.write('[FUMA-054 PostgreSQL demo] internalGrant=one offerEvidence=immutable concurrentAccept=8 candidate=awaiting-payment\n')
     } finally {
       await admin.unsafe(`drop schema if exists ${quotedIdentifier(schema)} cascade`)

@@ -73,6 +73,7 @@ export const CostInputEvidenceSchema = Type.Object({
 }, { additionalProperties: false })
 export const EconomicsEvidenceSchema = Type.Object({
   costModelVersion: Type.String({ minLength: 82, maxLength: 82, pattern: '^cost-model:sha256:[a-f0-9]{64}$' }),
+  conversionVersion: Type.String({ minLength: 1, maxLength: 100, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$' }),
   variableCostMinor: MoneySchema,
   fixedSharedCostMinor: MoneySchema,
   expectedCostMinor: MoneySchema,

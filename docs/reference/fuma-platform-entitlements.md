@@ -20,7 +20,7 @@ Every plan and offer forecast reads a complete, current 18-meter cost snapshot f
 
 Within a source class, current effective date and version determine the winner. Missing, stale, zero-authority, unsafe FX, or malformed assumptions fail closed. A derived SHA-256 identifies the complete selected model.
 
-Launch publication/issuance requires variable COGS at or below 30% of net revenue and gross margin at or above 70%. Setup cost is calculated separately from recurring cost; a setup fee may be zero only when its complete forecast is also zero. No recurring margin can conceal setup cost.
+Launch publication/issuance requires variable COGS at or below 30% of net revenue and gross margin at or above 70%. Setup cost is calculated separately from recurring cost; a setup fee may be zero only when its complete forecast is also zero. No recurring margin can conceal setup cost. Hosted composition additionally requires `FUMA_KES_FX_VERSION`, `FUMA_KES_MINOR_NUMERATOR`, and `FUMA_USD_MICROS_DENOMINATOR`; conversion uses an integer ratio, rounds cost upward, and records the version in each derived model hash.
 
 ## Internal grant and evaluator
 
@@ -44,7 +44,7 @@ The candidate has unsettled setup/recurring obligations, `activatedAt=null`, and
 
 `PostgresEntitlementRepository` and `PostgresOfferDestinationAuthority` are the production authorities. They use row/advisory locks for the singleton grant and offer acceptance, canonical immutable replay comparison, exact active organization/workspace/site checks, and database constraints/triggers. `runtime.ts` composes them with `PostgresProviderCostCatalog`; memory storage is test-only.
 
-`entitlements/migration.ts` exports an **unregistered candidate** for the conductor to finalize as the next hosted migration. It adds immutable price-book/offer evidence, candidate destination/snapshot fields, general assignments, immutable entitlement snapshots, grandfathered evidence, and exact offer lifecycle triggers. It contains no destructive DDL/DML. The worker intentionally does not modify the central migration index.
+Conductor-finalized `000057_entitlement_evidence` adds immutable price-book/offer evidence, candidate destination/snapshot fields, general assignments, immutable entitlement snapshots, grandfathered evidence, and exact offer lifecycle triggers. It contains no destructive DDL/DML, explicitly fails closed if unreviewed pre-FUMA-054 commercial rows exist, and is checksum-registered in the canonical hosted migration stream.
 
 ## Evidence
 

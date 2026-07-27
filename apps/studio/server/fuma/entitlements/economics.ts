@@ -44,11 +44,15 @@ function convertMicros(converter: (usdMicros: bigint) => number, value: bigint, 
 export async function calculateEconomics(
   catalog: EntitlementCostCatalog,
   converter: (usdMicros: bigint) => number,
+  conversionVersion: string,
   revenueMinor: number,
   rawAssumptions: unknown,
 ): Promise<EconomicsEvidence> {
   if (!Number.isSafeInteger(revenueMinor) || revenueMinor < 0 || revenueMinor > 1_000_000_000) {
     throw new EntitlementEconomicsError('invalid', 'Revenue must be a non-negative KES minor-unit integer.')
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/.test(conversionVersion)) {
+    throw new EntitlementEconomicsError('incomplete-cost', 'KES conversion authority version is unavailable.')
   }
   if (!Value.Check(WorkloadAssumptionsSchema, rawAssumptions)) {
     throw new EntitlementEconomicsError('incomplete-cost', 'Workload assumptions must contain exactly every physical meter.')
@@ -73,7 +77,7 @@ export async function calculateEconomics(
   if (!Number.isSafeInteger(expectedCostMinor) || expectedCostMinor > 1_000_000_000) {
     throw new EntitlementEconomicsError('incomplete-cost', 'Expected cost exceeds bounded KES minor-unit storage.')
   }
-  const costModelVersion = `cost-model:sha256:${evidenceSha256(inputs)}`
+  const costModelVersion = `cost-model:sha256:${evidenceSha256({ inputs, conversionVersion })}`
   const marginBasisPoints = revenueMinor === 0
     ? (expectedCostMinor === 0 ? 10_000 : -1_000_000)
     : Math.max(-1_000_000, Math.floor(((revenueMinor - expectedCostMinor) * 10_000) / revenueMinor))
@@ -82,6 +86,7 @@ export async function calculateEconomics(
     : Math.ceil((variableCostMinor * 10_000) / revenueMinor)
   const evidence = Object.freeze({
     costModelVersion,
+    conversionVersion,
     variableCostMinor,
     fixedSharedCostMinor,
     expectedCostMinor,

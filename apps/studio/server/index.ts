@@ -31,6 +31,7 @@ import {
   TEMPLATE_PREVIEW_HOST,
 } from './fuma/publicTemplates'
 import { createHostedPaystackRuntime } from './fuma/paystack/runtime'
+import { createHostedEntitlementRuntime, readHostedKesCostConversion } from './fuma/entitlements'
 import {
   createHostedMemberIdentityRuntime,
   createMemberImportBoundary,
@@ -218,6 +219,16 @@ const freeHostRuntime = hostedFumaConfig
 const paystackRuntime = hostedFumaConfig
   ? createHostedPaystackRuntime({ db, config: hostedFumaConfig })
   : undefined
+const hostedKesCostConversion = hostedFumaConfig ? readHostedKesCostConversion() : undefined
+const entitlementRuntime = hostedKesCostConversion
+  ? createHostedEntitlementRuntime({
+    db,
+    usdMicrosToKesMinor: hostedKesCostConversion.convert,
+    costConversionVersion: hostedKesCostConversion.version,
+  })
+  : undefined
+// FUMA-054 composes commercial authority centrally; FUMA-055 owns its first HTTP checkout consumer.
+void entitlementRuntime
 const fumaScopedApi = createHostedFumaScopedApi({
   db,
   hostedStaffAuth: hostedStaffAuthRuntime,

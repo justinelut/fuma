@@ -115,6 +115,7 @@ export class EntitlementService {
   readonly #repository: EntitlementRepository
   readonly #catalog: EntitlementCostCatalog
   readonly #usdMicrosToKesMinor: (usdMicros: bigint) => number
+  readonly #costConversionVersion: string
   readonly #destinations: OfferDestinationAuthority
   readonly #now: () => Date
 
@@ -122,12 +123,14 @@ export class EntitlementService {
     repository: EntitlementRepository
     catalog: EntitlementCostCatalog
     usdMicrosToKesMinor: (usdMicros: bigint) => number
+    costConversionVersion: string
     destinations: OfferDestinationAuthority
     now?: () => Date
   }>) {
     this.#repository = input.repository
     this.#catalog = input.catalog
     this.#usdMicrosToKesMinor = input.usdMicrosToKesMinor
+    this.#costConversionVersion = input.costConversionVersion
     this.#destinations = input.destinations
     this.#now = input.now ?? (() => new Date())
   }
@@ -160,7 +163,7 @@ export class EntitlementService {
         seen.add(key)
         const group = pairs.get(plan.planId) ?? []
         group.push(plan); pairs.set(plan.planId, group)
-        const economics = await calculateEconomics(this.#catalog, this.#usdMicrosToKesMinor, plan.amountMinor, plan.workloadAssumptions)
+        const economics = await calculateEconomics(this.#catalog, this.#usdMicrosToKesMinor, this.#costConversionVersion, plan.amountMinor, plan.workloadAssumptions)
         assertLaunchEconomics(economics, `Plan ${key}`)
         priced.push(Object.freeze({ ...structuredClone(plan), economics }))
       }
@@ -196,9 +199,9 @@ export class EntitlementService {
         const replaced = await this.#repository.exactOffer(input.replaces.offerId, input.replaces.version)
         if (!replaced || replaced.state !== 'withdrawn') throw new EntitlementError('immutable', 'Replacement offers require an exact withdrawn predecessor.')
       }
-      const recurringEconomics = await calculateEconomics(this.#catalog, this.#usdMicrosToKesMinor, minimumRecurringRevenue(input), input.workloadAssumptions)
+      const recurringEconomics = await calculateEconomics(this.#catalog, this.#usdMicrosToKesMinor, this.#costConversionVersion, minimumRecurringRevenue(input), input.workloadAssumptions)
       assertLaunchEconomics(recurringEconomics, `Offer ${input.offerId}`)
-      const setupEconomics = await calculateEconomics(this.#catalog, this.#usdMicrosToKesMinor, input.setupFeeMinor, input.setupWorkloadAssumptions)
+      const setupEconomics = await calculateEconomics(this.#catalog, this.#usdMicrosToKesMinor, this.#costConversionVersion, input.setupFeeMinor, input.setupWorkloadAssumptions)
       if (input.setupFeeMinor < setupEconomics.expectedCostMinor) throw new EntitlementError('margin', 'One-time setup fee does not cover its complete forecast cost.')
       if (setupEconomics.costModelVersion !== recurringEconomics.costModelVersion) throw new EntitlementError('incomplete-cost', 'Setup and recurring economics must use one cost-model snapshot.')
       const offer = Object.freeze({
