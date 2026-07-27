@@ -56,6 +56,7 @@ import { publicationDeliverabilityControlMigration } from './000054_publication_
 import { meteringReconciliationControlMigration } from './000055_metering_reconciliation_control'
 import { publicTemplateReleasesMigration } from './000056_public_template_releases'
 import { entitlementEvidenceMigration } from './000057_entitlement_evidence'
+import { platformCheckoutAuthorityMigration } from './000058_platform_checkout_authority'
 
 export const hostedMigrations = Object.freeze([
   transitionBookkeepingMigration,
@@ -115,6 +116,7 @@ export const hostedMigrations = Object.freeze([
   meteringReconciliationControlMigration,
   publicTemplateReleasesMigration,
   entitlementEvidenceMigration,
+  platformCheckoutAuthorityMigration,
 ])
 
 export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
@@ -181,6 +183,7 @@ export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Obje
   '000055_metering_reconciliation_control': 'e5462ac7ea62f35fce1925fffc51894a2964ec61a5cec08d33c7f35d372f18b7',
   '000056_public_template_releases': 'ca89eeadaf781bd806217a5b74d58849c851372a8c838806d4953641c259789e',
   '000057_entitlement_evidence': '0aa1ce2983b7e4781c03f2d8f437be1779a75f3cd5d31f7b0e24197a87c6f016',
+  '000058_platform_checkout_authority': '39b444f6ee4783354dda373f0f3e1315b77c77febdfb782b43984d8e63219e8b',
 })
 
 const firstUnappliedMigration = hostedMigrations.findIndex(({ id }) => (

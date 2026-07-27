@@ -40,6 +40,7 @@ export type HostedFumaScopedApiInput = Readonly<{
   db: DbClient
   hostedStaffAuth: HostedStaffAuthRuntime | undefined
   publicationRoutes?: readonly FumaScopedRouteDeclaration[]
+  checkoutRoutes?: readonly FumaScopedRouteDeclaration[]
 }>
 
 export function readHostedAuthSecret(
@@ -114,5 +115,9 @@ export function createHostedFumaScopedApi(
     repository,
     sessions: new EditorSessionAuthority(),
   })
-  return createBoundary(Object.freeze([...editorRoutes,...(input.publicationRoutes??[])]))
+  return createBoundary(Object.freeze([
+    ...editorRoutes,
+    ...(input.publicationRoutes??[]),
+    ...(input.checkoutRoutes ?? []),
+  ]))
 }

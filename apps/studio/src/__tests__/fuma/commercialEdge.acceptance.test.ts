@@ -10,7 +10,7 @@ const cases=[
 ['FUMA-052','server/fuma/metering/service.ts',['internalWorkload','CostCompletenessError','reconcile']],
 ['FUMA-053','server/fuma/paystack/transport.ts',['platform_billing','customer_merchant','verifyPaystackWebhook']],
 ['FUMA-054','server/fuma/entitlements/service.ts',['platform-internal','result.candidate','assertLaunchEconomics']],
-['FUMA-055','server/fuma/checkout/service.ts',['platform_billing','platform-setup','internal-denied']],
+['FUMA-055','server/fuma/checkout/postgres.ts',["kind='platform-internal'",'fuma_platform_checkout_obligations_v2','Private offer was replaced.']],
 ['FUMA-056','server/fuma/billing/reconciler.ts',['paid-transfer-pending','emitHandoff','transport.verify']],
 ['FUMA-057','server/fuma/quotas/service.ts',['exhausted','shadowCost: undefined','reserved']],
 ['FUMA-058','server/fuma/customerPayments/service.ts',['customer_merchant','manual-mobile-money','Daraja is not implemented.']],

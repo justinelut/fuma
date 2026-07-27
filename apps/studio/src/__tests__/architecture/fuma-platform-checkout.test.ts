@@ -67,6 +67,8 @@ describe('FUMA-055 platform checkout architecture', () => {
     const routeContent = source(UI_DIRECTORY, 'PlatformCheckoutRouteContent.tsx')
     const surface = source(UI_DIRECTORY, 'PlatformCheckoutSurface.tsx')
     const hostedShell = readFileSync(join(ROOT, 'src/admin/preauth/HostedStaffShell.tsx'), 'utf8')
+    const serverIndex = readFileSync(join(ROOT, 'server/index.ts'), 'utf8')
+    const hostedRuntime = readFileSync(join(ROOT, 'server/auth/hosted/runtime.ts'), 'utf8')
     for (const path of [
       '/billing/checkouts',
       '/billing/checkouts/:checkoutId',
@@ -85,17 +87,24 @@ describe('FUMA-055 platform checkout architecture', () => {
     expect(surface).toContain('Setup/import fee')
     expect(surface).toContain('Recurring consideration')
     expect(hostedShell).toContain('<PlatformCheckoutRouteContent')
+    expect(serverIndex).toContain('createHostedPlatformCheckoutRuntime({')
+    expect(serverIndex).toContain('transport: paystackRuntime.platformBilling')
+    expect(serverIndex).toContain('checkoutRoutes: platformCheckoutRuntime.scopedRoutes')
+    expect(hostedRuntime).toContain('checkoutRoutes?: readonly FumaScopedRouteDeclaration[]')
   })
 
-  it('keeps migration candidate additive, immutable, and separate from finalized historical checkout', () => {
-    const migration = source(SERVER_DIRECTORY, 'migration.ts')
+  it('keeps finalized migration 000058 additive, immutable, and separate from finalized historical checkout', () => {
+    const migration = readFileSync(join(ROOT, 'server/fuma/db/migrations/000058_platform_checkout_authority.ts'), 'utf8')
     const historical = readFileSync(join(ROOT, 'server/fuma/db/migrations/000027_checkout.ts'), 'utf8')
+    const index = readFileSync(join(ROOT, 'server/fuma/db/migrations/index.ts'), 'utf8')
     expect(migration).not.toMatch(/\b(?:drop|truncate)\b|^\s*delete\s+from/im)
     expect(migration).toContain('create table fuma_platform_checkout_candidates_v2')
     expect(migration).toContain('create table fuma_platform_checkout_obligations_v2')
     expect(migration).toContain('fuma_platform_checkout_identity_immutable_v2')
     expect(historical).toContain("id:'000027_checkout'")
     expect(historical).not.toContain('_v2')
+    expect(index).toContain("import { platformCheckoutAuthorityMigration } from './000058_platform_checkout_authority'")
+    expect(index).toContain("'000058_platform_checkout_authority': '39b444f6ee4783354dda373f0f3e1315b77c77febdfb782b43984d8e63219e8b'")
   })
 
   it('keeps checkout modules within the repository source ceiling and UI app-local', () => {

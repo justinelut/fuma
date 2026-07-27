@@ -69,6 +69,12 @@ type OfferRow = Readonly<{
   paid_transfer_pending: boolean | null
   contract_id: string | null
 }>
+type ReplacementOfferRow = Readonly<{
+  state: CustomOffer['state']
+  accepted_at: Date | string | null
+  expires_at: Date | string
+  private_json: string | Record<string, unknown>
+}>
 
 type ResolvedCheckoutSource = Readonly<{
   source: PlatformCheckoutSourceIntent
@@ -369,15 +375,25 @@ export class PostgresPlatformCheckoutRepository implements PlatformCheckoutRepos
       throw new PlatformCheckoutError('not-found', 'Exact private offer was not found.')
     }
     const offer = parsed.value
-    const replacement = await db<{ replaced: number }>`
-      select 1 as replaced from fuma_custom_offer_evidence e
+    const replacements = await db<ReplacementOfferRow>`
+      select o.state,e.accepted_at,e.private_json,o.expires_at
+      from fuma_custom_offer_evidence e
       join fuma_custom_offers o on o.offer_id=e.offer_id and o.version=e.offer_version
-      where e.private_json->'replaces'->>'offerId'=${source.offerId}
-        and (e.private_json->'replaces'->>'version')::bigint=${source.offerVersion}
-        and o.state in ('issued','accepted') and o.expires_at>${now.toISOString()}
-      limit 1
+      where o.state in ('issued','accepted') and o.expires_at>${now.toISOString()}
     `
-    if (replacement.rows[0]) throw new PlatformCheckoutError('stale', 'Private offer was replaced.')
+    const replaced = replacements.rows.some((candidate) => {
+      const parsedCandidate = safeParseValue(CustomOfferSchema, {
+        ...(json(candidate.private_json) as Record<string, unknown>),
+        state: candidate.state,
+        acceptedAt: candidate.accepted_at ? iso(candidate.accepted_at) : null,
+      })
+      if (!parsedCandidate.ok) {
+        throw new PlatformCheckoutError('verification', 'Stored replacement offer is invalid.')
+      }
+      return parsedCandidate.value.replaces?.offerId === source.offerId
+        && parsedCandidate.value.replaces.version === source.offerVersion
+    })
+    if (replaced) throw new PlatformCheckoutError('stale', 'Private offer was replaced.')
     if (
       row.contract_id
       || row.setup_fee_settled

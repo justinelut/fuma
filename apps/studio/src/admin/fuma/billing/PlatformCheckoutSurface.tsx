@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { getErrorMessage } from '@core/utils/errorMessage'
 import { Button } from '@ui/components/Button'
 import type { PlatformCheckoutHttpClient } from './client'
 import type { PlatformCheckoutSource, PlatformCheckoutWire } from './contracts'
@@ -120,7 +121,7 @@ export function PlatformCheckoutSurface({
           : 'Checkout loaded.')
       } catch (caught) {
         if (!active) return
-        setError(caught instanceof Error ? caught.message : 'Checkout could not be loaded.')
+        setError(getErrorMessage(caught, 'Checkout could not be loaded.'))
         setStatus('')
       } finally {
         if (active) setBusy(false)
@@ -140,7 +141,7 @@ export function PlatformCheckoutSurface({
       setCheckout(result)
       setStatus('Checkout ready. Setup and recurring consideration remain separate.')
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Checkout could not be initialized.')
+      setError(getErrorMessage(caught, 'Checkout could not be initialized.'))
       setStatus('')
     } finally {
       setBusy(false)
@@ -157,7 +158,7 @@ export function PlatformCheckoutSurface({
       setCheckout(result)
       setStatus('Checkout cancelled. No callback can activate it.')
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Checkout could not be cancelled.')
+      setError(getErrorMessage(caught, 'Checkout could not be cancelled.'))
       setStatus('')
     } finally {
       setBusy(false)

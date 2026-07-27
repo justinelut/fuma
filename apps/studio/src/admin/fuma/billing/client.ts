@@ -1,28 +1,19 @@
+import { apiRequest, type FetchLike } from '@core/http'
 import {
-  parsePlatformCheckoutWire,
+  PlatformCheckoutWireSchema,
   type PlatformCheckoutSource,
   type PlatformCheckoutWire,
 } from './contracts'
 
-export class PlatformCheckoutClientError extends Error {
-  override readonly name = 'PlatformCheckoutClientError'
-  readonly status: number
-
-  constructor(status: number, message: string) {
-    super(message)
-    this.status = status
-  }
-}
-
 export class PlatformCheckoutHttpClient {
   readonly #basePath: string
-  readonly #fetch: typeof fetch
+  readonly #fetch: FetchLike
 
   constructor(input: Readonly<{
     organizationId: string
     workspaceId: string
     siteId: string
-    fetch?: typeof fetch
+    fetch?: FetchLike
   }>) {
     this.#basePath = [
       '/api/fuma/organizations',
@@ -33,14 +24,11 @@ export class PlatformCheckoutHttpClient {
       encodeURIComponent(input.siteId),
       'billing/checkouts',
     ].join('/')
-    this.#fetch = input.fetch ?? globalThis.fetch
+    this.#fetch = input.fetch ?? globalThis.fetch.bind(globalThis)
   }
 
   initialize(source: PlatformCheckoutSource): Promise<PlatformCheckoutWire> {
-    return this.#request(this.#basePath, {
-      method: 'POST',
-      body: JSON.stringify({ source }),
-    })
+    return this.#request(this.#basePath, 'POST', { source })
   }
 
   find(checkoutId: string): Promise<PlatformCheckoutWire> {
@@ -48,41 +36,29 @@ export class PlatformCheckoutHttpClient {
   }
 
   cancel(checkoutId: string): Promise<PlatformCheckoutWire> {
-    return this.#request(`${this.#basePath}/${encodeURIComponent(checkoutId)}/cancel`, {
-      method: 'POST',
-      body: '{}',
-    })
+    return this.#request(
+      `${this.#basePath}/${encodeURIComponent(checkoutId)}/cancel`,
+      'POST',
+      {},
+    )
   }
 
   verifyCallback(checkoutId: string, reference: string): Promise<PlatformCheckoutWire> {
-    return this.#request(`${this.#basePath}/${encodeURIComponent(checkoutId)}/callback`, {
-      method: 'POST',
-      body: JSON.stringify({ reference }),
-    })
+    return this.#request(
+      `${this.#basePath}/${encodeURIComponent(checkoutId)}/callback`,
+      'POST',
+      { reference },
+    )
   }
 
-  async #request(path: string, init: RequestInit = {}): Promise<PlatformCheckoutWire> {
-    const response = await this.#fetch(path, {
-      ...init,
+  #request(path: string, method = 'GET', body?: unknown): Promise<PlatformCheckoutWire> {
+    return apiRequest(path, {
+      method,
+      ...(body === undefined ? {} : { body }),
+      schema: PlatformCheckoutWireSchema,
       credentials: 'same-origin',
-      headers: {
-        accept: 'application/json',
-        ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
-      },
+      fallbackMessage: 'Checkout request failed.',
+      fetchImpl: this.#fetch,
     })
-    let body: unknown
-    try {
-      body = await response.json()
-    } catch {
-      throw new PlatformCheckoutClientError(response.status, 'Checkout service returned an invalid response.')
-    }
-    if (!response.ok) {
-      const message = body && typeof body === 'object' && 'error' in body
-        && typeof (body as { error?: unknown }).error === 'string'
-        ? (body as { error: string }).error
-        : 'Checkout request failed.'
-      throw new PlatformCheckoutClientError(response.status, message)
-    }
-    return parsePlatformCheckoutWire(body)
   }
 }

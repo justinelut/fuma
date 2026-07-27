@@ -32,6 +32,7 @@ import {
 } from './fuma/publicTemplates'
 import { createHostedPaystackRuntime } from './fuma/paystack/runtime'
 import { createHostedEntitlementRuntime, readHostedKesCostConversion } from './fuma/entitlements'
+import { createHostedPlatformCheckoutRuntime } from './fuma/checkout'
 import {
   createHostedMemberIdentityRuntime,
   createMemberImportBoundary,
@@ -227,12 +228,24 @@ const entitlementRuntime = hostedKesCostConversion
     costConversionVersion: hostedKesCostConversion.version,
   })
   : undefined
-// FUMA-054 composes commercial authority centrally; FUMA-055 owns its first HTTP checkout consumer.
-void entitlementRuntime
+const platformCheckoutRuntime = hostedFumaConfig
+  && paystackRuntime
+  && entitlementRuntime
+  && hostedStaffAuthRuntime
+  ? createHostedPlatformCheckoutRuntime({
+    db,
+    transport: paystackRuntime.platformBilling,
+    registry: paystackRuntime.registry,
+    entitlements: entitlementRuntime.service,
+    callbackOrigin: `https://${hostedFumaConfig.hosts.product}`,
+    resolvePayer: (request) => hostedStaffAuthRuntime.resolveSession(request.headers),
+  })
+  : undefined
 const fumaScopedApi = createHostedFumaScopedApi({
   db,
   hostedStaffAuth: hostedStaffAuthRuntime,
   ...(publicationRuntime ? { publicationRoutes: publicationRuntime.graph.scopedRoutes } : {}),
+  ...(platformCheckoutRuntime ? { checkoutRoutes: platformCheckoutRuntime.scopedRoutes } : {}),
 })
 const memberImportBoundary = memberIdentityRuntime && hostedStaffAuthRuntime && fumaScopedApi
   ? createMemberImportBoundary({

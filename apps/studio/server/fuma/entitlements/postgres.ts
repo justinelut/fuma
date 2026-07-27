@@ -27,6 +27,7 @@ type GrantRow = { grant_id: string; organization_id: string; quota_json: Json; n
 type PriceRow = { private_json: Json }
 type AdjustmentRow = { adjustment_id: string; organization_id: string; quota_class: QuotaClass; units: string | number; kind: AllowanceAdjustment['kind']; effective_at: string | Date; expires_at: string | Date; approved_by: string; state: AllowanceAdjustment['state'] }
 type OfferRow = { state: CustomOffer['state']; accepted_at: string | Date | null; private_json: Json }
+type ReplacementOfferRow = OfferRow & { expires_at: string | Date }
 type CandidateRow = { candidate_id: string; offer_id: string; offer_version: string | number; destination_organization_id: string; destination_workspace_id: string; site_id: string; state: 'awaiting-payment'; setup_fee_settled: boolean; recurring_settled: boolean; activated_at: null; paid_transfer_pending: false; snapshot_sha256: string; created_at: string | Date }
 type SnapshotRow = { snapshot_id: string; organization_id: string; source: EntitlementSnapshot['source']; source_id: string; quota_json: Json; effective_at: string | Date; expires_at: string | Date | null; immutable_sha256: string }
 type GrandfatheredRow = { private_json: Json }
@@ -182,15 +183,18 @@ export class PostgresEntitlementRepository implements EntitlementRepository {
       await tx`select pg_advisory_xact_lock(hashtextextended(${`fuma:offer:${input.offerId}:${input.version}`},0))`
       const found = await tx<OfferRow>`select o.state,e.accepted_at,e.private_json from fuma_custom_offers o join fuma_custom_offer_evidence e on e.offer_id=o.offer_id and e.offer_version=o.version where o.offer_id=${input.offerId} and o.version=${input.version} for update of o`
       if (!found.rows[0]) throw new EntitlementError('not-found', 'Exact offer does not exist.')
-      const replacement = await tx<{ replaced: number }>`
-        select 1 as replaced from fuma_custom_offer_evidence e
+      const replacements = await tx<ReplacementOfferRow>`
+        select o.state,e.accepted_at,e.private_json,o.expires_at
+        from fuma_custom_offer_evidence e
         join fuma_custom_offers o on o.offer_id=e.offer_id and o.version=e.offer_version
-        where e.private_json->'replaces'->>'offerId'=${input.offerId}
-          and (e.private_json->'replaces'->>'version')::bigint=${input.version}
-          and o.state in ('issued','accepted') and o.expires_at>${input.now}
-        limit 1
+        where o.state in ('issued','accepted') and o.expires_at>${input.now}
       `
-      if (replacement.rows[0]) throw new EntitlementError('expired', 'Exact issued offer was replaced.')
+      const replaced = replacements.rows.some((candidate) => {
+        const replacement = mapOffer(candidate)
+        return replacement.replaces?.offerId === input.offerId
+          && replacement.replaces.version === input.version
+      })
+      if (replaced) throw new EntitlementError('expired', 'Exact issued offer was replaced.')
       const offer = mapOffer(found.rows[0])
       const destination = await tx<{ authorized: number }>`
         select 1 as authorized from auth_organizations o

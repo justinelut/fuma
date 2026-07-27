@@ -11,7 +11,7 @@ import { entitlementEvidenceMigration } from '../../../server/fuma/db/migrations
 import {
   PlatformCheckoutService,
   PostgresPlatformCheckoutRepository,
-  platformCheckoutAuthorityMigrationCandidate,
+  platformCheckoutAuthorityMigration,
   registerPlatformCheckoutPurposes,
 } from '../../../server/fuma/checkout'
 import {
@@ -138,7 +138,7 @@ describe('FUMA-055 optional live PostgreSQL acceptance', () => {
           paystackReconciliationMigration,
           entitlementEvidenceMigration,
         ]) await tx.unsafe(migration.sql)
-        await tx.unsafe(platformCheckoutAuthorityMigrationCandidate.sql)
+        await tx.unsafe(platformCheckoutAuthorityMigration.sql)
       })
       await db.unsafe("insert into auth_organizations(id) values ('org-a'); insert into auth_users(id) values ('user-a'); insert into fuma_workspaces(id,organization_id,slug,name,status,is_default) values ('workspace-a','org-a','primary','Primary','active',true); insert into fuma_sites(organization_id,workspace_id,id,slug,name,status,profile_id) values ('org-a','workspace-a','site-a','site-a','Site A','active','website')")
       const catalog = new PostgresProviderCostCatalog(db, () => NOW)

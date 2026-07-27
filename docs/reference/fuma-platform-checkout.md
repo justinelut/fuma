@@ -34,7 +34,7 @@ Replacement issuance and acceptance coordinate on the replaced offer identity. W
 
 ## Durable replay and provider isolation
 
-The additive checkout authority uses `fuma_platform_checkout_candidates_v2` and `fuma_platform_checkout_obligations_v2`; finalized migration `000027_checkout` remains untouched. A deterministic source/destination identity and PostgreSQL advisory lock produce one checkout candidate. Each setup or recurring obligation has an immutable reference plus a leased row claim. Only one replica calls provider initialization while concurrent duplicate clicks converge on the same record.
+The additive checkout authority is finalized as `000058_platform_checkout_authority` and uses `fuma_platform_checkout_candidates_v2` and `fuma_platform_checkout_obligations_v2`; finalized migration `000027_checkout` remains untouched. A deterministic source/destination identity and PostgreSQL advisory lock produce one checkout candidate. Each setup or recurring obligation has an immutable reference plus a leased row claim. Only one replica calls provider initialization while concurrent duplicate clicks converge on the same record.
 
 The Paystack transport accepts an optional preallocated exact reference. It still enforces the credential-scope/purpose prefix, strict purpose metadata, exact local ledger identity, amount, currency, and provider labels. Failed initialization releases the checkout claim but retains the same reference for safe retry.
 
