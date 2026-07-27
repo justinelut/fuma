@@ -49,7 +49,8 @@ export function createPublicationJobHandlers(graph:Pick<FumaPublicationServiceGr
       const effectKey=`campaign:${parsed.value.campaignId}:${parsed.value.snapshotSha256}`;const existing=await context.readDurableResult(effectKey);if(existing)return existing.result
       const trusted=site(context);const deliveries=await graph.campaigns.send(trusted.scope,parsed.value.campaignId,parsed.value.snapshotSha256)
       if(deliveries.some(delivery=>delivery.status==='failed'))throw new Error('One or more OCI campaign submissions failed and require durable retry.')
-      const result={campaignId:parsed.value.campaignId,snapshotSha256:parsed.value.snapshotSha256,deliveryCount:deliveries.length}
+      const progress=await graph.campaigns.progress(trusted.scope,parsed.value.campaignId)
+      const result={campaignId:parsed.value.campaignId,snapshotSha256:parsed.value.snapshotSha256,status:progress.status,recipientCount:progress.recipientCount,deliveryCount:progress.completed}
       return (await context.commitDurableResult(effectKey,result)).result
     },
   })

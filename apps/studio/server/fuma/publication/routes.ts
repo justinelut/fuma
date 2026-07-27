@@ -1,5 +1,6 @@
 import {
   CampaignDeliverySchema,
+  CampaignProgressSchema,
   CampaignSnapshotSchema,
   CollaborationReconcileCommandSchema,
   CollaborationReconcileResultSchema,
@@ -61,10 +62,10 @@ import { bindPublicationScope } from './scope'
 import type { PublicationCollaborationService, PublicationPresenceService } from './collaboration'
 import type { PublicationRevisionService } from './revisions'
 import { decidePublicationPresentation } from './presentation'
+import type { PublicationCampaignService } from './campaignDelivery'
 import type {
   PublicationAnalyticsService,
   PublicationAudienceService,
-  PublicationCampaignService,
   PublicationDeliverabilityService,
   PublicationDomainStore,
   PublicationEditorialService,
@@ -158,7 +159,7 @@ function json<T extends TSchema>(schema: T, value: unknown, status = 200): Respo
 function failure(error: unknown): Response {
   const message = error instanceof Error ? error.message : 'Publication request failed.'
   const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : ''
-  const status = code === 'not-found' || code === 'scope-denied' ? 404 : code === 'rate-limited' ? 429 : code === 'unauthorized' ? 403 : code.includes('conflict') || code === 'invalid-transition' || code === 'invalid-access' || code === 'deletion-pending' || code === 'self-approval' || code === 'stale-review' ? 409 : 400
+  const status = code === 'not-found' || code === 'scope-denied' ? 404 : code === 'rate-limited' ? 429 : code === 'payload-too-large' ? 413 : code === 'unauthorized' ? 403 : code.includes('conflict') || code === 'invalid-transition' || code === 'invalid-access' || code === 'deletion-pending' || code === 'self-approval' || code === 'stale-review' ? 409 : 400
   return json(ErrorSchema, { error: status === 404 ? 'Resource not found.' : message }, status)
 }
 async function body<T extends TSchema>(input: FumaScopedRouteHandlerInput, schema: T): Promise<Static<T>> {
@@ -259,6 +260,8 @@ export function createPublicationScopedRouteDeclarations(ports: PublicationRoute
     route('GET', '/publication/newsletter-preview/:versionId', 'publication.newsletters.read', async (input) => json(NewsletterPreviewSchema, await ports.newsletters.preview(scoped(input), input.params.versionId!,newsletterFixtureQuery(input).fixture))),
     route('POST', '/publication/newsletter-test', 'publication.newsletters.send', async (input) => json(MessageResultSchema, { providerMessageId: await ports.newsletters.testSend(scoped(input), await body(input, NewsletterTestSendCommandSchema)) })),
     route('POST', '/publication/campaigns', 'publication.newsletters.send', async (input) => json(CampaignSnapshotSchema, await ports.campaigns.snapshot(scoped(input), await body(input, CampaignCommandSchema)))),
+    route('GET', '/publication/campaigns/:campaignId/progress', 'publication.newsletters.read', async (input) => json(CampaignProgressSchema, await ports.campaigns.progress(scoped(input), input.params.campaignId!))),
+    route('POST', '/publication/campaigns/:campaignId/cancel', 'publication.newsletters.send', async (input) => json(CampaignSnapshotSchema, await ports.campaigns.cancel(scoped(input), input.params.campaignId!))),
     route('POST', '/publication/campaigns/:campaignId/send', 'publication.newsletters.send', async (input) => json(DeliveryListSchema, { deliveries: await ports.campaigns.send(scoped(input), input.params.campaignId!) })),
     route('POST', '/publication/unsubscribe', 'publication.members.write', async (input) => { const command=await body(input,UnsubscribeCommandSchema); await ports.deliverability.unsubscribe(scoped(input),command.tokenId); return json(BooleanResultSchema,{accepted:true}) }),
     route('GET', '/publication/deliverability', 'publication.analytics.read', async (input) => json(DeliverabilitySummarySchema, await ports.deliverability.summary(scoped(input), query(input).get('from') ?? '', query(input).get('to') ?? ''))),

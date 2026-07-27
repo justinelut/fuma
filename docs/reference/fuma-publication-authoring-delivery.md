@@ -14,18 +14,18 @@ FUMA-028 through FUMA-047 turn the Publication preset into a scoped editorial an
 | FUMA-033 | Universal-store post/page rows, visual document data, stable imports, scoped Publication identity/settings, current staff-author relations, tag rows/relations, qualified slugs, and featured-media references. |
 | FUMA-034 | Lifecycle, canonical/SEO/social metadata, redirects, and content access decisions. |
 | FUMA-035 | Versioned editorial transitions and durable scheduled publish jobs. |
-| FUMA-036 | Versioned post/page/newsletter templates. |
-| FUMA-037 | Publication members, optional reader accounts, deterministic segments, and access grants; never Studio staff identities. |
-| FUMA-038 | Privacy-bounded append-only activity and publication summaries. |
-| FUMA-039 | Field-level platform → organization → workspace → site → newsletter email settings inheritance with provenance. |
-| FUMA-040 | Newsletter records and data-only EmailDocument composer versions. |
+| FUMA-036 | Scheduled publish/unpublish, preview tokens, and public/member/paid/segment access resolution. |
+| FUMA-037 | Dynamic Publication templates, loops, and canonical archives. |
+| FUMA-038 | Separate member identity/session/consent realm and import boundary. |
+| FUMA-039 | Publication member accounts, consent, segments, grants, access states, export, and deletion. |
+| FUMA-040 | Privacy-aware minimized Publication analytics, retention, and summaries. |
 | FUMA-041 | Existing exact React Email/Bun/platform compatibility decision. |
 | FUMA-042 | Existing allowlisted deterministic EmailDocument renderer. |
-| FUMA-043 | Immutable newsletter versions, deterministic preview, and OCI test-send. |
-| FUMA-044 | Immutable audience/render/settings campaign snapshots, durable jobs, per-member idempotent OCI submission. |
-| FUMA-045 | Scope-qualified suppression checked immediately before every provider submission. |
-| FUMA-046 | One-time unsubscribe tokens and replay-safe OCI provider event ingestion. |
-| FUMA-047 | Delivery state reconciliation and range-bounded deliverability rates. |
+| FUMA-043 | Field-level platform → organization → workspace → site → newsletter email settings inheritance with provenance. |
+| FUMA-044 | Newsletter profiles, audience composition, CAS drafts, and immutable composer versions. |
+| FUMA-045 | Server-owned audience preview fixtures, OCI test send, immutable version comparison, and rate limits. |
+| FUMA-046 | Immutable audience/render/settings campaign snapshots, hashes/size, scheduling/cancellation, progress, and per-recipient idempotent OCI submission. |
+| FUMA-047 | Suppression, one-click unsubscribe, replay-safe provider events, domain health, and privacy-aware engagement/deliverability. |
 
 ## Authority and storage
 

@@ -22,10 +22,10 @@ import { createEmailSettingsServiceGraph } from './emailSettingsComposition'
 import { createDynamicPublicationComposition } from './dynamicPublicationComposition'
 import { createPublicationPrivacyAnalyticsFeature } from './privacyAnalyticsComposition'
 import { createNewsletterComposerServiceGraph } from './newsletterComposerComposition'
+import { PublicationCampaignService } from './campaignDelivery'
 import {
   PublicationAnalyticsService,
   PublicationAudienceService,
-  PublicationCampaignService,
   PublicationDeliverabilityService,
   PublicationEditorialService,
   PublicationEmailSettingsService,
