@@ -176,7 +176,7 @@ export type UnsubscribeTokenClaims = DeepReadonly<Static<typeof UnsubscribeToken
 
 export const OciEmailProviderEventSchema = Type.Object({
   eventId: IdSchema,
-  eventType: Type.Union([Type.Literal('accepted'), Type.Literal('delivered'), Type.Literal('deferred'), Type.Literal('bounced'), Type.Literal('complained')]),
+  eventType: Type.Union([Type.Literal('accepted'), Type.Literal('relayed'), Type.Literal('delivered'), Type.Literal('deferred'), Type.Literal('bounced'), Type.Literal('complained'), Type.Literal('unsubscribed')]),
   providerMessageId: IdSchema,
   occurredAt: TimestampSchema,
   recipientEmail: EmailSchema,

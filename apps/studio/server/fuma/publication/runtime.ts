@@ -12,6 +12,7 @@ import { HmacPublicationProviderEventVerifier, PostgresPublicationPublicAuthorit
 import type { PublicationIdAuthority, PublicationUnsubscribeLinkIssuer } from './services'
 import type { PublicationRepositoryScope } from './scope'
 import { PublicationUnsubscribeTokenSigner } from './unsubscribeTokens'
+import { PublicationEngagementTokenSigner } from './engagementTokens'
 
 export type HostedPublicationRuntime=Readonly<{
   graph:ReturnType<typeof createFumaPublicationServiceGraph>
@@ -31,6 +32,7 @@ export async function createHostedPublicationRuntime(input:Readonly<{db:DbClient
   const ids:PublicationIdAuthority=Object.freeze({id:(kind:string)=>`${kind}-${randomUUID()}`,sha256:(value:string)=>createHash('sha256').update(value).digest('hex')})
   const oci=new OciEmailDeliveryAdapter({region:input.config.ociEmail.region,compartmentId:input.config.ociEmail.compartmentId,approvedSender:input.config.ociEmail.approvedSender,signer:new OciRsaRequestSigner({...input.config.ociEmail,now})})
   const tokenSigner=new PublicationUnsubscribeTokenSigner(input.config.publication.unsubscribeSigningSecret)
+  const engagementSigner=new PublicationEngagementTokenSigner(input.config.publication.unsubscribeSigningSecret)
   const objectStorage=createMinioObjectStorage({config:input.config.minio,policy:{allowedMimeTypes:['application/json'],maxObjectBytes:100*1024*1024,maxTenantBytes:20*1024*1024*1024},signingSecret:input.objectAccessSigningSecret,accessUrlBase:`https://${input.config.hosts.product}/_fuma/objects`,nowMs:()=>now().getTime()})
   const graph=createFumaPublicationServiceGraph({db:input.db,objectStorage,redis,jobs,oci,ids,now,unsubscribeFactory:(deliverability):PublicationUnsubscribeLinkIssuer=>Object.freeze({
     async issue(scope:PublicationRepositoryScope,request:Parameters<PublicationUnsubscribeLinkIssuer['issue']>[1]){
@@ -39,6 +41,6 @@ export async function createHostedPublicationRuntime(input:Readonly<{db:DbClient
     },
   })})
   await graph.scheduling.recoverAll()
-  const publicBoundary=new PublicationPublicBoundary({signer:tokenSigner,deliverability:graph.deliverability,authority:new PostgresPublicationPublicAuthority(input.db),verifier:new HmacPublicationProviderEventVerifier(input.config.ociEmail.eventVerificationSecret),redis,now})
+  const publicBoundary=new PublicationPublicBoundary({signer:tokenSigner,deliverability:graph.deliverability,authority:new PostgresPublicationPublicAuthority(input.db),verifier:new HmacPublicationProviderEventVerifier(input.config.ociEmail.eventVerificationSecret),engagement:{signer:engagementSigner,control:graph.deliverabilityControls},redis,now})
   return Object.freeze({graph,publicBoundary,jobHandlers:createPublicationJobHandlers(graph,now),close:async()=>{await Promise.all([readyQueue.close(),redis.close()])}})
 }

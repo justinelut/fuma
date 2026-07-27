@@ -6,6 +6,8 @@ import {
   CampaignSnapshotSchema,
   CollaborationReconcileResultSchema,
   DeliverabilitySummarySchema,
+  PublicationEngagementSummarySchema,
+  SenderDomainHealthSchema,
   EmailSettingsLayerSchema,
   NewsletterPreviewSchema,
   NewsletterSchema,
@@ -46,6 +48,8 @@ import {
   type CollaborationOperationInput,
   type CollaborationReconcileResult,
   type DeliverabilitySummary,
+  type PublicationEngagementSummary,
+  type SenderDomainHealth,
   type EmailSettingsLayer,
   type Newsletter,
   type NewsletterFixtureKind,
@@ -95,6 +99,7 @@ const ContentListSchema = Type.Object({ content: Type.Array(PublicationContentSc
 const PublicationSettingsResultSchema = Type.Object({ settings: Type.Union([PublicationSettingsSchema,Type.Null()]) }, { additionalProperties: false })
 const TemplateListSchema = Type.Object({ templates: Type.Array(PublicationTemplateSchema) }, { additionalProperties: false })
 const SegmentListSchema = Type.Object({ segments: Type.Array(PublicationSegmentSchema) }, { additionalProperties: false })
+const SenderDomainHealthListSchema=Type.Object({domains:Type.Array(SenderDomainHealthSchema,{maxItems:1000})},{additionalProperties:false})
 const NewsletterListSchema = Type.Object({ newsletters: Type.Array(NewsletterSchema) }, { additionalProperties: false })
 const NewsletterVersionListSchema = Type.Object({ versions: Type.Array(NewsletterVersionSchema) }, { additionalProperties: false })
 const DeliveryListSchema = Type.Object({ deliveries: Type.Array(CampaignDeliverySchema) }, { additionalProperties: false })
@@ -193,6 +198,8 @@ export class PublicationHttpClient {
   cancelCampaign(campaignId:string):Promise<CampaignSnapshot>{return this.#request('POST',`/campaigns/${encodeURIComponent(campaignId)}/cancel`,CampaignSnapshotSchema)}
   async sendCampaign(campaignId:string){return (await this.#request('POST',`/campaigns/${encodeURIComponent(campaignId)}/send`,DeliveryListSchema)).deliveries}
   deliverability(from:string,to:string):Promise<DeliverabilitySummary>{return this.#request('GET',`/deliverability?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,DeliverabilitySummarySchema)}
+  async senderDomainHealth():Promise<readonly SenderDomainHealth[]>{return (await this.#request('GET','/deliverability/domains',SenderDomainHealthListSchema)).domains}
+  engagement(from:string,to:string):Promise<PublicationEngagementSummary>{return this.#request('GET',`/engagement?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,PublicationEngagementSummarySchema)}
   workflowInbox(){return this.#request('GET','/workflow/inbox',PublicationWorkflowInboxSchema)}
   async workflowHistory(contentId:string){return (await this.#request('GET',`/workflow/history/${encodeURIComponent(contentId)}`,WorkflowHistoryListSchema)).events}
   workflowReadiness(contentId:string){return this.#request('GET',`/workflow/readiness/${encodeURIComponent(contentId)}`,PublicationScheduledReadinessSchema)}

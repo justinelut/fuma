@@ -8,6 +8,7 @@ import {
 } from '@core/fuma/publication'
 import type { FumaJobService } from '../jobs'
 import type { PublicationRepositoryScope } from './scope'
+import type { PublicationDeliverabilityControlService } from './deliverability'
 import type {
   OciEmailDeliveryProvider,
   PublicationDomainStore,
@@ -39,6 +40,7 @@ export class PublicationCampaignService {
   readonly #jobs: FumaJobService | null
   readonly #oci: OciEmailDeliveryProvider
   readonly #unsubscribe: PublicationUnsubscribeLinkIssuer | null
+  readonly #deliverabilityControls: PublicationDeliverabilityControlService | null
   readonly #now: () => Date
   readonly #maxMessageBytes: number
 
@@ -50,6 +52,7 @@ export class PublicationCampaignService {
     jobs?: FumaJobService
     oci: OciEmailDeliveryProvider
     unsubscribe?: PublicationUnsubscribeLinkIssuer
+    deliverabilityControls?: PublicationDeliverabilityControlService
     now?: () => Date
     maxMessageBytes?: number
   }>) {
@@ -65,6 +68,7 @@ export class PublicationCampaignService {
     this.#jobs = input.jobs ?? null
     this.#oci = input.oci
     this.#unsubscribe = input.unsubscribe ?? null
+    this.#deliverabilityControls = input.deliverabilityControls ?? null
     this.#now = input.now ?? (() => new Date())
     this.#maxMessageBytes = maxMessageBytes
   }
@@ -80,6 +84,7 @@ export class PublicationCampaignService {
     if (version.newsletterId !== command.newsletterId) throw new PublicationDomainError('conflict', 'Campaign newsletter and immutable version do not match.')
     const members = await this.#audience.resolveSegment(scope, command.segmentId)
     const preview = await this.#newsletters.preview(scope, command.versionId)
+    if (this.#deliverabilityControls) await this.#deliverabilityControls.assertProductionSender(scope, preview.settings.values.senderEmail)
     const createdAt = this.#now().toISOString()
     if (command.scheduledAt !== null && Date.parse(command.scheduledAt) <= Date.parse(createdAt)) {
       throw new PublicationDomainError('invalid-transition', 'Scheduled campaigns require a future run time.')
@@ -224,7 +229,8 @@ export class PublicationCampaignService {
       const updatedAt = this.#now().toISOString()
       const emailHash = this.#ids.sha256(delivery.recipientEmail.trim().toLowerCase())
       let result: CampaignDelivery
-      if (await this.#store.isSuppressed(scope, emailHash)) {
+      const scopedSuppressed = this.#deliverabilityControls ? await this.#deliverabilityControls.isSuppressed(scope, delivery.recipientEmail, campaign.newsletterId) : false
+      if (scopedSuppressed || await this.#store.isSuppressed(scope, emailHash)) {
         result = { ...delivery, status: 'suppressed', updatedAt }
       } else {
         try {
