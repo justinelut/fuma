@@ -58,7 +58,7 @@ if (textSha256 !== FUMA_EMAIL_EXPECTED_OUTPUT_SHA256.text) {
 }
 
 const evidence = parseArchitectureEvidence({
-  schemaVersion: 2,
+  schemaVersion: 3,
   tickets: ['FUMA-041', 'FUMA-042'],
   passed: true,
   execution: 'native',

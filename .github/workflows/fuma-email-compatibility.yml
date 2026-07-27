@@ -35,20 +35,8 @@ concurrency:
 
 jobs:
   compatibility:
-    name: Linux ${{ matrix.arch }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x64
-            artifact: fuma-email-compatibility-linux-amd64
-            receipt: fuma-email-compatibility-linux-amd64.json
-            runner: ubuntu-24.04
-          - arch: arm64
-            artifact: fuma-email-compatibility-linux-arm64
-            receipt: fuma-email-compatibility-linux-arm64.json
-            runner: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runner }}
+    name: Linux ARM64
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4.2.2
@@ -63,13 +51,13 @@ jobs:
       - name: Exact-lock render, preview, build, security, and native receipt gate
         env:
           FUMA_EMAIL_EXPECT_PLATFORM: linux
-          FUMA_EMAIL_EXPECT_ARCH: ${{ matrix.arch }}
-          FUMA_EMAIL_RECEIPT_PATH: ${{ runner.temp }}/${{ matrix.receipt }}
+          FUMA_EMAIL_EXPECT_ARCH: arm64
+          FUMA_EMAIL_RECEIPT_PATH: ${{ runner.temp }}/fuma-email-compatibility-linux-arm64.json
         run: bun run apps/studio/scripts/fuma-email-compatibility-target.ts
       - name: Upload architecture-bound native receipt
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ runner.temp }}/${{ matrix.receipt }}
+          name: fuma-email-compatibility-linux-arm64
+          path: ${{ runner.temp }}/fuma-email-compatibility-linux-arm64.json
           if-no-files-found: error
           retention-days: 14

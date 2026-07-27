@@ -51,14 +51,6 @@ export const FUMA_EMAIL_ARCHITECTURE_MATRIX = Object.freeze([
     probe: 'FUMA_EMAIL_EXPECT_PLATFORM=linux FUMA_EMAIL_EXPECT_ARCH=arm64 bun run server/fuma/email/compatibility/architectureProbe.ts',
     nativeGate: 'FUMA_EMAIL_RECEIPT_PATH=.tmp/fuma-email-compatibility-linux-arm64.json bun run apps/studio/scripts/fuma-email-compatibility-matrix.ts arm64',
   }),
-  Object.freeze({
-    platform: 'linux' as const,
-    arch: 'x64' as const,
-    artifact: 'fuma-email-compatibility-linux-amd64.json',
-    runner: 'ubuntu-24.04',
-    probe: 'FUMA_EMAIL_EXPECT_PLATFORM=linux FUMA_EMAIL_EXPECT_ARCH=x64 bun run server/fuma/email/compatibility/architectureProbe.ts',
-    nativeGate: 'FUMA_EMAIL_RECEIPT_PATH=.tmp/fuma-email-compatibility-linux-amd64.json bun run apps/studio/scripts/fuma-email-compatibility-matrix.ts amd64',
-  }),
 ])
 
 export const FUMA_EMAIL_EXPECTED_OUTPUT_SHA256 = Object.freeze({

@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { describe, expect, it } from 'bun:test'
+import { cp, mkdtemp, rm } from 'node:fs/promises'
 import { get } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -26,9 +26,7 @@ import {
 const STUDIO_ROOT = new URL('../../../../', import.meta.url).pathname
 const WORKSPACE_ROOT = new URL('../../../../../../', import.meta.url).pathname
 const EMAILS_DIRECTORY = 'server/fuma/email/compatibility/emails'
-const GENERATED_PREVIEW_DIRECTORY = join(STUDIO_ROOT, '.react-email')
 const BUILD_PREVIEW_PORT = '30441'
-
 const FUMA_010_EXACT_PINS = Object.freeze({
   '@better-auth/drizzle-adapter': '1.6.25',
   auth: '1.6.25',
@@ -37,13 +35,13 @@ const FUMA_010_EXACT_PINS = Object.freeze({
   postgres: '3.4.9',
 })
 
-afterEach(async () => {
-  await rm(GENERATED_PREVIEW_DIRECTORY, { force: true, recursive: true })
-})
-
-async function runBun(args: string[], env: Record<string, string | undefined> = process.env) {
+async function runBun(
+  args: string[],
+  env: Record<string, string | undefined> = process.env,
+  cwd = STUDIO_ROOT,
+) {
   const subprocess = Bun.spawn([process.execPath, ...args], {
-    cwd: STUDIO_ROOT,
+    cwd,
     env: { ...env, NO_COLOR: '1' },
     stdout: 'pipe',
     stderr: 'pipe',
@@ -59,7 +57,7 @@ async function runBun(args: string[], env: Record<string, string | undefined> = 
   return { stdout, stderr }
 }
 
-async function runArchitectureProbe(platform: 'linux', arch: 'arm64' | 'x64') {
+async function runArchitectureProbe(platform: 'linux', arch: string) {
   return runBun(['run', 'server/fuma/email/compatibility/architectureProbe.ts'], {
     ...process.env,
     FUMA_EMAIL_EXPECT_PLATFORM: platform,
@@ -209,14 +207,14 @@ describe('FUMA-041 exact official package selection', () => {
     expect(() => assertSupportedEmailCompatibility({ ...supported, platform: 'darwin' }))
       .toThrow('unsupported host darwin/arm64')
 
-    const oppositeArch = process.arch === 'arm64' ? 'x64' : 'arm64'
-    await expect(runArchitectureProbe('linux', oppositeArch)).rejects
-      .toThrow(`architecture mismatch: expected linux/${oppositeArch}`)
-    const targetAlias = process.arch === 'arm64' ? 'amd64' : 'arm64'
-    await expect(runBun(['run', 'scripts/fuma-email-compatibility-matrix.ts', targetAlias], {
+    expect(() => assertSupportedEmailCompatibility({ ...supported, arch: 'x64' }))
+      .toThrow('unsupported host linux/x64')
+    await expect(runArchitectureProbe('linux', 'x64')).rejects
+      .toThrow('architecture mismatch: expected linux/x64')
+    await expect(runBun(['run', 'scripts/fuma-email-compatibility-matrix.ts', 'amd64'], {
       ...process.env,
       FUMA_EMAIL_RECEIPT_PATH: join(tmpdir(), 'hostile-fuma041-receipt.json'),
-    })).rejects.toThrow('native matrix target mismatch')
+    })).rejects.toThrow('requires exactly one supported target argument: arm64')
   })
 })
 
@@ -279,7 +277,7 @@ describe('FUMA-041 deterministic render and representative client markup', () =>
   }, 180_000)
 })
 
-it.skipIf(process.platform !== 'linux' || process.arch !== 'arm64')(
+it(
   'FUMA-041 Linux ARM64 matrix gate renders the exact snapshots from the exact lockfile',
   async () => {
     const { stdout } = await runArchitectureProbe('linux', 'arm64')
@@ -292,18 +290,7 @@ it.skipIf(process.platform !== 'linux' || process.arch !== 'arm64')(
   60_000,
 )
 
-it.skipIf(process.platform !== 'linux' || process.arch !== 'x64')(
-  'FUMA-041 Linux amd64 matrix gate renders the exact snapshots from the exact lockfile',
-  async () => {
-    const { stdout } = await runArchitectureProbe('linux', 'x64')
-    expect(stdout).toContain('"passed":true')
-    expect(stdout).toContain('"platform":"linux"')
-    expect(stdout).toContain('"arch":"x64"')
-  },
-  60_000,
-)
-
-it('publishes deterministic native matrix, receipt, workflow, and explicit skip contracts', async () => {
+it('publishes the deterministic ARM64-only matrix, receipt, and zero-skip workflow contract', async () => {
   expect(FUMA_EMAIL_ARCHITECTURE_MATRIX).toEqual([
     {
       platform: 'linux',
@@ -313,14 +300,6 @@ it('publishes deterministic native matrix, receipt, workflow, and explicit skip 
       probe: 'FUMA_EMAIL_EXPECT_PLATFORM=linux FUMA_EMAIL_EXPECT_ARCH=arm64 bun run server/fuma/email/compatibility/architectureProbe.ts',
       nativeGate: 'FUMA_EMAIL_RECEIPT_PATH=.tmp/fuma-email-compatibility-linux-arm64.json bun run apps/studio/scripts/fuma-email-compatibility-matrix.ts arm64',
     },
-    {
-      platform: 'linux',
-      arch: 'x64',
-      artifact: 'fuma-email-compatibility-linux-amd64.json',
-      runner: 'ubuntu-24.04',
-      probe: 'FUMA_EMAIL_EXPECT_PLATFORM=linux FUMA_EMAIL_EXPECT_ARCH=x64 bun run server/fuma/email/compatibility/architectureProbe.ts',
-      nativeGate: 'FUMA_EMAIL_RECEIPT_PATH=.tmp/fuma-email-compatibility-linux-amd64.json bun run apps/studio/scripts/fuma-email-compatibility-matrix.ts amd64',
-    },
   ])
 
   const [workflow, matrixScript, testSource] = await Promise.all([
@@ -328,16 +307,18 @@ it('publishes deterministic native matrix, receipt, workflow, and explicit skip 
     Bun.file(join(STUDIO_ROOT, 'scripts/fuma-email-compatibility-matrix.ts')).text(),
     Bun.file(import.meta.path).text(),
   ])
-  expect(workflow).toContain('runner: ubuntu-24.04')
-  expect(workflow).toContain('runner: ubuntu-24.04-arm')
+  expect(workflow).toContain('runs-on: ubuntu-24.04-arm')
+  expect(workflow).toContain('FUMA_EMAIL_EXPECT_ARCH: arm64')
   expect(workflow).toContain('FUMA_EMAIL_RECEIPT_PATH:')
   expect(workflow).toContain('actions/upload-artifact@v4.6.2')
+  expect(workflow).not.toContain('amd64')
   expect(workflow).not.toContain('docker')
-  expect(matrixScript).not.toContain("['docker'")
+  expect(matrixScript).not.toContain('amd64')
+  expect(matrixScript).not.toContain('docker')
   expect(matrixScript).toContain('native matrix target mismatch')
-  expect(testSource).toContain("it.skipIf(process.platform !== 'linux' || process.arch !== 'x64')")
+  expect(testSource).not.toMatch(/process\.arch !== ['"]x64['"]/)
 
-  if (process.platform === 'linux' && (process.arch === 'arm64' || process.arch === 'x64')) {
+  if (process.platform === 'linux' && process.arch === 'arm64') {
     const { stdout } = await runArchitectureProbe('linux', process.arch)
     const architectureEvidence = parseArchitectureEvidence(JSON.parse(stdout.trim().split('\n').at(-1)!))
     expect(Object.keys(architectureEvidence.sourceFiles)).toEqual([...FUMA_EMAIL_EVIDENCE_SOURCE_FILES])
@@ -354,7 +335,7 @@ it('publishes deterministic native matrix, receipt, workflow, and explicit skip 
     const receipt = await parseAndVerifyNativeReceipt({
       ...architectureEvidence,
       receiptKind: 'fuma-email-native-compatibility',
-      compatibilityTests: { passed: 9, skipped: 1, failed: 0 },
+      compatibilityTests: { passed: 9, skipped: 0, failed: 0 },
       rendererArchitectureTests: { passed: 12, skipped: 0, failed: 0 },
       cli: FUMA_EMAIL_CLI_COMMANDS,
     })
@@ -369,33 +350,68 @@ it('publishes deterministic native matrix, receipt, workflow, and explicit skip 
       .rejects.toThrow('does not bind to the current exact source')
     await expect(parseAndVerifyNativeReceipt({
       ...receipt,
-      target: { ...receipt.target, arch: process.arch === 'arm64' ? 'x64' : 'arm64' },
-    }, { verifyCurrentSource: false })).rejects.toThrow('not bound to its native host')
+      target: { ...receipt.target, arch: 'x64' },
+    }, { verifyCurrentSource: false })).rejects.toThrow()
   }
 })
 
-it.skipIf(process.platform !== 'linux')(
-  'builds and serves the fixture preview through the Bun-invoked official CLI',
+it(
+  'builds and serves the fixture preview through the exact Bun-invoked official CLI',
   async () => {
-    await rm(GENERATED_PREVIEW_DIRECTORY, { force: true, recursive: true })
-    const { stdout } = await runBun(['run', 'email', 'build', '--dir', EMAILS_DIRECTORY])
-    expect(stdout).toContain('/preview/systemNotice')
-    expect(await Bun.file(join(GENERATED_PREVIEW_DIRECTORY, '.next', 'BUILD_ID')).exists()).toBe(true)
-    expect(await Bun.file(join(GENERATED_PREVIEW_DIRECTORY, 'package-lock.json')).exists()).toBe(true)
-
-    const preview = Bun.spawn(['setsid', process.execPath, 'run', 'email', 'start'], {
-      cwd: STUDIO_ROOT,
-      env: { ...process.env, NO_COLOR: '1', PORT: BUILD_PREVIEW_PORT },
-      stdout: 'pipe',
-      stderr: 'pipe',
-    })
+    const temporaryWorkspace = await mkdtemp(join(tmpdir(), 'fuma041-preview-'))
+    const isolatedStudio = join(temporaryWorkspace, 'apps', 'studio')
+    const isolatedEmails = join(isolatedStudio, EMAILS_DIRECTORY)
+    const generatedPreview = join(isolatedStudio, '.react-email')
     try {
-      const html = await waitForPreview(`http://127.0.0.1:${BUILD_PREVIEW_PORT}/preview/systemNotice`)
-      expect(html).toContain('Workspace ready')
-      expect(html).toContain('https://app.fuma.invalid/notices/notice_041')
+      await Promise.all([
+        cp(join(WORKSPACE_ROOT, 'package.json'), join(temporaryWorkspace, 'package.json')),
+        cp(join(WORKSPACE_ROOT, 'bun.lock'), join(temporaryWorkspace, 'bun.lock')),
+        cp(join(WORKSPACE_ROOT, 'packages'), join(temporaryWorkspace, 'packages'), { recursive: true }),
+        cp(
+          join(WORKSPACE_ROOT, 'vendor', 'pixel-art-icons'),
+          join(temporaryWorkspace, 'vendor', 'pixel-art-icons'),
+          { recursive: true },
+        ),
+        cp(join(STUDIO_ROOT, 'package.json'), join(isolatedStudio, 'package.json')),
+        cp(
+          join(WORKSPACE_ROOT, 'apps', 'control-surfaces', 'package.json'),
+          join(temporaryWorkspace, 'apps', 'control-surfaces', 'package.json'),
+        ),
+        cp(
+          join(WORKSPACE_ROOT, 'apps', 'web', 'package.json'),
+          join(temporaryWorkspace, 'apps', 'web', 'package.json'),
+        ),
+        cp(join(STUDIO_ROOT, EMAILS_DIRECTORY), isolatedEmails, { recursive: true }),
+      ])
+      const originalLock = await Bun.file(join(WORKSPACE_ROOT, 'bun.lock')).text()
+      await runBun(['install', '--frozen-lockfile'], process.env, temporaryWorkspace)
+      expect(await Bun.file(join(temporaryWorkspace, 'bun.lock')).text()).toBe(originalLock)
+
+      const { stdout } = await runBun(
+        ['run', 'email', 'build', '--dir', EMAILS_DIRECTORY],
+        process.env,
+        isolatedStudio,
+      )
+      expect(stdout).toContain('/preview/systemNotice')
+      expect(await Bun.file(join(generatedPreview, '.next', 'BUILD_ID')).exists()).toBe(true)
+      expect(await Bun.file(join(generatedPreview, 'package-lock.json')).exists()).toBe(true)
+
+      const preview = Bun.spawn(['setsid', process.execPath, 'run', 'email', 'start'], {
+        cwd: isolatedStudio,
+        env: { ...process.env, NO_COLOR: '1', PORT: BUILD_PREVIEW_PORT },
+        stdout: 'pipe',
+        stderr: 'pipe',
+      })
+      try {
+        const html = await waitForPreview(`http://127.0.0.1:${BUILD_PREVIEW_PORT}/preview/systemNotice`)
+        expect(html).toContain('Workspace ready')
+        expect(html).toContain('https://app.fuma.invalid/notices/notice_041')
+      } finally {
+        terminateProcessGroup(preview.pid)
+        await preview.exited
+      }
     } finally {
-      terminateProcessGroup(preview.pid)
-      await preview.exited
+      await rm(temporaryWorkspace, { force: true, recursive: true })
     }
   },
   900_000,

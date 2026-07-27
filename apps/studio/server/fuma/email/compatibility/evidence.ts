@@ -40,7 +40,7 @@ export const FUMA_EMAIL_EVIDENCE_SOURCE_FILES = Object.freeze([
   'apps/studio/src/core/fuma/email/index.ts',
 ] as const)
 
-const ArchitectureSchema = Type.Union([Type.Literal('arm64'), Type.Literal('x64')])
+const ArchitectureSchema = Type.Literal('arm64')
 const PlatformSchema = Type.Literal('linux')
 const HashSchema = Type.String({ pattern: '^[a-f0-9]{64}$' })
 const VersionsSchema = Type.Object({
@@ -51,13 +51,13 @@ const VersionsSchema = Type.Object({
 }, { additionalProperties: false })
 const TestCountsSchema = Type.Object({
   passed: Type.Integer({ minimum: 0 }),
-  skipped: Type.Integer({ minimum: 0 }),
+  skipped: Type.Literal(0),
   failed: Type.Literal(0),
 }, { additionalProperties: false })
 const SourceFilesSchema = Type.Record(Type.String(), HashSchema)
 
 export const FumaEmailArchitectureEvidenceSchema = Type.Object({
-  schemaVersion: Type.Literal(2),
+  schemaVersion: Type.Literal(3),
   tickets: Type.Tuple([Type.Literal('FUMA-041'), Type.Literal('FUMA-042')]),
   passed: Type.Literal(true),
   execution: Type.Literal('native'),
@@ -290,7 +290,7 @@ export async function parseAndVerifyNativeReceipt(
     ({ platform, arch }) => platform === receipt.target.platform && arch === receipt.target.arch,
   )
   if (matrixTarget === undefined) throw new Error('FUMA-041 receipt target is outside the matrix')
-  if (receipt.compatibilityTests.passed !== 9 || receipt.compatibilityTests.skipped !== 1
+  if (receipt.compatibilityTests.passed !== 9 || receipt.compatibilityTests.skipped !== 0
     || receipt.rendererArchitectureTests.passed !== 12 || receipt.rendererArchitectureTests.skipped !== 0) {
     throw new Error('FUMA-041 receipt focused test counts mismatch')
   }
