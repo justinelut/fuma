@@ -34,6 +34,17 @@ describe('FUMA-063..085 and TRACKER-086 architecture boundary', () => {
     for (const id of ['000035_ai_governance', '000036_plugins_marketplace', '000037_operations_experts_transfer', '000038_structured_imports', '000039_launch_evidence_privacy']) expect(migrationManifest).toContain(id)
   })
 
+  it('keeps FUMA-075 strict, resumable, secret-free, and bound to finalized import evidence', () => {
+    const ghost = readFileSync(join(PACKAGE, 'src/ghostImport.ts'), 'utf8')
+    const migration = readFileSync(join(ROOT, 'apps/studio/server/fuma/db/migrations/000038_structured_imports.ts'), 'utf8')
+    for (const contract of ['GhostExportSchema', 'GhostAdminApiSnapshotSchema', 'additionalProperties: false', 'parseGhostMemberCsv', 'findReceipt', 'objectState', 'mediaState', 'saveCursor', 'rollbackStructuredGhostImport']) expect(ghost).toContain(contract)
+    expect(ghost).toContain("excludedKinds: ['passwords', 'sessions', 'provider-secrets']")
+    expect(ghost).not.toMatch(/from ['"](?:apps\/|@fuma\/studio)/)
+    for (const table of ['fuma_structured_imports', 'fuma_import_objects', 'fuma_import_rollback_receipts', 'fuma_import_reauthentication']) expect(migration).toContain(table)
+    expect(migration).toContain("state in ('dry-run','running','applied','rolled-back','failed')")
+    expect(migration).toContain('unique(platform_id, site_id, source_hash_sha256, manifest_hash_sha256)')
+  })
+
   it('keeps Tailwind/shadcn exact-pinned and app-local without modifying Studio styling', () => {
     const manifest = JSON.parse(readFileSync(join(APP, 'package.json'), 'utf8')) as { devDependencies: Record<string, string> }
     expect(manifest.devDependencies).toMatchObject({ tailwindcss: '4.3.3', shadcn: '4.14.1', '@tailwindcss/postcss': '4.3.3' })
