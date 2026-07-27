@@ -1,0 +1,1 @@
+import { EditorialIndex } from '@/components/editorial-pages'; import { publicMetadata } from '@/lib/seo'; export const metadata=publicMetadata('Changelog','Reviewed Fuma public release notes.','/changelog'); export default function Page(){return <EditorialIndex collection="changelog"/>}

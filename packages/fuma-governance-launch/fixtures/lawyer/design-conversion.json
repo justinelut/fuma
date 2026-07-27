@@ -1,0 +1,17 @@
+{
+  "inventoryHashSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "routeBindings": [
+    { "route": "/", "templateId": "editorial-home", "loopIds": ["top-stories", "latest-analysis"], "accessBinding": "public" },
+    { "route": "/news", "templateId": "editorial-index", "loopIds": ["section-posts"], "accessBinding": "public" },
+    { "route": "/news/market-brief", "templateId": "editorial-article", "loopIds": ["related-posts"], "accessBinding": "public" },
+    { "route": "/analysis", "templateId": "editorial-index", "loopIds": ["section-posts"], "accessBinding": "paid" },
+    { "route": "/opinion", "templateId": "editorial-index", "loopIds": ["section-posts"], "accessBinding": "member" },
+    { "route": "/membership", "templateId": "membership", "loopIds": ["membership-plans"], "accessBinding": "public" },
+    { "route": "/account", "templateId": "member-account", "loopIds": ["member-subscriptions"], "accessBinding": "member" },
+    { "route": "/newsletter", "templateId": "newsletter", "loopIds": ["newsletter-archive"], "accessBinding": "public" }
+  ],
+  "templateIds": ["editorial-home", "editorial-index", "editorial-article", "membership", "member-account", "newsletter"],
+  "tokenHashSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "assetHashSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "flattenedCopies": 0
+}

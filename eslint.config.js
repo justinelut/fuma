@@ -16,14 +16,13 @@ import { fileURLToPath } from 'node:url'
 const configDir = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig([
-  globalIgnores(['dist', '.worktrees', '.claude']),
+  globalIgnores(['dist', '**/.next/**', '.worktrees', '.claude']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
       reactHooks.configs.flat.recommended,
-      reactRefresh.configs.vite,
       reactCompiler.configs.recommended,
     ],
     languageOptions: {
@@ -62,7 +61,11 @@ export default defineConfig([
     },
   },
   {
-    files: ['src/__tests__/**/*.{ts,tsx}'],
+    files: ['apps/studio/**/*.{ts,tsx}'],
+    extends: [reactRefresh.configs.vite],
+  },
+  {
+    files: ['apps/studio/src/__tests__/**/*.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-unused-expressions': 'off',
@@ -78,7 +81,7 @@ export default defineConfig([
     // serves them) and they don't run under the host's React 19 strict
     // setState-in-effect rules. These rules are noisy in plugin authoring
     // contexts; relax them for the examples folder.
-    files: ['examples/plugins/**/*.{ts,tsx}'],
+    files: ['apps/studio/examples/plugins/**/*.{ts,tsx}'],
     rules: {
       'react-refresh/only-export-components': 'off',
       'react-hooks/set-state-in-effect': 'off',

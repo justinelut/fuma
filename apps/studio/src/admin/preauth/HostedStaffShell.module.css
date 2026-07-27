@@ -1,0 +1,50 @@
+.shell {
+  display: grid;
+  gap: var(--space-m);
+  width: min(100%, 920px);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-xl);
+}
+
+.header > div {
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0 0 var(--space-m);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.identity {
+  margin: calc(var(--space-xl) * -1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-s);
+  overflow-wrap: anywhere;
+}
+
+.copy {
+  margin: 0 0 var(--space-m);
+  color: var(--text-muted);
+  font-size: var(--text-s);
+  line-height: 1.5;
+}
+
+@media (max-width: 560px) {
+  .shell {
+    padding: var(--space-xl);
+  }
+
+  .header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

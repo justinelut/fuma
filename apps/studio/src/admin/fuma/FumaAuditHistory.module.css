@@ -1,0 +1,213 @@
+.section {
+  display: grid;
+  gap: var(--space-xl);
+  min-width: 0;
+  color: var(--text);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2xl);
+}
+
+.headingGroup {
+  display: grid;
+  gap: var(--space-3xs);
+}
+
+.headingGroup h2,
+.headingGroup p {
+  margin: 0;
+}
+
+.headingGroup h2 {
+  color: var(--text-bright);
+  font-size: var(--text-2xl);
+}
+
+.headingGroup p {
+  color: var(--text-muted);
+  font-size: var(--text-s);
+}
+
+.scopeGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: var(--space-s);
+  max-width: min(100%, 760px);
+}
+
+.scopeCoordinates {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-s);
+  margin: 0;
+}
+
+.scopeCoordinate {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-3xs);
+  min-width: 0;
+}
+
+.scopeCoordinate dt,
+.detailLabel,
+.metadataEntry > dt,
+.nestedMetadata dt {
+  color: var(--text-subtle);
+  font-size: var(--text-2xs);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.scopeCoordinate dd,
+.metadataEntry > dd,
+.nestedMetadata dd {
+  min-width: 0;
+  margin: 0;
+}
+
+.scopeCoordinate code,
+.identifierLine code,
+.action,
+.timestamp,
+.metadataPrimitive {
+  font-family: var(--font-mono);
+}
+
+.scopeCoordinate code,
+.identifierLine code {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.table {
+  min-width: 1460px;
+}
+
+.action {
+  color: var(--text-bright);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.cellStack {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3xs);
+  min-width: 150px;
+}
+
+.identifierLine,
+.impersonatorLine {
+  display: grid;
+  gap: var(--space-px);
+  max-width: 260px;
+}
+
+.impersonatorLine {
+  margin-top: var(--space-3xs);
+  padding: var(--space-xs);
+  border-radius: var(--radius);
+  background: var(--warning-10);
+  color: var(--warning-text);
+}
+
+.outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3xs);
+}
+
+.outcomeDot {
+  width: var(--space-xs);
+  height: var(--space-xs);
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--text-subtle);
+}
+
+.outcome[data-outcome="success"] .outcomeDot {
+  background: var(--success);
+}
+
+.outcome[data-outcome="failure"] .outcomeDot {
+  background: var(--danger);
+}
+
+.outcome[data-outcome="denied"] .outcomeDot {
+  background: var(--warning);
+}
+
+.metadata,
+.nestedMetadata {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 190px;
+  margin: 0;
+}
+
+.metadataEntry,
+.nestedMetadata > div {
+  display: grid;
+  gap: var(--space-px);
+  min-width: 0;
+}
+
+.nestedMetadata {
+  min-width: 0;
+  padding-left: var(--space-s);
+}
+
+.metadataArray {
+  display: grid;
+  gap: var(--space-3xs);
+  margin: 0;
+  padding-left: var(--space-l);
+}
+
+.metadataString,
+.metadataPrimitive,
+.emptyValue {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.timestamp {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.state {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3xs);
+  padding: var(--space-2xl);
+  border-radius: var(--panel-radius);
+  background: var(--bg-surface-2);
+  color: var(--text-muted);
+}
+
+.state strong {
+  color: var(--text-bright);
+}
+
+@media (max-width: 900px) {
+  .header {
+    display: grid;
+  }
+
+  .scopeGroup,
+  .scopeCoordinates {
+    justify-content: flex-start;
+  }
+}

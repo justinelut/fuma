@@ -1,0 +1,72 @@
+[
+  {
+    "path": "/blog/ownership-and-craft",
+    "title": "Why ownership changes the building process",
+    "description": "Clean output and portable content are product decisions, not export features.",
+    "text": "ownership is easiest to promise at the end and hardest to preserve throughout a product. we think it should shape the editor, data model and publisher from the beginning. output is part of the interface a visitor experiences the page, not the builder. semantic structure, compact styles and predictable loading are therefore part of the authoring experience. portability disciplines the system when content and design can be understood outside the editor, internal convenience is less likely to leak into the public page. that constraint improves both performance and longevity.",
+    "publishedAt": "2026-07-26T00:00:00Z"
+  },
+  {
+    "path": "/changelog/public-web-foundation",
+    "title": "Public web foundation",
+    "description": "The independent Fuma public site foundation and safe projection boundary.",
+    "text": "the fuma public site now has an independent application boundary, kenya-first acquisition journeys and validated public projections. included website and publication journeys validated documentation collections authority-backed pricing and discovery states secure opaque transitions into the application technical seo and privacy controls",
+    "publishedAt": "2026-07-26T00:00:00Z"
+  },
+  {
+    "path": "/docs/getting-started",
+    "title": "Getting started with Fuma",
+    "description": "Choose a publishing profile and prepare your first project.",
+    "text": "start by deciding what you want to publish. choose **website** for flexible pages and structured business content, or **publication** for a recurring editorial workflow. create your project use the start link from the matching product page. fuma passes only an opaque intent to the application. sign in there, confirm the current choices, and create your project. build the first page add a page, place semantic modules on the canvas, and use the design controls to establish colour, typography and spacing. publish deliberately preview the result before publishing. draft changes remain private until you choose to publish them.",
+    "publishedAt": "2026-07-26T00:00:00Z"
+  },
+  {
+    "path": "/docs/publishing",
+    "title": "Publishing and clean output",
+    "description": "Understand previews, drafts and immutable public releases.",
+    "text": "publishing creates visitor-facing output from the content and design state you approve. draft edits do not replace the active release. preview before release use preview to inspect responsive layouts, links and content without changing the public site. static by default pages that do not need per-visitor data are emitted as semantic html and compact css. dynamic behaviour is reserved for features that actually need it. roll forward safely a later publish creates a new release. the active release remains an explicit choice rather than an in-place mutation.",
+    "publishedAt": "2026-07-26T00:00:00Z"
+  },
+  {
+    "path": "/docs/safe-components-and-code",
+    "title": "Safe components and code examples",
+    "description": "Use reviewed MDX callouts and code examples without exposing executable markup.",
+    "text": "the public content compiler accepts only reviewed components declared in strict frontmatter. start with [the publishing guide](/docs/publishing#preview-before-release). reviewed callouts preview content before publication. a callout is rendered as semantic aside content and never executes authored code. escaped code next steps return to [getting started](/docs/getting-started#create-your-project) when you are ready to build.",
+    "publishedAt": "2026-07-26T00:00:00Z"
+  },
+  {
+    "path": "/guides/small-business-site",
+    "title": "Plan a small business website",
+    "description": "A practical sequence for a clear, useful business website.",
+    "text": "begin with the decision a visitor needs to make. a clear business site usually needs fewer pages than its first outline suggests. name the outcome write one sentence describing what a good visitor should understand or do. use it to test every section. build the minimum path explain the service in plain language show credible examples answer common concerns make contact easy check the result review the site at a narrow viewport, zoom the browser, use the keyboard, and read the page without images before publishing.",
+    "publishedAt": "2026-07-26T00:00:00Z"
+  },
+  {
+    "path": "/legal/acceptable-use",
+    "title": "Acceptable use policy",
+    "description": "Rules for safe and respectful use of Fuma public services.",
+    "text": "use fuma services lawfully and with respect for other people, systems and rights. prohibited activity do not distribute malware, phish, impersonate, harass, exploit children, violate privacy, infringe rights, evade service limits or disrupt the platform. reporting use the security route for vulnerability reports and the contact route for abuse reports. include only the information needed to investigate safely. enforcement fuma may limit or suspend abusive activity while reviewing context and applicable obligations.",
+    "publishedAt": "2026-07-26T00:00:00Z"
+  },
+  {
+    "path": "/legal/cookies",
+    "title": "Cookies and storage",
+    "description": "Public website cookie and browser-storage choices.",
+    "text": "the public website does not use an application, administration, member or tenant session cookie. essential operation security, routing and availability controls may process short-lived request information without optional storage. optional measurement if you allow optional measurement, the public site records a versioned choice in session storage for this host. it is not a parent-domain cookie and is not available to product or tenant hosts. change your choice clear the site session or use the privacy control to withdraw optional measurement. global privacy control or do not track always disables the optional path.",
+    "publishedAt": "2026-07-26T00:00:00Z"
+  },
+  {
+    "path": "/legal/privacy",
+    "title": "Privacy policy",
+    "description": "How Fuma handles information on its public website.",
+    "text": "this public website minimises collection. essential operational requests do not require a cross-site identifier, and optional measurement remains off unless you choose it. information you submit when you contact fuma, we process the name, reply address and message you provide for the purpose shown on the form. do not include secrets, credentials or sensitive personal information. measurement choices we respect global privacy control and do not track signals. optional measurement uses a host-only session preference and stops when you withdraw consent. retention and requests operational and contact records are retained only for their documented purpose and bounded retention period. use the privacy contact route to request access or deletion.",
+    "publishedAt": "2026-07-26T00:00:00Z"
+  },
+  {
+    "path": "/legal/terms",
+    "title": "Terms of use",
+    "description": "Terms for using the Fuma public website.",
+    "text": "these terms govern access to the public fuma website. product-specific terms are presented for review before an account or paid service is activated. public information public descriptions are provided in good faith. current availability, pricing and entitlements are confirmed by the application authority at the point of action. acceptable use do not interfere with the service, bypass access controls, submit malicious material or use public forms for abuse. policy history this version is effective from the published date. superseded versions remain preserved in the policy history maintained by the legal owner.",
+    "publishedAt": "2026-07-26T00:00:00Z"
+  }
+]

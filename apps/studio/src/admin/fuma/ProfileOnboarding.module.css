@@ -1,0 +1,188 @@
+.root {
+  display: grid;
+  gap: var(--space-px);
+  overflow: hidden;
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
+  color: var(--text);
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-5xl);
+  padding: var(--space-5xl);
+  background: var(--bg-surface-2);
+}
+
+.headerCopy {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.kicker,
+.title,
+.summary,
+.stepTitle,
+.stepDescription {
+  margin: 0;
+}
+
+.kicker,
+.progressText,
+.stepStatus {
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+}
+
+.kicker,
+.stepStatus {
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.title {
+  font-size: var(--text-2xl);
+  color: var(--text-bright);
+}
+
+.summary {
+  font-size: var(--text-s);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.progressBlock {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: min(100%, 220px);
+}
+
+.progress {
+  width: 100%;
+  height: var(--space-s);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-sm);
+  accent-color: var(--success);
+  background: var(--bg-surface);
+}
+
+.progress::-webkit-progress-bar {
+  background: var(--bg-surface);
+}
+
+.progress::-webkit-progress-value {
+  background: var(--success);
+}
+
+.progress::-moz-progress-bar {
+  background: var(--success);
+}
+
+.progressText {
+  text-align: right;
+}
+
+.steps {
+  display: grid;
+  gap: var(--space-px);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2xl);
+  padding: var(--space-2xl) var(--space-5xl);
+  background: var(--bg-surface-2);
+}
+
+.step[data-state='complete'] {
+  color: var(--text-muted);
+}
+
+.step[data-state='current'] {
+  background: var(--bg-surface-3);
+}
+
+.stepNumber {
+  display: grid;
+  place-items: center;
+  width: var(--space-6xl);
+  height: var(--space-6xl);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.step[data-state='complete'] .stepNumber {
+  border-color: var(--success-30);
+  background: var(--success-10);
+  color: var(--success-text-muted);
+}
+
+.step[data-state='current'] .stepNumber {
+  border-color: var(--border-strong);
+  color: var(--text-bright);
+}
+
+.stepCopy {
+  display: grid;
+  gap: var(--space-3xs);
+  min-width: 0;
+}
+
+.stepTitle {
+  font-size: var(--text-m);
+  color: var(--text);
+}
+
+.stepDescription {
+  font-size: var(--text-s);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.stepStatus {
+  margin-top: var(--space-3xs);
+}
+
+.step[data-state='complete'] .stepStatus {
+  color: var(--success-text-muted);
+}
+
+.step[data-state='current'] .stepStatus {
+  color: var(--text);
+}
+
+@media (max-width: 600px) {
+  .header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .progressBlock {
+    min-width: 100%;
+  }
+
+  .progressText {
+    text-align: left;
+  }
+
+  .step {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .step > :last-child:not(.stepCopy) {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}

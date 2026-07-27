@@ -1,0 +1,6 @@
+import type { HostedMigration } from '../migrationPolicy'
+export const quotaEnforcementMigration:HostedMigration={id:'000029_quota_enforcement',description:'Add centralized quota balances reservations notices and grants',sql:`
+create table fuma_quota_balances (organization_id text not null, quota_class text not null, source text not null check(source in ('public-contract','private-contract','platform-internal')), limit_units bigint not null check(limit_units>0), used_units bigint not null default 0 check(used_units>=0), reserved_units bigint not null default 0 check(reserved_units>=0), topup_units bigint not null default 0 check(topup_units>=0), version bigint not null default 1, primary key(organization_id,quota_class), check(used_units+reserved_units<=limit_units+topup_units));
+create table fuma_quota_admissions (idempotency_key text primary key, organization_id text not null, quota_class text not null, units bigint not null check(units>0), state text not null check(state in ('reserved','settled','released')), created_at timestamptz not null);
+create table fuma_quota_notices (organization_id text not null, quota_class text not null, threshold int not null check(threshold in (50,75,90,100)), emitted_at timestamptz not null, primary key(organization_id,quota_class,threshold));
+`}

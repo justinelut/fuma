@@ -1,0 +1,15 @@
+WORKSPACE READY
+
+Hello Amina,
+
+Your workspace passed its checks and is ready for a final review.
+
+Review workspace https://app.fuma.invalid/notices/notice_041
+
+----------------------------------------
+
+Status
+
+Ready for review
+
+If the button does not work, open https://app.fuma.invalid/notices/notice_041

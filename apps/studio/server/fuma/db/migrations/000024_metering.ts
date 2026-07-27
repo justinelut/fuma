@@ -1,0 +1,9 @@
+import type { HostedMigration } from '../migrationPolicy'
+export const meteringMigration:HostedMigration={id:'000024_metering',description:'Add immutable usage cost ledger and provider cost catalog',sql:`
+create table fuma_provider_cost_catalog (version text not null, meter text not null, effective_at timestamptz not null, stale_after timestamptz not null, source text not null check(source in ('quote','invoice','published-baseline')), unit_cost_usd_micros bigint not null check(unit_cost_usd_micros>=0), fixed_cost_usd_micros bigint not null check(fixed_cost_usd_micros>=0), allocation_weight bigint not null check(allocation_weight>0), primary key(version,meter));
+create table fuma_usage_ledger (entry_id text primary key, idempotency_key text not null unique, organization_id text not null, workspace_id text null, site_id text null, meter text not null, kind text not null check(kind in ('reservation','settlement','release','adjustment')), reservation_id text null references fuma_usage_ledger(entry_id) on delete restrict, logical_units bigint not null check(logical_units>=0), physical_units bigint not null check(physical_units>=0), cost_catalog_version text not null, cost_usd_micros numeric(39,0) not null check(cost_usd_micros>=0), internal_workload boolean not null, occurred_at timestamptz not null, check(not internal_workload or logical_units=0 or physical_units>0));
+create index fuma_usage_attribution_idx on fuma_usage_ledger(organization_id,workspace_id,site_id,meter,occurred_at);
+create function fuma_usage_immutable() returns trigger language plpgsql as $$ begin raise exception 'usage and cost ledgers are immutable' using errcode='55000'; end $$;
+create trigger fuma_usage_immutable before update or delete on fuma_usage_ledger for each row execute function fuma_usage_immutable();
+create trigger fuma_provider_cost_immutable before update or delete on fuma_provider_cost_catalog for each row execute function fuma_usage_immutable();
+`}

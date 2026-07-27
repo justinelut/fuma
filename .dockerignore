@@ -19,3 +19,11 @@ docs/superpowers
 **/__tests__
 **/*.test.ts
 **/*.test.tsx
+# The E2E TypeScript project imports this canonical non-test fixture during tsc.
+!apps/studio/src/__tests__/helpers/fuma/fixtures.ts
+
+# Next.js public application outputs
+.next
+**/.next
+apps/web/playwright-report
+apps/web/test-results

@@ -9,6 +9,10 @@ The published output has **no framework runtime**, **no client-side hydration of
 ## TL;DR
 
 - Entry point: `publishPage(page, site, registry, options?)` in `src/core/publisher/render.ts`. Returns `{ filename, html, jsModuleIds }`, where `html` is the full document string and `jsModuleIds` are per-page module-JS candidates for the server injection pass.
+## Hosted immutable release boundary
+
+The semantic renderer and self-host disk publisher described below remain unchanged. Hosted FUMA release state is a separate PostgreSQL/object-storage boundary in `apps/studio/server/fuma/releases/`: FUMA-048 defines strict manifests, exact FUMA-008 object verification, `queued/building/ready/active/failed` state, one atomic exact-site active pointer, and retention roots. Its service does not import this renderer, write release objects, enqueue publishing workers, or mount public serving. See [`docs/reference/fuma-immutable-releases.md`](../reference/fuma-immutable-releases.md).
+
 - Recursion: `renderNode(nodeId, config, acc)` in `renderNode.ts`. Bottom-up walk. Two specialized renderers hook in for `base.visual-component-ref` and `base.loop`.
 - Hidden nodes (`node.hidden`) are pruned at the top of `renderNode`, before unknown-module comments, dynamic holes, specialized renderers, standard rendering, or CSS collection.
 - Per-node flow: render children → resolve effective + dynamic props → `escapeProps` → call `module.render(props, renderedChildren)` → collect deduped CSS → inject author class names.

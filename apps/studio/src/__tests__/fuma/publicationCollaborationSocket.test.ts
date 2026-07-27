@@ -1,0 +1,33 @@
+import { describe,expect,test } from 'bun:test'
+import type { FumaScopedRequestAuthority,FumaScopedRouteBoundary } from '../../../server/fuma/context'
+import { FumaRedisCoordination } from '../../../server/fuma/redis'
+import { PublicationCollaborationEvents,PublicationCollaborationService,publicationPresenceRoom } from '../../../server/fuma/publication/collaboration'
+import { PublicationCollaborationSocketHub,type PublicationCollaborationSocketData } from '../../../server/fuma/publication/collaborationSocket'
+import { DeterministicRedisDriver,DeterministicRedisServer } from '../helpers/fuma/deterministicRedis'
+import { InMemoryPublicationCollaborationStore,PUBLICATION_TEST_SCOPE } from '../helpers/fuma/publicationFixtures'
+
+const BASE='/api/fuma/organizations/organization/workspaces/workspace/sites/site/publication/collaboration/socket/post/post-1?tab=tab-1'
+const request=()=>new Request(`https://app.fuma.test${BASE}`,{headers:{origin:'https://app.fuma.test',upgrade:'websocket'}})
+function authority():FumaScopedRequestAuthority{return{repositoryScope:{platformId:'platform',organizationId:'organization',workspaceId:'workspace',siteId:'site',ownerKey:'owner-key',generation:1,state:'active',transferFence:null},context:{actor:{kind:'staff',userId:'actor',sessionId:'auth-session',impersonator:null},profile:{id:'publication'}}} as FumaScopedRequestAuthority}
+class FakeSocket {readonly sent:string[]=[];closed:number|null=null;constructor(readonly data:PublicationCollaborationSocketData){}send(value:string){this.sent.push(value);return value.length}close(code=1000){this.closed=code}}
+
+async function fixture(){
+  const redisServer=new DeterministicRedisServer(()=>0),redis=new FumaRedisCoordination({namespace:'fuma-030',driver:new DeterministicRedisDriver(redisServer),nowMs:()=>0});await redis.connect()
+  const store=new InMemoryPublicationCollaborationStore();store.seed('post','post-1',{title:'Base',nodes:[]})
+  const collaboration=new PublicationCollaborationService(store,()=>new Date('2040-01-02T03:04:05.000Z'),new PublicationCollaborationEvents(redis))
+  let canWrite=true;const permissions:string[]=[]
+  const boundary={handles:()=>true,handle:()=>Promise.resolve(null),authorize:async(_request:Request,permission:string)=>{permissions.push(permission);return permission==='publication.posts.write'&&!canWrite?null:authority()}} as FumaScopedRouteBoundary
+  const hub=new PublicationCollaborationSocketHub({collaboration,authority:boundary})
+  const data=(scope=PUBLICATION_TEST_SCOPE):PublicationCollaborationSocketData=>({channel:'collaboration',request:request(),scope,actorId:'actor',actorSessionId:'collaboration-session',resourceKind:'post',resourceId:'post-1',room:publicationPresenceRoom(scope,'post','post-1'),lastSequence:0})
+  return{hub,store,permissions,data,setWrite:(value:boolean)=>{canWrite=value}}
+}
+const reconcile=(mutationId='mutation-1')=>JSON.stringify({type:'collaboration-reconcile',command:{mutationId,resourceKind:'post',resourceId:'post-1',expectedSequence:0,operations:[{operationId:'operation-1',baseSequence:0,kind:'set',path:['title'],value:'Accepted'}]}})
+const frames=(socket:FakeSocket)=>socket.sent.map(value=>JSON.parse(value) as {type:string;replayed?:boolean;sequence?:number;receipt?:{sequence:number;mutationId:string};document?:unknown})
+
+describe('FUMA-030 collaboration WebSocket transport',()=>{
+  test('authorizes trusted read upgrades and derives immutable actor/tab authority server-side',async()=>{const f=await fixture();let data:PublicationCollaborationSocketData|undefined;expect(await f.hub.upgrade(request(),{upgrade:(_request:Request,options:{data:PublicationCollaborationSocketData})=>{data=options.data;return true}} as never)).toBeUndefined();expect(data).toMatchObject({channel:'collaboration',scope:PUBLICATION_TEST_SCOPE,actorId:'actor',resourceKind:'post',resourceId:'post-1'});expect(data?.actorSessionId).toMatch(/^collaboration-[a-f0-9]{64}$/);expect(f.permissions).toEqual(['publication.posts.read'])})
+  test('acknowledges the writer and fans accepted ordered operations to every same-scope collaborator',async()=>{const f=await fixture(),left=new FakeSocket(f.data()),right=new FakeSocket(f.data());await f.hub.handler.open?.(left as never);await f.hub.handler.open?.(right as never);await f.hub.handler.message(left as never,reconcile());expect(frames(left).filter(frame=>frame.type==='collaboration-accepted').length).toBeGreaterThanOrEqual(1);expect(frames(right)).toContainEqual(expect.objectContaining({type:'collaboration-accepted',receipt:expect.objectContaining({sequence:1,mutationId:'mutation-1'})}));expect(f.store.operations).toHaveLength(1);expect(f.permissions).toContain('publication.posts.write');await f.hub.close()})
+  test('replays a duplicate mutation acknowledgement without a second ledger write',async()=>{const f=await fixture(),socket=new FakeSocket(f.data());await f.hub.handler.open?.(socket as never);await f.hub.handler.message(socket as never,reconcile());await f.hub.handler.message(socket as never,reconcile());expect(frames(socket).some(frame=>frame.type==='collaboration-accepted'&&frame.replayed===true)).toBe(true);expect(f.store.operations).toHaveLength(1);await f.hub.close()})
+  test('reconnect catch-up returns authoritative tree plus operations after the requested base in deterministic order',async()=>{const f=await fixture(),first=new FakeSocket(f.data());await f.hub.handler.open?.(first as never);await f.hub.handler.message(first as never,reconcile());await f.hub.handler.close?.(first as never,1006,'crash');const reconnected=new FakeSocket(f.data());await f.hub.handler.open?.(reconnected as never);await f.hub.handler.message(reconnected as never,JSON.stringify({type:'collaboration-catch-up',afterSequence:0}));expect(frames(reconnected).at(-1)).toMatchObject({type:'collaboration-catch-up',sequence:1,document:{title:'Accepted'},operationsSinceBase:[{operationId:'operation-1',acceptedSequence:1,operationIndex:0}]});await f.hub.close()})
+  test('denies writes after membership loss and never fans operations across owner-generation rooms',async()=>{const f=await fixture(),same=new FakeSocket(f.data()),foreign=new FakeSocket(f.data({...PUBLICATION_TEST_SCOPE,generation:2}));await f.hub.handler.open?.(same as never);await f.hub.handler.open?.(foreign as never);f.setWrite(false);await f.hub.handler.message(same as never,reconcile());expect(same.closed).toBe(1008);expect(f.store.operations).toHaveLength(0);f.setWrite(true);const writer=new FakeSocket(f.data());await f.hub.handler.open?.(writer as never);await f.hub.handler.message(writer as never,reconcile('mutation-2'));expect(foreign.sent).toEqual([]);await f.hub.close()})
+})

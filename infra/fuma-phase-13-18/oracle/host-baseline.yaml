@@ -1,0 +1,42 @@
+schemaVersion: 1
+state: template-not-applied
+architecture: arm64
+availabilityClaim: single-node-no-host-ha
+requiredApprovals:
+  oracleImageOcid: REQUIRED_ORACLE_LINUX_ARM64_IMAGE_OCID
+  shape: REQUIRED_AMPERE_A1_SHAPE
+  compartmentOcid: REQUIRED_COMPARTMENT_OCID
+  subnetOcid: REQUIRED_PRIVATE_SUBNET_OCID
+  reservedPublicIpOcid: REQUIRED_RESERVED_IP_OCID
+  encryptedBlockVolumeOcid: REQUIRED_BLOCK_VOLUME_OCID
+  cloudflareIpv4Set: REQUIRED_CLOUDFLARE_IPV4_SET
+  cloudflareIpv6Set: REQUIRED_CLOUDFLARE_IPV6_SET
+host:
+  rootLogin: disabled
+  passwordSsh: disabled
+  operator: non-root-short-lived-key
+  automaticSecurityUpdates: true
+  timeSynchronization: required
+  auditLogOffHost: required
+  serialConsoleBreakGlass: approval-required
+  filesystems:
+    root: { encrypted: true, nodevTmp: true }
+    data: { encrypted: true, mount: /var/lib/rancher/k3s, backupRequired: true }
+network:
+  inbound:
+    - { port: 443, protocol: tcp, sources: cloudflare-approved-ranges-only }
+    - { port: 22, protocol: tcp, sources: break-glass-admin-network-only }
+  explicitlyDeniedPublicPorts: [80, 2379, 2380, 5432, 6379, 9000, 9001, 9100, 10250, 6443]
+  directOriginTls: authenticated-cloudflare-origin-certificate
+k3s:
+  versionSource: versions.env
+  apiBind: private-interface-only
+  secretsEncryption: true
+  bundledIngress: disabled
+  tokenCustody: external-secret-manager
+  nodeLabels: ["kubernetes.io/arch=arm64", "fuma.topology/single-node=true"]
+rebuild:
+  source: immutable-paired-release-and-encrypted-off-host-backup
+  targetRpoSeconds: 21600
+  targetRtoSeconds: 7200
+  destructiveCleanupAutomated: false

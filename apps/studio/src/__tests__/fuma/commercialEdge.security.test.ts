@@ -1,0 +1,12 @@
+import {describe,expect,it} from 'bun:test'
+import {readdirSync,readFileSync} from 'node:fs'
+import {join} from 'node:path'
+import {DomainService} from '../../../server/fuma/domains/service'
+import {FreeHostService,MemoryFreeHostRepository,FreeHostError} from '../../../server/fuma/freeHosts/service'
+
+describe('FUMA-048–062 security boundaries',()=>{
+ it('stores only encrypted domain credential envelopes and redacts every projection',async()=>{let persisted:unknown;const service=new DomainService({async insert(){return true},async exact(){return null},async transition(){return true},async storeCredential(e){persisted=e}} as never,{async encrypt(_scope,bytes){expect(new TextDecoder().decode(bytes)).toBe('provider-secret');return{ciphertext:'ciphertext-not-plaintext',keyId:'key-1'}},async decrypt(){throw new Error('not used')}} as never,async()=>{});const envelope=await service.storeCredential({credentialId:'c',scope:'customer-automation',organizationId:'org',secret:new TextEncoder().encode('provider-secret')});expect(JSON.stringify(persisted)).not.toContain('provider-secret');expect(service.redacted(envelope).secret).toBe('[REDACTED]')})
+ it('unknown and malformed hosts fail closed without a default tenant',async()=>{const service=new FreeHostService(new MemoryFreeHostRepository(),{async exactSite(){return{releaseId:'must-not-resolve'}}});await expect(service.resolve('unknown.fuma.co.ke')).rejects.toBeInstanceOf(FreeHostError);await expect(service.resolve('app.fuma.co.ke')).rejects.toBeInstanceOf(FreeHostError)})
+ it('Paystack verifies raw signature before parsing and never logs credential values',()=>{const source=readFileSync(join(import.meta.dir,'../../../server/fuma/paystack/transport.ts'),'utf8');expect(source.indexOf('verifyPaystackWebhook(this.#credentials.secretKey, raw, signature)')).toBeLessThan(source.indexOf('JSON.parse'));expect(source).toMatch(/credentials\s*:\s*'\[REDACTED\]'/);expect(source).not.toMatch(/console\.(?:log|error).*secret/i)})
+ it('commercial migrations contain no plaintext secret columns or destructive SQL',()=>{const directory=join(import.meta.dir,'../../../server/fuma/db/migrations');for(const file of readdirSync(directory).filter((name)=>/^0000(?:2[1-9]|3[0-4])_/.test(name))){const source=readFileSync(join(directory,file),'utf8');expect(source).not.toMatch(/\b(?:secret|auth_code)\s+text\b/i);expect(source).not.toMatch(/\bdrop\s+(?:table|column|schema)\b/i)}})
+})

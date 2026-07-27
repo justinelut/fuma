@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "state": "blocked",
+  "sqliteTransitionHashMatched": false,
+  "ghostManifestHashMatched": false,
+  "lawyerInventoryComplete": false,
+  "immutableGrandfatheredContract": false,
+  "ociEmailActive": false,
+  "routeMemberAccessParity": false,
+  "providerPaymentsReconciled": false,
+  "rollbackRestoredHash": false,
+  "severityOneOpen": 0,
+  "signedBy": [],
+  "requiredEvidence": ["sanitized-real-snapshot", "complete-route-manifest", "member-and-access-counts", "paystack-provider-verification", "oci-deliverability", "signed-rollback-report"]
+}

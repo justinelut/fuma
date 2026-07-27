@@ -1,0 +1,35 @@
+---
+title: Safe components and code examples
+description: Use reviewed MDX callouts and code examples without exposing executable markup.
+slug: safe-components-and-code
+collection: docs
+author: Fuma Docs
+category: Foundations
+publishedAt: 2026-07-26T00:00:00Z
+updatedAt: 2026-07-26T00:00:00Z
+reviewAt: 2026-10-26T00:00:00Z
+draft: false
+version: 1.0
+redirects: []
+components: ["Callout", "CodeBlock"]
+owner: Product Documentation
+audience: public
+---
+The public content compiler accepts only reviewed components declared in strict frontmatter. Start with [the publishing guide](/docs/publishing#preview-before-release).
+
+## Reviewed callouts
+
+<Callout>
+Preview content before publication. A callout is rendered as semantic aside content and never executes authored code.
+</Callout>
+
+## Escaped code
+
+```ts
+const message = '<script>shown as text, never executed</script>'
+console.log(message)
+```
+
+## Next steps
+
+Return to [getting started](/docs/getting-started#create-your-project) when you are ready to build.

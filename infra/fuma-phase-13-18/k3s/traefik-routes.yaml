@@ -1,0 +1,105 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata: { name: security-headers, namespace: fuma }
+spec:
+  headers:
+    stsSeconds: 31536000
+    stsIncludeSubdomains: true
+    contentTypeNosniff: true
+    frameDeny: true
+    referrerPolicy: no-referrer
+    customResponseHeaders: { Server: "" }
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata: { name: www-canonical, namespace: fuma }
+spec: { redirectRegex: { regex: "^https://www\\.fuma\\.co\\.ke/(.*)", replacement: "https://fuma.co.ke/${1}", permanent: true } }
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata: { name: public-web, namespace: fuma }
+spec:
+  entryPoints: [websecure]
+  routes:
+    - match: Host(`fuma.co.ke`)
+      kind: Rule
+      priority: 100
+      middlewares: [{ name: security-headers }]
+      services: [{ name: public-web, port: 80 }]
+    - match: Host(`www.fuma.co.ke`)
+      kind: Rule
+      priority: 100
+      middlewares: [{ name: www-canonical }, { name: security-headers }]
+      services: [{ name: public-web, port: 80 }]
+  tls: { secretName: fuma-public-tls }
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata: { name: identity, namespace: fuma }
+spec:
+  entryPoints: [websecure]
+  routes:
+    - match: Host(`auth.fuma.co.ke`)
+      kind: Rule
+      priority: 100
+      middlewares: [{ name: security-headers }]
+      services: [{ name: runtime-web, port: 80 }]
+  tls: { secretName: fuma-product-tls }
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata: { name: app-control-contribution, namespace: fuma }
+spec:
+  entryPoints: [websecure]
+  routes:
+    - match: Host(`app.fuma.co.ke`) && (PathPrefix(`/marketplace`) || PathPrefix(`/transfers`) || PathPrefix(`/secure-payment`) || PathPrefix(`/api/secure-payment-settings`))
+      kind: Rule
+      priority: 200
+      middlewares: [{ name: security-headers }]
+      services: [{ name: control-surfaces, port: 80 }]
+  tls: { secretName: fuma-product-tls }
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata: { name: app-product, namespace: fuma }
+spec:
+  entryPoints: [websecure]
+  routes:
+    - match: Host(`app.fuma.co.ke`)
+      kind: Rule
+      priority: 100
+      middlewares: [{ name: security-headers }]
+      services: [{ name: runtime-web, port: 80 }]
+  tls: { secretName: fuma-product-tls }
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata: { name: admin-console-contribution, namespace: fuma }
+spec:
+  entryPoints: [websecure]
+  routes:
+    - match: Host(`admin.fuma.co.ke`) && PathPrefix(`/internal`)
+      kind: Rule
+      priority: 200
+      middlewares: [{ name: security-headers }]
+      services: [{ name: control-surfaces, port: 80 }]
+    - match: Host(`admin.fuma.co.ke`)
+      kind: Rule
+      priority: 100
+      middlewares: [{ name: security-headers }]
+      services: [{ name: runtime-web, port: 80 }]
+  tls: { secretName: fuma-product-tls }
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata: { name: tenant-wildcard, namespace: fuma }
+spec:
+  entryPoints: [websecure]
+  routes:
+    - match: HostRegexp(`[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.fuma\\.co\\.ke`)
+      kind: Rule
+      priority: 10
+      middlewares: [{ name: security-headers }]
+      services: [{ name: runtime-web, port: 80 }]
+  tls: { secretName: fuma-tenant-wildcard-tls }
+# No default route exists. Custom domains are emitted as exact-host IngressRoutes only after verified domain authority.

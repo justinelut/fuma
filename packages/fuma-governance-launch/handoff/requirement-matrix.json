@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "phase": "FUMA-063..FUMA-085+TRACKER-086",
+  "state": "authored-unvalidated",
+  "completedSourceGroups": [
+    { "tickets": ["FUMA-063", "FUMA-064", "FUMA-065", "FUMA-066"], "boundaries": ["strict TypeBox AI catalog", "exact micro pricing", "kill switches and stale refresh", "atomic version-fenced credit policy", "durable reservation schema", "BYOK generation rekey", "site authority", "hashed MCP tokens and metering"] },
+    { "tickets": ["FUMA-067", "FUMA-068", "FUMA-069", "FUMA-070"], "boundaries": ["immutable artifacts and isolated installations", "schedule/crash/storage schema", "independent hash-bound review and revocation", "reviewed no-network payment plugin using shared merchant transport", "live actor confirmation and direct secure secret handoff"] },
+    { "tickets": ["FUMA-071", "FUMA-072", "FUMA-073", "FUMA-074"], "boundaries": ["admin-host contribution registry", "domain-service-owned control UI", "non-elevating expiring support", "isolated dual approval", "approved dual-consent expert releases and mediated inquiry", "registered resumable compensatable transfer plan with internal grant excluded", "Kenya localization"] },
+    { "tickets": ["FUMA-075", "FUMA-076", "FUMA-077"], "boundaries": ["Ghost structured provenance/parity/secret rejection/rollback", "Lawyer complete-inventory fixture and provider reconciliation", "valid custom excerpt mapping and malformed quarantine", "reauth and OCI email policy", "all-route reusable template/loop/access bindings with zero flattened copies"] },
+    { "tickets": ["FUMA-078", "FUMA-079", "FUMA-080", "FUMA-081", "TRACKER-086"], "boundaries": ["separate digest-only non-root amd64/ARM64 images", "protected GHCR scan/sign/SBOM/provenance workflow", "pinned Oracle k3s/Traefik", "exact-host/no-default routes", "restricted workloads and network policy", "serialized migration and retained encrypted backup/restore sources", "RED/USE/provider/Web Vitals rules and HPA/KEDA", "audience-bound private public-Web seam and independent rollback"] },
+    { "tickets": ["FUMA-082", "FUMA-083", "FUMA-084", "FUMA-085"], "boundaries": ["adversarial and privacy planning", "ARM64 capacity/economics fail-closed policy", "blocked pilot checklist", "blocked six-role unified launch gate and objective rollback"] }
+  ],
+  "centralIntegrationBlockers": [
+    "register phase-local SQL sources as hosted migrations 000035..000039 after Publication 000013..000020 and Commercial Edge 000021..000034; calculate immutable checksums",
+    "resolve the root workspace lockfile only through approved frozen dependency resolution",
+    "mount runtime, job, transfer, console and private projection adapters behind existing central request-context authorities",
+    "replace every REQUIRED_DIGEST/REQUIRED_SOURCE_SHA marker only from one protected signed release"
+  ],
+  "externalApprovalBlockers": [
+    "finance/AI: approved live model catalog, exact prices/markup/inclusion, platform credentials and BYOK KMS custody",
+    "plugin security: scanner policy, reviewer roster, offline/keyless signing custody, first-party package hash and revocation publication",
+    "commerce: Kenya customer-merchant Paystack credentials, webhook/refund/fee policy and provider verification references",
+    "Oracle/OCI: ARM64 capacity, tenancy/network/storage/IP/backup bucket, OCI Email quota, SPF/DKIM/bounce and deliverability",
+    "Cloudflare: scoped account/token, origin certificate/source allowlist, apex review, DNS/TLS/WAF and purge authority",
+    "GitHub release: protected environments, immutable base-image digests, GHCR permission and signature identity",
+    "Lawyer customer: complete sanitized export/inventory/member consent/support commitments, provider transaction references, grandfathered contract, pilot and rollback signatures",
+    "legal/privacy/accessibility: retention/legal-hold/DPA/consent/abuse policies, approved claims/indexation and WCAG 2.2 AA",
+    "incident command: named on-call owners, current cost evidence proving >=70% customer gross margin, canary cohort, communications and declare-or-abort signatures"
+  ],
+  "validation": { "executed": false, "reason": "User required coding-only authoring with no tests, typecheck, build, lint, Playwright, Docker, cloud, validation, migration, dry-run, or irreversible command execution." }
+}

@@ -32,13 +32,14 @@ Before tagging a release, update the package/changelog version and every checked
 
 ```txt
 package.json
+apps/studio/package.json
 CHANGELOG.md
 docs/deployment/README.md
 docs/deployment/docker-image.md
 docs/deployment/railway.md
 ```
 
-The checked-in Render Blueprints use `ghcr.io/corebunch/instatic:latest` for new one-click installs. `scripts/build-release-bundle.ts` rewrites the release-bundle copies to the semver image tag automatically.
+The checked-in Render Blueprints use `ghcr.io/corebunch/instatic:latest` for new one-click installs. `apps/studio/scripts/build-release-bundle.ts` rewrites the release-bundle copies to the semver image tag automatically.
 
 After the release image is published, copy the two Render Blueprint files into the dedicated template repositories as their root `render.yaml` files when their non-versioned template configuration changes:
 
@@ -96,12 +97,33 @@ Railway installs should use Docker image source and Railway Image Auto Updates r
 
 Render installs use image-backed Blueprints. Operators upgrade by changing the image tag in their Render service or by redeploying from an updated template repository.
 
+## Self-Host Parity Smoke
+
+After building the candidate image and bundle, run the isolated SQLite/PostgreSQL proof described in [self-host-smoke-harness.md](self-host-smoke-harness.md). Inspect its Docker-free plan first, then execute it with the exact local image and bundle:
+
+```sh
+bun tooling/selfHostSmoke.ts --dry-run --run-id release-candidate \
+  --image instatic:release-candidate \
+  --release-bundle .tmp/release/instatic-<version>-release-bundle.tar.gz
+bun tooling/selfHostSmoke.ts --run-id release-candidate \
+  --image instatic:release-candidate \
+  --release-bundle .tmp/release/instatic-<version>-release-bundle.tar.gz
+```
+
+Pass `--replacement-image` when proving an upgrade from the previous image. The harness uses only disposable project-scoped volumes and removes them on success or failure.
+
 ## Source Build Testing
 
-When testing a release candidate before publishing GHCR images, build from a source checkout:
+When testing a release candidate before publishing GHCR images, build from a source checkout. PostgreSQL mode uses the base stack:
 
 ```sh
 docker compose -f compose.prod.yml -f compose.build.yml up -d --build
+```
+
+SQLite mode adds the root override and preserves both database and upload volumes:
+
+```sh
+docker compose -f compose.prod.yml -f compose.sqlite.yml -f compose.build.yml up -d --build
 ```
 
 Or build and tag an image manually:
@@ -145,6 +167,7 @@ docker pull ghcr.io/corebunch/instatic:latest
 - [deployment/README.md](README.md) — deployment overview
 - [docker-image.md](docker-image.md) — runtime image contract
 - [render.md](render.md) — Render Blueprint contract
+- [self-host-smoke-harness.md](self-host-smoke-harness.md) — disposable image, bundle, persistence, and upgrade proof
 - `Dockerfile` — image build
 - `compose.prod.yml` — production image consumer
 - `docs/deployment/render/sqlite/render.yaml`, `docs/deployment/render/postgres/render.yaml` — Render Blueprint templates

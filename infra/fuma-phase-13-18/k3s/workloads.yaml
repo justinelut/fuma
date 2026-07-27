@@ -1,0 +1,193 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fuma
+  labels: { pod-security.kubernetes.io/enforce: restricted }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: runtime, namespace: fuma }
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: public-web, namespace: fuma }
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: runtime-config, namespace: fuma }
+data:
+  FUMA_HOSTED: "true"
+  FUMA_PUBLIC_HOST: fuma.co.ke
+  FUMA_AUTH_HOST: auth.fuma.co.ke
+  FUMA_APP_HOST: app.fuma.co.ke
+  FUMA_ADMIN_HOST: admin.fuma.co.ke
+  FUMA_LOCALE: en-KE
+  FUMA_CURRENCY: KES
+  FUMA_TIMEZONE: Africa/Nairobi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: runtime-web, namespace: fuma }
+spec:
+  replicas: 2
+  strategy: { type: RollingUpdate, rollingUpdate: { maxUnavailable: 1, maxSurge: 1 } }
+  selector: { matchLabels: { app: runtime-web } }
+  template:
+    metadata: { labels: { app: runtime-web, fuma-role: product } }
+    spec:
+      serviceAccountName: runtime
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: runtime
+          image: ghcr.io/corebunch/fuma-runtime@sha256:REQUIRED_DIGEST
+          args: ["fuma:web"]
+          ports: [{ name: http, containerPort: 3001 }]
+          envFrom: [{ configMapRef: { name: runtime-config } }, { secretRef: { name: fuma-runtime-secrets } }]
+          readinessProbe: { httpGet: { path: /health/ready, port: http }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe: { httpGet: { path: /health/live, port: http }, initialDelaySeconds: 20, periodSeconds: 10 }
+          resources: { requests: { cpu: 250m, memory: 384Mi }, limits: { cpu: "2", memory: 1536Mi } }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: ["ALL"] } }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: { sizeLimit: 256Mi } }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: runtime-worker, namespace: fuma }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: runtime-worker } }
+  template:
+    metadata: { labels: { app: runtime-worker, fuma-role: worker } }
+    spec:
+      serviceAccountName: runtime
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: worker
+          image: ghcr.io/corebunch/fuma-runtime@sha256:REQUIRED_DIGEST
+          args: ["fuma:worker"]
+          envFrom: [{ configMapRef: { name: runtime-config } }, { secretRef: { name: fuma-runtime-secrets } }]
+          resources: { requests: { cpu: 250m, memory: 512Mi }, limits: { cpu: "2", memory: 2048Mi } }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: ["ALL"] } }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: { sizeLimit: 512Mi } }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: runtime-scheduler, namespace: fuma }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: runtime-scheduler } }
+  template:
+    metadata: { labels: { app: runtime-scheduler, fuma-role: scheduler } }
+    spec:
+      serviceAccountName: runtime
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: scheduler
+          image: ghcr.io/corebunch/fuma-runtime@sha256:REQUIRED_DIGEST
+          args: ["fuma:scheduler"]
+          envFrom: [{ configMapRef: { name: runtime-config } }, { secretRef: { name: fuma-runtime-secrets } }]
+          resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { cpu: "1", memory: 768Mi } }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: ["ALL"] } }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: public-web-config, namespace: fuma }
+data:
+  FUMA_PUBLIC_PROJECTION_INTERNAL_ORIGIN: "http://runtime-web.fuma.svc.cluster.local"
+  FUMA_PUBLIC_PROJECTION_TIMEOUT_MS: "3000"
+  FUMA_PUBLIC_WEB_HOSTS: "fuma.co.ke,www.fuma.co.ke,3002.blyss.co.ke"
+  FUMA_WEB_REVISION: "REQUIRED_SOURCE_SHA"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: public-web, namespace: fuma }
+spec:
+  replicas: 2
+  strategy: { type: RollingUpdate, rollingUpdate: { maxUnavailable: 1, maxSurge: 1 } }
+  selector: { matchLabels: { app: public-web } }
+  template:
+    metadata: { labels: { app: public-web, fuma-role: public } }
+    spec:
+      serviceAccountName: public-web
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: web
+          image: ghcr.io/corebunch/fuma-web@sha256:REQUIRED_DIGEST
+          ports: [{ name: http, containerPort: 3002 }]
+          envFrom: [{ configMapRef: { name: public-web-config } }, { secretRef: { name: fuma-public-web-secrets } }]
+          readinessProbe: { httpGet: { path: /, port: http, httpHeaders: [{ name: Host, value: fuma.co.ke }] }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe: { httpGet: { path: /, port: http, httpHeaders: [{ name: Host, value: fuma.co.ke }] }, initialDelaySeconds: 20, periodSeconds: 10 }
+          resources: { requests: { cpu: 150m, memory: 256Mi }, limits: { cpu: "1", memory: 768Mi } }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: ["ALL"] } }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: { sizeLimit: 128Mi } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: runtime-web, namespace: fuma }
+spec: { selector: { app: runtime-web }, ports: [{ name: http, port: 80, targetPort: http }] }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: public-web, namespace: fuma }
+spec: { selector: { app: public-web }, ports: [{ name: http, port: 80, targetPort: http }] }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: control-surfaces, namespace: fuma }
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: control-surfaces, namespace: fuma }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: control-surfaces } }
+  template:
+    metadata: { labels: { app: control-surfaces, fuma-role: control } }
+    spec:
+      serviceAccountName: control-surfaces
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: web
+          image: ghcr.io/corebunch/fuma-control-surfaces@sha256:REQUIRED_DIGEST
+          ports: [{ name: http, containerPort: 3010 }]
+          env:
+            - { name: FUMA_PRIVATE_RUNTIME_ORIGIN, value: "http://runtime-web.fuma.svc.cluster.local" }
+          readinessProbe: { httpGet: { path: /, port: http, httpHeaders: [{ name: Host, value: app.fuma.co.ke }] }, initialDelaySeconds: 5, periodSeconds: 5 }
+          resources: { requests: { cpu: 100m, memory: 192Mi }, limits: { cpu: "1", memory: 512Mi } }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: ["ALL"] } }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: { sizeLimit: 128Mi } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: control-surfaces, namespace: fuma }
+spec: { selector: { app: control-surfaces }, ports: [{ name: http, port: 80, targetPort: http }] }
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: runtime-web-process-budget, namespace: fuma }
+spec:
+  maxUnavailable: 1
+  selector: { matchLabels: { app: runtime-web } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: public-web-process-budget, namespace: fuma }
+spec:
+  maxUnavailable: 1
+  selector: { matchLabels: { app: public-web } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: control-surfaces-process-budget, namespace: fuma }
+spec:
+  maxUnavailable: 1
+  selector: { matchLabels: { app: control-surfaces } }
+# These budgets reduce voluntary process disruption only. One Oracle node remains one host failure domain and is not HA.

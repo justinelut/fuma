@@ -1,23 +1,37 @@
 # syntax=docker/dockerfile:1
 
-FROM oven/bun:1.3.11 AS build
+FROM oven/bun:1.3.14 AS build
 WORKDIR /app
-# vendor/pixel-art-icons is a `file:` dep — `bun install` needs it on disk to
-# resolve the dependency, so copy it alongside the manifest before installing.
+# Every root-lock workspace manifest must exist before the frozen install. The
+# legacy image still builds and runs Studio only.
 COPY package.json bun.lock ./
+COPY apps/studio/package.json ./apps/studio/package.json
+COPY apps/web/package.json ./apps/web/package.json
+COPY apps/control-surfaces/package.json ./apps/control-surfaces/package.json
+COPY packages/brand/package.json ./packages/brand/package.json
+COPY packages/design-tokens/package.json ./packages/design-tokens/package.json
+COPY packages/public-contracts/package.json ./packages/public-contracts/package.json
+COPY packages/fuma-governance-launch/package.json ./packages/fuma-governance-launch/package.json
 COPY vendor ./vendor
 RUN bun install --frozen-lockfile
 COPY . .
-RUN bun run build
+RUN bun run build:studio
 
-FROM oven/bun:1.3.11 AS production-deps
+FROM oven/bun:1.3.14 AS production-deps
 WORKDIR /app
 COPY package.json bun.lock ./
+COPY apps/studio/package.json ./apps/studio/package.json
+COPY apps/web/package.json ./apps/web/package.json
+COPY apps/control-surfaces/package.json ./apps/control-surfaces/package.json
+COPY packages/brand/package.json ./packages/brand/package.json
+COPY packages/design-tokens/package.json ./packages/design-tokens/package.json
+COPY packages/public-contracts/package.json ./packages/public-contracts/package.json
+COPY packages/fuma-governance-launch/package.json ./packages/fuma-governance-launch/package.json
 COPY vendor ./vendor
-RUN bun install --frozen-lockfile --production
+RUN bun install --frozen-lockfile --production --filter @fuma/studio
 
-FROM oven/bun:1.3.11 AS runtime
-WORKDIR /app
+FROM oven/bun:1.3.14 AS runtime
+WORKDIR /app/apps/studio
 
 ARG INSTATIC_VERSION=dev
 ARG INSTATIC_REVISION=unknown
@@ -34,16 +48,20 @@ LABEL org.opencontainers.image.revision="${INSTATIC_REVISION}"
 LABEL org.opencontainers.image.created="${INSTATIC_CREATED}"
 
 ENV NODE_ENV=production
+ENV HOST=0.0.0.0
 ENV PORT=3001
 ENV STATIC_DIR=/app/dist
 ENV UPLOADS_DIR=/app/uploads
 
-COPY --from=production-deps --chown=bun:bun /app/node_modules ./node_modules
-COPY --from=build --chown=bun:bun /app/dist ./dist
-COPY --chown=bun:bun package.json bun.lock ./
-COPY --chown=bun:bun tsconfig*.json ./
-COPY --chown=bun:bun server ./server
-COPY --chown=bun:bun src ./src
+COPY --from=production-deps --chown=bun:bun /app/node_modules /app/node_modules
+COPY --from=production-deps --chown=bun:bun /app/apps/studio/node_modules ./node_modules
+COPY --from=build --chown=bun:bun /app/apps/studio/dist /app/dist
+COPY --chown=bun:bun package.json bun.lock /app/
+COPY --chown=bun:bun apps/studio/package.json ./
+COPY --chown=bun:bun tsconfig.base.json /app/
+COPY --chown=bun:bun apps/studio/tsconfig*.json ./
+COPY --chown=bun:bun apps/studio/server ./server
+COPY --chown=bun:bun apps/studio/src ./src
 
 RUN mkdir -p /app/uploads /app/data && chown -R bun:bun /app
 

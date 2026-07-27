@@ -18,7 +18,7 @@ The VPS stack uses the same production image as managed platforms. Compose only 
 SQLite is the default for most single-site installs. Postgres is for multiple simultaneous admin writers, horizontal app scale, or operators who already want Postgres.
 
 When using a published image, set `INSTATIC_IMAGE` and omit `compose.build.yml` plus `--build`.
-Before adding AI provider credentials, saving plugin secret settings, or enabling TOTP MFA in production, set `INSTATIC_SECRET_KEY` to the output of `bun run scripts/generate-secret-key.ts`.
+Before adding AI provider credentials, saving plugin secret settings, or enabling TOTP MFA in production, set `INSTATIC_SECRET_KEY`. From a source checkout root, run `bun apps/studio/scripts/generate-secret-key.ts`; from an unpacked release bundle, run `openssl rand -base64 32`.
 
 ## Install From A Release Bundle
 
@@ -61,7 +61,7 @@ For reversible server secrets such as AI credentials, plugin secret settings, an
 
 ```sh
 cp .env.production.example .env
-bun run scripts/generate-secret-key.ts
+bun apps/studio/scripts/generate-secret-key.ts
 ```
 
 Paste the printed key into `.env` as `INSTATIC_SECRET_KEY`.
@@ -211,15 +211,15 @@ The CMS runs directly on the host without Docker. From a source checkout:
 bun install
 bun run build
 DATABASE_URL=sqlite:./data/cms.db \
-  STATIC_DIR=./dist \
+  STATIC_DIR=./apps/studio/dist \
   UPLOADS_DIR=./uploads \
   INSTATIC_SECRET_KEY=replace-with-output-of-generate-secret-key \
   TRUSTED_PROXY_CIDRS=127.0.0.1/32,::1/128 \
   PORT=3001 \
-  bun run server/index.ts
+  bun apps/studio/server/index.ts
 ```
 
-Replace `DATABASE_URL` with a Postgres connection string for Postgres mode. `STATIC_DIR` must point at the built admin SPA (`dist/` after `bun run build`).
+Replace `DATABASE_URL` with a Postgres connection string for Postgres mode. `STATIC_DIR` must point at the built admin SPA (`apps/studio/dist/` after the workspace-root `bun run build`).
 
 Wrap the command in a process supervisor (systemd, pm2, supervisord) for auto-restart on crash and on server boot. Put an HTTPS-capable reverse proxy (Caddy, Nginx, Cloudflare Tunnel) in front for TLS, and set `PUBLIC_ORIGIN=https://your-domain` so the CSRF origin check matches the public URL even though the proxy hands the Bun process plain HTTP. `TRUSTED_PROXY_CIDRS` is independent of CSRF: set it to the proxy's source CIDR only if you want real client IPs in audit logs and rate-limit keys, and leave it empty if the app is directly exposed.
 

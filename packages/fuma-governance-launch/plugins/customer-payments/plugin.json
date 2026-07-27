@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "fuma-customer-payments",
+  "name": "Fuma Customer Payments",
+  "version": "1.0.0",
+  "kind": "site",
+  "entrypoints": { "server": "server/index.js", "editor": "editor/index.js" },
+  "permissions": [
+    "payments.customer.create",
+    "payments.customer.refund"
+  ],
+  "network": [],
+  "review": {
+    "required": true,
+    "submissionId": "pending-review",
+    "packageHashSha256": "pending-build",
+    "signature": "pending-review"
+  },
+  "purposes": ["deposit", "donation", "checkout"],
+  "currency": "KES",
+  "secretEntry": "secure-ui-only"
+}

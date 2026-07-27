@@ -42,7 +42,7 @@ docker compose -f compose.prod.yml -f compose.sqlite.yml -f compose.build.yml co
 - Update docs in the same PR when behavior, configuration, public APIs, or deployment instructions change.
 - Use TypeBox at untyped boundaries.
 - Use existing UI primitives in `src/ui/components/` for admin UI controls.
-- Do not add provider SDKs, `zod`, Tailwind, `react-router-dom`, or third-party icon packages.
+- Do not add provider SDKs, `zod`, `react-router-dom`, or third-party icon packages to existing Studio code. Preserve Studio's CSS Modules and primitives; use exact-pinned Tailwind CSS plus app-local shadcn/ui source components for new Fuma React/Next.js surfaces.
 
 ## Project Conventions
 

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "trackerTask": 86,
+  "contract": {
+    "releaseSourceSha": "REQUIRED_40_HEX_SOURCE_SHA",
+    "runtimeProjectionVersion": 1,
+    "webContractVersion": 1,
+    "privateRuntimeAudience": "fuma-public-web",
+    "canonicalHost": "fuma.co.ke",
+    "canaryPercent": 10,
+    "publicRollbackIndependent": true,
+    "productTenantContinuityRequired": true
+  },
+  "integration": {
+    "privateEndpoint": "http://runtime-web.fuma.svc.cluster.local",
+    "publicService": "public-web.fuma.svc.cluster.local",
+    "requiredHeaders": ["x-fuma-audience", "x-fuma-request-id", "if-none-match"],
+    "forbiddenForwarding": ["cookie", "authorization", "x-forwarded-client-cert"],
+    "rollback": "public web digest only; runtime/product/tenant digests remain unchanged"
+  }
+}

@@ -38,6 +38,7 @@ data/*.db-wal
 .env.*
 !.env.example
 !.env.production.example
+!.env.fuma.example
 
 # Editor directories and files
 .vscode/*
@@ -83,3 +84,12 @@ docs/superpowers/
 .factory/
 .trae/
 .windsurf/
+
+# Next.js public application outputs
+.next/
+apps/web/playwright-report/
+apps/web/test-results/
+
+# Cross-workspace test runner and incremental compiler artifacts
+**/test-results/
+*.tsbuildinfo

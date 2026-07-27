@@ -1,0 +1,11 @@
+import {describe,expect,it} from 'bun:test'
+import {MemoryQuotaRepository,QuotaError,QuotaService} from '../../../server/fuma/quotas/service'
+import {MemoryEntitlementRepository} from '../../../server/fuma/entitlements/service'
+import {MemoryPaystackLedger} from '../../../server/fuma/paystack/memoryLedger'
+
+const quotas={sites:1,pages:1,cmsItems:1,members:1,storageBytes:1,bandwidthBytes:1,emailRecipientsDay:1,emailRecipientsMonth:1,buildPublishMinutes:1,pluginComputeMinutes:1,aiCredits:1,releaseRetentionBytes:1,collaborators:1,customDomains:1}
+describe('FUMA commercial concurrency',()=>{
+ it('FUMA-057 serializes pooled quota admission and prevents concurrent oversubscription',async()=>{const repository=new MemoryQuotaRepository();repository.states.set('org',{limits:quotas,used:{},reserved:{},topUps:{},source:'public-contract'});const service=new QuotaService(repository);const command=(key:string)=>service.admit({idempotencyKey:key,organizationId:'org',workspaceId:null,siteId:null,quotaClass:'sites',units:1,operation:'create'});const results=await Promise.allSettled([command('a'),command('b')]);expect(results.filter((x)=>x.status==='fulfilled')).toHaveLength(1);expect((results.find((x)=>x.status==='rejected') as PromiseRejectedResult).reason).toBeInstanceOf(QuotaError)})
+ it('FUMA-054 creates one concurrent-safe internal grant and never changes its provider path',async()=>{const repository=new MemoryEntitlementRepository();const grant={grantId:'platform-internal' as const,organizationId:'internal',quotas,nonTransferable:true as const,providerCustomerId:null,shadowCostRequired:true as const};const [a,b]=await Promise.all([repository.createInternalGrant(grant),repository.createInternalGrant(grant)]);expect(a).toEqual(b);expect(repository.grants.size).toBe(1);expect(a.providerCustomerId).toBeNull()})
+ it('FUMA-053 deduplicates events and settlements within, but never across, scopes',async()=>{const ledger=new MemoryPaystackLedger();expect(await ledger.ingest('platform_billing','e','a')).toBe(true);expect(await ledger.ingest('platform_billing','e','a')).toBe(false);expect(await ledger.ingest('customer_merchant','e','a')).toBe(true);expect(await ledger.settle('platform_billing','r','p','t')).toBe(true);expect(await ledger.settle('customer_merchant','r','p','t')).toBe(true)})
+})

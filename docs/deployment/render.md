@@ -96,7 +96,7 @@ Render terminates HTTPS at its public web service layer before forwarding traffi
 
 `INSTATIC_SECRET_KEY` uses Render's `generateValue: true` support. Operators should copy the generated value from Render's environment settings into their password manager after first deploy. Losing the value means stored AI provider credentials and plugin secret settings must be re-entered and TOTP MFA must be re-enrolled.
 
-Do not add a separate migration command. `server/index.ts` creates the DB client from `DATABASE_URL` and runs the matching migrations before the HTTP server starts.
+Do not add a separate migration command. The image runs `server/index.ts` from `/app/apps/studio`; its source is `apps/studio/server/index.ts`, which creates the DB client from `DATABASE_URL` and runs the matching migrations before the HTTP server starts.
 
 ## Backups
 
@@ -127,7 +127,7 @@ Render disk snapshots cover the app disk. Render Postgres backups cover the mana
 - [backup-restore.md](backup-restore.md) — backup rules
 - `docs/deployment/render/sqlite/render.yaml` — SQLite Render Blueprint
 - `docs/deployment/render/postgres/render.yaml` — Postgres Render Blueprint
-- `server/config.ts` — runtime env parsing
-- `server/db/index.ts` — database URL detection
+- `apps/studio/server/config.ts` — runtime env parsing
+- `apps/studio/server/db/index.ts` — database URL detection
 - `Dockerfile` — production image
 - Render docs: [Blueprint spec](https://render.com/docs/blueprint-spec), [Deploy to Render button](https://render.com/docs/deploy-to-render), [web services](https://render.com/docs/web-services), [environment variables](https://render.com/docs/environment-variables), [persistent disks](https://render.com/docs/disks), [prebuilt Docker images](https://render.com/docs/deploying-an-image/)

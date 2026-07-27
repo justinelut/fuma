@@ -1,0 +1,51 @@
+schemaVersion: 1
+phase: FUMA-063..FUMA-085+TRACKER-086
+state: authored-unvalidated
+primaryCentralIntegration:
+  owner: migration-and-runtime-integrator
+  required:
+    - path: apps/studio/server/fuma/db/migrations/index.ts
+      action: after Publication 000013..000020 and Commercial Edge 000021..000034, convert the five phase-local SQL sources into HostedMigration modules 000035_ai_governance through 000039_launch_evidence_privacy, calculate immutable checksums, append in dependency order, and run only the separately authorized migration gate
+    - path: bun.lock
+      action: perform an approved frozen dependency resolution for the new workspace package and control-surfaces app; retain one root lockfile
+    - path: apps/studio/server/router.ts
+      action: mount phase contributions behind existing request-context, host, session, CSRF, step-up, audit, rate, and domain-service boundaries
+    - path: apps/studio/server/fuma/transfers/registrations.ts
+      action: register AI/BYOK, MCP, plugin, payment, expert/showcase, and handoff saga steps with resume and compensation handlers
+    - path: apps/studio/server/fuma/jobs/integration.ts
+      action: register catalog refresh, reservation expiry, import, privacy export/delete, backup evidence, and purge jobs
+    - path: packages/public-contracts/src/index.ts
+      action: expose only reviewed PII-free expert/plugin/public-web seam projections needed by apps/web; do not export internal authority or secrets
+    - path: apps/web
+      action: consume TRACKER-086 through http://runtime-web.fuma.svc.cluster.local with the private fuma-public-web audience, opaque request IDs and service credential only; reject forwarded cookie/visitor authorization/client certificate; preserve independent public digest rollback and product/tenant continuity after FUMA-WEB-017/018 acceptance
+    - path: infra/fuma-phase-13-18
+      action: replace every REQUIRED_DIGEST/template marker through signed release promotion; never apply templates directly
+externalCredentialApprovals:
+  - owner: finance-and-ai
+    blocker: current provider model catalog, exact input/output prices, markup, included-credit policy, platform API credentials, and BYOK KMS policy
+  - owner: plugin-review-security
+    blocker: offline signing key custody, reviewer separation, scanner approvals, first-party payment plugin package hash, and signature/revocation publication
+  - owner: commerce
+    blocker: customer-merchant Paystack scope credentials, webhook secrets, refund policy, fee disclosure, and live provider verification references
+  - owner: oracle-account
+    blocker: ARM64 shape availability/purchase approval, tenancy/compartment/VCN, reserved IP, block volume, off-host backup bucket, and OCI quotas
+  - owner: oci-email
+    blocker: sending quota, domain approval, SPF/DKIM, bounce/complaint routing, and deliverability evidence
+  - owner: cloudflare
+    blocker: zone/token scope, origin certificate, DNS/TLS changes, WAF/origin allowlist, apex review, and cache purge credentials
+  - owner: github-release
+    blocker: GHCR package write permission, immutable Bun/Node base image digests, protected environment approval, signing identity, SBOM/provenance and vulnerability scan policy
+  - owner: lawyer-customer
+    blocker: complete sanitized Ghost/Lawyer export, route/page inventory, member consent, support commitments, Paystack transaction references, grandfathered contract acceptance, pilot window, and rollback sign-off
+  - owner: legal-privacy-accessibility
+    blocker: policy versions, retention/legal-hold schedule, DPA/consents, abuse process, WCAG 2.2 AA acceptance, claims/content/indexation approval
+  - owner: launch-incident-command
+    blocker: named on-call/runbook owners, current Oracle/OCI/Cloudflare quotes, >=70% customer gross-margin evidence, canary cohort, communications, production bootstrap, DNS/TLS and declare-or-abort signatures
+prohibitedInThisHandoff:
+  - production deploy or Kubernetes apply
+  - purchase or quota request
+  - DNS, TLS, indexation, or Cloudflare mutation
+  - secret creation, retrieval, rotation, or disclosure
+  - plugin signing or review approval
+  - database migration execution
+  - test, typecheck, build, lint, Playwright, Docker, cloud, or dry-run command execution in the coding-only phase

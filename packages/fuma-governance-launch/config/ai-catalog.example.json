@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "staleAfterSeconds": 86400,
+  "providers": [
+    {
+      "providerId": "openrouter",
+      "displayName": "OpenRouter",
+      "enabled": false,
+      "platformCredentialRef": null,
+      "refreshedAt": "2026-07-26T00:00:00Z",
+      "refreshSequence": 1
+    }
+  ],
+  "models": [
+    {
+      "modelId": "fixture-model",
+      "providerId": "openrouter",
+      "displayName": "Fixture model — disabled until pricing approval",
+      "capabilities": ["text", "tools", "streaming"],
+      "contextTokens": 128000,
+      "inputMicrosPerMillion": 0,
+      "outputMicrosPerMillion": 0,
+      "markupBasisPoints": 0,
+      "included": false,
+      "defaultFor": [],
+      "enabled": false,
+      "refreshedAt": "2026-07-26T00:00:00Z"
+    }
+  ]
+}

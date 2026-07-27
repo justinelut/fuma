@@ -1,0 +1,7 @@
+import {describe,expect,test} from 'bun:test'
+import {generateKeyPairSync,verify} from 'node:crypto'
+import {OciRsaRequestSigner} from '../../../server/fuma/publication/ociRequestSigner'
+
+describe('FUMA-043 OCI request signing',()=>{
+ test('signs the exact body-bearing Email Delivery header set',async()=>{const {privateKey,publicKey}=generateKeyPairSync('rsa',{modulusLength:2048});const signer=new OciRsaRequestSigner({tenancyId:'ocid1.tenancy.oc1..test',userId:'ocid1.user.oc1..test',fingerprint:'aa:bb:cc:dd',privateKeyPem:privateKey.export({type:'pkcs8',format:'pem'}).toString(),now:()=>new Date('2040-01-01T00:00:00.000Z')});const body='{"message":"hello"}',url='https://email.uk-london-1.oci.oraclecloud.com/20220926/emails';const headers=await signer.headers({method:'POST',url,body,contentType:'application/json'});expect(headers['x-content-sha256']).toBeTruthy();expect(headers['content-length']).toBe(String(Buffer.byteLength(body)));expect(headers.authorization).toContain('headers="(request-target) host date x-content-sha256 content-type content-length"');const signature=/signature="([^"]+)"/.exec(headers.authorization!)?.[1]??'';const canonical=`(request-target): post /20220926/emails\nhost: email.uk-london-1.oci.oraclecloud.com\ndate: ${headers.date}\nx-content-sha256: ${headers['x-content-sha256']}\ncontent-type: application/json\ncontent-length: ${headers['content-length']}`;expect(verify('RSA-SHA256',Buffer.from(canonical),publicKey,Buffer.from(signature,'base64'))).toBe(true)})
+})

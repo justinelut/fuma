@@ -1,0 +1,450 @@
+name: Fuma paired multi-architecture release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_ref:
+        description: Exact protected-branch source SHA to release
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuma-paired-release-${{ inputs.release_ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: github.ref_protected == true && inputs.release_ref == github.sha
+    runs-on: ubuntu-24.04
+    outputs:
+      source_sha: ${{ steps.identity.outputs.source_sha }}
+      lock_hash: ${{ steps.identity.outputs.lock_hash }}
+      migration_high_water: ${{ steps.identity.outputs.migration_high_water }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.release_ref }}
+      - uses: oven-sh/setup-bun@v2.0.2
+        with:
+          bun-version: 1.3.14
+      - name: Verify exact root lock and finalized migration identity
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ inputs.release_ref }}"
+          printf '%s' '${{ inputs.release_ref }}' | grep -Eq '^[a-f0-9]{40}$'
+          bun -e 'const p = await Bun.file("package.json").json(); if (p.packageManager !== "bun@1.3.14" || JSON.stringify(p.workspaces) !== JSON.stringify(["apps/*", "packages/*"])) throw new Error("root Bun/workspace contract mismatch")'
+          test "$(find apps packages -path '*/node_modules' -prune -o -type f \( -name bun.lock -o -name bun.lockb -o -name package-lock.json -o -name pnpm-lock.yaml -o -name yarn.lock \) -print -quit)" = ""
+          for base_image in '${{ vars.FUMA_BUN_IMAGE_DIGEST }}' '${{ vars.FUMA_NODE_IMAGE_DIGEST }}'; do
+            printf '%s' "$base_image" | grep -Eq '^[^[:space:]@]+(:[^@[:space:]]+)?@sha256:[a-f0-9]{64}$' || { echo "Fuma base images must be immutable digest references" >&2; exit 1; }
+            printf '%s' "$base_image" | grep -Eqv '@sha256:0{64}$' || { echo "Fuma base image digest cannot be a placeholder" >&2; exit 1; }
+          done
+          lock_hash=$(sha256sum bun.lock | cut -d' ' -f1)
+          migration_high_water=$(bun --cwd=apps/studio -e "import { runnableHostedMigrations } from './server/fuma/db/migrations/index.ts'; const last=runnableHostedMigrations.at(-1); if(!last) throw new Error('no finalized migration'); console.log(last.id)")
+          printf 'source_sha=%s\nlock_hash=%s\nmigration_high_water=%s\n' "${{ inputs.release_ref }}" "$lock_hash" "$migration_high_water" >> "$GITHUB_OUTPUT"
+      - run: bun install --frozen-lockfile
+      - run: bun --cwd=packages/fuma-governance-launch run typecheck
+      - run: bun --cwd=packages/fuma-governance-launch run test
+      - name: Validate smoke harness syntax
+        run: bash -n infra/fuma-phase-13-18/docker/runtime-entrypoint.sh infra/fuma-phase-13-18/docker/runtime-smoke.sh infra/fuma-phase-13-18/docker/public-web-smoke.sh
+
+  architecture-gate:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - platform: linux/amd64
+            arch: amd64
+          - platform: linux/arm64
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          persist-credentials: false
+          ref: ${{ needs.preflight.outputs.source_sha }}
+      - uses: docker/setup-qemu-action@v3.6.0
+        with:
+          platforms: amd64,arm64
+      - uses: docker/setup-buildx-action@v3.11.1
+      - name: Build exact runtime target
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          file: infra/fuma-phase-13-18/docker/runtime.Dockerfile
+          target: runtime
+          platforms: ${{ matrix.platform }}
+          load: true
+          tags: fuma-runtime-gate:${{ matrix.arch }}
+          build-args: |
+            BUN_IMAGE=${{ vars.FUMA_BUN_IMAGE_DIGEST }}
+            SOURCE_SHA=${{ needs.preflight.outputs.source_sha }}
+            LOCK_HASH_SHA256=${{ needs.preflight.outputs.lock_hash }}
+            MIGRATION_HIGH_WATER_MARK=${{ needs.preflight.outputs.migration_high_water }}
+      - name: Build exact email compatibility target
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          file: infra/fuma-phase-13-18/docker/runtime.Dockerfile
+          target: compatibility
+          platforms: ${{ matrix.platform }}
+          load: true
+          tags: fuma-runtime-compatibility:${{ matrix.arch }}
+          build-args: |
+            BUN_IMAGE=${{ vars.FUMA_BUN_IMAGE_DIGEST }}
+            SOURCE_SHA=${{ needs.preflight.outputs.source_sha }}
+            LOCK_HASH_SHA256=${{ needs.preflight.outputs.lock_hash }}
+            MIGRATION_HIGH_WATER_MARK=${{ needs.preflight.outputs.migration_high_water }}
+      - name: Build exact public-web target
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          file: infra/fuma-phase-13-18/docker/public-web.Dockerfile
+          platforms: ${{ matrix.platform }}
+          load: true
+          tags: fuma-web-gate:${{ matrix.arch }}
+          build-args: |
+            BUN_IMAGE=${{ vars.FUMA_BUN_IMAGE_DIGEST }}
+            NODE_IMAGE=${{ vars.FUMA_NODE_IMAGE_DIGEST }}
+            SOURCE_SHA=${{ needs.preflight.outputs.source_sha }}
+            LOCK_HASH_SHA256=${{ needs.preflight.outputs.lock_hash }}
+            MIGRATION_HIGH_WATER_MARK=${{ needs.preflight.outputs.migration_high_water }}
+      - name: Boot runtime roles, migration command, and email renderer
+        run: sh infra/fuma-phase-13-18/docker/runtime-smoke.sh fuma-runtime-gate:${{ matrix.arch }} fuma-runtime-compatibility:${{ matrix.arch }} ${{ matrix.platform }} ${{ needs.preflight.outputs.source_sha }} ${{ needs.preflight.outputs.lock_hash }} ${{ needs.preflight.outputs.migration_high_water }} supply/prepublish/runtime-smoke/${{ matrix.arch }}.json
+      - name: Boot Next standalone server
+        run: sh infra/fuma-phase-13-18/docker/public-web-smoke.sh fuma-web-gate:${{ matrix.arch }} ${{ matrix.platform }} ${{ needs.preflight.outputs.source_sha }} ${{ needs.preflight.outputs.lock_hash }} ${{ needs.preflight.outputs.migration_high_water }} supply/prepublish/web-smoke/${{ matrix.arch }}.json
+      - name: Scan runtime gate image
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: fuma-runtime-gate:${{ matrix.arch }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+      - name: Scan public-web gate image
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: fuma-web-gate:${{ matrix.arch }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+      - name: Generate runtime gate SBOM
+        uses: anchore/sbom-action@v0.21.0
+        with:
+          image: fuma-runtime-gate:${{ matrix.arch }}
+          format: spdx-json
+          output-file: supply/runtime-${{ matrix.arch }}.spdx.json
+      - name: Generate public-web gate SBOM
+        uses: anchore/sbom-action@v0.21.0
+        with:
+          image: fuma-web-gate:${{ matrix.arch }}
+          format: spdx-json
+          output-file: supply/web-${{ matrix.arch }}.spdx.json
+      - name: Record architecture-gate outcome
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p supply/prepublish
+          jq -n --arg status "${{ job.status }}" --arg sourceSha "${{ needs.preflight.outputs.source_sha }}" --arg platform "${{ matrix.platform }}" \
+            '{schemaVersion:1,status:$status,sourceSha:$sourceSha,platform:$platform}' > supply/prepublish/gate-${{ matrix.arch }}.json
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: architecture-evidence-${{ matrix.arch }}
+          path: supply
+          retention-days: 30
+          if-no-files-found: error
+
+  publish:
+    needs: [preflight, architecture-gate]
+    if: github.ref_protected == true && needs.preflight.outputs.source_sha == github.sha
+    runs-on: ubuntu-24.04
+    environment: fuma-release-supply-chain
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          persist-credentials: false
+          ref: ${{ needs.preflight.outputs.source_sha }}
+      - uses: oven-sh/setup-bun@v2.0.2
+        with:
+          bun-version: 1.3.14
+      - uses: docker/setup-qemu-action@v3.6.0
+        with:
+          platforms: amd64,arm64
+      - uses: docker/setup-buildx-action@v3.11.1
+      - uses: docker/login-action@v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Refuse to overwrite existing source-SHA image tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          for repository in ghcr.io/corebunch/fuma-runtime ghcr.io/corebunch/fuma-web; do
+            if docker buildx imagetools inspect "$repository:${{ needs.preflight.outputs.source_sha }}" >/dev/null 2>&1; then
+              echo "refusing to overwrite existing image tag: $repository:${{ needs.preflight.outputs.source_sha }}" >&2
+              exit 73
+            fi
+          done
+      - uses: actions/download-artifact@v4.1.8
+        with:
+          path: supply
+          pattern: architecture-evidence-*
+          merge-multiple: true
+      - name: Publish runtime manifest list with BuildKit SBOM/provenance
+        id: runtime
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          file: infra/fuma-phase-13-18/docker/runtime.Dockerfile
+          target: runtime
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: mode=max
+          sbom: true
+          tags: ghcr.io/corebunch/fuma-runtime:${{ needs.preflight.outputs.source_sha }}
+          build-args: |
+            BUN_IMAGE=${{ vars.FUMA_BUN_IMAGE_DIGEST }}
+            SOURCE_SHA=${{ needs.preflight.outputs.source_sha }}
+            LOCK_HASH_SHA256=${{ needs.preflight.outputs.lock_hash }}
+            MIGRATION_HIGH_WATER_MARK=${{ needs.preflight.outputs.migration_high_water }}
+      - name: Publish public-web manifest list with BuildKit SBOM/provenance
+        id: web
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          file: infra/fuma-phase-13-18/docker/public-web.Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: mode=max
+          sbom: true
+          tags: ghcr.io/corebunch/fuma-web:${{ needs.preflight.outputs.source_sha }}
+          build-args: |
+            BUN_IMAGE=${{ vars.FUMA_BUN_IMAGE_DIGEST }}
+            NODE_IMAGE=${{ vars.FUMA_NODE_IMAGE_DIGEST }}
+            SOURCE_SHA=${{ needs.preflight.outputs.source_sha }}
+            LOCK_HASH_SHA256=${{ needs.preflight.outputs.lock_hash }}
+            MIGRATION_HIGH_WATER_MARK=${{ needs.preflight.outputs.migration_high_water }}
+      - name: Record immutable refs and exact OCI indexes
+        shell: bash
+        run: |
+          set -euo pipefail
+          runtime_image="ghcr.io/corebunch/fuma-runtime@${{ steps.runtime.outputs.digest }}"
+          web_image="ghcr.io/corebunch/fuma-web@${{ steps.web.outputs.digest }}"
+          printf '%s\n' "$runtime_image" > supply/runtime.digest
+          printf '%s\n' "$web_image" > supply/web.digest
+          printf '%s\n' '${{ needs.preflight.outputs.source_sha }}' > supply/runtime.source-sha
+          printf '%s\n' '${{ needs.preflight.outputs.source_sha }}' > supply/web.source-sha
+          docker buildx imagetools inspect "$runtime_image" --raw > supply/runtime.index.json
+          docker buildx imagetools inspect "$web_image" --raw > supply/web.index.json
+          for index in supply/runtime.index.json supply/web.index.json; do
+            jq -e '
+              (.mediaType == "application/vnd.oci.image.index.v1+json" or .mediaType == "application/vnd.docker.distribution.manifest.list.v2+json")
+              and ([.manifests[] | select(.platform.os == "linux" and (.platform.architecture == "amd64" or .platform.architecture == "arm64"))] | length == 2)
+              and ([.manifests[] | select((.platform.os == "linux" and (.platform.architecture == "amd64" or .platform.architecture == "arm64")) | not)]
+                | all(.platform.os == "unknown" and .platform.architecture == "unknown" and .annotations["vnd.docker.reference.type"] == "attestation-manifest"))
+            ' "$index" >/dev/null
+          done
+      - name: Build amd64 email compatibility probe
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          file: infra/fuma-phase-13-18/docker/runtime.Dockerfile
+          target: compatibility
+          platforms: linux/amd64
+          load: true
+          tags: fuma-runtime-compatibility:amd64
+          build-args: |
+            BUN_IMAGE=${{ vars.FUMA_BUN_IMAGE_DIGEST }}
+            SOURCE_SHA=${{ needs.preflight.outputs.source_sha }}
+            LOCK_HASH_SHA256=${{ needs.preflight.outputs.lock_hash }}
+            MIGRATION_HIGH_WATER_MARK=${{ needs.preflight.outputs.migration_high_water }}
+      - name: Build arm64 email compatibility probe
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          file: infra/fuma-phase-13-18/docker/runtime.Dockerfile
+          target: compatibility
+          platforms: linux/arm64
+          load: true
+          tags: fuma-runtime-compatibility:arm64
+          build-args: |
+            BUN_IMAGE=${{ vars.FUMA_BUN_IMAGE_DIGEST }}
+            SOURCE_SHA=${{ needs.preflight.outputs.source_sha }}
+            LOCK_HASH_SHA256=${{ needs.preflight.outputs.lock_hash }}
+            MIGRATION_HIGH_WATER_MARK=${{ needs.preflight.outputs.migration_high_water }}
+      - name: Boot both published architectures by immutable digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          runtime_image=$(cat supply/runtime.digest)
+          web_image=$(cat supply/web.digest)
+          while read -r platform arch; do
+            docker pull --platform "$platform" "$runtime_image"
+            docker pull --platform "$platform" "$web_image"
+            sh infra/fuma-phase-13-18/docker/runtime-smoke.sh "$runtime_image" "fuma-runtime-compatibility:$arch" "$platform" "${{ needs.preflight.outputs.source_sha }}" "${{ needs.preflight.outputs.lock_hash }}" "${{ needs.preflight.outputs.migration_high_water }}" "supply/runtime-smoke/$arch.json"
+            sh infra/fuma-phase-13-18/docker/public-web-smoke.sh "$web_image" "$platform" "${{ needs.preflight.outputs.source_sha }}" "${{ needs.preflight.outputs.lock_hash }}" "${{ needs.preflight.outputs.migration_high_water }}" "supply/web-smoke/$arch.json"
+          done <<'PLATFORMS'
+          linux/amd64 amd64
+          linux/arm64 arm64
+          PLATFORMS
+      - name: Scan published immutable runtime digest
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ghcr.io/corebunch/fuma-runtime@${{ steps.runtime.outputs.digest }}
+          format: sarif
+          output: supply/runtime.trivy.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+      - name: Scan published immutable public-web digest
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ghcr.io/corebunch/fuma-web@${{ steps.web.outputs.digest }}
+          format: sarif
+          output: supply/web.trivy.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          exit-code: "1"
+      - name: Bind and validate published scan reports before signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          for component in runtime web; do
+            report="supply/$component.trivy.sarif"
+            image=$(cat "supply/$component.digest")
+            jq --arg image "$image" --arg sourceSha '${{ needs.preflight.outputs.source_sha }}' \
+              '.properties.fuma = {schemaVersion:1,image:$image,sourceSha:$sourceSha,scanner:"trivy",severity:["HIGH","CRITICAL"],ignoreUnfixed:false,passed:true}' \
+              "$report" > "$report.receipted"
+            jq -e '.version == "2.1.0" and (.runs | type == "array") and (.runs | length > 0) and .properties.fuma.passed == true' "$report.receipted" >/dev/null
+            mv "$report.receipted" "$report"
+          done
+      - name: Generate runtime SBOM from published immutable digest
+        uses: anchore/sbom-action@v0.21.0
+        with:
+          image: ghcr.io/corebunch/fuma-runtime@${{ steps.runtime.outputs.digest }}
+          format: spdx-json
+          output-file: supply/runtime.spdx.json
+      - name: Generate public-web SBOM from published immutable digest
+        uses: anchore/sbom-action@v0.21.0
+        with:
+          image: ghcr.io/corebunch/fuma-web@${{ steps.web.outputs.digest }}
+          format: spdx-json
+          output-file: supply/web.spdx.json
+      - uses: sigstore/cosign-installer@v3.10.0
+      - name: Extract and record BuildKit SLSA provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          for component in runtime web; do
+            image=$(cat "supply/$component.digest")
+            docker buildx imagetools inspect "$image" --format '{{json .Provenance}}' > "supply/$component.provenance.json"
+            jq -e '.. | objects | select(.predicateType? == "https://slsa.dev/provenance/v1")' "supply/$component.provenance.json" >/dev/null
+          done
+      - name: Sign only scanned immutable image digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cosign sign --yes "$(cat supply/runtime.digest)"
+          cosign sign --yes "$(cat supply/web.digest)"
+      - name: Verify immutable image signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+          identity='^https://github\.com/corebunch/instatic/\.github/workflows/fuma-paired-release\.yml@refs/(heads|tags)/.+'
+          for component in runtime web; do
+            cosign verify --certificate-identity-regexp "$identity" --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              "$(cat "supply/$component.digest")" --output json > "supply/$component.signature-verification.json"
+          done
+      - name: Record rollback-safe non-promoting publication plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n --arg sourceSha '${{ needs.preflight.outputs.source_sha }}' \
+            --arg runtimeImage "$(cat supply/runtime.digest)" --arg webImage "$(cat supply/web.digest)" \
+            '{schemaVersion:1,sourceSha:$sourceSha,runtimeImage:$runtimeImage,webImage:$webImage,architectures:["linux/amd64","linux/arm64"],state:"registry-published-unpromoted",promotionAuthority:"external-fuma-079-or-later",partialPublicationPolicy:"orphan-non-promotable",rollbackPolicy:"retain-last-known-good-digests",previousPairedReleaseManifestHashSha256:null,registryDeletionPlanned:false,deploymentMutationPerformed:false}' \
+            > supply/publication-plan.json
+      - name: Assemble immutable paired release
+        run: |
+          bun packages/fuma-governance-launch/tooling/pairedRelease.ts \
+            --source-sha=${{ needs.preflight.outputs.source_sha }} \
+            --lock-file=bun.lock \
+            --migration-high-water=${{ needs.preflight.outputs.migration_high_water }} \
+            --runtime-digest-file=supply/runtime.digest \
+            --runtime-source-sha-file=supply/runtime.source-sha \
+            --web-digest-file=supply/web.digest \
+            --web-source-sha-file=supply/web.source-sha \
+            --runtime-index=supply/runtime.index.json \
+            --web-index=supply/web.index.json \
+            --runtime-scan=supply/runtime.trivy.sarif \
+            --web-scan=supply/web.trivy.sarif \
+            --runtime-sbom=supply/runtime.spdx.json \
+            --web-sbom=supply/web.spdx.json \
+            --runtime-provenance=supply/runtime.provenance.json \
+            --web-provenance=supply/web.provenance.json \
+            --runtime-signature-verification=supply/runtime.signature-verification.json \
+            --web-signature-verification=supply/web.signature-verification.json \
+            --runtime-smoke-dir=supply/runtime-smoke \
+            --web-smoke-dir=supply/web-smoke \
+            --publication-plan=supply/publication-plan.json \
+            --output=supply/paired-release.json
+          bun packages/fuma-governance-launch/tooling/pairedRelease.ts \
+            --verify=supply/paired-release.json --evidence=full \
+            --runtime-index=supply/runtime.index.json --web-index=supply/web.index.json \
+            --runtime-scan=supply/runtime.trivy.sarif --web-scan=supply/web.trivy.sarif \
+            --runtime-sbom=supply/runtime.spdx.json --web-sbom=supply/web.spdx.json \
+            --runtime-provenance=supply/runtime.provenance.json --web-provenance=supply/web.provenance.json \
+            --runtime-signature-verification=supply/runtime.signature-verification.json \
+            --web-signature-verification=supply/web.signature-verification.json \
+            --runtime-smoke-dir=supply/runtime-smoke --web-smoke-dir=supply/web-smoke \
+            --publication-plan=supply/publication-plan.json
+      - name: Prove manifest immutability and mixed-SHA rejection
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp/tampered
+          cp supply/paired-release.json supply/paired-release.json.sha256 .tmp/tampered/
+          jq '.migrationHighWaterMark = "000000_tampered"' .tmp/tampered/paired-release.json > .tmp/tampered/value && mv .tmp/tampered/value .tmp/tampered/paired-release.json
+          if bun packages/fuma-governance-launch/tooling/pairedRelease.ts --verify=.tmp/tampered/paired-release.json; then exit 1; fi
+          printf '%064d\n' 1 > supply/runtime.mixed-source-sha
+          if bun packages/fuma-governance-launch/tooling/pairedRelease.ts \
+            --source-sha=${{ needs.preflight.outputs.source_sha }} --lock-file=bun.lock \
+            --migration-high-water=${{ needs.preflight.outputs.migration_high_water }} \
+            --runtime-digest-file=supply/runtime.digest --runtime-source-sha-file=supply/runtime.mixed-source-sha \
+            --web-digest-file=supply/web.digest --web-source-sha-file=supply/web.source-sha \
+            --runtime-index=supply/runtime.index.json --web-index=supply/web.index.json \
+            --runtime-scan=supply/runtime.trivy.sarif --web-scan=supply/web.trivy.sarif \
+            --runtime-sbom=supply/runtime.spdx.json --web-sbom=supply/web.spdx.json \
+            --runtime-provenance=supply/runtime.provenance.json --web-provenance=supply/web.provenance.json \
+            --runtime-signature-verification=supply/runtime.signature-verification.json \
+            --web-signature-verification=supply/web.signature-verification.json \
+            --runtime-smoke-dir=supply/runtime-smoke --web-smoke-dir=supply/web-smoke \
+            --publication-plan=supply/publication-plan.json \
+            --output=.tmp/mixed-release.json; then exit 1; fi
+      - name: Sign immutable paired release bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          identity='^https://github\.com/corebunch/instatic/\.github/workflows/fuma-paired-release\.yml@refs/(heads|tags)/.+'
+          cosign sign-blob --yes --bundle supply/paired-release.sigstore.json supply/paired-release.json
+          cosign verify-blob --bundle supply/paired-release.sigstore.json --certificate-identity-regexp "$identity" --certificate-oidc-issuer https://token.actions.githubusercontent.com supply/paired-release.json
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: paired-release-${{ needs.preflight.outputs.source_sha }}
+          path: supply
+          retention-days: 90
+          if-no-files-found: error
+
+# No deployment, DNS/TLS mutation, purchasing, database apply, or secret retrieval occurs here.

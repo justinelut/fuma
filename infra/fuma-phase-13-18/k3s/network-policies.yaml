@@ -1,0 +1,39 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny, namespace: fuma }
+spec: { podSelector: {}, policyTypes: [Ingress, Egress] }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: ingress-from-traefik, namespace: fuma }
+spec:
+  podSelector: { matchExpressions: [{ key: fuma-role, operator: In, values: [public, product, control] }] }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]
+      ports: [{ protocol: TCP, port: 3001 }, { protocol: TCP, port: 3002 }, { protocol: TCP, port: 3010 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: public-web-private-runtime, namespace: fuma }
+spec:
+  podSelector: { matchLabels: { app: public-web } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ podSelector: { matchLabels: { app: runtime-web } } }]
+      ports: [{ protocol: TCP, port: 3001 }]
+    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: control-private-runtime, namespace: fuma }
+spec:
+  podSelector: { matchLabels: { app: control-surfaces } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ podSelector: { matchLabels: { app: runtime-web } } }]
+      ports: [{ protocol: TCP, port: 3001 }]
+    - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+# Runtime provider/database/object-store egress is added only from approved namespace/IP blocks in the environment overlay.

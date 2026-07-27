@@ -1,0 +1,29 @@
+groups:
+  - name: fuma-public-web
+    rules:
+      - alert: FumaPublicWebUnavailable
+        expr: avg_over_time(fuma_public_web_up[5m]) < 0.99
+        for: 5m
+        labels: { severity: page, service: public-web }
+        annotations: { summary: Public Web availability below launch objective, runbook: docs/runbooks/fuma-public-web-operations.md }
+      - alert: FumaPublicProjectionFailures
+        expr: rate(fuma_public_projection_failure_total[10m]) > 0.05
+        for: 10m
+        labels: { severity: ticket, service: public-web }
+        annotations: { summary: Public projections are failing closed above threshold, runbook: docs/runbooks/fuma-public-web-operations.md }
+      - alert: FumaPublicWebLatency
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_server_duration_seconds_bucket{service="public-web"}[10m]))) > 1
+        for: 10m
+        labels: { severity: ticket, service: public-web }
+        annotations: { summary: Public Web p95 server latency is elevated, runbook: docs/runbooks/fuma-public-web-operations.md }
+
+      - alert: FumaPublicWebVitalRegression
+        expr: max by (route_class) (fuma_public_web_vital_latest{name="LCP"}) > 2500 or max by (route_class) (fuma_public_web_vital_latest{name="INP"}) > 200
+        for: 15m
+        labels: { severity: ticket, service: public-web }
+        annotations: { summary: Public Web field vital exceeded the launch budget, runbook: docs/runbooks/fuma-public-web-operations.md }
+      - alert: FumaPublicWebPoorVitalSamples
+        expr: increase(fuma_public_web_vital_poor_total[30m]) > 10
+        for: 10m
+        labels: { severity: ticket, service: public-web }
+        annotations: { summary: Public Web is receiving sustained poor vital observations, runbook: docs/runbooks/fuma-public-web-operations.md }

@@ -1,0 +1,213 @@
+.shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 100%;
+  background: var(--bg-surface);
+  color: var(--text);
+}
+
+.header,
+.sessionBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5xl);
+  padding: var(--space-3xl) var(--space-5xl);
+  background: var(--bg-surface-2);
+}
+
+.header {
+  justify-content: space-between;
+}
+
+.sessionBar {
+  justify-content: flex-end;
+}
+
+.contextHeading {
+  display: grid;
+  flex: 1;
+  gap: var(--space-3xs);
+  min-width: 0;
+}
+
+.profileLabel,
+.siteName,
+.contextPath {
+  margin: 0;
+}
+
+.profileLabel,
+.sessionLabel {
+  color: var(--text-subtle);
+  font-size: var(--text-xs);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.siteName {
+  overflow: hidden;
+  color: var(--text-bright);
+  font-size: var(--text-2xl);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contextPath {
+  color: var(--text-muted);
+  font-size: var(--text-s);
+}
+
+.sessionBlock {
+  display: grid;
+  gap: var(--space-3xs);
+  justify-items: end;
+  min-width: 0;
+}
+
+.actorLabel {
+  overflow: hidden;
+  max-width: 240px;
+  color: var(--text);
+  font-size: var(--text-s);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.managedClientsLink {
+  color: var(--accent-1);
+  font-size: var(--text-s);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.managedClientsLink:hover,
+.managedClientsLink[aria-current='page'] {
+  text-decoration: underline;
+}
+
+.switcherSlot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: var(--space-px);
+  min-height: 0;
+  background: var(--bg-surface);
+}
+
+.navigation {
+  overflow: auto;
+  padding: var(--space-2xl) 0;
+  background: var(--bg-surface-2);
+}
+
+.main {
+  display: grid;
+  align-content: start;
+  gap: var(--space-5xl);
+  min-width: 0;
+  overflow: auto;
+  padding: var(--space-5xl);
+  background: var(--bg-body);
+}
+
+.routeContent {
+  min-width: 0;
+}
+
+.statePanel {
+  display: grid;
+  min-height: min(70vh, 720px);
+  padding: var(--space-5xl);
+  background: var(--bg-body);
+}
+
+.invitationId {
+  display: block;
+  max-width: min(100%, 680px);
+  padding: var(--space-m) var(--space-l);
+  border-radius: var(--radius);
+  background: var(--bg-surface-3);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .sessionBlock {
+    justify-items: start;
+  }
+
+  .switcherSlot {
+    flex-basis: 100%;
+  }
+
+  .body {
+    grid-template-columns: 1fr;
+  }
+
+  .navigation {
+    max-height: 240px;
+  }
+}
+
+.profileSubtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-m);
+}
+
+.routeDenied {
+  min-height: min(60vh, 640px);
+}
+
+.skipLink {
+  position: fixed;
+  z-index: 100;
+  top: var(--space-s);
+  left: var(--space-s);
+  padding: var(--space-s) var(--space-l);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-surface-3);
+  color: var(--text-bright);
+  font-size: var(--text-s);
+  font-weight: 650;
+  text-decoration: none;
+  transform: translateY(calc(-100% - var(--space-2xl)));
+  transition: transform 120ms ease;
+}
+
+.skipLink:focus {
+  outline: 2px solid var(--accent-1);
+  outline-offset: var(--space-px);
+  transform: translateY(0);
+}
+
+.main:focus {
+  outline: none;
+}
+
+@media (max-width: 480px) {
+  .header,
+  .sessionBar,
+  .main,
+  .statePanel {
+    padding: var(--space-2xl);
+  }
+
+  .navigation {
+    max-height: min(42vh, 320px);
+  }
+}

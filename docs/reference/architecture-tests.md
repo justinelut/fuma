@@ -1,19 +1,43 @@
 # Architecture Tests
 
-Catalog of every test in `src/__tests__/architecture/`. These are structural gates — they run as part of `bun test` and fail the build when a rule is broken. When *your* change drifts a structural rule, fix the matching test in the **same** change.
+Catalog of every test in `apps/studio/src/__tests__/architecture/`. These are structural gates — they run as part of `bun test` and fail the build when a rule is broken. When *your* change drifts a structural rule, fix the matching test in the **same** change.
 
 ---
 
 ## TL;DR
 
-- 95 gate files across structural domains: SQL, JSON columns, migrations, CSS, icons, primitives, page tree, sandbox, agent, router, content storage, boundary validation, module size, AI, auth, error handling, etc.
+- 110 gate files across structural domains: SQL, JSON columns, migrations, CSS, icons, primitives, page tree, sandbox, agent, router, content storage, boundary validation, module size, AI, auth, error handling, etc.
 - Naming convention: `<topic>.test.ts` (kebab-case) or `<group>-<topic>.test.ts`. A few legacy `task<N>-*` ids remain for live invariants; new gates should use topic names.
-- Run them all: `bun test src/__tests__/architecture/`.
+- Run them all: `bun test apps/studio/src/__tests__/architecture/`.
 - Most are **import / source scans** — they parse the files in scope and assert / reject patterns. Some are unit-style (a small in-test database, a synthesized page tree).
 
 ---
 
 ## Catalog by domain
+
+### Platform architecture
+
+| Test                                          | What it enforces                                                                 |
+|-----------------------------------------------|----------------------------------------------------------------------------------|
+| `fuma-platform-architecture.test.ts`          | FUMA-001 policy foundation: exact `user → organization → workspace → site` hierarchy; capability-composed Website/Publication profiles; pooled PostgreSQL hosted defaults; no new singleton tenant SQL, per-site SQLite, unguarded dedicated/isolated tenant allocation, forbidden distributed topology, Drizzle module references outside `server/auth/`, speculative future profile registrations, shared profile-ID branch decisions, or sibling process-root imports. TypeScript AST checks cover syntax-sensitive rules; text scans remain for SQL/config/path policies. The gate scans a nonzero real tree, ratchets three inherited singleton occurrences, freezes historical migration hashes, recognizes plausible hosted migration paths, and runs the hostile auditor fixtures directly. |
+| `fuma-managed-client-view.test.ts`            | FUMA-018 app boundary: managed-client rows come from the validated authorized catalog, open canonical scoped site contexts, remain profile-neutral/read-only, and do not expose admin-only offers, grants, billing, pricing, quota, payment, or transfer authority. |
+| `fuma-profile-extension.test.ts`              | FUMA-019 profile-extension boundary: Website, Publication, and fixture profiles compose through generic contributions; shared consumers remain fixture-blind; duplicate IDs, path collisions, missing contributions, named-profile branches, and speculative profiles are rejected. |
+| `fuma-authority-boundaries.test.ts`           | FUMA-020/021 structural trust boundary: mutation Origin and caller header/body role, invariant, scope, correlation, and tenant substitutions precede context derivation; durable job payload never enters authority lookup; canonical claims must remain active; layered records repeat exact platform ancestry; protected internal-console authority cannot be synthesized after explicit deny; permission/context APIs remain barrel-exported. |
+| `fuma-repository-scoping.test.ts`             | FUMA-025 repository boundary: one strict TypeBox-derived exact scope; no bare workspace/site `getById`; workspace/site transactions and list/search/count SQL carry ownership predicates; one canonical registry covers all 36 FUMA-024 site-owned table-row/object classes; singleton/default-site SQL is rejected. |
+| `fuma-runtime-boundary-scoping.test.ts`       | FUMA-026 runtime boundary: HTTP rejects caller tenant/owner claims before trusted request/repository derivation; scoped cache/pub-sub/lock and object factories require frozen authority plus generation/version qualification; hosted plugin dispatch revalidates current scope and carries out-of-band authority; organization jobs receive no site capability; worker handlers and bound site transactions cannot bypass scope binding or owner revalidation. Hostile source mutations cover each boundary. |
+| `fuma-editor-multisite.test.ts`                | FUMA-027 editor boundary: complete ancestry browser targets; owner/generation-qualified PostgreSQL resources; fresh authority on every operation; scoped routes and canonical client paths; stale load/save/import suppression; instance-owned tab history/import state; capability/permission-only surfaces; ready-context rendering; and central hosted router/startup composition. |
+| `fuma-editor-draft-concurrency.test.ts`        | FUMA-028 draft boundary: profile-qualified server/client streams; strict TypeBox mutation batches; fresh transaction authority; row-locked monotonic compare-and-swap; mutation receipts and replay suppression; deterministic HTTP 409 conflicts; explicit client reconciliation; additive immutable migration; and hostile Zod, authority-claim, profile-branch, scope, lock, CAS, receipt, route, and checksum substitutions. |
+| `fuma-publication-shell.test.ts`                | FUMA-032 Publication shell: exact subtitle/navigation, profile-composed collapsed Editor/Design disclosure, capability/permission direct-route guards before child mounts, native disclosure accessibility, profile-neutral consumers, and Studio Tailwind/shadcn/Zod isolation with hostile mutations. |
+| `fuma-publication-phase.test.ts`                | FUMA-029–047 Publication phase: ordered additive migrations, strict TypeBox contracts, owner-generation/profile-qualified persistence, server-derived actors, OCI-only delivery, and Blyss-only browser acceptance. |
+| `fuma-transfer-boundaries.test.ts`            | FUMA-023/024 transfer boundary: saga execution is referenced only inside trusted durable-job handlers and a committed claim is read before executor entry; proposal/start perform ordered server-owned eligibility checks; payloads contain only `transferId`; base site plus stable owner-key ancestry remain one PostgreSQL transaction; tenant-object copy consumes canonical inventory/receipt vocabulary; mandatory copy→policy definitions stay outside profile contributions; control-plane effects remain excluded. |
+| `fuma-release-boundaries.test.ts`             | FUMA-048 release boundary: strict TypeBox lifecycle; release-local content-addressed keys; complete reference/inventory/metadata/byte verification; exact current owner/generation/transfer authority; serialized atomic pointer/root swap; database immutability and active deletion guards; no renderer, worker publisher, or object-writer ownership before FUMA-049. Hostile substitutions prove every rule. |
+| `fuma-workspace-public-web-architecture.test.ts` | FUMA-WEB-001 future-workspace auditor: exact two-app/three-leaf topology, native Bun root orchestration, one lockfile, unique package names, app/package import boundaries, public-web authority isolation, host/session/cookie separation, reserved tenant labels, fail-closed host routing, credential-safe BFF behavior, and projection-owned pricing truth. Every typed rule has an independent hostile fixture. |
+| `fuma-shared-packages.test.ts`                | FUMA-WEB-004/005 independent actual-workspace gate: exactly the Studio and Web apps plus `brand`, `design-tokens`, and `public-contracts`; unique package names; leaf and acyclic manifest/source dependencies; existing non-wildcard source exports; no nested locks; TypeBox-only strict public contracts with no runtime/authority imports or private commercial fields; framework-neutral brand/tokens. Isolated hostile mutations cover every rule. |
+| `fuma-public-web-scaffold.test.ts`             | FUMA-WEB-005 public Next boundary: exact dependency pins; App Router, strict TypeScript, MDX, React Compiler, and standalone output; app-local Tailwind/shadcn ownership; generated token CSS freshness; no Studio/Zod/app-lock leakage; separate non-root architecture-neutral image target. |
+| `fuma-public-projection-boundary.test.ts`      | FUMA-WEB-006 private projection/BFF boundary: strict public contracts, no private fields or app authority imports, no Zod/public API host/credential forwarding, service-only authentication, bounded filters, ETag validation, and central hosted route composition. Every rule has a hostile mutation. |
+| `fuma-workspace-migration-baseline.test.ts`   | FUMA-WEB-001 pre-relocation evidence: shared immutable historical PostgreSQL/SQLite source hashes, canonical hosted IDs/checksums through `000009_tenant_keys`, future `apps/studio` paths, and hostile content/order/checksum/high-water substitutions. |
+
+See [docs/reference/fuma-platform-architecture.md](fuma-platform-architecture.md) and [fuma-runtime-boundary-scoping.md](fuma-runtime-boundary-scoping.md).
 
 ### Barrel imports
 
@@ -253,7 +277,6 @@ See [docs/features/site-transfer.md](../features/site-transfer.md).
 | `module-size-budgets.test.ts`                 | Per-module line-count cap. No new source module over 700 lines; a grandfathered ledger of existing god-files is frozen and ratchets down only. Source-side sibling of `bundle-size-budgets`. |
 | `codemirror-lazy-only.test.ts`                | CodeMirror is loaded only via `lazy()` — it's heavy and shouldn't be in the entry bundle. |
 | `site-editor-shell-lazy-body.test.ts`         | Enforces that `SitePage` renders the real shell via `AdminCanvasLayout` (no bespoke startup skeleton), that the heavy editor body (DnD, canvas, panels, first-party modules) stays behind a post-paint lazy boundary, that `ImportHtmlModal` stays behind its open-state lazy boundary, and that `CanvasFrameSkeletonFrame` from `@admin/shared/CanvasFrameSkeleton` is used for startup and no-site states. |
-| `singleInstallManagedHosting.test.ts`         | Single-install assumptions hold across the codebase (no multi-tenant leakage).   |
 
 ### Docker / deployment
 
@@ -261,7 +284,8 @@ The following test lives in `src/__tests__/server/` (not `architecture/`) but en
 
 | Test (server/)                                | What it enforces                                                                 |
 |-----------------------------------------------|----------------------------------------------------------------------------------|
-| `dockerConfig.test.ts`                        | Dockerfile uses a multi-stage build (build → production-deps → runtime), `ARG INSTATIC_VERSION` and OCI version label are present, TypeScript path aliases (`tsconfig*.json`) are copied into the runtime stage, `esbuild` is in `dependencies` (not `devDependencies`) so the runtime script bundler is available in production. `compose.prod.yml` uses the GHCR image, has healthchecks, persistent volumes, and `depends_on: condition: service_healthy`. `POSTGRES_PASSWORD` carries a `CHANGEME` placeholder default (no `:?` guard) so the file loads in SQLite mode without a `.env`. `INSTATIC_SECRET_KEY` is documented in `.env.production.example` and referenced in `compose.prod.yml`. |
+| `dockerConfig.test.ts`                        | Dockerfile uses a multi-stage build (build → production-deps → runtime), `ARG INSTATIC_VERSION` and OCI version label are present, TypeScript path aliases (`tsconfig*.json`) are copied into the runtime stage, `esbuild` is in dependencies (not devDependencies) so the runtime script bundler is available in production. `compose.prod.yml` uses the GHCR image, has healthchecks, persistent volumes, and `depends_on: condition: service_healthy`. `POSTGRES_PASSWORD` carries a `CHANGEME` placeholder default (no `:?` guard) so the file loads in SQLite mode without a `.env`. `INSTATIC_SECRET_KEY` is documented in `.env.production.example` and referenced in `compose.prod.yml`. |
+| `fuma-self-host-parity.test.ts` (architecture/) | FUMA-WEB-003 locks the relocated `apps/studio` self-host contract: root command wrappers and Studio authorities, Docker build/runtime paths and copies, SQLite/PostgreSQL selection, Compose image/port/env/health/persistent-volume overlays, published artefacts under uploads, immutable historical migration paths and hashes, and portable release-bundle membership including TLS `Caddyfile`. |
 
 See [docs/deployment/](../deployment/).
 
@@ -357,4 +381,4 @@ The build fails with a specific message and a list of offending files / lines. T
 - `CLAUDE.md` — the rule book (mentions architecture gates as first-class)
 - [docs/architecture.md](../architecture.md) — system-level invariants
 - [docs/CONVENTIONS.md](../CONVENTIONS.md) — when a doc claim should link a gate
-- Source root: `src/__tests__/architecture/`
+- Source root: `apps/studio/src/__tests__/architecture/`

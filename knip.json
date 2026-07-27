@@ -1,28 +1,35 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
-    "src/admin/main.tsx",
-    "server/index.ts",
-    "server/healthcheck.ts",
-    "scripts/**/*.ts",
-    "src/__tests__/**/*.{test,spec}.{ts,tsx}",
-    "src/__tests__/**/*.test-d.{ts,tsx}",
-    "server/**/__tests__/**/*.test.ts",
-    "server/plugins/quickjs/bootstrap/src/*.ts",
-    "src/admin/plugin-host-ui/index.ts",
-    "src/admin/plugin-host-hooks/index.ts",
-    "src/core/plugin-sdk/index.ts",
-    "src/core/plugin-sdk/cli/*.ts"
+    "apps/studio/src/admin/main.tsx",
+    "apps/control-surfaces/app/**/*.{ts,tsx}",
+    "apps/control-surfaces/tests/**/*.ts",
+    "apps/studio/server/index.ts",
+    "apps/studio/server/healthcheck.ts",
+    "apps/studio/scripts/**/*.ts",
+    "apps/studio/src/__tests__/**/*.{test,spec}.{ts,tsx}",
+    "apps/studio/src/__tests__/**/*.test-d.{ts,tsx}",
+    "apps/studio/server/**/__tests__/**/*.test.ts",
+    "apps/studio/server/plugins/quickjs/bootstrap/src/*.ts",
+    "apps/studio/src/admin/plugin-host-ui/index.ts",
+    "apps/studio/src/admin/plugin-host-hooks/index.ts",
+    "apps/studio/src/core/plugin-sdk/index.ts",
+    "apps/studio/src/core/plugin-sdk/cli/*.ts",
+    "packages/*/src/index.ts",
+    "packages/*/{test,tests}/**/*.ts"
   ],
   "project": [
-    "src/**/*.{ts,tsx}",
-    "server/**/*.ts",
-    "scripts/**/*.ts"
+    "apps/studio/src/**/*.{ts,tsx}",
+    "apps/studio/server/**/*.ts",
+    "apps/studio/scripts/**/*.ts",
+    "apps/control-surfaces/**/*.{ts,tsx}",
+    "packages/**/*.ts",
+    "tooling/**/*.ts"
   ],
   "ignore": [
-    "src/ui/icons/icons/**",
-    "examples/plugins/**",
-    "src/ui/icons/icon-browser.html"
+    "apps/studio/src/ui/icons/icons/**",
+    "apps/studio/examples/plugins/**",
+    "apps/studio/src/ui/icons/icon-browser.html"
   ],
   "ignoreDependencies": [
     "@fontsource-variable/inter",

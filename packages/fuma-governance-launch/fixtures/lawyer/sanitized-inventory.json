@@ -1,0 +1,13 @@
+{
+  "snapshotId": "lawyer-sanitized-2026-07",
+  "routes": ["/", "/news", "/news/market-brief", "/analysis", "/opinion", "/membership", "/account", "/newsletter"],
+  "members": [{ "id": "member-1", "emailHashSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "tier": "paid", "sourcePaymentId": "payment-1" }],
+  "membershipRules": [{ "routePattern": "/analysis/*", "access": "paid" }, { "routePattern": "/opinion/*", "access": "member" }],
+  "content": [{ "id": "post-1", "slug": "market-brief", "custom_excerpt": "{\"deck\":\"A fixture brief\",\"featured\":true}", "tags": ["section-news", "markets"] }, { "id": "page-membership", "slug": "_membership", "custom_excerpt": null, "tags": [] }],
+  "storageBytes": 10485760,
+  "monthlyTraffic": 25000,
+  "email": { "sourceProvider": "resend", "destinationProvider": "oci-email-delivery", "credentialsIncluded": false },
+  "payments": [{ "sourcePaymentId": "payment-1", "label": "paid", "providerVerification": "required" }],
+  "supportCommitments": ["weekday editorial support", "member access reconciliation"],
+  "excluded": ["passwords", "sessions", "resend-credentials", "paystack-secrets"]
+}

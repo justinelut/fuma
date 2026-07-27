@@ -12,19 +12,25 @@
   //   - marketing/*.html are standalone static marketing pages. Their CSS is
   //     linked from HTML, not imported by the app's JS graph.
   "entry": [
-    "server/healthcheck.ts",
-    "scripts/build-google-fonts.ts",
-    "scripts/generate-secret-key.ts",
+    "apps/studio/server/healthcheck.ts",
+    "apps/studio/scripts/build-google-fonts.ts",
+    "apps/studio/scripts/generate-secret-key.ts",
     "marketing/index.html",
-    "marketing/fonts.html"
+    "marketing/fonts.html",
+    "packages/brand/src/index.ts",
+    "packages/brand/test/brand.test.ts",
+    "packages/design-tokens/src/index.ts",
+    "packages/design-tokens/tests/index.test.ts",
+    "packages/public-contracts/src/index.ts",
+    "packages/public-contracts/tests/hostile-validation.ts"
   ],
 
   // Example plugins are zip-distributable user code that gets loaded at runtime
   // via plugin.json — fallow can't see those manifest references. They are not
   // part of the CMS import graph, so exclude them from analysis entirely.
   "ignorePatterns": [
-    "examples/plugins/**",
-    "src/ui/icons/icon-browser.html",
+    "apps/studio/examples/plugins/**",
+    "apps/studio/src/ui/icons/icon-browser.html",
     "vendor/**",
     ".tmp/**",
 
@@ -33,8 +39,8 @@
     // per-module file so rolldown can code-split (the barrel would defeat
     // tree-shaking / the React.lazy boundary). Nothing imports them, so
     // fallow flags them as unused files; exclude them from analysis.
-    "src/admin/layouts/index.ts",
-    "src/admin/modals/Settings/index.ts"
+    "apps/studio/src/admin/layouts/index.ts",
+    "apps/studio/src/admin/modals/Settings/index.ts"
   ],
 
   // Loaded from src/styles/globals.css via a targeted @font-face URL. Fallow
@@ -53,7 +59,7 @@
   // only legitimate usage.
   "overrides": [
     {
-      "files": ["src/__tests__/**/*.ts", "src/__tests__/**/*.tsx"],
+      "files": ["apps/studio/src/__tests__/**/*.ts", "apps/studio/src/__tests__/**/*.tsx"],
       "rules": { "unresolved-imports": "off" }
     }
   ],
@@ -71,14 +77,27 @@
     },
 
     {
-      "file": "src/admin/pages/site/code-editor/CodeEditorPanel.module.css",
+      "file": "apps/studio/src/admin/pages/site/code-editor/CodeEditorPanel.module.css",
       "exports": ["cm-editor"]
+    },
+
+    {
+      "file": "packages/brand/src/index.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "packages/design-tokens/src/index.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "packages/public-contracts/src/index.ts",
+      "exports": ["*"]
     },
 
     // Plugin SDK public surface — consumed by external plugin authors via
     // `@instatic/plugin-sdk`. Fallow can't see those consumers.
     {
-      "file": "src/core/plugin-sdk/builders/index.ts",
+      "file": "apps/studio/src/core/plugin-sdk/builders/index.ts",
       "exports": [
         "DefinePluginConfig",
         "PluginDefinition",
@@ -97,19 +116,19 @@
       ]
     },
     {
-      "file": "src/core/plugin-sdk/builders/permissions.ts",
+      "file": "apps/studio/src/core/plugin-sdk/builders/permissions.ts",
       "exports": ["PermissionAlias"]
     },
     {
-      "file": "src/core/plugin-sdk/types/commands.ts",
+      "file": "apps/studio/src/core/plugin-sdk/types/commands.ts",
       "exports": ["PluginPaletteCommand"]
     },
     {
-      "file": "src/core/plugin-sdk/types/routes.ts",
+      "file": "apps/studio/src/core/plugin-sdk/types/routes.ts",
       "exports": ["RouteMethod"]
     },
     {
-      "file": "src/core/plugin-sdk/types/serverApi.ts",
+      "file": "apps/studio/src/core/plugin-sdk/types/serverApi.ts",
       "exports": ["ServerPluginModule"]
     },
 
@@ -121,11 +140,11 @@
     // trace) and the contract is pinned by
     // `plugin-host-ui-runtime-parity.test.ts`. Suppress the whole barrel.
     {
-      "file": "src/admin/plugin-host-ui/index.ts",
+      "file": "apps/studio/src/admin/plugin-host-ui/index.ts",
       "exports": ["*"]
     },
     {
-      "file": "src/admin/plugin-host-hooks/index.ts",
+      "file": "apps/studio/src/admin/plugin-host-hooks/index.ts",
       "exports": ["*"]
     }
   ]

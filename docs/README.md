@@ -57,6 +57,41 @@ docs/
 │   ├── persistence-keys.md         ← localStorage / server prefs catalog
 │   ├── error-boundaries.md         ← boundary placements + error reporting
 │   ├── architecture-tests.md       ← catalog of every architecture gate
+│   ├── fuma-platform-architecture.md ← Fuma hierarchy, profiles, topology, migration policy
+│   ├── fuma-workspace-public-web-architecture.md ← Bun workspace, public-web, host/session/data boundaries
+│   ├── fuma-workspaces.md            ← organization-scoped workspace HTTP boundary and composition seam
+│   ├── fuma-sites.md                 ← owned site lifecycle and exact-ID legacy bootstrap seam
+│   ├── fuma-configuration.md          ← hosted env schema, product metadata, safe summaries
+│   ├── fuma-profiles.md               ← Website/Publication capability composition registry
+│   ├── fuma-permissions.md            ← permission catalog, persona matrices, and resolver precedence
+│   ├── fuma-profile-composition.md    ← resolved onboarding/navigation UI and resume seams
+│   ├── fuma-stable-context.md         ← hosted scoped URLs, context authority, switchers, FUMA-021 seam
+│   ├── fuma-request-context.md        ← trusted request/internal-job derivation and immutable authority snapshots
+│   ├── fuma-repository-scoping.md     ← exact hosted repository scope, owner-key authority, and FUMA-026 handoff
+│   ├── fuma-runtime-boundary-scoping.md ← hosted HTTP, keys, objects, plugins, and job scope binding
+│   ├── fuma-editor-multisite.md       ← site-keyed editor sessions, scoped persistence, and profile surfaces
+│   ├── fuma-publication-shell.md      ← Publication direct routes, collapsed Design, editor/viewer behavior
+│   ├── fuma-publication-authoring-delivery.md ← Publication collaboration, editorial, audience, newsletters, and OCI delivery
+│   ├── fuma-publication-scheduling-access.md ← Durable publish/unpublish, preview tokens, recovery, and public audience gates
+│   ├── fuma-public-web-scaffold.md     ← independent Next app and standalone runtime foundation
+│   ├── fuma-public-projections.md      ← private Studio projections, strict contracts, and same-origin Next BFF
+│   ├── fuma-audit-history.md          ← append-only hosted audit contracts, scoped listings, and read-only UI
+│   ├── fuma-runtime-roles.md          ← web/worker/scheduler lifecycle and health contracts
+│   ├── fuma-hosted-migrations-transition.md ← hosted PG stream and SQLite transition tooling
+│   ├── fuma-redis-coordination.md     ← namespaced Redis cache, limits, pub/sub, presence, leases
+│   ├── fuma-object-storage.md         ← tenant-prefixed immutable MinIO object contracts
+│   ├── fuma-durable-jobs.md           ← PostgreSQL job authority and Redis ready coordination
+│   ├── fuma-transfer-saga.md          ← durable site ownership transfer, resume, and compensation
+│   ├── fuma-tenant-keys.md            ← stable owner keys, resource inventory, and resumable evidence
+│   ├── fuma-object-ownership-transfer.md ← manifest-gated object authorization policy transfer
+│   ├── fuma-immutable-releases.md       ← immutable manifests, lifecycle, active pointer, retention roots
+│   ├── fuma-publish-release.md          ← durable semantic publishing, exact retries, atomic activation
+│   ├── fuma-free-hosts.md               ← exact free-host allocation, active-release Host routing, fail-closed serving
+│   ├── fuma-staff-identity.md         ← additive hosted auth links and preserved staff credentials
+│   ├── fuma-hosted-staff-auth.md      ← same-origin staff routes, host-only sessions, pre-auth UI
+│   ├── fuma-hosted-staff-security.md  ← MFA, session, admin, response-envelope client contract
+│   ├── fuma-email-documents.md        ← allowlisted data-only tenant email renderer
+│   ├── fuma-test-fixtures.md          ← deterministic tenant/provider/DB test scaffolding
 │   ├── editor-history.md           ← patch-based undo/redo history
 │   ├── react-compiler.md           ← memoization rule, three exceptions, gates
 │   └── use-async-resource.md       ← canonical async load hook; when to use vs. not
@@ -177,6 +212,34 @@ Three categories, three voices:
 | [reference/persistence-keys.md](reference/persistence-keys.md)   | All localStorage / sessionStorage / server-prefs keys           |
 | [reference/error-boundaries.md](reference/error-boundaries.md)   | `<ErrorBoundary>` placements + reporting                        |
 | [reference/architecture-tests.md](reference/architecture-tests.md) | Catalog of every architecture gate test                       |
+| [reference/fuma-platform-architecture.md](reference/fuma-platform-architecture.md) | Fuma hierarchy, capability profiles, pooled topology, and migration boundaries |
+| [reference/fuma-workspace-public-web-architecture.md](reference/fuma-workspace-public-web-architecture.md) | Bun workspace layout plus public-web host, session, data, move, and rollback boundaries |
+| [reference/fuma-organizations.md](reference/fuma-organizations.md) | Organization creation, protected membership mutation, hooks, limits, and placement policy |
+| [reference/fuma-workspaces.md](reference/fuma-workspaces.md) | Organization-scoped workspace HTTP routes, trusted actor injection, and the FUMA-021 composition seam |
+| [reference/fuma-sites.md](reference/fuma-sites.md) | Owned site lifecycle, registry assignments, and exact-ID legacy bootstrap |
+| [reference/fuma-permissions.md](reference/fuma-permissions.md) | Permission catalog, launch-persona matrices, precedence, and authorization boundaries |
+| [reference/fuma-profile-composition.md](reference/fuma-profile-composition.md) | Resolved profile onboarding/navigation UI, durable resume, and mounting boundaries |
+| [reference/fuma-website-parity.md](reference/fuma-website-parity.md) | Website launch-to-editor parity matrix, extension stability, and FUMA-027 boundary |
+| [reference/fuma-stable-context.md](reference/fuma-stable-context.md) | Hosted scoped URLs, context authority, switchers, and the FUMA-021 trust boundary |
+| [reference/fuma-request-context.md](reference/fuma-request-context.md) | Trusted staff request and internal-job context derivation, correlation, and immutable snapshots |
+| [reference/fuma-repository-scoping.md](reference/fuma-repository-scoping.md) | Exact hosted repository scope, owner-key authority, 36-class coverage, and FUMA-026 handoff |
+| [reference/fuma-runtime-boundary-scoping.md](reference/fuma-runtime-boundary-scoping.md) | Hosted HTTP, coordination/object keys, plugin calls, and durable-job scope binding |
+| [reference/fuma-editor-multisite.md](reference/fuma-editor-multisite.md) | Site-keyed editor sessions, scoped PostgreSQL persistence, capability surfaces, and two-tab isolation |
+| [reference/fuma-editor-draft-concurrency.md](reference/fuma-editor-draft-concurrency.md) | Monotonic draft sequences, atomic mutation batches, duplicate suppression, and visible conflict reconciliation |
+| [reference/fuma-publication-collaboration.md](reference/fuma-publication-collaboration.md) | Ordered operation ledger, atomic reconciliation, accepted fan-out, explicit rebase, and reconnect catch-up |
+| [reference/fuma-publication-shell.md](reference/fuma-publication-shell.md) | Publication subtitle/navigation, collapsed Design disclosure, direct-route permission guards, and editor/viewer behavior |
+| [reference/fuma-public-web-scaffold.md](reference/fuma-public-web-scaffold.md) | Independent Next App Router scaffold, app-local Tailwind/shadcn, generated tokens, and standalone ARM64 runtime |
+| [reference/fuma-public-projections.md](reference/fuma-public-projections.md) | Studio-owned anonymous projections, strict envelopes, private-cluster Next client, and same-origin BFF |
+| [reference/fuma-audit-history.md](reference/fuma-audit-history.md) | Append-only hosted audit schema, trusted recording, exact-scope listings, and read-only UI |
+| [reference/fuma-transfer-saga.md](reference/fuma-transfer-saga.md) | Durable fenced site ownership transfer, resume, compensation, and claim-level worker contracts |
+| [reference/fuma-tenant-keys.md](reference/fuma-tenant-keys.md) | Stable owner keys, complete table/object inventory, and resumable count/hash/FK evidence |
+| [reference/fuma-object-ownership-transfer.md](reference/fuma-object-ownership-transfer.md) | Manifest-gated exact-prefix object authorization transfer and composed job registrations |
+| [reference/fuma-immutable-releases.md](reference/fuma-immutable-releases.md) | Immutable release manifests, exact object verification, active pointer, and retention roots |
+| [reference/fuma-publish-release.md](reference/fuma-publish-release.md) | Durable snapshot claim, semantic rendering, immutable writes, fenced recovery, and atomic activation |
+| [reference/fuma-configuration.md](reference/fuma-configuration.md) | Hosted environment schema, product metadata, and secret-safe summaries |
+| [reference/fuma-hosted-staff-auth.md](reference/fuma-hosted-staff-auth.md) | Same-origin staff routes, host-only sessions, and pre-authentication UI |
+| [reference/fuma-hosted-staff-security.md](reference/fuma-hosted-staff-security.md) | Hosted staff MFA, self-session, admin, and browser response contracts |
+| [reference/fuma-test-fixtures.md](reference/fuma-test-fixtures.md) | Deterministic Fuma tenant/profile, provider, PostgreSQL, and transition-source test fixtures |
 | [reference/editor-history.md](reference/editor-history.md)       | Patch-based undo/redo history: `HistoryEntry`, `mutate*` helpers, coalescing |
 | [reference/react-compiler.md](reference/react-compiler.md)       | React Compiler memoization rule, three exceptions, enforcement gates |
 | [reference/use-async-resource.md](reference/use-async-resource.md) | `useAsyncResource` — canonical single-resource async load hook; when to use and when not to |
@@ -186,6 +249,7 @@ Three categories, three voices:
 | Folder                              | Contents                                                          |
 |-------------------------------------|-------------------------------------------------------------------|
 | [deployment/](deployment/)          | Platform deploys, VPS/Docker installs, TLS, backup, releases      |
+| [runbooks/fuma-paired-release.md](runbooks/fuma-paired-release.md) | Protected paired-image publication gates, evidence, and failure handling |
 | [e2e/](e2e/)                        | Browser E2E protocols: agent-run audits and Playwright automation docs |
 
 ---

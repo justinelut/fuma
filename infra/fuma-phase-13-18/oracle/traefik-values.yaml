@@ -1,0 +1,42 @@
+deployment:
+  replicas: 1
+service:
+  spec:
+    externalTrafficPolicy: Local
+ports:
+  web:
+    expose: { default: false }
+  websecure:
+    expose: { default: true }
+    port: 8443
+    exposedPort: 443
+    protocol: TCP
+    tls: { enabled: true }
+api:
+  dashboard: false
+  insecure: false
+providers:
+  kubernetesCRD:
+    enabled: true
+    allowCrossNamespace: false
+  kubernetesIngress:
+    enabled: false
+logs:
+  general: { level: INFO, format: json }
+  access:
+    enabled: true
+    format: json
+    fields:
+      headers:
+        defaultMode: drop
+        names: { User-Agent: keep }
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { cpu: "1", memory: 512Mi }
+securityContext:
+  capabilities: { drop: [ALL] }
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile: { type: RuntimeDefault }

@@ -1,0 +1,1 @@
+import type { MetadataRoute } from 'next';export default function manifest():MetadataRoute.Manifest{return {name:'Fuma',short_name:'Fuma',description:'Build and publish an independent website or publication.',start_url:'/',scope:'/',display:'browser',background_color:'#f5f5ef',theme_color:'#101212',lang:'en-KE'}}

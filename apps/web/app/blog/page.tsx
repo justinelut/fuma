@@ -1,0 +1,1 @@
+import { EditorialIndex } from '@/components/editorial-pages'; import { publicMetadata } from '@/lib/seo'; export const metadata=publicMetadata('Blog','Product and publishing notes from Fuma.','/blog'); export default function Page(){return <EditorialIndex collection="blog"/>}

@@ -1,0 +1,130 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "../styles/generated/fuma-design-tokens.css";
+
+:root {
+  color-scheme: light;
+  --background: color-mix(in srgb, var(--fuma-color-near-white) 94%, var(--fuma-color-black));
+  --foreground: var(--fuma-color-black);
+  --card: var(--fuma-color-near-white);
+  --card-foreground: var(--fuma-color-black);
+  --popover: var(--fuma-color-near-white);
+  --popover-foreground: var(--fuma-color-black);
+  --primary: var(--fuma-color-black);
+  --primary-foreground: var(--fuma-color-near-white);
+  --secondary: color-mix(in srgb, var(--fuma-color-near-white) 88%, var(--fuma-color-black));
+  --secondary-foreground: var(--fuma-color-black);
+  --muted: color-mix(in srgb, var(--fuma-color-near-white) 88%, var(--fuma-color-black));
+  --muted-foreground: color-mix(in srgb, var(--fuma-color-black) 64%, var(--fuma-color-near-white));
+  --accent: var(--fuma-color-mint);
+  --accent-foreground: var(--fuma-color-black);
+  --border: color-mix(in srgb, var(--fuma-color-near-white) 78%, var(--fuma-color-black));
+  --input: color-mix(in srgb, var(--fuma-color-near-white) 78%, var(--fuma-color-black));
+  --ring: var(--foreground);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --background: var(--fuma-color-black);
+    --foreground: var(--fuma-color-near-white);
+    --card: color-mix(in srgb, var(--fuma-color-near-white) 8%, var(--fuma-color-black));
+    --card-foreground: var(--fuma-color-near-white);
+    --popover: color-mix(in srgb, var(--fuma-color-near-white) 8%, var(--fuma-color-black));
+    --popover-foreground: var(--fuma-color-near-white);
+    --primary: var(--fuma-color-near-white);
+    --primary-foreground: var(--fuma-color-black);
+    --secondary: color-mix(in srgb, var(--fuma-color-near-white) 14%, var(--fuma-color-black));
+    --secondary-foreground: var(--fuma-color-near-white);
+    --muted: color-mix(in srgb, var(--fuma-color-near-white) 14%, var(--fuma-color-black));
+    --muted-foreground: var(--fuma-color-muted-gray);
+    --accent: var(--fuma-color-mint);
+    --accent-foreground: var(--fuma-color-black);
+    --border: color-mix(in srgb, var(--fuma-color-near-white) 22%, var(--fuma-color-black));
+    --input: color-mix(in srgb, var(--fuma-color-near-white) 22%, var(--fuma-color-black));
+    --ring: var(--foreground);
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand-black: var(--fuma-color-black);
+  --color-brand-near-white: var(--fuma-color-near-white);
+  --color-brand-muted-gray: var(--fuma-color-muted-gray);
+  --color-brand-mint: var(--fuma-color-mint);
+  --color-brand-lilac: var(--fuma-color-lilac);
+  --color-brand-sky: var(--fuma-color-sky);
+  --color-brand-peach: var(--fuma-color-peach);
+  --font-sans: var(--fuma-font-sans);
+  --font-mono: var(--fuma-font-mono);
+  --text-fuma-xs: var(--fuma-text-xs);
+  --text-fuma-sm: var(--fuma-text-sm);
+  --text-fuma-md: var(--fuma-text-md);
+  --text-fuma-lg: var(--fuma-text-lg);
+  --text-fuma-display: var(--fuma-text-display);
+  --spacing-fuma-hairline: var(--fuma-space-hairline);
+  --spacing-fuma-xs: var(--fuma-space-xs);
+  --spacing-fuma-sm: var(--fuma-space-sm);
+  --spacing-fuma-md: var(--fuma-space-md);
+  --spacing-fuma-lg: var(--fuma-space-lg);
+  --spacing-fuma-xl: var(--fuma-space-xl);
+  --spacing-fuma-2xl: var(--fuma-space-2xl);
+  --spacing-fuma-3xl: var(--fuma-space-3xl);
+  --radius-sm: var(--fuma-radius-sm);
+  --radius-md: var(--fuma-radius-md);
+  --radius-lg: var(--fuma-radius-lg);
+  --radius-xl: var(--fuma-radius-xl);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    max-width: 100%;
+    overflow-x: clip;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply min-h-svh bg-background font-sans text-foreground antialiased;
+    overflow-wrap: anywhere;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-4 outline-ring;
+  }
+}
+
+@layer components {
+  .prose-public { @apply text-base leading-8 text-foreground; }
+  .prose-public h2 { @apply mt-12 scroll-mt-28 text-3xl font-semibold tracking-tight; }
+  .prose-public h3 { @apply mt-9 scroll-mt-28 text-2xl font-semibold; }
+  .prose-public p, .prose-public ul, .prose-public blockquote, .prose-public pre { @apply mt-5; }
+  .prose-public ul { @apply list-disc pl-6; }
+  .prose-public a { @apply underline decoration-brand-mint decoration-2 underline-offset-4; }
+  .prose-public code { @apply rounded bg-secondary px-1.5 py-0.5 font-mono text-sm; }
+  .prose-public pre { @apply overflow-x-auto rounded-xl bg-brand-black p-5 text-brand-near-white; }
+  .prose-public pre code { @apply bg-transparent p-0; }
+  .prose-public blockquote { @apply border-l-4 border-brand-mint pl-5 text-muted-foreground; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; } }
+@media (forced-colors: active) { a, button { forced-color-adjust: auto; } }
