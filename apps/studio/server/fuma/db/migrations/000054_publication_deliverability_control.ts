@@ -1,6 +1,6 @@
 import type { HostedMigration } from '../migrationPolicy'
 
-/** Candidate only: the conductor owns registry insertion and checksum finalization. */
+/** Finalized by the conductor and checksum-registered in the hosted migration stream. */
 export const publicationDeliverabilityControlMigration: HostedMigration = Object.freeze({
   id: '000054_publication_deliverability_control',
   description: 'Add scoped suppressions, sender-domain health, first-party engagement, and complete OCI logs',
