@@ -1,103 +1,440 @@
-import { Type, Value, type Static } from '@core/utils/typeboxHelpers'
-import type { ScopedPaystackTransport } from '../paystack/transport'
+import {
+  safeParseValue,
+} from '@core/utils/typeboxHelpers'
+import {
+  PaystackError,
+  PaystackPurposeRegistry,
+  ScopedPaystackTransport,
+  newPaystackReference,
+  type PaymentPurpose,
+} from '../paystack/transport'
+import {
+  PlatformCheckoutInitializeSchema,
+  PlatformCheckoutMetadataSchema,
+  PlatformCheckoutViewSchema,
+  PlatformCheckoutError,
+  type PlatformCheckoutChannel,
+  type PlatformCheckoutDestination,
+  type PlatformCheckoutInitializationClaim,
+  type PlatformCheckoutMetadata,
+  type PlatformCheckoutObligation,
+  type PlatformCheckoutObligationKind,
+  type PlatformCheckoutOfferAcceptanceAuthority,
+  type PlatformCheckoutRecord,
+  type PlatformCheckoutRepository,
+  type PlatformCheckoutSourceIntent,
+  type PlatformCheckoutView,
+} from './contracts'
 
-const HttpsUrlSchema = Type.String({ minLength: 8, maxLength: 2048, pattern: '^https://[^\\s]+$' })
-export const CheckoutRequestSchema = Type.Object({
-  checkoutId: Type.String({ minLength: 1, maxLength: 255 }), organizationId: Type.String({ minLength: 1 }), workspaceId: Type.String({ minLength: 1 }), siteId: Type.String({ minLength: 1 }),
-  kind: Type.Union([Type.Literal('public-plan'), Type.Literal('custom-offer')]),
-  catalogId: Type.Union([Type.String({ minLength: 1 }), Type.Null()]), catalogVersion: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
-  offerId: Type.Union([Type.String({ minLength: 1 }), Type.Null()]), offerVersion: Type.Union([Type.Integer({ minimum: 1 }), Type.Null()]),
-  email: Type.String({ format: 'email' }), currency: Type.Literal('KES'), recurringAmountMinor: Type.Integer({ minimum: 1 }), setupFeeMinor: Type.Integer({ minimum: 0 }),
-  cadence: Type.Union([Type.Literal('monthly'), Type.Literal('annual')]),
-  allowedChannels: Type.Array(Type.Union([Type.Literal('card'), Type.Literal('mobile_money'), Type.Literal('bank')]), { minItems: 1, maxItems: 3, uniqueItems: true }),
-  callbackUrl: HttpsUrlSchema, internalGrant: Type.Boolean(),
-}, { additionalProperties: false })
-export type CheckoutRequest = Static<typeof CheckoutRequestSchema>
-export type CheckoutRecord = Readonly<CheckoutRequest & {
-  state: 'initialized' | 'cancelled'; recurringReference: string; recurringAuthorizationUrl: string; setupReference: string | null; setupAuthorizationUrl: string | null
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const INITIALIZATION_WAIT_ATTEMPTS = 80
+const INITIALIZATION_WAIT_MS = 10
+
+export type PlatformCheckoutCustomerAuthority = Readonly<{
+  destination: PlatformCheckoutDestination
+  customerActorId: string
+  payerEmail: string
 }>
-export interface CheckoutRepository { find(id: string): Promise<CheckoutRecord | null>; insert(record: CheckoutRecord): Promise<boolean>; cancel(id: string): Promise<void> }
-export interface CheckoutAuthority { assertCurrent(input: CheckoutRequest): Promise<void> }
-export class CheckoutError extends Error {
-  readonly code: 'invalid' | 'internal-denied' | 'scope' | 'stale' | 'duplicate-mismatch';
-  constructor(code: 'invalid' | 'internal-denied' | 'scope' | 'stale' | 'duplicate-mismatch', message: string) { super(message); this.code = code; this.name = 'CheckoutError' }
-}
-export const CheckoutMetadataSchema = Type.Object({
-  checkoutId: Type.String({ minLength: 1 }), obligation: Type.Union([Type.Literal('recurring'), Type.Literal('setup')]),
-  organizationId: Type.String({ minLength: 1 }), workspaceId: Type.String({ minLength: 1 }), siteId: Type.String({ minLength: 1 }),
-  binding: Type.String({ minLength: 3 }), amountMinor: Type.Integer({ minimum: 1 }), currency: Type.Literal('KES'), cadence: Type.Union([Type.Literal('monthly'), Type.Literal('annual')]),
-}, { additionalProperties: false })
-export type CheckoutMetadata = Static<typeof CheckoutMetadataSchema>
 
-function exactInput(record: CheckoutRecord, input: CheckoutRequest): boolean {
-  const projected: CheckoutRequest = {
-    checkoutId: record.checkoutId, organizationId: record.organizationId, workspaceId: record.workspaceId, siteId: record.siteId,
-    kind: record.kind, catalogId: record.catalogId, catalogVersion: record.catalogVersion, offerId: record.offerId, offerVersion: record.offerVersion,
-    email: record.email, currency: record.currency, recurringAmountMinor: record.recurringAmountMinor, setupFeeMinor: record.setupFeeMinor,
-    cadence: record.cadence, allowedChannels: record.allowedChannels, callbackUrl: record.callbackUrl, internalGrant: record.internalGrant,
-  }
-  return JSON.stringify(projected) === JSON.stringify(input)
+export type PlatformCheckoutServiceOptions = Readonly<{
+  callbackOrigin: string
+  allowedChannels: readonly PlatformCheckoutChannel[]
+  allowedAuthorizationOrigins?: readonly string[]
+  referenceFactory?: (kind: PlatformCheckoutObligationKind) => string
+  sleep?: (milliseconds: number) => Promise<void>
+}>
+
+function sha256(value: string): string {
+  return new Bun.CryptoHasher('sha256').update(value).digest('hex')
 }
-function binding(input: CheckoutRequest): string {
-  if (input.kind === 'public-plan') return `catalog:${input.catalogId}:${input.catalogVersion}`
-  return `offer:${input.offerId}:${input.offerVersion}`
+
+function exactHttpsOrigin(value: string, label: string): string {
+  let url: URL
+  try {
+    url = new URL(value)
+  } catch {
+    throw new TypeError(`${label} must be an explicit HTTPS origin.`)
+  }
+  if (
+    url.protocol !== 'https:'
+    || url.username !== ''
+    || url.password !== ''
+    || url.search !== ''
+    || url.hash !== ''
+    || (url.pathname !== '/' && url.pathname !== '')
+  ) {
+    throw new TypeError(`${label} must be an explicit HTTPS origin.`)
+  }
+  return url.origin
+}
+
+function callbackUrl(
+  origin: string,
+  destination: PlatformCheckoutDestination,
+  checkoutId: string,
+): string {
+  const encoded = [
+    '/admin/organizations',
+    encodeURIComponent(destination.organizationId),
+    'workspaces',
+    encodeURIComponent(destination.workspaceId),
+    'sites',
+    encodeURIComponent(destination.siteId),
+    'settings/billing',
+  ].join('/')
+  const url = new URL(encoded, `${origin}/`)
+  url.searchParams.set('checkout', checkoutId)
+  return url.toString()
+}
+
+function purposeId(kind: PlatformCheckoutObligationKind): string {
+  return kind === 'setup' ? 'platform-setup' : 'platform-recurring'
+}
+
+function obligation(record: PlatformCheckoutRecord, kind: PlatformCheckoutObligationKind) {
+  return kind === 'setup' ? record.setup : record.recurring
+}
+
+function metadataFor(
+  record: PlatformCheckoutRecord,
+  item: PlatformCheckoutObligation,
+): PlatformCheckoutMetadata {
+  const sourceId = record.source.kind === 'public-plan'
+    ? record.source.planId
+    : record.source.offerId
+  const sourceVersion = record.source.kind === 'public-plan'
+    ? record.source.priceBookVersion
+    : String(record.source.offerVersion)
+  const parsed = safeParseValue(PlatformCheckoutMetadataSchema, {
+    checkoutId: record.checkoutId,
+    candidateId: record.candidateId,
+    sourceKind: record.source.kind,
+    sourceId,
+    sourceVersion,
+    organizationId: record.destination.organizationId,
+    workspaceId: record.destination.workspaceId,
+    siteId: record.destination.siteId,
+    customerActorId: record.customerActorId,
+    payerEmailSha256: record.payerEmailSha256,
+    kind: item.kind,
+    amountMinor: item.amountMinor,
+    currency: item.currency,
+    cadence: record.cadence,
+    callbackUrl: record.callbackUrl,
+    allowedChannels: record.allowedChannels,
+    evidenceSha256: record.evidenceSha256,
+  })
+  if (!parsed.ok) {
+    throw new PlatformCheckoutError('verification', 'Stored checkout metadata is invalid.')
+  }
+  return Object.freeze(parsed.value)
+}
+
+function view(record: PlatformCheckoutRecord): PlatformCheckoutView {
+  const parsed = safeParseValue(PlatformCheckoutViewSchema, {
+    checkoutId: record.checkoutId,
+    state: record.state,
+    source: record.source,
+    destination: record.destination,
+    cadence: record.cadence,
+    currency: record.currency,
+    setup: record.setup,
+    recurring: record.recurring,
+    createdAt: record.createdAt,
+    cancelledAt: record.cancelledAt,
+  })
+  if (!parsed.ok) {
+    throw new PlatformCheckoutError('verification', 'Checkout response failed strict validation.')
+  }
+  return Object.freeze(parsed.value)
+}
+
+function sameDestination(
+  left: PlatformCheckoutDestination,
+  right: PlatformCheckoutDestination,
+): boolean {
+  return left.organizationId === right.organizationId
+    && left.workspaceId === right.workspaceId
+    && left.siteId === right.siteId
+    && left.profileId === right.profileId
+}
+
+function isAllowedAuthorizationUrl(value: string, origins: ReadonlySet<string>): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:'
+      && url.username === ''
+      && url.password === ''
+      && origins.has(url.origin)
+  } catch {
+    return false
+  }
+}
+
+function checkoutPurpose(
+  kind: PlatformCheckoutObligationKind,
+  repository: PlatformCheckoutRepository,
+): PaymentPurpose<PlatformCheckoutMetadata> {
+  return Object.freeze({
+    id: purposeId(kind),
+    scope: 'platform_billing' as const,
+    metadataSchema: PlatformCheckoutMetadataSchema,
+    async authorize(metadata) {
+      if (metadata.kind !== kind) {
+        throw new PaystackError('invalid-purpose', 'Checkout obligation purpose was conflated.')
+      }
+      await repository.assertPurpose(metadata)
+    },
+    expected(metadata) {
+      return Object.freeze({
+        amountMinor: metadata.amountMinor,
+        currency: metadata.currency,
+      })
+    },
+    async settle() {
+      // FUMA-056 owns signed-event reduction and exact obligation settlement.
+      // Purpose settlement is intentionally inert at the checkout boundary.
+    },
+  })
+}
+
+export function registerPlatformCheckoutPurposes(
+  registry: PaystackPurposeRegistry,
+  repository: PlatformCheckoutRepository,
+): void {
+  registry.register(checkoutPurpose('setup', repository))
+  registry.register(checkoutPurpose('recurring', repository))
 }
 
 export class PlatformCheckoutService {
-  private readonly pending = new Map<string, Promise<CheckoutRecord>>()
-  private readonly transport: ScopedPaystackTransport;
-  private readonly repository: CheckoutRepository;
-  private readonly authority: CheckoutAuthority;
-  constructor(transport: ScopedPaystackTransport, repository: CheckoutRepository, authority: CheckoutAuthority) { this.transport = transport; this.repository = repository; this.authority = authority;
-    if (transport.scope !== 'platform_billing') throw new CheckoutError('scope', 'Platform checkout requires platform_billing credentials.')
-  }
+  readonly #transport: ScopedPaystackTransport
+  readonly #repository: PlatformCheckoutRepository
+  readonly #offers: PlatformCheckoutOfferAcceptanceAuthority
+  readonly #callbackOrigin: string
+  readonly #allowedChannels: readonly PlatformCheckoutChannel[]
+  readonly #authorizationOrigins: ReadonlySet<string>
+  readonly #referenceFactory: (kind: PlatformCheckoutObligationKind) => string
+  readonly #sleep: (milliseconds: number) => Promise<void>
 
-  async initialize(raw: unknown): Promise<CheckoutRecord> {
-    if (!Value.Check(CheckoutRequestSchema, raw)) throw new CheckoutError('invalid', 'Checkout contract is invalid.')
-    const input = Object.freeze(structuredClone(raw)) as CheckoutRequest
-    if (input.internalGrant) throw new CheckoutError('internal-denied', 'Internal organizations cannot create provider customers, checkout, invoices, or dunning.')
-    const publicBinding = input.kind === 'public-plan' && input.catalogId !== null && input.catalogVersion !== null && input.offerId === null && input.offerVersion === null
-    const offerBinding = input.kind === 'custom-offer' && input.offerId !== null && input.offerVersion !== null && input.catalogId === null && input.catalogVersion === null
-    if (!publicBinding && !offerBinding) throw new CheckoutError('invalid', 'Checkout version binding is invalid.')
-    await this.authority.assertCurrent(input)
-    const prior = await this.repository.find(input.checkoutId)
-    if (prior) {
-      if (!exactInput(prior, input)) throw new CheckoutError('duplicate-mismatch', 'Checkout ID was reused with different destination, version, or obligations.')
-      return prior
+  constructor(
+    transport: ScopedPaystackTransport,
+    repository: PlatformCheckoutRepository,
+    offers: PlatformCheckoutOfferAcceptanceAuthority,
+    options: PlatformCheckoutServiceOptions,
+  ) {
+    if (transport.scope !== 'platform_billing') {
+      throw new PlatformCheckoutError(
+        'scope',
+        'Platform checkout cannot use customer merchant credentials.',
+      )
     }
-    const inFlight = this.pending.get(input.checkoutId)
-    if (inFlight) return await inFlight
-    const operation = this.initializeExact(input).finally(() => { this.pending.delete(input.checkoutId) })
-    this.pending.set(input.checkoutId, operation)
-    return await operation
+    const channels = [...new Set(options.allowedChannels)]
+    if (
+      channels.length < 1
+      || channels.length > 3
+      || channels.some((channel) => !['card', 'mobile_money', 'bank'].includes(channel))
+    ) {
+      throw new TypeError('Platform checkout channels are invalid.')
+    }
+    const authorizationOrigins = options.allowedAuthorizationOrigins
+      ?? ['https://checkout.paystack.com']
+    this.#transport = transport
+    this.#repository = repository
+    this.#offers = offers
+    this.#callbackOrigin = exactHttpsOrigin(options.callbackOrigin, 'Checkout callback')
+    this.#allowedChannels = Object.freeze(channels)
+    this.#authorizationOrigins = new Set(authorizationOrigins.map((origin) => (
+      exactHttpsOrigin(origin, 'Checkout authorization')
+    )))
+    this.#referenceFactory = options.referenceFactory
+      ?? ((kind) => newPaystackReference('platform_billing', purposeId(kind)))
+    this.#sleep = options.sleep ?? ((milliseconds) => new Promise((resolve) => {
+      setTimeout(resolve, milliseconds)
+    }))
   }
 
-  private async initializeExact(input: CheckoutRequest): Promise<CheckoutRecord> {
-    const base = { checkoutId: input.checkoutId, organizationId: input.organizationId, workspaceId: input.workspaceId, siteId: input.siteId, binding: binding(input), currency: input.currency, cadence: input.cadence }
-    const options = { callbackUrl: input.callbackUrl, channels: input.allowedChannels }
-    const setup = input.setupFeeMinor > 0
-      ? await this.transport.initialize('platform-setup', { ...base, obligation: 'setup' as const, amountMinor: input.setupFeeMinor }, input.email, options)
-      : null
-    const recurring = await this.transport.initialize('platform-recurring', { ...base, obligation: 'recurring' as const, amountMinor: input.recurringAmountMinor }, input.email, options)
-    const record: CheckoutRecord = Object.freeze({
-      ...structuredClone(input), state: 'initialized', recurringReference: recurring.reference, recurringAuthorizationUrl: recurring.authorizationUrl,
-      setupReference: setup?.reference ?? null, setupAuthorizationUrl: setup?.authorizationUrl ?? null,
+  async initialize(
+    raw: unknown,
+    customer: PlatformCheckoutCustomerAuthority,
+  ): Promise<PlatformCheckoutView> {
+    const parsed = safeParseValue(PlatformCheckoutInitializeSchema, raw)
+    if (!parsed.ok || !EMAIL_PATTERN.test(customer.payerEmail)) {
+      throw new PlatformCheckoutError('invalid', 'Checkout intent is invalid.')
+    }
+    const source: PlatformCheckoutSourceIntent = Object.freeze(parsed.value.source)
+    const destination = Object.freeze({ ...customer.destination })
+    if (source.kind === 'private-offer') {
+      await this.#offers.acceptExactIssuedOffer({
+        offerId: source.offerId,
+        offerVersion: source.offerVersion,
+        destination,
+      })
+    }
+    let record = await this.#repository.prepare({
+      source,
+      destination,
+      customerActorId: customer.customerActorId,
+      payerEmailSha256: sha256(customer.payerEmail.trim().toLowerCase()),
+      callbackUrlFor: (checkoutId) => callbackUrl(
+        this.#callbackOrigin,
+        destination,
+        checkoutId,
+      ),
+      allowedChannels: this.#allowedChannels,
     })
-    if (!await this.repository.insert(record)) {
-      const winner = await this.repository.find(input.checkoutId)
-      if (!winner || !exactInput(winner, input)) throw new CheckoutError('duplicate-mismatch', 'Concurrent checkout winner does not match this request.')
-      return winner
+    if (!sameDestination(record.destination, destination)) {
+      throw new PlatformCheckoutError('scope', 'Checkout destination authority changed.')
     }
-    return record
+    if (record.state === 'cancelled') {
+      throw new PlatformCheckoutError('cancelled', 'Checkout is cancelled.')
+    }
+    if (record.setup) record = await this.#initializeOne(record, 'setup', customer.payerEmail)
+    record = await this.#initializeOne(record, 'recurring', customer.payerEmail)
+    return view(record)
   }
 
-  async cancel(id: string) { await this.repository.cancel(id) }
-  callbackLabel(_query: URLSearchParams): never { throw new CheckoutError('invalid', 'Callback labels never settle or activate checkout; exact server verification is required.') }
+  async #initializeOne(
+    record: PlatformCheckoutRecord,
+    kind: PlatformCheckoutObligationKind,
+    payerEmail: string,
+  ): Promise<PlatformCheckoutRecord> {
+    const current = obligation(record, kind)
+    if (!current) return record
+    if (current.state === 'ready' || current.state === 'callback-verified') return record
+    const result = await this.#repository.claimInitialization(
+      record.checkoutId,
+      kind,
+      this.#referenceFactory(kind),
+    )
+    if (result.state === 'ready') return result.record
+    if (result.state === 'busy') {
+      return await this.#waitForInitialization(record.destination, record.checkoutId, kind)
+    }
+    const claimed = await this.#repository.find(record.destination, record.checkoutId)
+    const claimedObligation = claimed ? obligation(claimed, kind) : null
+    if (!claimed || !claimedObligation || claimedObligation.reference !== result.claim.reference) {
+      await this.#release(result.claim)
+      throw new PlatformCheckoutError('verification', 'Checkout initialization claim changed.')
+    }
+    try {
+      const initialized = await this.#transport.initialize(
+        purposeId(kind),
+        metadataFor(claimed, claimedObligation),
+        payerEmail,
+        {
+          callbackUrl: claimed.callbackUrl,
+          channels: [...claimed.allowedChannels],
+          reference: result.claim.reference,
+        },
+      )
+      if (
+        initialized.reference !== result.claim.reference
+        || !isAllowedAuthorizationUrl(initialized.authorizationUrl, this.#authorizationOrigins)
+      ) {
+        throw new PlatformCheckoutError(
+          'verification',
+          'Provider authorization response is not trusted.',
+        )
+      }
+      await this.#repository.completeInitialization(
+        result.claim,
+        initialized.authorizationUrl,
+      )
+    } catch (error) {
+      await this.#release(result.claim)
+      if (error instanceof PlatformCheckoutError) throw error
+      throw new PlatformCheckoutError('provider', 'Checkout provider initialization failed.')
+    }
+    const completed = await this.#repository.find(record.destination, record.checkoutId)
+    if (!completed) {
+      throw new PlatformCheckoutError('verification', 'Initialized checkout disappeared.')
+    }
+    return completed
+  }
+
+  async #waitForInitialization(
+    destination: PlatformCheckoutDestination,
+    checkoutId: string,
+    kind: PlatformCheckoutObligationKind,
+  ): Promise<PlatformCheckoutRecord> {
+    for (let attempt = 0; attempt < INITIALIZATION_WAIT_ATTEMPTS; attempt += 1) {
+      await this.#sleep(INITIALIZATION_WAIT_MS)
+      const found = await this.#repository.find(destination, checkoutId)
+      const item = found ? obligation(found, kind) : null
+      if (found && item && ['ready', 'callback-verified'].includes(item.state)) return found
+      if (item?.state === 'failed') break
+    }
+    throw new PlatformCheckoutError('busy', 'Checkout initialization is still in progress.')
+  }
+
+  async #release(claim: PlatformCheckoutInitializationClaim): Promise<void> {
+    try {
+      await this.#repository.releaseInitialization(claim)
+    } catch {
+      // Preserve the original provider/verification failure without leaking claim details.
+    }
+  }
+
+  async find(
+    destination: PlatformCheckoutDestination,
+    checkoutId: string,
+  ): Promise<PlatformCheckoutView> {
+    const record = await this.#repository.find(destination, checkoutId)
+    if (!record) throw new PlatformCheckoutError('not-found', 'Checkout was not found.')
+    return view(record)
+  }
+
+  async cancel(
+    destination: PlatformCheckoutDestination,
+    checkoutId: string,
+  ): Promise<PlatformCheckoutView> {
+    await this.#repository.cancel(destination, checkoutId)
+    return await this.find(destination, checkoutId)
+  }
+
+  async verifyCallback(
+    destination: PlatformCheckoutDestination,
+    checkoutId: string,
+    reference: string,
+  ): Promise<PlatformCheckoutView> {
+    const record = await this.#repository.find(destination, checkoutId)
+    if (!record) throw new PlatformCheckoutError('not-found', 'Checkout was not found.')
+    if (record.state === 'cancelled') {
+      throw new PlatformCheckoutError('cancelled', 'Cancelled checkout cannot be verified.')
+    }
+    const item = [record.setup, record.recurring].find((candidate) => (
+      candidate?.reference === reference
+    ))
+    if (!item || !item.reference || !['ready', 'callback-verified'].includes(item.state)) {
+      throw new PlatformCheckoutError('verification', 'Callback reference is not an exact checkout obligation.')
+    }
+    try {
+      const transaction = await this.#transport.verify(
+        purposeId(item.kind),
+        item.reference,
+        metadataFor(record, item),
+      )
+      if (!record.allowedChannels.includes(transaction.channel as PlatformCheckoutChannel)) {
+        throw new PlatformCheckoutError('verification', 'Verified payment channel is not allowed.')
+      }
+      await this.#repository.markCallbackVerified(
+        checkoutId,
+        item.kind,
+        item.reference,
+      )
+    } catch (error) {
+      if (error instanceof PlatformCheckoutError) throw error
+      throw new PlatformCheckoutError('verification', 'Checkout callback verification failed.')
+    }
+    const verified = await this.#repository.find(destination, checkoutId)
+    if (!verified) throw new PlatformCheckoutError('verification', 'Verified checkout disappeared.')
+    return view(verified)
+  }
 }
 
-export class MemoryCheckoutRepository implements CheckoutRepository {
-  readonly rows = new Map<string, CheckoutRecord>()
-  async find(id: string) { return structuredClone(this.rows.get(id) ?? null) }
-  async insert(record: CheckoutRecord) { if (this.rows.has(record.checkoutId)) return false; this.rows.set(record.checkoutId, structuredClone(record)); return true }
-  async cancel(id: string) { const record = this.rows.get(id); if (record) this.rows.set(id, Object.freeze({ ...record, state: 'cancelled' })) }
+// Compatibility names retained for the commercial-edge barrel while callers migrate.
+export {
+  PlatformCheckoutError as CheckoutError,
+  PlatformCheckoutInitializeSchema as CheckoutRequestSchema,
+  PlatformCheckoutMetadataSchema as CheckoutMetadataSchema,
 }
