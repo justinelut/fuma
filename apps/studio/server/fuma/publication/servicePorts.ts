@@ -61,6 +61,7 @@ export interface PublicationDomainStore {
   putCampaign(scope: PublicationRepositoryScope, campaign: CampaignSnapshot): Promise<boolean>
   putCampaignWithDeliveries(scope: PublicationRepositoryScope, campaign: CampaignSnapshot, deliveries: readonly CampaignDelivery[]): Promise<boolean>
   getCampaign(scope: PublicationRepositoryScope, campaignId: string): Promise<CampaignSnapshot | null>
+  transitionCampaignStatus(scope: PublicationRepositoryScope, campaignId: string, from: CampaignSnapshot['status'], to: CampaignSnapshot['status']): Promise<boolean>
   putDeliveries(scope: PublicationRepositoryScope, deliveries: readonly CampaignDelivery[]): Promise<void>
   listDeliveries(scope: PublicationRepositoryScope, campaignId: string): Promise<readonly CampaignDelivery[]>
   putSuppression(scope: PublicationRepositoryScope, suppression: Suppression): Promise<boolean>

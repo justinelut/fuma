@@ -1,5 +1,4 @@
 import {
-  CampaignSnapshotSchema,
   EmailSettingsLayerSchema,
   NewsletterSchema,
   NewsletterTestSendCommandSchema,
@@ -19,8 +18,6 @@ import {
   SuppressionSchema,
   UnsubscribeTokenClaimsSchema,
   parsePublicationContract,
-  type CampaignDelivery,
-  type CampaignSnapshot,
   type DeliverabilitySummary,
   type EmailSettingsLayer,
   type Newsletter,
@@ -57,7 +54,6 @@ import type {
   OciEmailDeliveryProvider,
   PublicationDomainStore,
   PublicationIdAuthority,
-  PublicationUnsubscribeLinkIssuer,
 } from './servicePorts'
 export type {
   OciEmailDeliveryProvider,
@@ -67,7 +63,7 @@ export type {
 } from './servicePorts'
 
 export class PublicationDomainError extends Error {
-  readonly code: 'conflict' | 'invalid-transition' | 'not-found' | 'settings-incomplete' | 'suppressed' | 'provider-rejected' | 'rate-limited' | 'token-invalid'
+  readonly code: 'conflict' | 'invalid-transition' | 'not-found' | 'payload-too-large' | 'settings-incomplete' | 'suppressed' | 'provider-rejected' | 'rate-limited' | 'token-invalid'
 
   constructor(code: PublicationDomainError['code'], message: string) {
     super(message)
@@ -460,153 +456,6 @@ export class PublicationNewsletterService {
       headers: { 'X-Fuma-Test': 'true', 'X-Fuma-Fixture': preview.fixture },
     })
     return result.providerMessageId
-  }
-}
-
-export class PublicationCampaignService {
-  readonly #store: PublicationDomainStore
-  readonly #audience: PublicationAudienceService
-  readonly #newsletters: PublicationNewsletterService
-  readonly #ids: PublicationIdAuthority
-  readonly #jobs: FumaJobService | null
-  readonly #oci: OciEmailDeliveryProvider
-  readonly #unsubscribe: PublicationUnsubscribeLinkIssuer | null
-  readonly #now: () => Date
-
-  constructor(input: Readonly<{
-    store: PublicationDomainStore
-    audience: PublicationAudienceService
-    newsletters: PublicationNewsletterService
-    ids: PublicationIdAuthority
-    jobs?: FumaJobService
-    oci: OciEmailDeliveryProvider
-    unsubscribe?: PublicationUnsubscribeLinkIssuer
-    now?: () => Date
-  }>) {
-    if (input.oci.kind !== 'oci-email-delivery') throw new TypeError('Launch campaign provider must be OCI Email Delivery.')
-    this.#store = input.store
-    this.#audience = input.audience
-    this.#newsletters = input.newsletters
-    this.#ids = input.ids
-    this.#jobs = input.jobs ?? null
-    this.#oci = input.oci
-    this.#unsubscribe = input.unsubscribe ?? null
-    this.#now = input.now ?? (() => new Date())
-  }
-  async snapshot(scope: PublicationRepositoryScope, command: Readonly<{
-    campaignId: string
-    newsletterId: string
-    versionId: string
-    segmentId: string
-    scheduledAt: string | null
-  }>): Promise<CampaignSnapshot> {
-    const version = await this.#newsletters.version(scope, command.versionId)
-    if (version.newsletterId !== command.newsletterId) throw new PublicationDomainError('conflict', 'Campaign newsletter and immutable version do not match.')
-    const members = await this.#audience.resolveSegment(scope, command.segmentId)
-    const preview = await this.#newsletters.preview(scope, command.versionId)
-    const createdAt = this.#now().toISOString()
-    if (command.scheduledAt !== null && Date.parse(command.scheduledAt) <= Date.parse(createdAt)) {
-      throw new PublicationDomainError('invalid-transition', 'Scheduled campaigns require a future run time.')
-    }
-    const audienceMemberIds = members.map(({ memberId }) => memberId).toSorted()
-    const immutableSnapshot = {
-      campaignId: command.campaignId,
-      newsletterId: command.newsletterId,
-      versionId: command.versionId,
-      segmentId: command.segmentId,
-      audienceMemberIds,
-      subject: preview.resolvedSubject,
-      html: preview.html,
-      text: preview.text,
-      sender: preview.settings,
-      scheduledAt: command.scheduledAt,
-      createdAt,
-    }
-    const snapshot = parsePublicationContract('campaign snapshot', CampaignSnapshotSchema, {
-      ...immutableSnapshot,
-      status: command.scheduledAt ? 'scheduled' : 'draft',
-      snapshotSha256: this.#ids.sha256(canonicalPublicationJson(immutableSnapshot)),
-    })
-    const deliveries: CampaignDelivery[] = members.map((member) => ({
-      deliveryId: this.#ids.id('delivery'),
-      campaignId: snapshot.campaignId,
-      memberId: member.memberId,
-      recipientEmail: member.email,
-      status: 'queued',
-      providerMessageId: null,
-      attempt: 0,
-      updatedAt: createdAt,
-    }))
-    if (await this.#store.getCampaign(scope,snapshot.campaignId)) throw new PublicationDomainError('conflict', 'Campaign identity already exists.')
-    if (this.#jobs && snapshot.scheduledAt) {
-      await this.#jobs.enqueue({
-        organizationId: scope.organizationId,
-        siteId: scope.siteId,
-        kind: 'publication.newsletter-send',
-        payload: { campaignId: snapshot.campaignId, snapshotSha256: snapshot.snapshotSha256 },
-        runAt: snapshot.scheduledAt,
-        idempotencyKey: `campaign:${scope.ownerKey}:${scope.generation}:${snapshot.campaignId}:${snapshot.snapshotSha256}`,
-      })
-    }
-    if (!await this.#store.putCampaignWithDeliveries(scope, snapshot, deliveries)) {
-      throw new PublicationDomainError('conflict', 'Campaign identity already exists.')
-    }
-    return snapshot
-  }
-  async send(scope: PublicationRepositoryScope, campaignId: string, expectedSnapshotSha256?: string): Promise<readonly CampaignDelivery[]> {
-    const campaign = await this.#store.getCampaign(scope, campaignId)
-    if (!campaign) throw new PublicationDomainError('not-found', 'Campaign was not found.')
-    if (expectedSnapshotSha256 !== undefined && campaign.snapshotSha256 !== expectedSnapshotSha256) {
-      throw new PublicationDomainError('conflict', 'Campaign snapshot checksum changed.')
-    }
-    const deliveries = await this.#store.listDeliveries(scope, campaignId)
-    const next: CampaignDelivery[] = []
-    for (const delivery of deliveries) {
-      if (['submitted', 'delivered', 'bounced', 'complained', 'suppressed'].includes(delivery.status)) {
-        next.push(delivery)
-        continue
-      }
-      const emailHash = this.#ids.sha256(delivery.recipientEmail.trim().toLowerCase())
-      if (await this.#store.isSuppressed(scope, emailHash)) {
-        next.push({ ...delivery, status: 'suppressed', updatedAt: this.#now().toISOString() })
-        continue
-      }
-      try {
-        const unsubscribeUrl = this.#unsubscribe
-          ? await this.#unsubscribe.issue(scope, {
-              memberId: delivery.memberId,
-              newsletterId: campaign.newsletterId,
-              recipientEmail: delivery.recipientEmail,
-              issuedAt: this.#now().toISOString(),
-            })
-          : null
-        const result = await this.#oci.submit({
-          idempotencyKey: `campaign:${campaign.snapshotSha256}:${delivery.memberId}`,
-          recipient: delivery.recipientEmail,
-          senderEmail: campaign.sender.values.senderEmail,
-          senderName: campaign.sender.values.senderName,
-          replyToEmail: campaign.sender.values.replyToEmail,
-          subject: campaign.subject,
-          html: campaign.html,
-          text: campaign.text,
-          headers: {
-            'X-Fuma-Campaign': campaign.campaignId,
-            ...(unsubscribeUrl ? { 'List-Unsubscribe': `<${unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } : {}),
-          },
-        })
-        next.push({
-          ...delivery,
-          status: 'submitted',
-          providerMessageId: result.providerMessageId,
-          attempt: delivery.attempt + 1,
-          updatedAt: this.#now().toISOString(),
-        })
-      } catch (_error) {
-        next.push({ ...delivery, status: 'failed', attempt: delivery.attempt + 1, updatedAt: this.#now().toISOString() })
-      }
-    }
-    await this.#store.putDeliveries(scope, next)
-    return Object.freeze(next)
   }
 }
 
