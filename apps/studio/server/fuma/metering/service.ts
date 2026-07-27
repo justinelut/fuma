@@ -1,46 +1,47 @@
-import { Type, Value, type Static } from '@core/utils/typeboxHelpers'
+import { Value } from '@core/utils/typeboxHelpers'
+import {
+  METER_CLASSES,
+  METER_PROVIDERS,
+  ProviderCostInputSchema,
+  UsageCommandSchema,
+  type CostQuote,
+  type MeterAllocation,
+  type MeterClass,
+  type MeterReconciliation,
+  type MeterReconciliationLine,
+  type ProviderCostCatalog,
+  type ProviderCostInput,
+  type ProviderReconciliationCommand,
+  type UsageCommand,
+  type UsageLedgerEntry,
+  type UsageLedgerRepository,
+} from './contracts'
 
-export const METER_CLASSES = ['sites', 'pages', 'cms_items', 'members', 'storage_source_bytes', 'storage_variant_bytes', 'storage_release_bytes', 'storage_local_backup_bytes', 'storage_offsite_bytes', 'origin_bandwidth_bytes', 'email_recipients', 'email_message_bytes', 'custom_hostnames', 'build_publish_milliseconds', 'plugin_compute_milliseconds', 'ai_credits', 'release_retention_bytes', 'weighted_queue_milliseconds'] as const
-const MeterClassSchema = Type.Union(METER_CLASSES.map((value) => Type.Literal(value)))
-export const METER_MAPPINGS = Object.freeze({
-  sites: ['sites'], pages: ['pages'], cmsItems: ['cms_items'], members: ['members'],
-  storageBytes: ['storage_source_bytes', 'storage_variant_bytes', 'storage_release_bytes', 'storage_local_backup_bytes', 'storage_offsite_bytes'],
-  bandwidthBytes: ['origin_bandwidth_bytes'], emailRecipients: ['email_recipients', 'email_message_bytes'], customDomains: ['custom_hostnames'],
-  buildPublishMinutes: ['build_publish_milliseconds', 'weighted_queue_milliseconds'], pluginComputeMinutes: ['plugin_compute_milliseconds'],
-  aiCredits: ['ai_credits'], releaseRetentionBytes: ['release_retention_bytes'],
-} as const)
-export const UsageCommandSchema = Type.Object({
-  idempotencyKey: Type.String({ minLength: 1, maxLength: 512 }), organizationId: Type.String({ minLength: 1, maxLength: 255 }),
-  workspaceId: Type.Union([Type.String({ minLength: 1, maxLength: 255 }), Type.Null()]), siteId: Type.Union([Type.String({ minLength: 1, maxLength: 255 }), Type.Null()]),
-  meter: MeterClassSchema, logicalUnits: Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER }), physicalUnits: Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER }),
-  occurredAt: Type.String({ format: 'date-time' }), internalWorkload: Type.Boolean(),
-}, { additionalProperties: false })
-export type UsageCommand = Static<typeof UsageCommandSchema>
-export type UsageLedgerEntry = Readonly<UsageCommand & {
-  entryId: string; kind: 'reservation' | 'settlement' | 'release' | 'adjustment'; reservationId: string | null; costCatalogVersion: string; costMinorUsdMicros: bigint
-}>
-export const ProviderCostInputSchema = Type.Object({
-  version: Type.String({ minLength: 1, maxLength: 100 }), meter: MeterClassSchema,
-  effectiveAt: Type.String({ format: 'date-time' }), staleAfter: Type.String({ format: 'date-time' }),
-  source: Type.Union([Type.Literal('quote'), Type.Literal('invoice'), Type.Literal('published-baseline')]),
-  unitCostMinorUsdMicros: Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER }), fixedCostMinorUsdMicros: Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER }),
-  allocationWeight: Type.Integer({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER }),
-}, { additionalProperties: false })
-export type ProviderCostInput = Static<typeof ProviderCostInputSchema>
-export interface UsageLedgerRepository {
-  append(entry: UsageLedgerEntry): Promise<boolean>
-  findByIdempotency(key: string): Promise<UsageLedgerEntry | null>
-  remainingReservation(reservationId: string): Promise<Readonly<{ logical: bigint; physical: bigint }> | null>
-  entries(): Promise<readonly UsageLedgerEntry[]>
-}
+export * from './contracts'
+export { MemoryUsageLedger } from './memory'
+
+export const UNALLOCATED_COST_ORGANIZATION_ID = 'fuma:unallocated' as const
+
 export class CostCompletenessError extends Error {
-  readonly missingMeters: readonly string[];
-  readonly staleMeters: readonly string[];
-  constructor(missingMeters: readonly string[], staleMeters: readonly string[]) { super('Provider cost model is incomplete or stale.'); this.missingMeters = missingMeters; this.staleMeters = staleMeters; this.name = 'CostCompletenessError' }
+  readonly missingMeters: readonly string[]
+  readonly staleMeters: readonly string[]
+
+  constructor(missingMeters: readonly string[], staleMeters: readonly string[]) {
+    super('Provider cost model is incomplete or stale.')
+    this.missingMeters = Object.freeze([...missingMeters])
+    this.staleMeters = Object.freeze([...staleMeters])
+    this.name = 'CostCompletenessError'
+  }
 }
+
 export class MeteringError extends Error {
-  readonly code: 'invalid' | 'negative' | 'over-settlement' | 'duplicate-mismatch';
-  constructor(code: 'invalid' | 'negative' | 'over-settlement' | 'duplicate-mismatch', message: string) { super(message); this.code = code; this.name = 'MeteringError' }
+  readonly code: 'invalid' | 'negative' | 'over-settlement' | 'duplicate-mismatch' | 'reservation-mismatch' | 'provider-underflow'
+
+  constructor(code: MeteringError['code'], message: string) {
+    super(message)
+    this.code = code
+    this.name = 'MeteringError'
+  }
 }
 
 function timestamp(value: string): number {
@@ -48,44 +49,70 @@ function timestamp(value: string): number {
   if (!Number.isFinite(parsed)) throw new MeteringError('invalid', 'Metering timestamp is invalid.')
   return parsed
 }
-function sameCommand(left: UsageLedgerEntry, right: UsageCommand, kind: UsageLedgerEntry['kind'], reservationId: string | null): boolean {
-  return left.kind === kind && left.reservationId === reservationId && left.organizationId === right.organizationId && left.workspaceId === right.workspaceId
-    && left.siteId === right.siteId && left.meter === right.meter && left.logicalUnits === right.logicalUnits && left.physicalUnits === right.physicalUnits
+
+function sameCommand(
+  left: UsageLedgerEntry,
+  right: UsageCommand,
+  kind: UsageLedgerEntry['kind'],
+  reservationId: string | null,
+): boolean {
+  return left.kind === kind && left.reservationId === reservationId
+    && left.organizationId === right.organizationId && left.workspaceId === right.workspaceId
+    && left.siteId === right.siteId && left.meter === right.meter
+    && left.logicalUnits === right.logicalUnits && left.physicalUnits === right.physicalUnits
     && left.occurredAt === right.occurredAt && left.internalWorkload === right.internalWorkload
 }
 
-export class VersionedCostCatalog {
-  private readonly byMeter = new Map<string, ProviderCostInput[]>()
-  private readonly now: () => Date;
-  constructor(inputs: readonly unknown[], now: () => Date = () => new Date()) { this.now = now;
+export class VersionedCostCatalog implements ProviderCostCatalog {
+  readonly #byMeter = new Map<MeterClass, ProviderCostInput[]>()
+  readonly #now: () => Date
+
+  constructor(inputs: readonly unknown[], now: () => Date = () => new Date()) {
+    this.#now = now
     const identities = new Set<string>()
     for (const input of inputs) {
       if (!Value.Check(ProviderCostInputSchema, input)) throw new MeteringError('invalid', 'Invalid cost input.')
       const value = Object.freeze(structuredClone(input)) as ProviderCostInput
+      if (value.provider !== METER_PROVIDERS[value.meter]) throw new MeteringError('invalid', `Cost provider does not own ${value.meter}.`)
       if (timestamp(value.staleAfter) <= timestamp(value.effectiveAt)) throw new MeteringError('invalid', 'Cost input must remain fresh after it becomes effective.')
+      if (value.unitCostMinorUsdMicros === 0 && value.fixedCostMinorUsdMicros === 0) throw new MeteringError('invalid', 'A provider cost cannot be silently zero.')
       const identity = `${value.version}:${value.meter}`
       if (identities.has(identity)) throw new MeteringError('invalid', 'Cost catalog version contains a duplicate meter.')
       identities.add(identity)
-      const versions = this.byMeter.get(value.meter) ?? []
-      versions.push(value); versions.sort((left, right) => timestamp(left.effectiveAt) - timestamp(right.effectiveAt))
-      this.byMeter.set(value.meter, versions)
+      const versions = this.#byMeter.get(value.meter) ?? []
+      versions.push(value)
+      versions.sort((left, right) => timestamp(left.effectiveAt) - timestamp(right.effectiveAt)
+        || left.version.localeCompare(right.version))
+      this.#byMeter.set(value.meter, versions)
     }
   }
-  private current(meter: string): ProviderCostInput | null {
-    const now = this.now().getTime()
-    return [...(this.byMeter.get(meter) ?? [])].reverse().find((input) => timestamp(input.effectiveAt) <= now) ?? null
+
+  #current(meter: MeterClass): ProviderCostInput | null {
+    const now = this.#now().getTime()
+    return [...(this.#byMeter.get(meter) ?? [])].reverse()
+      .find((input) => timestamp(input.effectiveAt) <= now) ?? null
   }
-  assertComplete(required: readonly (typeof METER_CLASSES)[number][] = METER_CLASSES): void {
-    const missing = required.filter((meter) => !this.current(meter))
-    const stale = required.filter((meter) => { const value = this.current(meter); return value ? timestamp(value.staleAfter) <= this.now().getTime() : false })
-    if (missing.length || stale.length) throw new CostCompletenessError(Object.freeze(missing), Object.freeze(stale))
+
+  assertComplete(required: readonly MeterClass[] = METER_CLASSES): void {
+    const missing = required.filter((meter) => !this.#current(meter))
+    const stale = required.filter((meter) => {
+      const value = this.#current(meter)
+      return value ? timestamp(value.staleAfter) <= this.#now().getTime() : false
+    })
+    if (missing.length || stale.length) throw new CostCompletenessError(missing, stale)
   }
-  cost(meter: string, physicalUnits: number): Readonly<{ version: string; variable: bigint; fixed: bigint; allocationWeight: bigint }> {
+
+  cost(meterValue: string, physicalUnits: number): CostQuote {
+    if (!(METER_CLASSES as readonly string[]).includes(meterValue)) throw new MeteringError('invalid', 'Cost meter is unknown.')
+    const meter = meterValue as MeterClass
     if (!Number.isSafeInteger(physicalUnits) || physicalUnits < 0) throw new MeteringError('invalid', 'Physical usage must be a non-negative safe integer.')
-    const input = this.current(meter)
-    if (!input || timestamp(input.staleAfter) <= this.now().getTime()) throw new CostCompletenessError(input ? [] : [meter], input ? [meter] : [])
+    const input = this.#current(meter)
+    if (!input || timestamp(input.staleAfter) <= this.#now().getTime()) {
+      throw new CostCompletenessError(input ? [] : [meter], input ? [meter] : [])
+    }
     return Object.freeze({
       version: input.version,
+      provider: input.provider,
       variable: BigInt(input.unitCostMinorUsdMicros) * BigInt(physicalUnits),
       fixed: BigInt(input.fixedCostMinorUsdMicros),
       allocationWeight: BigInt(input.allocationWeight),
@@ -93,79 +120,194 @@ export class VersionedCostCatalog {
   }
 }
 
+type UsageGroup = {
+  organizationId: string
+  workspaceId: string | null
+  siteId: string | null
+  internalWorkload: boolean
+  physical: bigint
+  cost: bigint
+}
+
+function groupKey(row: Pick<UsageLedgerEntry, 'organizationId' | 'workspaceId' | 'siteId' | 'internalWorkload'>): string {
+  return JSON.stringify([row.organizationId, row.workspaceId, row.siteId, row.internalWorkload])
+}
+
+function allocationKey(command: ProviderReconciliationCommand, meter: MeterClass, group: UsageGroup | null): string {
+  const identity = JSON.stringify([
+    command.idempotencyKey,
+    meter,
+    group?.organizationId ?? UNALLOCATED_COST_ORGANIZATION_ID,
+    group?.workspaceId ?? null,
+    group?.siteId ?? null,
+    group?.internalWorkload ?? false,
+  ])
+  return `meter-reconcile:${new Bun.CryptoHasher('sha256').update(identity).digest('hex')}`
+}
+
+function assertReconciliationCommand(command: ProviderReconciliationCommand): void {
+  const exact = ['idempotencyKey', 'periodEnd', 'periodStart', 'providerTotals']
+  if (Object.keys(command).sort().join('|') !== exact.join('|') || typeof command.idempotencyKey !== 'string'
+    || command.idempotencyKey.length < 1 || command.idempotencyKey.length > 512
+    || timestamp(command.periodEnd) <= timestamp(command.periodStart)
+    || !command.providerTotals || typeof command.providerTotals !== 'object') {
+    throw new MeteringError('invalid', 'Reconciliation command is invalid.')
+  }
+  const totalKeys = Object.keys(command.providerTotals).sort()
+  if (totalKeys.join('|') !== [...METER_CLASSES].sort().join('|')) throw new MeteringError('invalid', 'Provider totals must contain exactly every meter.')
+  for (const meter of METER_CLASSES) {
+    if (typeof command.providerTotals[meter] !== 'bigint' || command.providerTotals[meter] < 0n) {
+      throw new MeteringError('invalid', `Provider total for ${meter} is invalid.`)
+    }
+  }
+}
+
 export class MeteringService {
-  private readonly ledger: UsageLedgerRepository;
-  private readonly catalog: VersionedCostCatalog;
-  constructor(ledger: UsageLedgerRepository, catalog: VersionedCostCatalog) { this.ledger = ledger; this.catalog = catalog;}
-  private validate(raw: unknown): UsageCommand {
+  readonly #ledger: UsageLedgerRepository
+  readonly #catalog: ProviderCostCatalog
+
+  constructor(ledger: UsageLedgerRepository, catalog: ProviderCostCatalog) {
+    this.#ledger = ledger
+    this.#catalog = catalog
+  }
+
+  #validate(raw: unknown): UsageCommand {
     if (!Value.Check(UsageCommandSchema, raw)) throw new MeteringError('invalid', 'Usage command failed strict TypeBox validation.')
     const command = Object.freeze(structuredClone(raw)) as UsageCommand
-    if (command.internalWorkload && command.logicalUnits > 0 && command.physicalUnits === 0) throw new MeteringError('invalid', 'Internal usage cannot omit physical shadow-cost measurement.')
+    if (command.logicalUnits === 0 && command.physicalUnits === 0) throw new MeteringError('invalid', 'Usage command cannot be empty.')
+    if (command.logicalUnits > 0 && command.physicalUnits === 0) throw new MeteringError('invalid', 'Logical usage cannot omit physical measurement.')
     return command
   }
-  async reserve(raw: unknown) { return await this.write('reservation', this.validate(raw), null) }
-  async settle(reservationId: string, raw: unknown) {
-    const command = this.validate(raw)
-    const remaining = await this.ledger.remainingReservation(reservationId)
-    if (!remaining || BigInt(command.physicalUnits) > remaining.physical || BigInt(command.logicalUnits) > remaining.logical) throw new MeteringError('over-settlement', 'Actual settlement exceeds the remaining reservation.')
-    return await this.write('settlement', command, reservationId)
-  }
-  async release(reservationId: string, raw: unknown) {
-    const command = this.validate(raw)
-    const remaining = await this.ledger.remainingReservation(reservationId)
-    if (!remaining || BigInt(command.physicalUnits) > remaining.physical || BigInt(command.logicalUnits) > remaining.logical) throw new MeteringError('negative', 'Reservation release exceeds the remaining usage.')
-    return await this.write('release', command, reservationId)
-  }
-  async adjust(raw: unknown) { return await this.write('adjustment', this.validate(raw), null) }
 
-  private async write(kind: UsageLedgerEntry['kind'], command: UsageCommand, reservationId: string | null): Promise<UsageLedgerEntry> {
-    const prior = await this.ledger.findByIdempotency(command.idempotencyKey)
+  async reserve(raw: unknown): Promise<UsageLedgerEntry> { return await this.#write('reservation', this.#validate(raw), null) }
+  async settle(reservationId: string, raw: unknown): Promise<UsageLedgerEntry> { return await this.#write('settlement', this.#validate(raw), reservationId) }
+  async release(reservationId: string, raw: unknown): Promise<UsageLedgerEntry> { return await this.#write('release', this.#validate(raw), reservationId) }
+  async adjust(raw: unknown): Promise<UsageLedgerEntry> { return await this.#write('adjustment', this.#validate(raw), null) }
+
+  async #write(kind: UsageLedgerEntry['kind'], command: UsageCommand, reservationId: string | null): Promise<UsageLedgerEntry> {
+    if ((kind === 'settlement' || kind === 'release') && (!reservationId || reservationId.length > 255)) {
+      throw new MeteringError('reservation-mismatch', 'Reservation authority is invalid.')
+    }
+    const prior = await this.#ledger.findByIdempotency(command.idempotencyKey)
     if (prior) {
       if (!sameCommand(prior, command, kind, reservationId)) throw new MeteringError('duplicate-mismatch', 'Idempotency key was reused with different immutable usage attribution.')
       return prior
     }
-    const cost = this.catalog.cost(command.meter, command.physicalUnits)
+    const cost = await this.#catalog.cost(command.meter, command.physicalUnits)
     const entry: UsageLedgerEntry = Object.freeze({
       ...structuredClone(command), entryId: crypto.randomUUID(), kind, reservationId,
-      costCatalogVersion: cost.version, costMinorUsdMicros: cost.variable + cost.fixed,
+      costCatalogVersion: cost.version, costMinorUsdMicros: cost.variable,
     })
-    if (!await this.ledger.append(entry)) {
-      const winner = await this.ledger.findByIdempotency(command.idempotencyKey)
-      if (!winner || !sameCommand(winner, command, kind, reservationId)) throw new MeteringError('duplicate-mismatch', 'Concurrent usage write did not match the winning entry.')
-      return winner
-    }
-    return entry
+    const outcome = await this.#ledger.append(entry)
+    if (outcome === 'created') return entry
+    if (outcome === 'reservation-exceeded') throw new MeteringError(kind === 'release' ? 'negative' : 'over-settlement', 'Reservation consumption exceeds remaining usage.')
+    if (outcome === 'reservation-mismatch') throw new MeteringError('reservation-mismatch', 'Reservation scope or meter does not match settlement authority.')
+    const winner = await this.#ledger.findByIdempotency(command.idempotencyKey)
+    if (!winner || !sameCommand(winner, command, kind, reservationId)) throw new MeteringError('duplicate-mismatch', 'Concurrent usage write did not match the winning entry.')
+    return winner
   }
 
-  async reconcile(providerTotals: Readonly<Record<string, bigint>>): Promise<Readonly<{ tenant: bigint; unallocated: bigint; provider: bigint; discrepancy: bigint; balanced: boolean; byMeter: Readonly<Record<string, Readonly<{ tenant: bigint; provider: bigint; delta: bigint }>>> }>> {
-    this.catalog.assertComplete(METER_CLASSES)
-    const missing = METER_CLASSES.filter((meter) => !Object.prototype.hasOwnProperty.call(providerTotals, meter))
-    if (missing.length) throw new CostCompletenessError(missing, [])
-    const rows = await this.ledger.entries()
-    const byMeter: Record<string, Readonly<{ tenant: bigint; provider: bigint; delta: bigint }>> = {}
-    let tenant = 0n; let provider = 0n
+  async #appendAllocation(
+    command: ProviderReconciliationCommand,
+    meter: MeterClass,
+    group: UsageGroup | null,
+    amount: bigint,
+    version: string,
+  ): Promise<MeterAllocation> {
+    const idempotencyKey = allocationKey(command, meter, group)
+    const entry: UsageLedgerEntry = Object.freeze({
+      entryId: crypto.randomUUID(), idempotencyKey,
+      organizationId: group?.organizationId ?? UNALLOCATED_COST_ORGANIZATION_ID,
+      workspaceId: group?.workspaceId ?? null, siteId: group?.siteId ?? null,
+      meter, logicalUnits: 0, physicalUnits: 0, occurredAt: command.periodEnd,
+      internalWorkload: group?.internalWorkload ?? false, kind: 'adjustment', reservationId: null,
+      costCatalogVersion: version, costMinorUsdMicros: amount,
+    })
+    const outcome = await this.#ledger.append(entry)
+    if (outcome === 'duplicate') {
+      const prior = await this.#ledger.findByIdempotency(idempotencyKey)
+      if (!prior || prior.costMinorUsdMicros !== amount || prior.organizationId !== entry.organizationId
+        || prior.workspaceId !== entry.workspaceId || prior.siteId !== entry.siteId || prior.meter !== meter
+        || prior.internalWorkload !== entry.internalWorkload || prior.costCatalogVersion !== version) {
+        throw new MeteringError('duplicate-mismatch', 'Reconciliation allocation replay did not match immutable evidence.')
+      }
+    } else if (outcome !== 'created') {
+      throw new MeteringError('reservation-mismatch', 'Reconciliation allocation was rejected.')
+    }
+    return Object.freeze({
+      organizationId: entry.organizationId, workspaceId: entry.workspaceId, siteId: entry.siteId,
+      meter, costMinorUsdMicros: amount, internalWorkload: entry.internalWorkload, unallocated: group === null,
+    })
+  }
+
+  async reconcile(command: ProviderReconciliationCommand): Promise<MeterReconciliation> {
+    assertReconciliationCommand(command)
+    await this.#catalog.assertComplete(METER_CLASSES)
+    const rows = await this.#ledger.entries({ start: command.periodStart, end: command.periodEnd })
+    const byMeter = {} as Record<MeterClass, MeterReconciliationLine>
+    const allocations: MeterAllocation[] = []
+    let tenant = 0n
+    let internalShadow = 0n
+    let unallocated = 0n
+    let provider = 0n
+
     for (const meter of METER_CLASSES) {
-      const providerValue = providerTotals[meter]
-      if (typeof providerValue !== 'bigint' || providerValue < 0n) throw new MeteringError('invalid', `Provider total for ${meter} is invalid.`)
-      const tenantValue = rows.filter((entry) => entry.meter === meter && (entry.kind === 'settlement' || entry.kind === 'adjustment')).reduce((sum, entry) => sum + entry.costMinorUsdMicros, 0n)
-      byMeter[meter] = Object.freeze({ tenant: tenantValue, provider: providerValue, delta: providerValue - tenantValue })
-      tenant += tenantValue; provider += providerValue
-    }
-    const unallocated = provider > tenant ? provider - tenant : 0n
-    const discrepancy = provider - tenant - unallocated
-    return Object.freeze({ tenant, unallocated, provider, discrepancy, balanced: discrepancy === 0n, byMeter: Object.freeze(byMeter) })
-  }
-}
+      const providerValue = command.providerTotals[meter]
+      const quote = await this.#catalog.cost(meter, 0)
+      const grouped = new Map<string, UsageGroup>()
+      for (const row of rows.filter((value) => value.meter === meter && value.physicalUnits > 0
+        && (value.kind === 'settlement' || value.kind === 'adjustment')
+        && !value.idempotencyKey.startsWith('meter-reconcile:'))) {
+        const key = groupKey(row)
+        const current = grouped.get(key) ?? {
+          organizationId: row.organizationId, workspaceId: row.workspaceId, siteId: row.siteId,
+          internalWorkload: row.internalWorkload, physical: 0n, cost: 0n,
+        }
+        current.physical += BigInt(row.physicalUnits)
+        current.cost += row.costMinorUsdMicros
+        grouped.set(key, current)
+      }
+      const groups = [...grouped.values()].sort((left, right) => groupKey(left).localeCompare(groupKey(right)))
+      const base = groups.reduce((sum, value) => sum + value.cost, 0n)
+      if (providerValue < base + quote.fixed) throw new MeteringError('provider-underflow', `Provider total for ${meter} is below variable plus fixed cost evidence.`)
+      const shared = providerValue - base
+      let allocatedTenant = 0n
+      let allocatedInternal = groups.filter((group) => group.internalWorkload).reduce((sum, group) => sum + group.cost, 0n)
+      let allocatedUnassigned = 0n
 
-export class MemoryUsageLedger implements UsageLedgerRepository {
-  private readonly rows: UsageLedgerEntry[] = []
-  async append(entry: UsageLedgerEntry) { if (this.rows.some((row) => row.idempotencyKey === entry.idempotencyKey)) return false; this.rows.push(structuredClone(entry)); return true }
-  async findByIdempotency(key: string) { return structuredClone(this.rows.find((row) => row.idempotencyKey === key) ?? null) }
-  async remainingReservation(id: string) {
-    const reservation = this.rows.find((row) => row.entryId === id && row.kind === 'reservation')
-    if (!reservation) return null
-    const consumed = this.rows.filter((row) => row.reservationId === id && (row.kind === 'settlement' || row.kind === 'release')).reduce((sum, row) => ({ logical: sum.logical + BigInt(row.logicalUnits), physical: sum.physical + BigInt(row.physicalUnits) }), { logical: 0n, physical: 0n })
-    return Object.freeze({ logical: BigInt(reservation.logicalUnits) - consumed.logical, physical: BigInt(reservation.physicalUnits) - consumed.physical })
+      if (shared > 0n && groups.length > 0) {
+        const totalWeight = groups.reduce((sum, value) => sum + value.physical * quote.allocationWeight, 0n)
+        let assigned = 0n
+        for (const [index, group] of groups.entries()) {
+          const amount = index === groups.length - 1
+            ? shared - assigned
+            : shared * group.physical * quote.allocationWeight / totalWeight
+          assigned += amount
+          allocatedTenant += amount
+          if (group.internalWorkload) allocatedInternal += amount
+          if (amount > 0n) allocations.push(await this.#appendAllocation(command, meter, group, amount, quote.version))
+        }
+      } else if (shared > 0n) {
+        allocatedUnassigned = shared
+        allocations.push(await this.#appendAllocation(command, meter, null, shared, quote.version))
+      }
+
+      const tenantMeter = base + allocatedTenant
+      const delta = providerValue - tenantMeter - allocatedUnassigned
+      byMeter[meter] = Object.freeze({
+        tenant: tenantMeter, internalShadow: allocatedInternal, unallocated: allocatedUnassigned,
+        provider: providerValue, delta,
+      })
+      tenant += tenantMeter
+      internalShadow += allocatedInternal
+      unallocated += allocatedUnassigned
+      provider += providerValue
+    }
+    const discrepancy = provider - tenant - unallocated
+    return Object.freeze({
+      idempotencyKey: command.idempotencyKey, periodStart: command.periodStart, periodEnd: command.periodEnd,
+      tenant, internalShadow, unallocated, provider, discrepancy, balanced: discrepancy === 0n,
+      byMeter: Object.freeze(byMeter), allocations: Object.freeze(allocations),
+    })
   }
-  async entries() { return structuredClone(this.rows) }
 }
