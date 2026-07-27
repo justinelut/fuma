@@ -27,7 +27,7 @@ type UsageRow = {
   internal_workload: boolean; occurred_at: string | Date
 }
 type CostRow = {
-  version: string; provider: MeterProvider; meter: MeterClass; effective_at: string | Date; stale_after: string | Date
+  version: string; meter: MeterClass; effective_at: string | Date; stale_after: string | Date
   source: ProviderCostInput['source']; unit_cost_usd_micros: string | number; fixed_cost_usd_micros: string | number
   allocation_weight: string | number
 }
@@ -56,8 +56,9 @@ function mapUsage(row: UsageRow): UsageLedgerEntry {
   })
 }
 function mapCost(row: CostRow): ProviderCostInput {
+  const meterValue = meter(row.meter)
   return Object.freeze({
-    version: row.version, provider: row.provider, meter: meter(row.meter),
+    version: row.version, provider: METER_PROVIDERS[meterValue], meter: meterValue,
     effectiveAt: iso(row.effective_at), staleAfter: iso(row.stale_after), source: row.source,
     unitCostMinorUsdMicros: safeNumber(row.unit_cost_usd_micros, 'unit cost'),
     fixedCostMinorUsdMicros: safeNumber(row.fixed_cost_usd_micros, 'fixed cost'),
@@ -176,8 +177,8 @@ export class PostgresProviderCostCatalog implements ProviderCostCatalog {
   async #current(meterValue?: MeterClass): Promise<readonly ProviderCostInput[]> {
     const now = this.#now().toISOString()
     const result = meterValue
-      ? await this.#db<CostRow>`select * from fuma_provider_cost_catalog where meter = ${meterValue} and effective_at <= ${now} order by effective_at desc,version desc limit 1`
-      : await this.#db.unsafe<CostRow>('select distinct on (meter) * from fuma_provider_cost_catalog where effective_at <= $1 order by meter,effective_at desc,version desc', [now])
+      ? await this.#db<CostRow>`select * from fuma_provider_cost_catalog where meter = ${meterValue} and effective_at <= ${now} order by case source when 'invoice' then 2 when 'quote' then 1 else 0 end desc,effective_at desc,version desc limit 1`
+      : await this.#db.unsafe<CostRow>("select distinct on (meter) * from fuma_provider_cost_catalog where effective_at <= $1 order by meter,case source when 'invoice' then 2 when 'quote' then 1 else 0 end desc,effective_at desc,version desc", [now])
     return Object.freeze(result.rows.map(mapCost))
   }
 

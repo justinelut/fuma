@@ -76,6 +76,7 @@ export type ProviderCostInput = Readonly<Static<typeof ProviderCostInputSchema>>
 export type CostQuote = Readonly<{
   version: string
   provider: MeterProvider
+  source: ProviderCostInput['source']
   variable: bigint
   fixed: bigint
   allocationWeight: bigint
