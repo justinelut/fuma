@@ -2,6 +2,7 @@ import { createPostgresClient } from '../../db/postgres'
 import { PostgresFumaJobContextAuthority } from '../context'
 import { readFumaConfig } from '../config'
 import { createFumaJobWorkerComponentFactory } from '../jobs'
+import { AnonymousEdgeVisitorAuthority, createHostedEdgeRuntime, PublicationAccessEdgeHoleResolver } from '../edgeDelivery'
 import { createPostgresPublishReleaseComposition } from '../publishing'
 import type { FumaRuntimeComponentFactory } from '../runtime/boot'
 import { createRuntimeControlComponent } from '../runtime/health'
@@ -38,9 +39,19 @@ export function createPublicationWorkerComponentFactory(
           config,
           objectAccessSigningSecret: requiredObjectSigningSecret(env),
         })
+        const edge = createHostedEdgeRuntime({
+          db,
+          objectStorage: publishing.storage,
+          redisUrl: config.redis.url,
+          redisNamespace: `edge-${config.hosts.product.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').slice(0, 48)}`,
+          visitors: new AnonymousEdgeVisitorAuthority(),
+          holes: [new PublicationAccessEdgeHoleResolver(publication.graph.scheduling)],
+        })
+        await edge.cache.connect()
         const handlers = Object.freeze({
           ...publication.jobHandlers,
           ...publishing.jobHandlers,
+          ...edge.jobs,
         })
         const worker = createFumaJobWorkerComponentFactory({
           env,
@@ -58,6 +69,7 @@ export function createPublicationWorkerComponentFactory(
           beginDrain: () => handle?.beginDrain?.(),
           async stop() {
             await handle?.stop?.()
+            edge.cache.close()
             await publication.close()
           },
         }

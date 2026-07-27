@@ -1,5 +1,6 @@
 export * from './jobHandlers'
 export * from './postgres'
+export * from './publicationHole'
 export * from './publicBoundary'
 export * from './redisCache'
 export * from './runtime'

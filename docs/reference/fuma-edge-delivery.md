@@ -16,7 +16,7 @@ Resolvers receive only the immutable edge context and declaration input. They do
 
 ## Redis and stale control
 
-`BunRedisEdgeCache` is ephemeral. Cache read/write outages fail open to origin rendering, but explicit purge fails closed. A Lua operation performs bounded prefix discovery and unlink atomically, so concurrent writes cannot repopulate the purged namespace during the operation. Prefixes are exact host/site or host/site/release scopes; no cross-host wildcard is accepted. HTML TTL and stale windows are bounded. Stale content is used only when origin rendering fails and only before its stale deadline.
+`BunRedisEdgeCache` is ephemeral. Cache read/write outages fail open to origin rendering, but explicit purge fails closed. Each write atomically records the entry in exact site and release index sets. Purge atomically reads one bounded index and unlinks only those entries, while cleaning companion indexes, so concurrent writes cannot repopulate the purged namespace during the operation. Prefixes are unambiguous base64url-segmented host/site or host/site/release scopes; no cross-host wildcard is accepted. HTML TTL and stale windows are bounded. Stale content is used only when origin rendering fails and only before its stale deadline.
 
 ## Rollback, purge, and warm jobs
 

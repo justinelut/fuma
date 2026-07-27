@@ -15,7 +15,13 @@ import {
   readHostedAuthSecret,
 } from './auth/hosted/runtime'
 import { createHostedPublicProjectionRuntime } from './fuma/publicProjections'
-import { createHostedFreeHostRuntime } from './fuma/freeHosts'
+import { createHostedFreeHostRuntime, createHostedReleaseObjectStorage, type FreeHostResolution } from './fuma/freeHosts'
+import {
+  AnonymousEdgeVisitorAuthority,
+  createHostedEdgeRuntime,
+  PublicationAccessEdgeHoleResolver,
+  type EdgeVisitorAuthority,
+} from './fuma/edgeDelivery'
 import { createHostedPaystackRuntime } from './fuma/paystack/runtime'
 import {
   createHostedMemberIdentityRuntime,
@@ -131,11 +137,60 @@ const publicationAnalyticsPublic = publicationRuntime && publicHostAuthority
     hosts: publicHostAuthority,
   })
   : undefined
+const releaseObjectStorage = hostedFumaConfig
+  ? createHostedReleaseObjectStorage({
+    config: hostedFumaConfig,
+    objectAccessSigningSecret: requiredFumaObjectSigningSecret(),
+  })
+  : undefined
+const edgeVisitorAuthority: EdgeVisitorAuthority = memberIdentityRuntime && publicationRuntime
+  ? Object.freeze({
+    async resolve(request: Request, resolution: Extract<FreeHostResolution, { kind: 'release' }>) {
+      const scope: PublicationRepositoryScope = Object.freeze({
+        platformId: resolution.host.platformId,
+        organizationId: resolution.host.organizationId,
+        workspaceId: resolution.host.workspaceId,
+        siteId: resolution.host.siteId,
+        ownerKey: resolution.host.ownerKey,
+        generation: resolution.host.ownerGeneration,
+        state: 'active',
+        transferFence: null,
+        profileId: 'website',
+      })
+      const session = await memberIdentityRuntime.service.resolve(scope, memberSessionToken(request))
+      if (!session.authenticated || session.principal === null) {
+        return Object.freeze({ memberId: null, claims: Object.freeze({ audience: 'anonymous' }) })
+      }
+      const audience = await publicationRuntime.graph.memberAccess.audienceForIdentity(scope, session.principal.memberIdentityId)
+      return Object.freeze({
+        memberId: audience.memberId ?? session.principal.memberIdentityId,
+        claims: Object.freeze({
+          audience: audience.paid ? 'paid' : audience.member ? 'member' : 'anonymous',
+          memberIdentityId: session.principal.memberIdentityId,
+          segmentIds: [...audience.segmentIds].toSorted().join(','),
+        }),
+      })
+    },
+  })
+  : new AnonymousEdgeVisitorAuthority()
+const edgeRuntime = hostedFumaConfig && releaseObjectStorage
+  ? createHostedEdgeRuntime({
+    db,
+    objectStorage: releaseObjectStorage,
+    redisUrl: hostedFumaConfig.redis.url,
+    redisNamespace: `edge-${hostedFumaConfig.hosts.product.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').slice(0, 48)}`,
+    visitors: edgeVisitorAuthority,
+    holes: publicationRuntime ? [new PublicationAccessEdgeHoleResolver(publicationRuntime.graph.scheduling)] : [],
+  })
+  : undefined
+if (edgeRuntime) await edgeRuntime.cache.connect()
 const freeHostRuntime = hostedFumaConfig
   ? createHostedFreeHostRuntime({
     db,
     config: hostedFumaConfig,
     objectAccessSigningSecret: requiredFumaObjectSigningSecret(),
+    ...(releaseObjectStorage ? { storage: releaseObjectStorage } : {}),
+    ...(edgeRuntime ? { edge: edgeRuntime.boundary } : {}),
     extensions: [dynamicPublicationPublic, publicationAnalyticsPublic].filter((value) => value !== undefined),
   })
   : undefined
@@ -307,6 +362,7 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
       hostedStaffAuthRuntime?.close(),
       publicProjectionRuntime?.close(),
       publicationRuntime?.close(),
+      edgeRuntime?.cache.close(),
     ])
     process.exit(0)
   } catch (error) {

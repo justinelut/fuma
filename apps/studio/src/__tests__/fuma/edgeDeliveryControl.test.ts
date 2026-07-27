@@ -9,6 +9,7 @@ import {
 } from '../../../server/fuma/edgeDelivery/service'
 import { FreeHostEdgeBoundary } from '../../../server/fuma/edgeDelivery/publicBoundary'
 import { edgeDeliveryJobRegistration } from '../../../server/fuma/edgeDelivery/jobHandlers'
+import { PublicationAccessEdgeHoleResolver } from '../../../server/fuma/edgeDelivery/publicationHole'
 
 const encoder = new TextEncoder()
 const hash = (value: Uint8Array | string) => new Bun.CryptoHasher('sha256').update(value).digest('hex')
@@ -151,10 +152,29 @@ describe('FUMA-051 edge delivery control', () => {
       commitDurableResult: async (key: string, result: FumaJobJsonValue) => { const created = !effects.has(key); if (created) effects.set(key, result); return { result: effects.get(key)!, created } },
     }
     const warm = { ...base, job: { payload: { releaseId: 'release-1', paths: [`/assets/${h.assetHash}.css`] } } }
+
     const first = await handlers['fuma.edge-warm'](warm as never)
     const replay = await handlers['fuma.edge-warm'](warm as never)
     expect(replay).toEqual(first)
     expect(effects.size).toBe(1)
+  })
+
+  test('resolves the production Publication member hole from trusted identity and exact website scope', async () => {
+    const seen: unknown[] = []
+    const resolver = new PublicationAccessEdgeHoleResolver({
+      async resolve(scope, request, identity, origin) {
+        seen.push({ scope, request, identity, origin })
+        return { presentation: { html: '<aside>member access</aside>' } } as never
+      },
+    })
+    const input = { ...context('release-1', '/paid.html', 'member-a', 'paid'), requestClaims: { audience: 'paid', memberIdentityId: 'identity-a', segmentIds: 'daily' } }
+    expect(await resolver.resolve(input, { contentId: 'post-a' })).toBe('<aside>member access</aside>')
+    expect(seen).toEqual([{
+      scope: { platformId: 'platform', organizationId: 'organization', workspaceId: 'workspace', siteId: 'site', ownerKey: 'owner', generation: 1, state: 'active', transferFence: null, profileId: 'website' },
+      request: { contentId: 'post-a', previewToken: null, requestedPath: '/paid.html' },
+      identity: 'identity-a',
+      origin: 'https://tenant.fuma.co.ke',
+    }])
   })
 
   test('prints deterministic warm, publish/purge, member-hole and rollback evidence', async () => {

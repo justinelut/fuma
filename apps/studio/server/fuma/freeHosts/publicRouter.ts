@@ -16,22 +16,29 @@ export interface FreeHostRouteExtension {
   handle(request: Request): Promise<Response | null>
 }
 
+export interface FreeHostResolvedEdgeBoundary {
+  serve(request: Request, resolution: Extract<import('./service').FreeHostResolution, { kind: 'release' }>): Promise<Response>
+}
+
 export class FreeHostPublicRouter implements FreeHostPublicBoundary {
   readonly #service: FreeHostService
   readonly #storage: TenantObjectStorage
   readonly #controlHosts: ReadonlySet<string>
   readonly #extensions: readonly FreeHostRouteExtension[]
+  readonly #edge: FreeHostResolvedEdgeBoundary | null
 
   constructor(input: Readonly<{
     service: FreeHostService
     storage: TenantObjectStorage
     controlHosts: readonly string[]
     extensions?: readonly FreeHostRouteExtension[]
+    edge?: FreeHostResolvedEdgeBoundary
   }>) {
     this.#service = input.service
     this.#storage = input.storage
     this.#controlHosts = new Set(input.controlHosts.map(normalizePublicHost))
     this.#extensions = Object.freeze([...(input.extensions ?? [])])
+    this.#edge = input.edge ?? null
   }
 
   async route(request: Request): Promise<Response | null> {
@@ -75,6 +82,10 @@ export class FreeHostPublicRouter implements FreeHostPublicBoundary {
       } catch {
         return closed('Route unavailable.', 503)
       }
+    }
+    if (this.#edge) {
+      try { return await this.#edge.serve(request, resolution) }
+      catch { return closed('Route unavailable.', 503) }
     }
     if (!resolution.manifest) return closed('Host not found.', 404)
     const artifact = resolveArtifact(resolution.manifest, url.pathname)

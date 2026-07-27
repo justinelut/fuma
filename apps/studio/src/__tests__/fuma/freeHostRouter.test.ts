@@ -221,6 +221,7 @@ describe('FUMA-050 public Host router', () => {
       expect(await response?.text()).toBe(`<!doctype html><h1>${id}</h1>`)
     }
     const dynamic = await router.route(hostRequest('tenant-alpha.fuma.co.ke', '/dynamic'))
+
     expect(dynamic?.status).toBe(200)
     expect(await dynamic?.text()).toBe('dynamic publication')
     expect((await router.route(hostRequest('unknown.fuma.co.ke', '/dynamic')))?.status).toBe(404)
@@ -243,6 +244,32 @@ describe('FUMA-050 public Host router', () => {
     expect(suspended?.status).toBe(404)
     expect(suspended?.headers.get('x-fuma-release-id')).toBeNull()
     process.stdout.write('[FUMA-050 Host demo] tenant-alpha=release-alpha tenant-bravo=release-bravo unknown=404 fallback=none\n')
+  })
+
+  it('dispatches an exact resolved release through the edge boundary before direct object reads', async () => {
+    const repository = new MemoryFreeHostRepository()
+    const objectStorage = storage()
+    const scope = authority('edge')
+    const service = new FreeHostService(repository, { async exactSite() { return { releaseId: 'release-edge' } } }, () => new Date(NOW))
+    await service.allocate({ ...scope, label: 'tenant-edge' })
+    const seen: string[] = []
+    const router = new FreeHostPublicRouter({
+      service,
+      storage: objectStorage,
+      controlHosts: [],
+      edge: {
+        async serve(_request, resolution) {
+          seen.push(`${resolution.host.host}:${resolution.releaseId}`)
+          return new Response('edge-owned', { headers: { 'x-fuma-release-id': resolution.releaseId } })
+        },
+      },
+    })
+    const response = await router.route(hostRequest('tenant-edge.fuma.co.ke'))
+    expect(response?.status).toBe(200)
+    expect(await response?.text()).toBe('edge-owned')
+    expect(seen).toEqual(['tenant-edge.fuma.co.ke:release-edge'])
+    expect((await router.route(hostRequest('unknown.fuma.co.ke')))?.status).toBe(404)
+    expect(seen).toHaveLength(1)
   })
 
   it('canonicalizes authority and configured custom host while preserving path and query', async () => {

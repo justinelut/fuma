@@ -1,7 +1,7 @@
 import type { DbClient } from '../../db/client'
 import type { FumaConfig } from '../config'
-import { createMinioObjectStorage } from '../objectStorage'
-import { FreeHostPublicRouter, type FreeHostPublicBoundary, type FreeHostRouteExtension } from './publicRouter'
+import { createMinioObjectStorage, type TenantObjectStorage } from '../objectStorage'
+import { FreeHostPublicRouter, type FreeHostPublicBoundary, type FreeHostResolvedEdgeBoundary, type FreeHostRouteExtension } from './publicRouter'
 import { PostgresFreeHostRepository } from './repository'
 import { FreeHostService } from './service'
 
@@ -22,15 +22,12 @@ export function readFreeHostObjectSigningSecret(
   return value
 }
 
-/** Central FUMA-050 hosted-web composition; no memory repository or default tenant is available here. */
-export function createHostedFreeHostRuntime(input: Readonly<{
-  db: DbClient
+export function createHostedReleaseObjectStorage(input: Readonly<{
   config: FumaConfig
   objectAccessSigningSecret: string
-  extensions?: readonly FreeHostRouteExtension[]
   now?: () => Date
-}>): HostedFreeHostRuntime {
-  const storage = createMinioObjectStorage({
+}>): TenantObjectStorage {
+  return createMinioObjectStorage({
     config: input.config.minio,
     policy: {
       allowedMimeTypes: HOSTED_RELEASE_MIME_TYPES,
@@ -41,6 +38,19 @@ export function createHostedFreeHostRuntime(input: Readonly<{
     accessUrlBase: `https://${input.config.hosts.product}/_fuma/objects`,
     ...(input.now ? { nowMs: () => input.now!().getTime() } : {}),
   })
+}
+
+/** Central FUMA-050/FUMA-051 hosted-web composition; no memory repository or default tenant is available here. */
+export function createHostedFreeHostRuntime(input: Readonly<{
+  db: DbClient
+  config: FumaConfig
+  objectAccessSigningSecret: string
+  storage?: TenantObjectStorage
+  edge?: FreeHostResolvedEdgeBoundary
+  extensions?: readonly FreeHostRouteExtension[]
+  now?: () => Date
+}>): HostedFreeHostRuntime {
+  const storage = input.storage ?? createHostedReleaseObjectStorage(input)
   const repository = new PostgresFreeHostRepository(input.db)
   const service = new FreeHostService(repository, repository, input.now)
   return Object.freeze({
@@ -50,6 +60,7 @@ export function createHostedFreeHostRuntime(input: Readonly<{
       storage,
       controlHosts: [input.config.hosts.product],
       ...(input.extensions ? { extensions: input.extensions } : {}),
+      ...(input.edge ? { edge: input.edge } : {}),
     }),
   })
 }

@@ -10,8 +10,8 @@ describe('FUMA-051 edge-delivery architecture', () => {
     const service = read('server/fuma/edgeDelivery/service.ts')
     expect(service).toContain('EdgeRequestContextSchema = Type.Object')
     expect(service).toContain('{ additionalProperties: false }')
-    expect(service).toContain('edge:${host}:${siteId}:')
-    expect(service).toContain('${context.releaseId}:')
+    expect(service).toContain('edge:${segment(host)}:${segment(siteId)}:')
+    expect(service).toContain('${segment(context.releaseId)}:')
     expect(service).toContain('context.memberId')
     expect(service).toContain('context.accessFingerprint')
     expect(service).not.toContain('zod')
@@ -28,7 +28,8 @@ describe('FUMA-051 edge-delivery architecture', () => {
 
   test('uses a bounded atomic Redis prefix purge and fail-open cache reads/writes', () => {
     const cache = read('server/fuma/edgeDelivery/redisCache.ts')
-    expect(cache).toContain("redis.call('SCAN'")
+    expect(cache).toContain("redis.call('SADD'")
+    expect(cache).toContain("redis.call('SMEMBERS'")
     expect(cache).toContain("redis.call('UNLINK'")
     expect(cache).toContain('edge purge exceeds bounded key count')
     expect(cache).toContain('catch { return null }')
@@ -55,13 +56,18 @@ describe('FUMA-051 edge-delivery architecture', () => {
     expect(jobs).toContain('commitDurableResult')
   })
 
-  test('provides a complete production graph while leaving central mounting to the conductor', () => {
+  test('mounts the complete production graph in public routing and the trusted worker map', () => {
     const runtime = read('server/fuma/edgeDelivery/runtime.ts')
-    const freeHostRuntime = read('server/fuma/freeHosts/runtime.ts')
+    const freeHostRouter = read('server/fuma/freeHosts/publicRouter.ts')
+    const server = read('server/index.ts')
+    const worker = read('server/fuma/publication/workerComposition.ts')
     expect(runtime).toContain('PostgresEdgeReleaseReader')
     expect(runtime).toContain('PostgresEdgePointerAuthority')
     expect(runtime).toContain('BunRedisEdgeCache')
     expect(runtime).toContain('edgeDeliveryJobRegistration')
-    expect(freeHostRuntime).not.toContain('createHostedEdgeRuntime')
+    expect(freeHostRouter).toContain('this.#edge.serve(request, resolution)')
+    expect(server).toContain('createHostedEdgeRuntime')
+    expect(server).toContain('PublicationAccessEdgeHoleResolver')
+    expect(worker).toContain('...edge.jobs')
   })
 })

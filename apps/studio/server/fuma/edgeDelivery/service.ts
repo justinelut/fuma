@@ -71,9 +71,10 @@ export class EdgeDeliveryError extends Error {
 
 const encoder = new TextEncoder()
 function digest(value: string | Uint8Array): string { return new Bun.CryptoHasher('sha256').update(value).digest('hex') }
-function sitePrefix(host: string, siteId: string): string { return `edge:${host}:${siteId}:` }
+function segment(value: string): string { return Buffer.from(value).toString('base64url') }
+function sitePrefix(host: string, siteId: string): string { return `edge:${segment(host)}:${segment(siteId)}:` }
 function releasePrefix(context: Pick<EdgeRequestContext, 'host' | 'siteId' | 'releaseId'>): string {
-  return `${sitePrefix(context.host, context.siteId)}${context.releaseId}:`
+  return `${sitePrefix(context.host, context.siteId)}${segment(context.releaseId)}:`
 }
 function cacheKey(context: EdgeRequestContext): string {
   const access = `${context.memberId ?? 'anonymous'}:${context.accessFingerprint}`
@@ -210,7 +211,7 @@ export class EdgeDeliveryService {
     if (!Value.Check(IdSchema, siteId) || (releaseId !== undefined && !Value.Check(IdSchema, releaseId))) {
       throw new EdgeDeliveryError('invalid-context', 'Purge scope is invalid.')
     }
-    return await this.#dependencies.cache.deletePrefix(releaseId ? `edge:${host}:${siteId}:${releaseId}:` : sitePrefix(host, siteId))
+    return await this.#dependencies.cache.deletePrefix(releaseId ? `${sitePrefix(host, siteId)}${segment(releaseId)}:` : sitePrefix(host, siteId))
   }
 
   async warm(contexts: readonly EdgeRequestContext[]): Promise<readonly string[]> {
