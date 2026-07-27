@@ -1,13 +1,16 @@
 import {
+  ContactRequestSchema,
   PublicDatasetVersionSchema,
   PublicProjectionResourceSchema,
   SafeErrorEnvelopeSchema,
+  type ContactRequest,
   type PublicProjectionResource,
 } from '@fuma/public-contracts'
 import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 import { safeParseJson } from '@core/utils/jsonValidate'
 import type { FumaLimitDecision, FumaLimitRequest } from '../redis'
+import type { PublicContactSink } from './contact'
 import type { PublicProjectionAuthority } from './authority'
 import { PublicProjectionInvalidRequestError } from './authority'
 import {
@@ -27,6 +30,7 @@ export type PublicProjectionBoundaryInput = Readonly<{
   serviceToken: string
   authority: PublicProjectionAuthority
   coordination: PublicProjectionCoordination
+  contact?: PublicContactSink
   nowMs?: () => number
 }>
 
@@ -43,6 +47,10 @@ const SOURCE_RESULT_SCHEMAS: Readonly<Record<PublicProjectionResource, ReturnTyp
   experts: Type.Object({ datasetVersion: PublicDatasetVersionSchema, data: PUBLIC_PROJECTION_SPECS.experts.pageSchema }, { additionalProperties: false }),
   plugins: Type.Object({ datasetVersion: PublicDatasetVersionSchema, data: PUBLIC_PROJECTION_SPECS.plugins.pageSchema }, { additionalProperties: false }),
 })
+
+const PUBLIC_CONTACT_PATH = `${PUBLIC_PROJECTION_PATH_PREFIX}/contact`
+const PUBLIC_CONTACT_BODY_BYTES = 8_192
+const PUBLIC_CONTACT_RATE_LIMIT = Object.freeze({ limit: 120, windowMs: 60_000 })
 
 function safeError(
   status: number,
@@ -85,6 +93,22 @@ function authorized(request: Request, serviceToken: string): boolean {
   if (!requestId || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) return false
   if (request.headers.has('cookie') || request.headers.has('x-forwarded-authorization')) return false
   return constantTimeEqual(authorization.slice('Bearer '.length), serviceToken)
+}
+
+async function contactValue(request: Request): Promise<ContactRequest | null> {
+  if (request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') return null
+  const declared = Number(request.headers.get('content-length') ?? '0')
+  if (Number.isFinite(declared) && declared > PUBLIC_CONTACT_BODY_BYTES) return null
+  let text: string
+  try { text = await request.text() } catch { return null }
+  if (new TextEncoder().encode(text).byteLength > PUBLIC_CONTACT_BODY_BYTES) return null
+  let value: unknown
+  try { value = JSON.parse(text) as unknown } catch { return null }
+  return Value.Check(ContactRequestSchema, value) ? value : null
+}
+
+function contactAccepted(): Response {
+  return new Response(null, { status: 202, headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
 }
 
 function parseResource(pathname: string): PublicProjectionResource | null {
@@ -172,6 +196,22 @@ export function createPublicProjectionBoundary(input: PublicProjectionBoundaryIn
     const host = (request.headers.get('host') ?? url.host).toLowerCase()
     if (host !== expectedHost || !authorized(request, input.serviceToken)) {
       return safeError(404, 'not_found', 'Resource not found.')
+    }
+    if (url.pathname === PUBLIC_CONTACT_PATH) {
+      if (request.method !== 'POST') {
+        const response = safeError(405, 'invalid_request', 'Method not allowed.')
+        response.headers.set('allow', 'POST')
+        return response
+      }
+      if (url.search !== '') return safeError(400, 'invalid_request', 'Invalid contact request.')
+      const value = await contactValue(request)
+      if (!value) return safeError(400, 'invalid_request', 'Invalid contact request.')
+      let decision: FumaLimitDecision
+      try { decision = await input.coordination.consumeLimit('public-contact', PUBLIC_CONTACT_RATE_LIMIT) }
+      catch { return safeError(503, 'temporarily_unavailable', 'Contact routing is temporarily unavailable.', 30) }
+      if (!decision.allowed) return safeError(429, 'rate_limited', 'Try again shortly.', Math.max(1, Math.min(3_600, Math.ceil(decision.retryAfterMs / 1_000))))
+      if (!input.contact || !await input.contact.accept(value)) return safeError(503, 'temporarily_unavailable', 'Contact routing is temporarily unavailable.', 30)
+      return contactAccepted()
     }
     if (request.method !== 'GET') {
       const response = safeError(405, 'invalid_request', 'Method not allowed.')

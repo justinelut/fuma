@@ -1,3 +1,4 @@
+export { ContactRequestSchema, type ContactRequest } from '@fuma/public-contracts'
 import { Type, type Static } from '@sinclair/typebox'
 
 const Slug = Type.String({
@@ -10,32 +11,11 @@ const SafeText = Type.String({
   maxLength: 200,
   pattern: '^[^\\u0000-\\u001F\\u007F]+$',
 })
-const SafeMultilineText = Type.String({
-  minLength: 10,
-  maxLength: 4_000,
-  pattern: '^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]+$',
-})
 const Timestamp = Type.String({
   minLength: 20,
   maxLength: 20,
   pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$',
 })
-const Email = Type.String({
-  minLength: 3,
-  maxLength: 254,
-  pattern: '^[^\\s@\\u0000-\\u001F\\u007F]+@[^\\s@\\u0000-\\u001F\\u007F]+\\.[^\\s@\\u0000-\\u001F\\u007F]+$',
-})
-const ReplayToken = Type.String({
-  minLength: 16,
-  maxLength: 128,
-  pattern: '^[A-Za-z0-9_-]+$',
-})
-const ExpertId = Type.String({
-  minLength: 1,
-  maxLength: 96,
-  pattern: '^[a-z0-9](?:[a-z0-9._-]{0,94}[a-z0-9])?$',
-})
-
 export const EditorialCollectionSchema = Type.Union([
   Type.Literal('docs'),
   Type.Literal('guides'),
@@ -68,32 +48,6 @@ export const EditorialFrontmatterSchema = Type.Object({
   audience: Type.Literal('public'),
 }, { additionalProperties: false })
 export type EditorialFrontmatter = Static<typeof EditorialFrontmatterSchema>
-
-const ContactBase = {
-  name: Type.String({ minLength: 1, maxLength: 100, pattern: '^[^\\u0000-\\u001F\\u007F]+$' }),
-  email: Email,
-  message: SafeMultilineText,
-  consentVersion: Type.Literal('2026-07-26'),
-  replayToken: ReplayToken,
-} as const
-
-export const ContactRequestSchema = Type.Union([
-  Type.Object({
-    kind: Type.Union([
-      Type.Literal('general'),
-      Type.Literal('security'),
-      Type.Literal('privacy'),
-      Type.Literal('abuse'),
-    ]),
-    ...ContactBase,
-  }, { additionalProperties: false }),
-  Type.Object({
-    kind: Type.Literal('expert_inquiry'),
-    ...ContactBase,
-    expertId: ExpertId,
-  }, { additionalProperties: false }),
-])
-export type ContactRequest = Static<typeof ContactRequestSchema>
 
 export const PublicStatusSchema = Type.Object({
   status: Type.Union([

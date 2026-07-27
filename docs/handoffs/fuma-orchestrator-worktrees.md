@@ -2,7 +2,7 @@
 
 Status date: 2026-07-27
 
-Base checkpoint: `integration/fuma-batch-7-20260727` at `be94761596c8b533587a172bbd0b0df5b454a0ee` in private `justinelut/fuma`.
+Integration branch: `integration/fuma-batch-7-20260727`; worker commits through `ee4f44a6` are integrated, with conductor finalization recorded below and pushed only to private `justinelut/fuma`.
 
 ## Conductor-owned integration surface
 
@@ -29,12 +29,12 @@ All work remains TypeBox-only with no app-to-app imports, no shared UI package, 
 | 03 | `/home/ubuntu/worktrees/fuma-orch-03` | `orchestrator/03-email-campaigns` | **Closed:** FUMA-046 integrated as `bd36d5c8`; validated worker commit `134c76d6` is pushed to `fuma`. Migration `000053` is conductor-finalized. |
 | 04 | `/home/ubuntu/worktrees/fuma-orch-04` | `orchestrator/04-deliverability` | **Closed:** FUMA-047 integrated as `9d19430e`; validated worker commit `e94580b1` is pushed to `fuma`. Migration `000054` is conductor-finalized at checksum `b08f316eb43349a1b3cc281a12fdf1eba90262d49bd504b959b6954e3a548c1a`. |
 | 05 | `/home/ubuntu/worktrees/fuma-orch-05` | `orchestrator/05-edge-delivery` | **Closed:** FUMA-051 integrated as `456fd948`; validated worker commit `fac826e6` is pushed to `fuma`. No migration was required. |
-| 06 | `/home/ubuntu/worktrees/fuma-orch-06` | `orchestrator/06-metering` | **Ready:** FUMA-052 resource metering and COGS accounting after FUMA-051 closure. |
-| 07 | `/home/ubuntu/worktrees/fuma-orch-07` | `orchestrator/07-entitlements` | Reserved for FUMA-054 and its commercial successors after FUMA-052 closes, one dependency wave at a time. |
-| 08 | `/home/ubuntu/worktrees/fuma-orch-08` | `orchestrator/08-public-authority` | **Ready:** FUMA-WEB-010 template discovery and immutable previews; FUMA-WEB-009 remains blocked on FUMA-057. |
+| 06 | `/home/ubuntu/worktrees/fuma-orch-06` | `orchestrator/06-metering` | **Closed:** FUMA-052 worker commit `f742d1f0` is pushed to `fuma` and integrated as `0b50f418`; migration `000055` is conductor-finalized at checksum `e5462ac7ea62f35fce1925fffc51894a2964ec61a5cec08d33c7f35d372f18b7`. |
+| 07 | `/home/ubuntu/worktrees/fuma-orch-07` | `orchestrator/07-entitlements` | **FUMA-041 closed:** native Linux ARM64 worker commit `0dd42138` is pushed to `fuma` and integrated as `6193489f`. The worktree is next reserved for dependency-ready FUMA-054. |
+| 08 | `/home/ubuntu/worktrees/fuma-orch-08` | `orchestrator/08-public-authority` | **Closed:** FUMA-WEB-010 worker commit `0e9bec2d` is pushed to `fuma` and integrated as `a17c7151`; migration `000056` is conductor-finalized at checksum `ca89eeadaf781bd806217a5b74d58849c851372a8c838806d4953641c259789e`. |
 | 09 | `/home/ubuntu/worktrees/fuma-orch-09` | `orchestrator/09-domains` | Reserved for FUMA-059..062 after FUMA-057 and prerequisite edge/metering work close. |
-| 10 | `/home/ubuntu/worktrees/fuma-orch-10` | `orchestrator/10-governance-launch` | Reserved for dependency-ready AI/plugin/operations/public launch work; no external launch operation is authorized. |
+| 10 | `/home/ubuntu/worktrees/fuma-orch-10` | `orchestrator/10-governance-launch` | **Implementation integrated, tracker open:** FUMA-WEB-014 worker commit `1c56e998` is pushed to `fuma` and integrated as `ee4f44a6`; independent legal/privacy approval, production status authority, and cross-replica contact-delivery evidence remain external/authority blockers. |
 
 ## Agent release rule
 
-FUMA-052 and FUMA-WEB-010 are dependency-ready after FUMA-051 closure. FUMA-076 remains blocked on open FUMA-058, and FUMA-WEB-009 remains blocked on FUMA-057. Two ready complete tickets are fewer than the four independent complete tickets required by the repository's exactly-four-agent delegation policy, so no subagent invocation is authorized for this wave. FUMA-052 proceeds directly in worktree 06; worktree 08 remains reserved for FUMA-WEB-010 rather than inventing blocked work. Recompute dependencies after each conductor closure; start an agent invocation only when exactly four non-overlapping complete-ticket/phase assignments are ready, with all four stages parallel and pinned to `gpt-5.6-sol`.
+After FUMA-041, FUMA-052, and FUMA-WEB-010 closure, FUMA-054 is the only complete dependency-ready implementation ticket. FUMA-078 now has its repository dependency satisfied under the explicit native Linux ARM64-only FUMA-041 amendment, but protected image publication/signing/scanning remains unauthorized and therefore it is not a complete executable assignment. FUMA-WEB-009 remains blocked on FUMA-054/FUMA-057, and FUMA-076 remains blocked on FUMA-058. Fewer than four complete independent assignments are ready, so no new subagent invocation is authorized. Recompute dependencies after every closure; when four assignments are genuinely ready, launch exactly four parallel stages, routing heavy backend/data/migration/compatibility/concurrency work to `claude-opus-5` and content-heavy public-Web/visual/accessibility/design work to `gpt-5.6-sol`.

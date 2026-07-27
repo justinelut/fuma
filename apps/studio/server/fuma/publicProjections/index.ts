@@ -1,5 +1,6 @@
 export * from './authority'
 export * from './boundary'
+export * from './contact'
 export * from './config'
 export * from './registeredAuthorities'
 export * from './runtime'

@@ -2,6 +2,7 @@ import type { DbClient } from '../../db/client'
 import { FumaRedisCoordination, BunRedisDriver } from '../redis'
 import { PublicProjectionAuthorityCatalog } from './authority'
 import { createPublicProjectionBoundary, type PublicProjectionBoundary } from './boundary'
+import { ConfiguredPublicContactSink, readPublicContactSinkConfig } from './contact'
 import { readPrivateProjectionConfig } from './config'
 import { createHostedPublicProjectionAuthorityCatalog } from './registeredAuthorities'
 
@@ -23,6 +24,8 @@ export async function createHostedPublicProjectionRuntime(
 ): Promise<HostedPublicProjectionRuntime> {
   const env = input.env ?? process.env
   const config = readPrivateProjectionConfig(env)
+  const contactConfig = readPublicContactSinkConfig(env)
+  const contact = contactConfig ? new ConfiguredPublicContactSink(contactConfig) : undefined
   const authority = input.authority ?? createHostedPublicProjectionAuthorityCatalog(input.db)
   const coordination = input.coordination ?? new FumaRedisCoordination({
     namespace: config.redisNamespace,
@@ -34,6 +37,7 @@ export async function createHostedPublicProjectionRuntime(
     serviceToken: config.serviceToken,
     authority,
     coordination,
+    ...(contact ? { contact } : {}),
   })
   return Object.freeze({
     boundary,

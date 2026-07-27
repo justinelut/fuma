@@ -26,6 +26,10 @@ E2E_PUBLIC_BASE_URL=https://3002.blyss.co.ke
 
 Do not use `localhost`, `127.0.0.1`, or direct container addresses for browser/E2E acceptance. A loopback request may be used only as a low-level process or container liveness diagnostic; it must never be reported as browser, routing, hydration, TLS, proxy, or public-host acceptance evidence. Final acceptance evidence must come from the matching `https://<port>.blyss.co.ke` host.
 
+## Production architecture policy
+
+Fuma production and deployment acceptance targets native Linux ARM64 only. Do not run or claim amd64, Docker/buildx, QEMU, or emulated compatibility evidence unless the user explicitly changes this scope. Repository-only image work must not be represented as protected publication, signing, scanning, deployment, or promotion evidence.
+
 ## Four-agent delegation policy
 
 When the user asks to spin four agents, every subagent invocation must start **exactly four stages in parallel**:
@@ -34,7 +38,7 @@ When the user asks to spin four agents, every subagent invocation must start **e
 - each stage owns at least one complete backlog ticket or a complete multi-ticket phase, including implementation, focused tests, architecture gates, and documentation;
 - never split one ticket into four planning, research, audit, frontend/backend, or other subtasks;
 - select four dependency-ready tickets with non-overlapping primary file ownership so parallel edits are safe;
-- pin every stage to `gpt-5.6-sol`;
+- route heavy backend, data, migration, compatibility, and concurrency coding stages to `claude-opus-5`; route content-heavy, public-web, visual, accessibility, and design stages to `gpt-5.6-sol`, unless the user explicitly changes that routing;
 - subagents do not run unfiltered `bun test`, the root full build, or the root full lint; the primary agent owns aggregate validation and tracker closure;
 - browser/E2E evidence from every stage still follows the Blyss HTTPS host policy above.
 

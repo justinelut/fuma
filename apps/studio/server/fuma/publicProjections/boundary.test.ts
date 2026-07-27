@@ -29,6 +29,7 @@ function fixture(options: Readonly<{
   authority?: PublicProjectionAuthority
   allowed?: boolean
   limitFailure?: boolean
+  contact?: Readonly<{ accept(value: import('@fuma/public-contracts').ContactRequest): Promise<boolean> }>
 }> = {}) {
   const cache = new Map<string, string>()
   const authority = options.authority ?? {
@@ -47,7 +48,7 @@ function fixture(options: Readonly<{
   }
   return {
     authority,
-    boundary: createPublicProjectionBoundary({ host: HOST, serviceToken: TOKEN, authority, coordination }),
+    boundary: createPublicProjectionBoundary({ host: HOST, serviceToken: TOKEN, authority, coordination, ...(options.contact ? { contact: options.contact } : {}) }),
   }
 }
 
@@ -59,6 +60,19 @@ function projectionRequest(path = '/_fuma/private/public/v1/product-facts?limit=
       'x-fuma-request-id': crypto.randomUUID(),
       ...headers,
     },
+  })
+}
+
+function contactRequest(value: unknown) {
+  return new Request(`http://${HOST}/_fuma/private/public/v1/contact`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${TOKEN}`,
+      'content-type': 'application/json',
+      'x-fuma-audience': 'fuma-public-web',
+      'x-fuma-request-id': crypto.randomUUID(),
+    },
+    body: JSON.stringify(value),
   })
 }
 
@@ -156,5 +170,24 @@ describe('Studio public projection boundary', () => {
     expect(await unavailable?.json()).toEqual({
       error: { code: 'temporarily_unavailable', message: 'Public data is temporarily unavailable.', retryAfterSeconds: 30 },
     })
+  })
+
+  test('validates and centrally limits private contact routing without reflecting PII', async () => {
+    const value = {
+      kind: 'security', name: 'Reporter', email: 'reporter@example.test',
+      message: 'A bounded security contact report.', consentVersion: '2026-07-26', replayToken: 'contact_replay_1234',
+    } as const
+    const accepted: unknown[] = []
+    const available = fixture({ contact: { accept: async (request) => { accepted.push(request); return true } } })
+    const response = await available.boundary.handle(contactRequest(value))
+    expect(response?.status).toBe(202)
+    expect(response?.headers.get('cache-control')).toBe('no-store')
+    expect(accepted).toEqual([value])
+
+    const invalid = await available.boundary.handle(contactRequest({ ...value, organizationId: 'forged' }))
+    expect(invalid?.status).toBe(400)
+    expect(await invalid?.text()).not.toContain('reporter@example.test')
+    expect((await fixture().boundary.handle(contactRequest(value)))?.status).toBe(503)
+    expect((await fixture({ allowed: false, contact: { accept: async () => true } }).boundary.handle(contactRequest(value)))?.status).toBe(429)
   })
 })

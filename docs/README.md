@@ -230,6 +230,9 @@ Three categories, three voices:
 | [reference/fuma-publication-shell.md](reference/fuma-publication-shell.md) | Publication subtitle/navigation, collapsed Design disclosure, direct-route permission guards, and editor/viewer behavior |
 | [reference/fuma-public-web-scaffold.md](reference/fuma-public-web-scaffold.md) | Independent Next App Router scaffold, app-local Tailwind/shadcn, generated tokens, and standalone ARM64 runtime |
 | [reference/fuma-public-projections.md](reference/fuma-public-projections.md) | Studio-owned anonymous projections, strict envelopes, private-cluster Next client, and same-origin BFF |
+| [reference/fuma-metering-cogs.md](reference/fuma-metering-cogs.md) | Immutable logical/physical usage, complete cost inputs, reservations, settlement, and provider reconciliation |
+| [reference/fuma-public-templates.md](reference/fuma-public-templates.md) | Approved immutable template releases, isolated previews, withdrawal tombstones, filters, and install handoff |
+| [reference/fuma-public-trust-surfaces.md](reference/fuma-public-trust-surfaces.md) | Public trust/legal/contact/status surfaces, strict routing boundaries, and explicit production approval blockers |
 | [reference/fuma-audit-history.md](reference/fuma-audit-history.md) | Append-only hosted audit schema, trusted recording, exact-scope listings, and read-only UI |
 | [reference/fuma-transfer-saga.md](reference/fuma-transfer-saga.md) | Durable fenced site ownership transfer, resume, compensation, and claim-level worker contracts |
 | [reference/fuma-tenant-keys.md](reference/fuma-tenant-keys.md) | Stable owner keys, complete table/object inventory, and resumable count/hash/FK evidence |

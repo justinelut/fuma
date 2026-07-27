@@ -102,6 +102,8 @@ describe('public template release authority', () => {
     expect(hostedMigrationChecksum(publicTemplateReleasesMigration.sql)).toMatch(/^[a-f0-9]{64}$/)
     expect(publicTemplateReleasesMigration.sql).not.toMatch(/\b(?:drop|truncate|delete\s+from)\b/i)
   })
+    expect(publicTemplateReleasesMigration.sql).toContain("tg_op = 'DELETE'")
+    expect(publicTemplateReleasesMigration.sql).toContain('before update or delete')
 
   test('demo: approves one strict exact release and projects canonical metadata filters', async () => {
     const { service } = harness()

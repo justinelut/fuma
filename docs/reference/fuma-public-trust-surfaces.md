@@ -42,14 +42,15 @@ The server reads `FUMA_STATUS_SUMMARY_URL`; the browser never receives that URL 
 - a new privacy version preserves the prior complete text while legal approval stays `pending`;
 - a failed status authority produces `unavailable` with no operational or provider claim.
 
-## Conductor needs and external limitations
+## Integrated conductor state and remaining limitations
 
-The conductor must complete these outside this branch before claiming integrated acceptance:
+The conductor now shares `ContactRequestSchema` through `@fuma/public-contracts`, mounts authenticated `POST /_fuma/private/public/v1/contact`, revalidates the 8 KiB strict body, applies a central Redis aggregate limit, and forwards only through an explicitly configured dedicated HTTPS sink. The sink requires a private token, forbids credentials/query/hash/redirects, uses a bounded timeout, and fails closed when absent. Focused Web/Studio tests cover validation, local replay behavior, central limiting, unavailable routing, header injection, no PII reflection, and strict forwarding. Blyss HTTPS browser acceptance passed the template/trust routes at 320 px with labelled contact regions, keyboard skip focus, semantic status output, and no runtime errors. No real contact submission or external sink request was executed.
 
-1. Mount the central private contact route with durable idempotency and distributed abuse/rate controls for `general`, `security`, `privacy`, `abuse`, and `expert_inquiry`; set approved routing, retention/deletion, audit/redaction, escalation, and delivery behavior without exposing recipients.
+The remaining blockers before FUMA-WEB-014 tracker closure are:
+
+1. Add cross-replica durable replay/idempotency at the private delivery boundary and approve routing, retention/deletion, audit/redaction, escalation, and delivery behavior. The existing Web replay cache is process-local and is not represented as distributed production evidence.
 2. Configure an approved server-owned status summary and optional public history URL; provide real freshness, degradation, cache, incident, monitoring, and on-call evidence. No provider is selected or mutated here.
-3. Obtain named legal/privacy/trust-and-safety approval for the exact current policy bytes and record future superseded text in a public immutable history.
-4. Add final central route/composition, environment validation, secret injection, catalogs, tracker/audit/ledger updates, and integrated launch evidence in conductor-owned files.
-5. Run the required Blyss HTTPS browser/accessibility journeys only after the public service and central authorities are available. Source/unit rendering is not browser acceptance.
+3. Obtain named legal/privacy/trust-and-safety approval for the exact current policy bytes and preserve every future superseded text in public immutable history.
+4. Complete production secret injection, owner catalogs, and integrated launch evidence. Browser acceptance of the fail-closed surfaces is complete, but no live approved contact/status authority was fabricated.
 
 This ticket does not deploy, scan a provider, purchase a service, send external contact, mutate a provider, edit migration registries/checksums, or change the unsigned launch decision.

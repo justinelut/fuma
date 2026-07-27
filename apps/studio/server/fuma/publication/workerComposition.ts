@@ -3,6 +3,12 @@ import { PostgresFumaJobContextAuthority } from '../context'
 import { readFumaConfig } from '../config'
 import { createFumaJobWorkerComponentFactory } from '../jobs'
 import { AnonymousEdgeVisitorAuthority, createHostedEdgeRuntime, PublicationAccessEdgeHoleResolver } from '../edgeDelivery'
+import {
+  createHostedMeteringRuntime,
+  HOSTED_COST_BASELINE_V1,
+  withNewsletterMetering,
+  withPublishMetering,
+} from '../metering'
 import { createPostgresPublishReleaseComposition } from '../publishing'
 import type { FumaRuntimeComponentFactory } from '../runtime/boot'
 import { createRuntimeControlComponent } from '../runtime/health'
@@ -33,6 +39,9 @@ export function createPublicationWorkerComponentFactory(
       async start(context) {
         const config = readFumaConfig(env)
         const db = createPostgresClient(config.database.url)
+        const metering = createHostedMeteringRuntime({ db })
+        await Promise.all(HOSTED_COST_BASELINE_V1.map((input) => metering.costs.append(input)))
+        await metering.costs.assertComplete()
         const publication = await createHostedPublicationRuntime({ db, config, objectAccessSigningSecret: requiredObjectSigningSecret(env) })
         const publishing = createPostgresPublishReleaseComposition({
           db,
@@ -48,10 +57,16 @@ export function createPublicationWorkerComponentFactory(
           holes: [new PublicationAccessEdgeHoleResolver(publication.graph.scheduling)],
         })
         await edge.cache.connect()
+        const newsletterHandler = publication.jobHandlers['publication.newsletter-send']
+        const publishHandler = publishing.jobHandlers['fuma.publish-release']
+        if (!newsletterHandler || !publishHandler) throw new TypeError('Metered durable handlers are unavailable.')
         const handlers = Object.freeze({
           ...publication.jobHandlers,
           ...publishing.jobHandlers,
           ...edge.jobs,
+          ...metering.jobs,
+          'publication.newsletter-send': withNewsletterMetering(newsletterHandler, metering.collector),
+          'fuma.publish-release': withPublishMetering(publishHandler, metering.collector),
         })
         const worker = createFumaJobWorkerComponentFactory({
           env,

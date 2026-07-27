@@ -16,6 +16,9 @@ import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 import { fumaLaunchRegistry, type FumaRegistry } from '@core/fuma'
 import type { DbClient } from '../../db/client'
+import { PostgresPublicTemplateCatalogRepository, PostgresTemplateReleaseAuthority } from '../publicTemplates/postgres'
+import { ApprovedTemplatesProjectionSource } from '../publicTemplates/projection'
+import { PublicTemplateCatalogService } from '../publicTemplates/service'
 import {
   PublicProjectionAuthorityCatalog,
   PublicProjectionInvalidRequestError,
@@ -193,13 +196,6 @@ class PricingSource implements ApprovedPublicProjectionSource {
   }
 }
 
-/** Starter contributions are not public templates until an immutable approved preview is registered. */
-class TemplatesSource implements ApprovedPublicProjectionSource {
-  async readApprovedDisplayPage(query: Readonly<Record<string, string | number>>) {
-    return paginate('templates', [], [], query)
-  }
-}
-
 async function approvedExpertRows(db: DbClient): Promise<readonly ExpertRow[]> {
   const { rows } = await db<ExpertRow>`
     select p.kind, p.display_name, p.profile_json, r.approved_at
@@ -332,10 +328,14 @@ export function createHostedPublicProjectionAuthorityCatalog(
     throw new PublicProjectionUnavailableError('Hosted public projections require PostgreSQL authority.')
   }
   const catalog = new PublicProjectionAuthorityCatalog()
+  const templateCatalog = new PublicTemplateCatalogService(
+    new PostgresPublicTemplateCatalogRepository(db),
+    new PostgresTemplateReleaseAuthority(db),
+  )
   const sources: Readonly<Record<PublicProjectionResource, ApprovedPublicProjectionSource>> = Object.freeze({
     'product-facts': new ProductFactsSource(registry),
     pricing: new PricingSource(db),
-    templates: new TemplatesSource(),
+    templates: new ApprovedTemplatesProjectionSource(templateCatalog),
     showcases: new ShowcasesSource(db),
     experts: new ExpertsSource(db),
     plugins: new PluginsSource(db),

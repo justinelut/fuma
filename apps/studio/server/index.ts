@@ -22,6 +22,14 @@ import {
   PublicationAccessEdgeHoleResolver,
   type EdgeVisitorAuthority,
 } from './fuma/edgeDelivery'
+import {
+  createTemplatePreviewBoundary,
+  PostgresPublicTemplateCatalogRepository,
+  PostgresTemplatePreviewReader,
+  PostgresTemplateReleaseAuthority,
+  PublicTemplateCatalogService,
+  TEMPLATE_PREVIEW_HOST,
+} from './fuma/publicTemplates'
 import { createHostedPaystackRuntime } from './fuma/paystack/runtime'
 import {
   createHostedMemberIdentityRuntime,
@@ -141,6 +149,19 @@ const releaseObjectStorage = hostedFumaConfig
   ? createHostedReleaseObjectStorage({
     config: hostedFumaConfig,
     objectAccessSigningSecret: requiredFumaObjectSigningSecret(),
+  })
+  : undefined
+const templateCatalog = hostedFumaConfig
+  ? new PublicTemplateCatalogService(
+    new PostgresPublicTemplateCatalogRepository(db),
+    new PostgresTemplateReleaseAuthority(db),
+  )
+  : undefined
+const templatePreviewBoundary = templateCatalog && releaseObjectStorage
+  ? createTemplatePreviewBoundary({
+    host: TEMPLATE_PREVIEW_HOST,
+    catalog: templateCatalog,
+    reader: new PostgresTemplatePreviewReader(db, releaseObjectStorage),
   })
   : undefined
 const edgeVisitorAuthority: EdgeVisitorAuthority = memberIdentityRuntime && publicationRuntime
@@ -284,6 +305,13 @@ const server = Bun.serve<PublicationSocketData>({
     // `clientIp(req)` returns a real value when no `X-Forwarded-For` is
     // present (dev, self-hosted without a proxy). Strips any inbound spoof.
     stampSocketIp(req, server.requestIP(req)?.address ?? null)
+
+    // Template previews are exact approved immutable releases on a dedicated
+    // credential-free host; unknown paths continue into fail-closed Host routing.
+    if (templatePreviewBoundary?.handles(req)) {
+      const previewResponse = await templatePreviewBoundary.handle(req)
+      if (previewResponse) return applySecurityHeaders(previewResponse, pathname)
+    }
 
     // Hosted public authority is the process's first request boundary. This
     // prevents WebSocket and CORS shortcuts from creating unknown-host paths.

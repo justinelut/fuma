@@ -1,3 +1,4 @@
+export * from './contact'
 export * from './errors'
 export * from './events'
 export * from './handoff'

@@ -12,7 +12,10 @@ import {
   publishWorkerRegistration,
 } from './workerPublisher'
 
-const PUBLISH_MIME_TYPES = Object.freeze(['text/html', 'text/css'])
+const PUBLISH_MIME_TYPES = Object.freeze([
+  'text/html', 'text/css',
+  'image/avif', 'image/jpeg', 'image/png', 'image/webp',
+])
 
 export function createPostgresPublishReleaseComposition(input: Readonly<{
   db: DbClient

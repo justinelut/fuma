@@ -51,6 +51,18 @@ describe('FUMA-052 metering architecture', () => {
     expect(jobs).toContain('commitDurableResult')
   })
 
+  it('composes complete costs, reconciliation, and replay-safe workload producers in the trusted worker', () => {
+    const worker = readFileSync(join(ROOT, 'server/fuma/publication/workerComposition.ts'), 'utf8')
+    const integration = source('workerIntegration.ts')
+    expect(worker).toContain('HOSTED_COST_BASELINE_V1.map')
+    expect(worker).toContain('...metering.jobs')
+    expect(worker).toContain('withPublishMetering')
+    expect(worker).toContain('withNewsletterMetering')
+    expect(integration).toContain('readDurableResult')
+    expect(integration).toContain('commitDurableResult')
+    expect(integration).toContain('collector.record')
+  })
+
   it('keeps every shipped metering module bounded below the repository ceiling', () => {
     for (const file of readdirSync(DIRECTORY).filter((value) => value.endsWith('.ts'))) {
       const lines = source(file).split('\n').length - 1

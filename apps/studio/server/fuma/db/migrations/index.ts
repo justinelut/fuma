@@ -53,6 +53,8 @@ import { publicationPrivacyAnalyticsMigration } from './000051_publication_priva
 import { publicationNewsletterComposerMigration } from './000052_publication_newsletter_composer'
 import { publicationCampaignDeliveryControlMigration } from './000053_publication_campaign_delivery_control'
 import { publicationDeliverabilityControlMigration } from './000054_publication_deliverability_control'
+import { meteringReconciliationControlMigration } from './000055_metering_reconciliation_control'
+import { publicTemplateReleasesMigration } from './000056_public_template_releases'
 
 export const hostedMigrations = Object.freeze([
   transitionBookkeepingMigration,
@@ -109,6 +111,8 @@ export const hostedMigrations = Object.freeze([
   publicationNewsletterComposerMigration,
   publicationCampaignDeliveryControlMigration,
   publicationDeliverabilityControlMigration,
+  meteringReconciliationControlMigration,
+  publicTemplateReleasesMigration,
 ])
 
 export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
@@ -172,6 +176,8 @@ export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Obje
   '000052_publication_newsletter_composer': '8df028670e3e18fc6bc165805bb0793e1dc2ce13253fc729fb666e3fad15cd61',
   '000053_publication_campaign_delivery_control': '458f4a35eef21e8b4b43ac71d28cceb43271ab43b0669f5b5ebd15cfa76002b6',
   '000054_publication_deliverability_control': 'b08f316eb43349a1b3cc281a12fdf1eba90262d49bd504b959b6954e3a548c1a',
+  '000055_metering_reconciliation_control': 'e5462ac7ea62f35fce1925fffc51894a2964ec61a5cec08d33c7f35d372f18b7',
+  '000056_public_template_releases': 'ca89eeadaf781bd806217a5b74d58849c851372a8c838806d4953641c259789e',
 })
 
 const firstUnappliedMigration = hostedMigrations.findIndex(({ id }) => (

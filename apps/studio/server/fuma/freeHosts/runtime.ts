@@ -5,7 +5,10 @@ import { FreeHostPublicRouter, type FreeHostPublicBoundary, type FreeHostResolve
 import { PostgresFreeHostRepository } from './repository'
 import { FreeHostService } from './service'
 
-const HOSTED_RELEASE_MIME_TYPES = Object.freeze(['text/html', 'text/css'])
+const HOSTED_RELEASE_MIME_TYPES = Object.freeze([
+  'text/html', 'text/css',
+  'image/avif', 'image/jpeg', 'image/png', 'image/webp',
+])
 
 export type HostedFreeHostRuntime = Readonly<{
   boundary: FreeHostPublicBoundary
