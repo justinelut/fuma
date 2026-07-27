@@ -1,6 +1,6 @@
 import type { HostedMigration } from '../migrationPolicy'
 
-/** Candidate only: the conductor owns registry insertion and checksum finalization. */
+/** Finalized by the conductor after live PostgreSQL acceptance. */
 export const publicationCampaignDeliveryControlMigration: HostedMigration = Object.freeze({
   id: '000053_publication_campaign_delivery_control',
   description: 'Add immutable campaign audience/content hashes and message-size accounting',

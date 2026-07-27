@@ -51,6 +51,7 @@ import { emailSettingsVersionsMigration } from './000049_email_settings_versions
 import { dynamicPublicationTemplatesMigration } from './000050_dynamic_publication_templates'
 import { publicationPrivacyAnalyticsMigration } from './000051_publication_privacy_analytics'
 import { publicationNewsletterComposerMigration } from './000052_publication_newsletter_composer'
+import { publicationCampaignDeliveryControlMigration } from './000053_publication_campaign_delivery_control'
 
 export const hostedMigrations = Object.freeze([
   transitionBookkeepingMigration,
@@ -105,6 +106,7 @@ export const hostedMigrations = Object.freeze([
   dynamicPublicationTemplatesMigration,
   publicationPrivacyAnalyticsMigration,
   publicationNewsletterComposerMigration,
+  publicationCampaignDeliveryControlMigration,
 ])
 
 export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
@@ -166,6 +168,7 @@ export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Obje
   '000050_dynamic_publication_templates': '3e3b3c2fe969eddca1063f62a63ada426949623a8110ca23caa5483b1ee1c34b',
   '000051_publication_privacy_analytics': 'a6deae4ed574da8ec0065f92883bcf2a77738d011d2a93b15a8e41a21fbb208e',
   '000052_publication_newsletter_composer': '8df028670e3e18fc6bc165805bb0793e1dc2ce13253fc729fb666e3fad15cd61',
+  '000053_publication_campaign_delivery_control': '458f4a35eef21e8b4b43ac71d28cceb43271ab43b0669f5b5ebd15cfa76002b6',
 })
 
 const firstUnappliedMigration = hostedMigrations.findIndex(({ id }) => (
