@@ -10,10 +10,13 @@ import type {
   FumaScopedRouteHandlerInput,
 } from '../context'
 import type { FumaRepositoryScope } from '../tenancy'
+import { WorkloadAssumptionsSchema } from '../entitlements'
 import {
+  QuotaForecastResultSchema,
   QuotaSelfServiceSchema,
   TopUpRequestSchema,
 } from './contracts'
+import type { QuotaUsageCollector } from './collector'
 import type { PostgresQuotaAccountRepository } from './account'
 import { QuotaError } from './service'
 
@@ -23,12 +26,18 @@ const TopUpResponseSchema = Type.Object({
   state: Type.Literal('requested'),
 }, { additionalProperties: false })
 const CancellationResponseSchema = Type.Object({ requested: Type.Literal(true) }, { additionalProperties: false })
+const ScopedForecastRequestSchema = Type.Object({
+  kind: Type.Union([Type.Literal('setup'), Type.Literal('import')]),
+  workload: WorkloadAssumptionsSchema,
+  collaborators: Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER }),
+}, { additionalProperties: false })
 
 export type QuotaSelfServiceRoutePorts = Readonly<{
   accounts: Pick<
     PostgresQuotaAccountRepository,
     'selfService' | 'requestTopUp' | 'requestCancellation'
   >
+  collector: Pick<QuotaUsageCollector, 'forecast'>
 }>
 
 function response<T extends TSchema>(
@@ -98,6 +107,23 @@ async function view(
   }
 }
 
+async function forecast(
+  ports: QuotaSelfServiceRoutePorts,
+  input: FumaScopedRouteHandlerInput,
+): Promise<Response> {
+  try {
+    const body = await readValidatedBody(input.request, ScopedForecastRequestSchema)
+    if (body === null) return response(ErrorSchema, { error: 'Setup/import quota forecast is invalid.' }, 400)
+    const result = await ports.collector.forecast(Object.freeze({
+      ...body,
+      organizationId: organization(input.context, input.repositoryScope),
+    }))
+    return response(QuotaForecastResultSchema, result)
+  } catch (error) {
+    return failure(error)
+  }
+}
+
 async function requestTopUp(
   ports: QuotaSelfServiceRoutePorts,
   input: FumaScopedRouteHandlerInput,
@@ -146,6 +172,12 @@ export function createQuotaSelfServiceScopedRouteDeclarations(
       path: '/quotas/self-service/export' as const,
       permission: 'site.settings.read' as const,
       handler: (input: FumaScopedRouteHandlerInput) => view(ports, input, true),
+    }),
+    Object.freeze({
+      method: 'POST' as const,
+      path: '/quotas/forecast' as const,
+      permission: 'site.settings.write' as const,
+      handler: (input: FumaScopedRouteHandlerInput) => forecast(ports, input),
     }),
     Object.freeze({
       method: 'POST' as const,

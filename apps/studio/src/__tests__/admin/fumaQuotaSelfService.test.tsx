@@ -1,4 +1,6 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { QuotaSelfServiceRouteContent } from '@admin/fuma/usage/QuotaSelfServiceRouteContent'
+import type { FumaScopedShellReadyContext } from '@admin/fuma/FumaScopedShell'
 import { QuotaSelfServiceHttpClient } from '@admin/fuma/usage/client'
 import { QUOTA_CLASS_NAMES, type QuotaSelfServiceWire } from '@admin/fuma/usage/contracts'
 import { UsageSurface } from '@admin/fuma/usage/UsageSurface'
@@ -87,9 +89,61 @@ function client(): QuotaSelfServiceHttpClient {
   })
 }
 
-afterEach(cleanup)
+const originalFetch = globalThis.fetch
+
+function shell(): FumaScopedShellReadyContext {
+  return {
+    resolution: {
+      selection: {
+        organizationId: 'organization-a',
+        workspaceId: 'workspace-a',
+        siteId: 'site-a',
+      },
+      profile: { capabilities: [{ id: 'site.settings' }] },
+    },
+    profileRelativeSubpath: '/admin/settings/billing',
+    routeAccess: {
+      kind: 'allowed',
+      route: {
+        id: 'route.settings',
+        method: 'GET',
+        path: '/admin/settings',
+        permission: 'site.settings.read',
+      },
+    },
+  } as unknown as FumaScopedShellReadyContext
+}
+
+afterEach(() => {
+  cleanup()
+  globalThis.fetch = originalFetch
+})
 
 describe('FUMA-057 usage and account UI', () => {
+  it('mounts customer billing only after the server projection identifies a customer entitlement', async () => {
+    globalThis.fetch = (async () => Response.json(model(true))) as typeof fetch
+    const { unmount } = render(
+      <QuotaSelfServiceRouteContent
+        shell={shell()}
+        permissionDecisions={[]}
+        customerBilling={<div data-testid="customer-billing">Customer checkout</div>}
+      />,
+    )
+    await waitFor(() => expect(screen.getByTestId('quota-self-service-route-content')).toBeTruthy())
+    expect(screen.queryByTestId('customer-billing')).toBeNull()
+    unmount()
+
+    globalThis.fetch = (async () => Response.json(model(false))) as typeof fetch
+    render(
+      <QuotaSelfServiceRouteContent
+        shell={shell()}
+        permissionDecisions={[]}
+        customerBilling={<div data-testid="customer-billing">Customer checkout</div>}
+      />,
+    )
+    await waitFor(() => expect(screen.getByTestId('customer-billing')).toBeTruthy())
+  })
+
   it('renders protected internal quotas without customer, provider, dunning, or shadow-cost controls', () => {
     render(<UsageSurface model={model(true)} client={client()} canWrite mode="account" />)
     expect(screen.getByRole('heading', { name: 'Usage and quotas' })).toBeTruthy()

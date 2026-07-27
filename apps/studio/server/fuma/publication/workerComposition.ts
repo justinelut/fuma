@@ -6,6 +6,7 @@ import {
   registerPlatformCheckoutPurposes,
 } from '../checkout'
 import { createHostedPaystackRuntime } from '../paystack/runtime'
+import { createQuotaRuntime } from '../quotas'
 import { readFumaConfig } from '../config'
 import { createFumaJobWorkerComponentFactory } from '../jobs'
 import { AnonymousEdgeVisitorAuthority, createHostedEdgeRuntime, PublicationAccessEdgeHoleResolver } from '../edgeDelivery'
@@ -55,7 +56,13 @@ export function createPublicationWorkerComponentFactory(
         const metering = createHostedMeteringRuntime({ db })
         await Promise.all(HOSTED_COST_BASELINE_V1.map((input) => metering.costs.append(input)))
         await metering.costs.assertComplete()
-        const publication = await createHostedPublicationRuntime({ db, config, objectAccessSigningSecret: requiredObjectSigningSecret(env) })
+        const quota = createQuotaRuntime({ db })
+        const publication = await createHostedPublicationRuntime({
+          db,
+          config,
+          objectAccessSigningSecret: requiredObjectSigningSecret(env),
+          campaignQuota: quota.campaign,
+        })
         const publishing = createPostgresPublishReleaseComposition({
           db,
           config,
@@ -79,6 +86,7 @@ export function createPublicationWorkerComponentFactory(
           ...edge.jobs,
           ...metering.jobs,
           ...billing.jobs,
+          ...quota.jobs,
           'publication.newsletter-send': withNewsletterMetering(newsletterHandler, metering.collector),
           'fuma.publish-release': withPublishMetering(publishHandler, metering.collector),
         })

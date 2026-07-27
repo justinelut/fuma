@@ -34,6 +34,7 @@ import { createHostedPaystackRuntime } from './fuma/paystack/runtime'
 import { createHostedEntitlementRuntime, readHostedKesCostConversion } from './fuma/entitlements'
 import { createHostedPlatformCheckoutRuntime } from './fuma/checkout'
 import { createHostedPlatformBillingRuntime } from './fuma/billing'
+import { createQuotaRuntime } from './fuma/quotas'
 import {
   createHostedMemberIdentityRuntime,
   createMemberImportBoundary,
@@ -114,8 +115,14 @@ const memberIdentityRuntime = hostedFumaConfig && hostedStaffSecret
 const publicProjectionRuntime = fumaHosted
   ? await createHostedPublicProjectionRuntime({ db })
   : undefined
+const quotaRuntime = hostedFumaConfig ? createQuotaRuntime({ db }) : undefined
 const publicationRuntime = hostedFumaConfig
-  ? await createHostedPublicationRuntime({ db, config: hostedFumaConfig, objectAccessSigningSecret: requiredFumaObjectSigningSecret() })
+  ? await createHostedPublicationRuntime({
+    db,
+    config: hostedFumaConfig,
+    objectAccessSigningSecret: requiredFumaObjectSigningSecret(),
+    ...(quotaRuntime ? { campaignQuota: quotaRuntime.campaign } : {}),
+  })
   : undefined
 const publicSiteAuthority = hostedFumaConfig ? new PostgresMemberSiteAuthority(db) : undefined
 const publicHostAuthority = publicSiteAuthority
@@ -255,6 +262,7 @@ const fumaScopedApi = createHostedFumaScopedApi({
   hostedStaffAuth: hostedStaffAuthRuntime,
   ...(publicationRuntime ? { publicationRoutes: publicationRuntime.graph.scopedRoutes } : {}),
   ...(platformCheckoutRuntime ? { checkoutRoutes: platformCheckoutRuntime.scopedRoutes } : {}),
+  ...(quotaRuntime ? { quotaRoutes: quotaRuntime.scopedRoutes } : {}),
 })
 const memberImportBoundary = memberIdentityRuntime && hostedStaffAuthRuntime && fumaScopedApi
   ? createMemberImportBoundary({

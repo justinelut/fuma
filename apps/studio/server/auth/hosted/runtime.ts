@@ -41,6 +41,7 @@ export type HostedFumaScopedApiInput = Readonly<{
   hostedStaffAuth: HostedStaffAuthRuntime | undefined
   publicationRoutes?: readonly FumaScopedRouteDeclaration[]
   checkoutRoutes?: readonly FumaScopedRouteDeclaration[]
+  quotaRoutes?: readonly FumaScopedRouteDeclaration[]
 }>
 
 export function readHostedAuthSecret(
@@ -119,5 +120,6 @@ export function createHostedFumaScopedApi(
     ...editorRoutes,
     ...(input.publicationRoutes??[]),
     ...(input.checkoutRoutes ?? []),
+    ...(input.quotaRoutes ?? []),
   ]))
 }

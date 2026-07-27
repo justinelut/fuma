@@ -37,8 +37,12 @@ export function QuotaSelfServiceRouteContent({
     workspaceId,
     siteId,
   }), [organizationId, workspaceId, siteId])
-  const [model, setModel] = useState<QuotaSelfServiceWire | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [loaded, setLoaded] = useState<Readonly<{
+    scopeKey: string
+    model: QuotaSelfServiceWire | null
+    error: string | null
+  }> | null>(null)
+  const scopeKey = `${organizationId}\u0000${workspaceId}\u0000${siteId}`
   const path = shell.profileRelativeSubpath
   const selected = path === '/admin/settings/usage' || path === '/admin/settings/billing'
   const allowed = shell.routeAccess.kind === 'allowed'
@@ -48,20 +52,28 @@ export function QuotaSelfServiceRouteContent({
   useEffect(() => {
     if (!selected || !allowed) return
     let active = true
-    setModel(null)
-    setError(null)
     void client.view().then(
-      (value) => { if (active) setModel(value) },
+      (value) => {
+        if (active) setLoaded(Object.freeze({ scopeKey, model: value, error: null }))
+      },
       (caught) => {
-        if (active) setError(getErrorMessage(caught, 'Usage could not be loaded.'))
+        if (active) setLoaded(Object.freeze({
+          scopeKey,
+          model: null,
+          error: getErrorMessage(caught, 'Usage could not be loaded.'),
+        }))
       },
     )
     return () => { active = false }
-  }, [allowed, client, selected])
+  }, [allowed, client, scopeKey, selected])
 
   if (!selected || !allowed) return null
-  if (error) return <p className={styles.error} role="alert">{error}</p>
-  if (!model) return <p className={styles.status} role="status">Loading account usage…</p>
+  if (!loaded || loaded.scopeKey !== scopeKey) {
+    return <p className={styles.status} role="status">Loading account usage…</p>
+  }
+  if (loaded.error) return <p className={styles.error} role="alert">{loaded.error}</p>
+  if (!loaded.model) return <p className={styles.status} role="status">Loading account usage…</p>
+  const model = loaded.model
   const canWrite = allowsSiteWrite(permissionDecisions, shell)
   if (path === '/admin/settings/usage' || model.billing === null) {
     return (

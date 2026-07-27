@@ -70,7 +70,39 @@ describe('FUMA-057 optional live PostgreSQL acceptance', () => {
     const db = createPostgresClient(scopedPostgresUrl(postgresUrl, schema))
     let now = START
     try {
-      await db.unsafe('create table auth_organizations(id text primary key); create table auth_users(id text primary key)')
+      await db.unsafe(`
+        create table auth_organizations(id text primary key);
+        create table auth_users(id text primary key);
+        create table auth_members(
+          id text primary key,
+          organization_id text not null,
+          user_id text not null,
+          role text not null,
+          created_at timestamptz not null
+        );
+        create table fuma_tenant_owner_keys(
+          platform_id text not null,
+          owner_key text not null,
+          organization_id text not null,
+          generation bigint not null,
+          primary key(platform_id,owner_key)
+        );
+        create table fuma_publication_content(
+          platform_id text not null,
+          owner_key text not null,
+          owner_generation bigint not null,
+          content_id text not null,
+          kind text not null,
+          status text not null,
+          primary key(platform_id,owner_key,owner_generation,content_id)
+        );
+        create table fuma_publication_member_accounts(
+          organization_id text not null,
+          account_id text not null,
+          state text not null,
+          primary key(organization_id,account_id)
+        );
+      `)
       await db.transaction(async (tx) => {
         for (const migration of [
           workspacesMigration,
@@ -103,6 +135,18 @@ describe('FUMA-057 optional live PostgreSQL acceptance', () => {
           ('organization-private','workspace-private','site-private','private-site','Private Site','active','website'),
           ('organization-grandfathered','workspace-grandfathered','site-grandfathered','grandfathered-site','Grandfathered Site','active','website'),
           ('${PLATFORM_ORGANIZATION_ID}','workspace-internal','site-internal','internal-site','Internal Site','active','website');
+        insert into auth_members(id,organization_id,user_id,role,created_at) values
+          ('member-public-1','organization-public','staff-owner','owner','2026-07-29T09:00:00.000Z'),
+          ('member-public-2','organization-public','staff-editor','member','2026-07-29T09:00:00.000Z');
+        insert into fuma_tenant_owner_keys(platform_id,owner_key,organization_id,generation) values
+          ('fuma','owner-public','organization-public',1);
+        insert into fuma_publication_content(
+          platform_id,owner_key,owner_generation,content_id,kind,status
+        ) values
+          ('fuma','owner-public',1,'page-public','page','published'),
+          ('fuma','owner-public',1,'post-public','post','draft');
+        insert into fuma_publication_member_accounts(organization_id,account_id,state) values
+          ('organization-public','reader-public','active');
       `)
       const catalog = new PostgresProviderCostCatalog(db, () => now)
       for (const input of HOSTED_COST_BASELINE_V1) await catalog.append(input)
@@ -418,6 +462,54 @@ describe('FUMA-057 optional live PostgreSQL acceptance', () => {
       })
       expect((await runtime.accounts.selfService('organization-public')).billing?.account.paymentState).toBe('current')
 
+      await db.unsafe(`
+        insert into fuma_usage_ledger(
+          entry_id,idempotency_key,organization_id,workspace_id,site_id,meter,kind,
+          reservation_id,logical_units,physical_units,cost_catalog_version,cost_usd_micros,
+          internal_workload,occurred_at
+        ) values
+          ('usage-storage-source','usage-storage-source','organization-public','workspace-public','site-public','storage_source_bytes','adjustment',null,10,10,'test',0,false,'2026-08-08T08:00:00.000Z'),
+          ('usage-storage-variant','usage-storage-variant','organization-public','workspace-public','site-public','storage_variant_bytes','adjustment',null,5,5,'test',0,false,'2026-08-08T08:00:00.000Z'),
+          ('usage-storage-release','usage-storage-release','organization-public','workspace-public','site-public','storage_release_bytes','adjustment',null,20,20,'test',0,false,'2026-08-08T08:00:00.000Z'),
+          ('usage-storage-local','usage-storage-local','organization-public','workspace-public','site-public','storage_local_backup_bytes','adjustment',null,2,2,'test',0,false,'2026-08-08T08:00:00.000Z'),
+          ('usage-storage-offsite','usage-storage-offsite','organization-public','workspace-public','site-public','storage_offsite_bytes','adjustment',null,3,3,'test',0,false,'2026-08-08T08:00:00.000Z'),
+          ('usage-bandwidth','usage-bandwidth','organization-public','workspace-public','site-public','origin_bandwidth_bytes','adjustment',null,1,100,'test',0,false,'2026-08-08T08:00:00.000Z'),
+          ('usage-email','usage-email','organization-public','workspace-public','site-public','email_recipients','adjustment',null,3,3,'test',0,false,'2026-08-08T08:00:00.000Z'),
+          ('usage-domain','usage-domain','organization-public','workspace-public','site-public','custom_hostnames','adjustment',null,1,1,'test',0,false,'2026-08-08T08:00:00.000Z'),
+          ('usage-build','usage-build','organization-public','workspace-public','site-public','build_publish_milliseconds','adjustment',null,1,60000,'test',0,false,'2026-08-08T08:00:00.000Z'),
+          ('usage-plugin','usage-plugin','organization-public','workspace-public','site-public','plugin_compute_milliseconds','adjustment',null,1,120000,'test',0,false,'2026-08-08T08:00:00.000Z'),
+          ('usage-ai','usage-ai','organization-public','workspace-public','site-public','ai_credits','adjustment',null,4,4,'test',0,false,'2026-08-08T08:00:00.000Z'),
+          ('usage-retention','usage-retention','organization-public','workspace-public','site-public','release_retention_bytes','adjustment',null,7,7,'test',0,false,'2026-08-08T08:00:00.000Z');
+      `)
+      expect(await runtime.usageAuthority.eligibleOrganizations(now.toISOString())).toEqual([
+        PLATFORM_ORGANIZATION_ID,
+        'organization-grandfathered',
+        'organization-private',
+        'organization-public',
+      ])
+      expect(await runtime.usageAuthority.collectOrganization(
+        'organization-public',
+        now.toISOString(),
+      )).toMatchObject({ duplicate: false })
+      expect(await runtime.service.state('organization-public')).toMatchObject({
+        used: {
+          sites: 1,
+          pages: 1,
+          cmsItems: 2,
+          members: 1,
+          storageBytes: 40,
+          bandwidthBytes: 100,
+          emailRecipientsDay: 3,
+          emailRecipientsMonth: 3,
+          buildPublishMinutes: 1,
+          pluginComputeMinutes: 2,
+          aiCredits: 4,
+          releaseRetentionBytes: 7,
+          collaborators: 2,
+          customDomains: 1,
+        },
+      })
+
       const internalUsage = Object.freeze(Object.fromEntries(Object.keys(quotas).map((key) => [key, 1])))
       await runtime.collector.collect({
         idempotencyKey: 'internal:all-classes',
@@ -444,7 +536,7 @@ describe('FUMA-057 optional live PostgreSQL acceptance', () => {
           (select count(*) from fuma_billing_account_transitions_v2) transitions
       `
       expect(Number(evidence.rows[0]?.snapshots)).toBe(4)
-      expect(Number(evidence.rows[0]?.observations)).toBe(1)
+      expect(Number(evidence.rows[0]?.observations)).toBe(2)
       expect(Number(evidence.rows[0]?.reservations)).toBeGreaterThanOrEqual(8)
       expect(Number(evidence.rows[0]?.transitions)).toBeGreaterThanOrEqual(5)
       process.stdout.write('[FUMA-057 PostgreSQL demo] freeLimit=blocked grant=applied+expired campaign=reserved+settled dunning=cancelled payment=recovered internal=redacted data=preserved\n')

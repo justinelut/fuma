@@ -11,6 +11,10 @@ import { QuotaUsageCollector } from './collector'
 import { PostgresQuotaRepository } from './postgres'
 import { createQuotaSelfServiceScopedRouteDeclarations } from './routes'
 import { QuotaService } from './service'
+import {
+  PostgresQuotaUsageAuthority,
+  quotaUsageCollectionJobRegistration,
+} from './usageAuthority'
 
 export const BILLING_DUNNING_JOB = 'fuma.billing-dunning' as const
 
@@ -74,15 +78,20 @@ export function createQuotaRuntime(input: Readonly<{
   )
   const dunning = new DunningJobService(accounts, input.now)
   const collector = new QuotaUsageCollector(service)
+  const usageAuthority = new PostgresQuotaUsageAuthority(input.db, collector)
   const campaign = new QuotaCampaignAuthority(service)
-  const scopedRoutes = createQuotaSelfServiceScopedRouteDeclarations({ accounts })
-  const jobs = billingDunningJobRegistration({ dunning })
+  const scopedRoutes = createQuotaSelfServiceScopedRouteDeclarations({ accounts, collector })
+  const jobs = Object.freeze({
+    ...billingDunningJobRegistration({ dunning }),
+    ...quotaUsageCollectionJobRegistration({ authority: usageAuthority }),
+  })
   return Object.freeze({
     repository,
     service,
     accounts,
     dunning,
     collector,
+    usageAuthority,
     campaign,
     scopedRoutes,
     jobs,

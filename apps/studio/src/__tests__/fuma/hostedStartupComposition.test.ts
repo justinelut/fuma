@@ -5,6 +5,11 @@ import {
   createHostedStaffAuthRuntime,
   type HostedStaffAuthRuntime,
 } from '../../../server/auth/hosted/runtime'
+import {
+  BILLING_DUNNING_JOB,
+  QUOTA_USAGE_COLLECTION_JOB,
+  createQuotaRuntime,
+} from '../../../server/fuma/quotas'
 
 const ORIGIN = 'https://hosted.fuma.test'
 const HOST = 'hosted.fuma.test'
@@ -150,6 +155,21 @@ describe('FUMA-027 hosted startup composition', () => {
       db: database('sqlite'),
       hostedStaffAuth: runtime(async () => null),
     })).toThrow('Fuma request-context authority requires PostgreSQL.')
+  })
+
+  it('composes quota self-service, forecast, dunning, and continuous collection boundaries', () => {
+    const quotas = createQuotaRuntime({ db: database('postgres') })
+    expect(quotas.scopedRoutes.map(({ method, path }) => `${method} ${path}`)).toEqual([
+      'GET /quotas/self-service',
+      'GET /quotas/self-service/export',
+      'POST /quotas/forecast',
+      'POST /quotas/top-up-requests',
+      'POST /billing/cancellation',
+    ])
+    expect(Object.keys(quotas.jobs).sort()).toEqual([
+      BILLING_DUNNING_JOB,
+      QUOTA_USAGE_COLLECTION_JOB,
+    ].sort())
   })
 
   it('retains cleanup and injects the scoped API at the server composition root', async () => {

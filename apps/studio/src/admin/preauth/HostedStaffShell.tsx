@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { FumaScopedShell } from '../fuma/FumaScopedShell'
 import { PublicationRouteContent } from '../fuma/publication'
 import { PlatformCheckoutRouteContent } from '../fuma/billing'
+import { QuotaSelfServiceRouteContent } from '../fuma/usage'
 import {
   HostedProfileEditorSurface,
   type HostedProfileEditorRenderAdapter,
@@ -121,7 +122,16 @@ export function HostedStaffShell({
           {(shell) => (
             <>
               <PublicationRouteContent shell={shell} permissionDecisions={permissionDecisions} />
-              <PlatformCheckoutRouteContent shell={shell} permissionDecisions={permissionDecisions} />
+              <QuotaSelfServiceRouteContent
+                shell={shell}
+                permissionDecisions={permissionDecisions}
+                customerBilling={(
+                  <PlatformCheckoutRouteContent
+                    shell={shell}
+                    permissionDecisions={permissionDecisions}
+                  />
+                )}
+              />
               <HostedProfileEditorSurface
                 shell={shell}
                 permissionDecisions={permissionDecisions}
