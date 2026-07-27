@@ -89,20 +89,49 @@ export const PublicPricingPlanSchema = Type.Object({
 }, { additionalProperties: false })
 export type PublicPricingPlan = Static<typeof PublicPricingPlanSchema>
 
+export const PublicTemplateImageSchema = Type.Object({
+  url: PublicAssetUrlSchema,
+  alt: PublicTextSchema,
+  width: Type.Integer({ minimum: 320, maximum: 2_400 }),
+  height: Type.Integer({ minimum: 180, maximum: 2_400 }),
+  byteSize: Type.Integer({ minimum: 1, maximum: 300_000 }),
+}, { additionalProperties: false })
+export type PublicTemplateImage = Static<typeof PublicTemplateImageSchema>
+
+export const PublicTemplateAccessibilitySchema = Type.Object({
+  standard: Type.Literal('WCAG 2.2 AA'),
+  keyboardChecked: Type.Literal(true),
+  reducedMotionChecked: Type.Literal(true),
+  highContrastChecked: Type.Literal(true),
+  notes: Type.Array(PublicTextSchema, { minItems: 1, maxItems: 12, uniqueItems: true }),
+}, { additionalProperties: false })
+export type PublicTemplateAccessibility = Static<typeof PublicTemplateAccessibilitySchema>
+
 export const PublicTemplateSchema = Type.Object({
   id: PublicIdSchema,
   slug: PublicSlugSchema,
   name: PublicTextSchema,
   summary: PublicSummarySchema,
   profiles: PublicProfileListSchema,
+  capabilities: PublicTagListSchema,
   industries: PublicTagListSchema,
   styles: PublicTagListSchema,
-  accessibilityNotes: Type.Array(PublicTextSchema, { maxItems: 12 }),
+  accessibility: PublicTemplateAccessibilitySchema,
+  releaseId: PublicIdSchema,
   previewUrl: PublicHttpsUrlSchema,
-  imageUrl: PublicAssetUrlSchema,
+  image: PublicTemplateImageSchema,
+  sitemapEligible: Type.Literal(true),
   approvedAt: PublicTimestampSchema,
+  updatedAt: PublicTimestampSchema,
 }, { additionalProperties: false })
 export type PublicTemplate = Static<typeof PublicTemplateSchema>
+
+export const PublicTemplateTombstoneSchema = Type.Object({
+  id: PublicIdSchema,
+  slug: PublicSlugSchema,
+  withdrawnAt: PublicTimestampSchema,
+}, { additionalProperties: false })
+export type PublicTemplateTombstone = Static<typeof PublicTemplateTombstoneSchema>
 
 export const PublicShowcaseSchema = Type.Object({
   id: PublicIdSchema,
@@ -171,8 +200,10 @@ export const PublicPricingQuerySchema = querySchema({
 })
 export const PublicTemplatesQuerySchema = querySchema({
   profile: Type.Optional(PublicProfileSchema),
+  capability: Type.Optional(PublicTagSchema),
   industry: Type.Optional(PublicTagSchema),
   style: Type.Optional(PublicTagSchema),
+  slug: Type.Optional(PublicSlugSchema),
 })
 export const PublicShowcasesQuerySchema = querySchema({
   profile: Type.Optional(PublicProfileSchema),
@@ -201,7 +232,11 @@ export type PublicPluginsQuery = Static<typeof PublicPluginsQuerySchema>
 
 export const PublicProductFactsPageSchema = createCursorPageSchema(PublicProductFactSchema)
 export const PublicPricingCatalogPageSchema = createCursorPageSchema(PublicPricingPlanSchema)
-export const PublicTemplatesPageSchema = createCursorPageSchema(PublicTemplateSchema)
+export const PublicTemplatesPageSchema = Type.Object({
+  items: Type.Array(PublicTemplateSchema, { maxItems: PUBLIC_PAGE_SIZE_MAX }),
+  tombstones: Type.Array(PublicTemplateTombstoneSchema, { maxItems: PUBLIC_PAGE_SIZE_MAX }),
+  page: createCursorPageSchema(PublicTemplateSchema).properties.page,
+}, { additionalProperties: false })
 export const PublicShowcasesPageSchema = createCursorPageSchema(PublicShowcaseSchema)
 export const PublicExpertsPageSchema = createCursorPageSchema(PublicExpertSchema)
 export const PublicPluginsPageSchema = createCursorPageSchema(PublicPluginSchema)
