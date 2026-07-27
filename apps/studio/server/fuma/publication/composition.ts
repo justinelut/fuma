@@ -1,5 +1,6 @@
 import type { FumaRedisCoordination } from '../redis'
 import type { FumaJobService } from '../jobs'
+import type { CampaignQuotaAuthority } from '../quotas/campaign'
 import type { DbClient } from '../../db/client'
 import type { TenantObjectStorage } from '../objectStorage'
 import {
@@ -47,6 +48,7 @@ export type FumaPublicationServicesInput = Readonly<{
   ids:PublicationIdAuthority
   unsubscribe?:PublicationUnsubscribeLinkIssuer
   unsubscribeFactory?:(deliverability:PublicationDeliverabilityService)=>PublicationUnsubscribeLinkIssuer
+  campaignQuota?:CampaignQuotaAuthority
   now?:()=>Date
 }>
 
@@ -73,7 +75,7 @@ export function createFumaPublicationServiceGraph(input:FumaPublicationServicesI
   const deliverabilityControls=new PublicationDeliverabilityControlService(new PostgresPublicationDeliverabilityControlStore(input.db),input.ids,input.now)
   const deliverability=new PublicationDeliverabilityService(store,input.ids,input.now,deliverabilityControls)
   const unsubscribe=input.unsubscribe??input.unsubscribeFactory?.(deliverability)
-  const campaigns=new PublicationCampaignService({store,audience,newsletters,ids:input.ids,oci:input.oci,deliverabilityControls,...(input.jobs?{jobs:input.jobs}:{}),...(unsubscribe?{unsubscribe}:{}),...(input.now?{now:input.now}:{})})
+  const campaigns=new PublicationCampaignService({store,audience,newsletters,ids:input.ids,oci:input.oci,deliverabilityControls,...(input.jobs?{jobs:input.jobs}:{}),...(unsubscribe?{unsubscribe}:{}),...(input.campaignQuota?{campaignQuota:input.campaignQuota}:{}),...(input.now?{now:input.now}:{})})
   const collaboration=new PublicationCollaborationService(new PostgresPublicationCollaborationStore(input.db),now,new PublicationCollaborationEvents(input.redis))
   const revisions=new PublicationRevisionService({repository:new PostgresPublicationRevisionRepository(input.db),snapshots:new PublicationRevisionSnapshotStore(input.objectStorage),ids:input.ids,...(input.now?{now:input.now}:{})})
   const memberAccess=new PublicationMemberAccessService({repository:new PostgresPublicationMemberAccessRepository(input.db),domain:store,ids:input.ids,...(input.now?{now:input.now}:{})})

@@ -7,6 +7,7 @@ import {
   type CampaignSnapshot,
 } from '@core/fuma/publication'
 import type { FumaJobService } from '../jobs'
+import type { CampaignQuotaAuthority } from '../quotas/campaign'
 import type { PublicationRepositoryScope } from './scope'
 import type { PublicationDeliverabilityControlService } from './deliverability'
 import type {
@@ -41,6 +42,7 @@ export class PublicationCampaignService {
   readonly #oci: OciEmailDeliveryProvider
   readonly #unsubscribe: PublicationUnsubscribeLinkIssuer | null
   readonly #deliverabilityControls: PublicationDeliverabilityControlService | null
+  readonly #campaignQuota: CampaignQuotaAuthority | null
   readonly #now: () => Date
   readonly #maxMessageBytes: number
 
@@ -53,6 +55,7 @@ export class PublicationCampaignService {
     oci: OciEmailDeliveryProvider
     unsubscribe?: PublicationUnsubscribeLinkIssuer
     deliverabilityControls?: PublicationDeliverabilityControlService
+    campaignQuota?: CampaignQuotaAuthority
     now?: () => Date
     maxMessageBytes?: number
   }>) {
@@ -69,6 +72,7 @@ export class PublicationCampaignService {
     this.#oci = input.oci
     this.#unsubscribe = input.unsubscribe ?? null
     this.#deliverabilityControls = input.deliverabilityControls ?? null
+    this.#campaignQuota = input.campaignQuota ?? null
     this.#now = input.now ?? (() => new Date())
     this.#maxMessageBytes = maxMessageBytes
   }
@@ -169,6 +173,7 @@ export class PublicationCampaignService {
     if (!await this.#store.transitionCampaignStatus(scope, campaignId, campaign.status, 'cancelled')) {
       throw new PublicationDomainError('conflict', 'Campaign state changed before cancellation.')
     }
+    await this.#campaignQuota?.release(scope, campaign.campaignId, campaign.snapshotSha256)
     return { ...campaign, status: 'cancelled' }
   }
 
@@ -211,7 +216,26 @@ export class PublicationCampaignService {
       throw new PublicationDomainError('conflict', 'Campaign snapshot checksum changed.')
     }
     const current = await this.#store.listDeliveries(scope, campaignId)
-    if (campaign.status === 'cancelled' || campaign.status === 'sent' || campaign.status === 'sending') return current
+    if (campaign.status === 'cancelled') {
+      await this.#campaignQuota?.release(scope, campaign.campaignId, campaign.snapshotSha256)
+      return current
+    }
+    if (campaign.status === 'sent') {
+      await this.#campaignQuota?.settle(
+        scope,
+        campaign.campaignId,
+        campaign.snapshotSha256,
+        current.filter((delivery) => delivery.attempt > 0).length,
+      )
+      return current
+    }
+    if (campaign.status === 'sending') return current
+    await this.#campaignQuota?.reserve(
+      scope,
+      campaign.campaignId,
+      campaign.snapshotSha256,
+      current.length,
+    )
     let claimed = false
     for (const expected of ['draft', 'scheduled', 'failed'] as const) {
       if (await this.#store.transitionCampaignStatus(scope, campaignId, expected, 'sending')) {
@@ -266,7 +290,16 @@ export class PublicationCampaignService {
       await this.#store.putDeliveries(scope, [result])
       next.push(result)
     }
-    await this.#store.transitionCampaignStatus(scope, campaignId, 'sending', next.some((delivery) => delivery.status === 'failed') ? 'failed' : 'sent')
+    const failed = next.some((delivery) => delivery.status === 'failed')
+    await this.#store.transitionCampaignStatus(scope, campaignId, 'sending', failed ? 'failed' : 'sent')
+    if (!failed) {
+      await this.#campaignQuota?.settle(
+        scope,
+        campaign.campaignId,
+        campaign.snapshotSha256,
+        next.filter((delivery) => delivery.attempt > 0).length,
+      )
+    }
     return Object.freeze(next)
   }
 }
