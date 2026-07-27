@@ -43,18 +43,30 @@ async function boundedRawBody(request: Request): Promise<Uint8Array> {
   return raw
 }
 
+export type PaystackRawWebhookHandler = (
+  raw: Uint8Array,
+  signature: string,
+) => Promise<unknown>
+
 export type PaystackWebhookBoundaryInput = Readonly<{
   platformBilling: ScopedPaystackTransport
   customerMerchant: ScopedPaystackTransport
+  platformBillingHandler?: PaystackRawWebhookHandler
+}>
+
+type BoundWebhookRoute = Readonly<{
+  transport: ScopedPaystackTransport
+  handle: PaystackRawWebhookHandler
 }>
 
 /**
  * One bounded dispatcher owns the Paystack public namespace, while each exact
  * route remains permanently bound to one credential-scoped transport and
- * ledger. Every matched delivery receives the same non-oracular response.
+ * ledger. FUMA-056 may extend only the platform route after shared raw
+ * signature/scope validation; the customer route remains isolated.
  */
 export class PaystackWebhookBoundary {
-  readonly #routes: ReadonlyMap<string, ScopedPaystackTransport>
+  readonly #routes: ReadonlyMap<string, BoundWebhookRoute>
 
   constructor(input: PaystackWebhookBoundaryInput) {
     if (input.platformBilling.scope !== 'platform_billing') {
@@ -67,8 +79,15 @@ export class PaystackWebhookBoundary {
       throw new TypeError('Paystack credential scopes require separate transport instances.')
     }
     this.#routes = new Map([
-      [PAYSTACK_WEBHOOK_PATHS.platform_billing, input.platformBilling],
-      [PAYSTACK_WEBHOOK_PATHS.customer_merchant, input.customerMerchant],
+      [PAYSTACK_WEBHOOK_PATHS.platform_billing, Object.freeze({
+        transport: input.platformBilling,
+        handle: input.platformBillingHandler
+          ?? ((raw, signature) => input.platformBilling.ingestWebhook(raw, signature)),
+      })],
+      [PAYSTACK_WEBHOOK_PATHS.customer_merchant, Object.freeze({
+        transport: input.customerMerchant,
+        handle: (raw, signature) => input.customerMerchant.ingestWebhook(raw, signature),
+      })],
     ])
   }
 
@@ -79,12 +98,12 @@ export class PaystackWebhookBoundary {
   async handle(request: Request): Promise<Response | null> {
     const pathname = new URL(request.url).pathname
     if (!pathname.startsWith(PAYSTACK_WEBHOOK_PREFIX)) return null
-    const transport = this.#routes.get(pathname)
-    if (!transport || request.method !== 'POST') return notFound()
+    const route = this.#routes.get(pathname)
+    if (!route || request.method !== 'POST') return notFound()
     try {
       const signature = request.headers.get('x-paystack-signature') ?? ''
       const raw = await boundedRawBody(request)
-      await transport.ingestWebhook(raw, signature)
+      await route.handle(raw, signature)
     } catch {
       // Deliberately indistinguishable from accepted and duplicate deliveries.
     }
@@ -98,7 +117,9 @@ export class PaystackWebhookBoundary {
   }> {
     return Object.freeze({
       routes: Object.freeze([...this.#routes.keys()].sort()),
-      scopes: Object.freeze([...this.#routes.values()].map((transport) => transport.scope).sort()),
+      scopes: Object.freeze([...this.#routes.values()]
+        .map(({ transport }) => transport.scope)
+        .sort()),
       credentials: '[REDACTED]',
     })
   }
