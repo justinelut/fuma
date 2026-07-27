@@ -5,9 +5,11 @@ import {
   CollaborationReconcileResultSchema,
   DeliverabilitySummarySchema,
   EmailSettingsLayerSchema,
+  NewsletterFixtureKindSchema,
   NewsletterPreviewSchema,
   NewsletterSchema,
   NewsletterTestSendCommandSchema,
+  NewsletterVersionComparisonSchema,
   NewsletterVersionSchema,
   PublicationAccessGrantSchema,
   PublicationAccessEvaluationRequestSchema,
@@ -116,6 +118,8 @@ const SegmentSaveSchema = Type.Object({ segment: PublicationSegmentSchema, expec
 const SettingsSaveSchema = Type.Object({ layer: EmailSettingsLayerSchema, expectedVersion: Type.Union([Type.Integer({ minimum: 1 }), Type.Null()]) }, { additionalProperties: false })
 const CampaignCommandSchema = Type.Object({ campaignId: Type.String({ minLength: 1, maxLength: 255 }), newsletterId: Type.String({ minLength: 1, maxLength: 255 }), versionId: Type.String({ minLength: 1, maxLength: 255 }), segmentId: Type.String({ minLength: 1, maxLength: 255 }), scheduledAt: Type.Union([Type.String(), Type.Null()]) }, { additionalProperties: false })
 const NewsletterVersionCommandSchema = Type.Omit(NewsletterVersionSchema, ['createdBy','createdAt','lockedAt'])
+const NewsletterFixtureQuerySchema = Type.Object({ fixture: NewsletterFixtureKindSchema }, { additionalProperties: false })
+const NewsletterVersionComparisonQuerySchema = Type.Object({ newsletterId: Type.String({ minLength: 1, maxLength: 255 }), from: Type.String({ minLength: 1, maxLength: 255 }), to: Type.String({ minLength: 1, maxLength: 255 }) }, { additionalProperties: false })
 const UnsubscribeCommandSchema = Type.Object({ tokenId: Type.String({ minLength: 1, maxLength: 255 }) }, { additionalProperties: false })
 
 export type PublicationRoutePorts = Readonly<{
@@ -166,6 +170,8 @@ function scoped(input: FumaScopedRouteHandlerInput) { return bindPublicationScop
 function memberPage(input:FumaScopedRouteHandlerInput):Static<typeof MemberPageQuerySchema>{const values=query(input);const rawLimit=values.get('limit');const parsed=safeParseValue(MemberPageQuerySchema,{limit:rawLimit===null?100:Number(rawLimit),afterId:values.get('afterId')});if(!parsed.ok)throw new TypeError('Member page query is invalid.');return parsed.value}
 function consentStateQuery(input:FumaScopedRouteHandlerInput):Static<typeof MemberConsentStateQuerySchema>{const parsed=safeParseValue(MemberConsentStateQuerySchema,{newsletterId:query(input).get('newsletterId')});if(!parsed.ok)throw new TypeError('Consent state query is invalid.');return parsed.value}
 function query(input: FumaScopedRouteHandlerInput): URLSearchParams { return new URL(input.request.url).searchParams }
+function newsletterFixtureQuery(input:FumaScopedRouteHandlerInput):Static<typeof NewsletterFixtureQuerySchema>{const parsed=safeParseValue(NewsletterFixtureQuerySchema,{fixture:query(input).get('fixture')??'public'});if(!parsed.ok)throw new TypeError('Newsletter fixture query is invalid.');return parsed.value}
+function newsletterComparisonQuery(input:FumaScopedRouteHandlerInput):Static<typeof NewsletterVersionComparisonQuerySchema>{const values=query(input);const parsed=safeParseValue(NewsletterVersionComparisonQuerySchema,{newsletterId:values.get('newsletterId'),from:values.get('from'),to:values.get('to')});if(!parsed.ok)throw new TypeError('Newsletter comparison query is invalid.');return parsed.value}
 function revisionResource(input:FumaScopedRouteHandlerInput):Static<typeof RevisionResourceSchema>{const parsed=safeParseValue(RevisionResourceSchema,input.params);if(!parsed.ok)throw new TypeError('Revision resource path is invalid.');return parsed.value}
 function revisionComparisonQuery(input:FumaScopedRouteHandlerInput):Static<typeof RevisionComparisonQuerySchema>{const values=query(input);const parsed=safeParseValue(RevisionComparisonQuerySchema,{from:values.get('from'),to:values.get('to')});if(!parsed.ok)throw new TypeError('Revision comparison query is invalid.');return parsed.value}
 function workflowContentPath(input:FumaScopedRouteHandlerInput):Static<typeof WorkflowContentPathSchema>{const parsed=safeParseValue(WorkflowContentPathSchema,input.params);if(!parsed.ok)throw new TypeError('Workflow content path is invalid.');return parsed.value}
@@ -249,7 +255,8 @@ export function createPublicationScopedRouteDeclarations(ports: PublicationRoute
     route('POST', '/publication/newsletters', 'publication.newsletters.write', async (input) => json(NewsletterSchema, await ports.newsletters.save(scoped(input), await body(input, NewsletterSchema)))),
     route('GET', '/publication/newsletter-versions', 'publication.newsletters.read', async (input) => json(NewsletterVersionListSchema, { versions: await ports.store.listNewsletterVersions(scoped(input), query(input).get('newsletterId')) })),
     route('POST', '/publication/newsletter-versions', 'publication.newsletters.write', async (input) => {const command=await body(input,NewsletterVersionCommandSchema);return json(NewsletterVersionSchema, await ports.newsletters.createVersion(scoped(input),{...command,createdBy:actor(input).actorId,createdAt:now().toISOString(),lockedAt:null}))}),
-    route('GET', '/publication/newsletter-preview/:versionId', 'publication.newsletters.read', async (input) => json(NewsletterPreviewSchema, await ports.newsletters.preview(scoped(input), input.params.versionId!))),
+    route('GET', '/publication/newsletter-versions/compare', 'publication.newsletters.read', async (input) => {const comparison=newsletterComparisonQuery(input);return json(NewsletterVersionComparisonSchema,await ports.newsletters.compare(scoped(input),comparison.newsletterId,comparison.from,comparison.to))}),
+    route('GET', '/publication/newsletter-preview/:versionId', 'publication.newsletters.read', async (input) => json(NewsletterPreviewSchema, await ports.newsletters.preview(scoped(input), input.params.versionId!,newsletterFixtureQuery(input).fixture))),
     route('POST', '/publication/newsletter-test', 'publication.newsletters.send', async (input) => json(MessageResultSchema, { providerMessageId: await ports.newsletters.testSend(scoped(input), await body(input, NewsletterTestSendCommandSchema)) })),
     route('POST', '/publication/campaigns', 'publication.newsletters.send', async (input) => json(CampaignSnapshotSchema, await ports.campaigns.snapshot(scoped(input), await body(input, CampaignCommandSchema)))),
     route('POST', '/publication/campaigns/:campaignId/send', 'publication.newsletters.send', async (input) => json(DeliveryListSchema, { deliveries: await ports.campaigns.send(scoped(input), input.params.campaignId!) })),
