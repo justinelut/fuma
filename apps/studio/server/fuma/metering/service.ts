@@ -80,8 +80,10 @@ export class VersionedCostCatalog implements ProviderCostCatalog {
       if (identities.has(identity)) throw new MeteringError('invalid', 'Cost catalog version contains a duplicate meter.')
       identities.add(identity)
       const versions = this.#byMeter.get(value.meter) ?? []
+      const sourcePriority = Object.freeze({ 'published-baseline': 0, quote: 1, invoice: 2 })
       versions.push(value)
-      versions.sort((left, right) => timestamp(left.effectiveAt) - timestamp(right.effectiveAt)
+      versions.sort((left, right) => sourcePriority[left.source] - sourcePriority[right.source]
+        || timestamp(left.effectiveAt) - timestamp(right.effectiveAt)
         || left.version.localeCompare(right.version))
       this.#byMeter.set(value.meter, versions)
     }
@@ -113,6 +115,7 @@ export class VersionedCostCatalog implements ProviderCostCatalog {
     return Object.freeze({
       version: input.version,
       provider: input.provider,
+      source: input.source,
       variable: BigInt(input.unitCostMinorUsdMicros) * BigInt(physicalUnits),
       fixed: BigInt(input.fixedCostMinorUsdMicros),
       allocationWeight: BigInt(input.allocationWeight),

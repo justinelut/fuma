@@ -9,7 +9,7 @@ const cases=[
 ['FUMA-051','server/fuma/edgeDelivery/service.ts',['member-required','ifNoneMatch','rollback']],
 ['FUMA-052','server/fuma/metering/service.ts',['internalWorkload','CostCompletenessError','reconcile']],
 ['FUMA-053','server/fuma/paystack/transport.ts',['platform_billing','customer_merchant','verifyPaystackWebhook']],
-['FUMA-054','server/fuma/entitlements/service.ts',['platform-internal','awaiting-payment','margin < 7_000']],
+['FUMA-054','server/fuma/entitlements/service.ts',['platform-internal','result.candidate','assertLaunchEconomics']],
 ['FUMA-055','server/fuma/checkout/service.ts',['platform_billing','platform-setup','internal-denied']],
 ['FUMA-056','server/fuma/billing/reconciler.ts',['paid-transfer-pending','emitHandoff','transport.verify']],
 ['FUMA-057','server/fuma/quotas/service.ts',['exhausted','shadowCost: undefined','reserved']],

@@ -1,211 +1,301 @@
-import { Type, Value, type Static } from '@core/utils/typeboxHelpers'
-import { METER_CLASSES, METER_MAPPINGS, type VersionedCostCatalog } from '../metering/service'
+import { Type, Value } from '@core/utils/typeboxHelpers'
+import { PLATFORM_ORGANIZATION_ID } from '../organizations/contracts'
+import {
+  AllowanceAdjustmentSchema,
+  CustomOfferDraftSchema,
+  CustomOfferSchema,
+  GrandfatheredAssignmentSchema,
+  PriceBookDraftSchema,
+  PriceBookSchema,
+  type AllowanceAdjustment,
+  type ContractCandidate,
+  type CustomOffer,
+  type CustomOfferDraft,
+  type EntitlementCostCatalog,
+  type EntitlementRepository,
+  type EntitlementSnapshot,
+  type GrandfatheredAssignment,
+  type InternalGrant,
+  type OfferDestinationAuthority,
+  type PlanDefinition,
+  type PriceBook,
+  type PriceBookDraft,
+  type QuotaEnvelope,
+} from './contracts'
+import {
+  EntitlementEconomicsError,
+  assertFiniteQuotas,
+  assertLaunchEconomics,
+  calculateEconomics,
+  evidenceSha256,
+  samePlanPair,
+  toPublicPricingPlan,
+} from './economics'
+import { EntitlementError } from './errors'
 
-export const QUOTA_CLASSES = ['sites', 'pages', 'cmsItems', 'members', 'storageBytes', 'bandwidthBytes', 'emailRecipientsDay', 'emailRecipientsMonth', 'buildPublishMinutes', 'pluginComputeMinutes', 'aiCredits', 'releaseRetentionBytes', 'collaborators', 'customDomains'] as const
-const QuotaClassSchema = Type.Union(QUOTA_CLASSES.map((quotaClass) => Type.Literal(quotaClass)))
-export const QuotaEnvelopeSchema = Type.Record(QuotaClassSchema, Type.Integer({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER }))
-export type QuotaEnvelope = Readonly<Record<(typeof QUOTA_CLASSES)[number], number>>
-const PlanSchema = Type.Object({
-  planId: Type.String({ minLength: 1, maxLength: 100 }),
-  cadence: Type.Union([Type.Literal('monthly'), Type.Literal('annual')]),
-  amountMinor: Type.Integer({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER }),
-  quotas: QuotaEnvelopeSchema,
-  public: Type.Boolean(),
-}, { additionalProperties: false })
-export const PriceBookSchema = Type.Object({
-  version: Type.String({ minLength: 1, maxLength: 100 }),
-  currency: Type.Literal('KES'),
-  effectiveAt: Type.String({ format: 'date-time' }),
-  plans: Type.Array(PlanSchema, { minItems: 2, maxItems: 100 }),
-}, { additionalProperties: false })
-export type PriceBook = Static<typeof PriceBookSchema>
-export const CustomOfferSchema = Type.Object({
-  offerId: Type.String({ minLength: 1, maxLength: 255 }), version: Type.Integer({ minimum: 1 }),
-  destinationOrganizationId: Type.String({ minLength: 1 }), destinationWorkspaceId: Type.String({ minLength: 1 }), siteId: Type.String({ minLength: 1 }),
-  currency: Type.Literal('KES'), recurringAmountMinor: Type.Integer({ minimum: 1 }), cadence: Type.Union([Type.Literal('monthly'), Type.Literal('annual')]), setupFeeMinor: Type.Integer({ minimum: 0 }),
-  quotas: QuotaEnvelopeSchema, workloadAssumptions: Type.Record(Type.String({ minLength: 1 }), Type.Integer({ minimum: 0 })),
-  termsHash: Type.String({ pattern: '^[a-f0-9]{64}$' }), costModelVersion: Type.String({ minLength: 1 }), expectedCostMinor: Type.Integer({ minimum: 0 }), marginBasisPoints: Type.Integer({ minimum: 0, maximum: 10_000 }),
-  state: Type.Union([Type.Literal('draft'), Type.Literal('issued'), Type.Literal('accepted'), Type.Literal('withdrawn'), Type.Literal('expired')]),
-  effectiveAt: Type.String({ format: 'date-time' }), expiresAt: Type.String({ format: 'date-time' }),
-}, { additionalProperties: false })
-export type CustomOffer = Static<typeof CustomOfferSchema>
-export type InternalGrant = Readonly<{ grantId: 'platform-internal'; organizationId: string; quotas: QuotaEnvelope; nonTransferable: true; providerCustomerId: null; shadowCostRequired: true }>
-export type ContractCandidate = Readonly<{
-  candidateId: string; offerId: string; offerVersion: number; destinationOrganizationId: string; destinationWorkspaceId: string; siteId: string
-  state: 'awaiting-payment'; setupFeeSettled: false; recurringSettled: false; activatedAt: null; paidTransferPending: false
-}>
-export const AllowanceAdjustmentSchema = Type.Object({
-  adjustmentId: Type.String({ minLength: 1 }), organizationId: Type.String({ minLength: 1 }), quotaClass: QuotaClassSchema, units: Type.Integer({ minimum: 1 }),
-  kind: Type.Union([Type.Literal('top-up'), Type.Literal('overage'), Type.Literal('grant'), Type.Literal('promotion'), Type.Literal('grace')]),
-  effectiveAt: Type.String({ format: 'date-time' }), expiresAt: Type.String({ format: 'date-time' }), approvedBy: Type.String({ minLength: 1 }),
-  state: Type.Union([Type.Literal('active'), Type.Literal('expired'), Type.Literal('revoked')]),
-}, { additionalProperties: false })
-export type AllowanceAdjustment = Static<typeof AllowanceAdjustmentSchema>
-export interface EntitlementRepository {
-  createInternalGrant(grant: InternalGrant): Promise<InternalGrant>
-  savePriceBook(book: PriceBook): Promise<void>
-  saveAdjustment(adjustment: AllowanceAdjustment): Promise<AllowanceAdjustment>
-  saveOffer(offer: CustomOffer): Promise<void>
-  exactOffer(id: string, version: number): Promise<CustomOffer | null>
-  createCandidate(candidate: ContractCandidate): Promise<ContractCandidate>
-}
-export class EntitlementError extends Error {
-  readonly code: 'invalid' | 'incomplete-cost' | 'margin' | 'immutable' | 'expired' | 'destination' | 'internal-only';
-  constructor(code: 'invalid' | 'incomplete-cost' | 'margin' | 'immutable' | 'expired' | 'destination' | 'internal-only', message: string) { super(message); this.code = code; this.name = 'EntitlementError' }
-}
+export * from './contracts'
+export * from './economics'
+export * from './errors'
 
-function assertQuotas(value: unknown): asserts value is QuotaEnvelope {
-  if (!Value.Check(QuotaEnvelopeSchema, value) || QUOTA_CLASSES.some((quotaClass) => !Object.prototype.hasOwnProperty.call(value, quotaClass))) {
-    throw new EntitlementError('invalid', 'Every quota class must be explicit and finite.')
+const AcceptOfferSchema = Type.Object({
+  offerId: Type.String({ minLength: 1, maxLength: 255 }),
+  version: Type.Integer({ minimum: 1 }),
+  destinationOrganizationId: Type.String({ minLength: 1, maxLength: 255 }),
+  destinationWorkspaceId: Type.String({ minLength: 1, maxLength: 255 }),
+  siteId: Type.String({ minLength: 1, maxLength: 255 }),
+}, { additionalProperties: false })
+
+function entitlementError(error: unknown): never {
+  if (error instanceof EntitlementError) throw error
+  if (error instanceof EntitlementEconomicsError) throw new EntitlementError(error.code, error.message)
+  if (error instanceof Error && error.name === 'CostCompletenessError') {
+    throw new EntitlementError('incomplete-cost', 'Cost model evidence is incomplete or stale.')
   }
-  const quotas = value as QuotaEnvelope
-  if (quotas.emailRecipientsDay > 100 || quotas.emailRecipientsMonth > 3_000) throw new EntitlementError('invalid', 'Starter and trial email caps exceed 100/day or 3,000/month.')
+  throw error
 }
-function marginBasisPoints(revenueMinor: number, costMinor: number): number { return Math.floor(((revenueMinor - costMinor) * 10_000) / revenueMinor) }
-function assumptionMeters(assumption: string): readonly string[] {
-  const mapped = (METER_MAPPINGS as Readonly<Record<string, readonly string[]>>)[assumption]
-  if (mapped) return mapped
-  if (METER_CLASSES.includes(assumption as typeof METER_CLASSES[number])) return [assumption]
-  throw new EntitlementError('incomplete-cost', `Unknown workload assumption ${assumption}.`)
+
+function instant(value: string, label: string): number {
+  const parsed = Date.parse(value)
+  if (!Number.isFinite(parsed)) throw new EntitlementError('invalid', `${label} is invalid.`)
+  return parsed
 }
+
+function assertWindow(effectiveAt: string, expiresAt: string, renewalAt: string): void {
+  const effective = instant(effectiveAt, 'Effective time')
+  const expires = instant(expiresAt, 'Expiry time')
+  const renewal = instant(renewalAt, 'Renewal time')
+  if (expires <= effective) throw new EntitlementError('invalid', 'Offer expiry must follow its effective time.')
+  if (renewal <= expires) throw new EntitlementError('invalid', 'Renewal must follow the offer acceptance window.')
+}
+
+function assertPromotion(plan: PlanDefinition, effectiveAt: string): void {
+  const effective = instant(effectiveAt, 'Price-book effective time')
+  const expiry = plan.expiresAt === null ? null : instant(plan.expiresAt, 'Plan expiry')
+  if (expiry !== null && expiry <= effective) throw new EntitlementError('invalid', 'Plan expiry must follow the price-book effective time.')
+  if (plan.promotion) {
+    const starts = instant(plan.promotion.startsAt, 'Promotion start')
+    const ends = instant(plan.promotion.endsAt, 'Promotion end')
+    if (ends <= starts || ends <= effective || (expiry !== null && ends > expiry)) {
+      throw new EntitlementError('invalid', 'Promotion must be current within the immutable plan window.')
+    }
+  }
+}
+
+function assertDiscount(offer: CustomOfferDraft): void {
+  if (!offer.discount) return
+  const starts = instant(offer.discount.startsAt, 'Discount start')
+  const ends = instant(offer.discount.endsAt, 'Discount end')
+  if (ends <= starts || ends <= instant(offer.effectiveAt, 'Offer effective time') || starts >= instant(offer.renewalAt, 'Offer renewal time')) {
+    throw new EntitlementError('invalid', 'Discount must overlap the immutable offer term.')
+  }
+}
+
+function minimumRecurringRevenue(offer: CustomOfferDraft): number {
+  if (!offer.discount) return offer.recurringAmountMinor
+  const discounted = Math.floor(offer.recurringAmountMinor * (10_000 - offer.discount.basisPoints) / 10_000)
+  return offer.discount.renewalAmountMinor === null ? discounted : Math.min(discounted, offer.discount.renewalAmountMinor)
+}
+
+function exactEconomics(left: CustomOffer, right: CustomOffer): boolean {
+  return evidenceSha256({ recurring: left.recurringEconomics, setup: left.setupEconomics })
+    === evidenceSha256({ recurring: right.recurringEconomics, setup: right.setupEconomics })
+}
+
+export type EntitlementDecision = Readonly<{
+  organizationId: string
+  source: 'platform-internal' | 'public-contract' | 'private-contract' | 'grandfathered' | 'none'
+  sourceId: string | null
+  quotas: QuotaEnvelope | null
+  billingAllowed: boolean
+  providerAllowed: boolean
+  shadowCostRequired: boolean
+}>
 
 export class EntitlementService {
-  private readonly repository: EntitlementRepository;
-  private readonly catalog: VersionedCostCatalog;
-  private readonly usdMicrosToKesMinor: (usdMicros: bigint) => number;
-  private readonly protectedInternalOrganizationId: string;
-  private readonly now: () => Date;
-  constructor(
-    repository: EntitlementRepository,
-    catalog: VersionedCostCatalog,
-    usdMicrosToKesMinor: (usdMicros: bigint) => number,
-    protectedInternalOrganizationId: string,
-    now: () => Date = () => new Date(),
-  ) { this.repository = repository; this.catalog = catalog; this.usdMicrosToKesMinor = usdMicrosToKesMinor; this.protectedInternalOrganizationId = protectedInternalOrganizationId; this.now = now;}
+  readonly #repository: EntitlementRepository
+  readonly #catalog: EntitlementCostCatalog
+  readonly #usdMicrosToKesMinor: (usdMicros: bigint) => number
+  readonly #destinations: OfferDestinationAuthority
+  readonly #now: () => Date
 
-  private expectedCost(workloads: Readonly<Record<string, number>>, requiredVersion?: string): number {
-    this.catalog.assertComplete(METER_CLASSES)
-    const entries = Object.entries(workloads)
-    if (entries.length === 0) throw new EntitlementError('incomplete-cost', 'Workload assumptions cannot be empty.')
-    let micros = 0n
-    for (const [assumption, units] of entries) {
-      if (!Number.isSafeInteger(units) || units < 0) throw new EntitlementError('incomplete-cost', 'Workload assumptions must be non-negative safe integers.')
-      for (const meter of assumptionMeters(assumption)) {
-        const cost = this.catalog.cost(meter, units)
-        if (requiredVersion && cost.version !== requiredVersion) throw new EntitlementError('incomplete-cost', 'Offer cost model version does not match every required meter.')
-        micros += cost.variable + cost.fixed
-      }
-    }
-    const expected = this.usdMicrosToKesMinor(micros)
-    if (!Number.isSafeInteger(expected) || expected < 0) throw new EntitlementError('incomplete-cost', 'Cost model FX conversion is unavailable.')
-    return expected
+  constructor(input: Readonly<{
+    repository: EntitlementRepository
+    catalog: EntitlementCostCatalog
+    usdMicrosToKesMinor: (usdMicros: bigint) => number
+    destinations: OfferDestinationAuthority
+    now?: () => Date
+  }>) {
+    this.#repository = input.repository
+    this.#catalog = input.catalog
+    this.#usdMicrosToKesMinor = input.usdMicrosToKesMinor
+    this.#destinations = input.destinations
+    this.#now = input.now ?? (() => new Date())
   }
 
   async ensureInternalGrant(organizationId: string, quotas: unknown): Promise<InternalGrant> {
-    if (organizationId !== this.protectedInternalOrganizationId) throw new EntitlementError('internal-only', 'The platform-internal grant belongs only to the protected internal organization.')
-    assertQuotas(quotas)
-    return await this.repository.createInternalGrant(Object.freeze({ grantId: 'platform-internal', organizationId, quotas: structuredClone(quotas), nonTransferable: true, providerCustomerId: null, shadowCostRequired: true }))
+    try {
+      if (organizationId !== PLATFORM_ORGANIZATION_ID) {
+        throw new EntitlementError('internal-only', 'The platform-internal grant belongs only to the protected platform organization.')
+      }
+      assertFiniteQuotas(quotas)
+      return await this.#repository.createInternalGrant(Object.freeze({
+        grantId: 'platform-internal', organizationId, quotas: structuredClone(quotas),
+        nonTransferable: true, providerCustomerId: null, shadowCostRequired: true,
+      }))
+    } catch (error) { return entitlementError(error) }
+  }
+
+  async publishPriceBook(raw: unknown): Promise<PriceBook> {
+    try {
+      if (!Value.Check(PriceBookDraftSchema, raw)) throw new EntitlementError('invalid', 'Price book failed strict TypeBox validation.')
+      const draft = Object.freeze(structuredClone(raw)) as PriceBookDraft
+      const seen = new Set<string>()
+      const pairs = new Map<string, PlanDefinition[]>()
+      const priced = []
+      for (const plan of draft.plans) {
+        assertFiniteQuotas(plan.quotas, plan.offeringClass)
+        assertPromotion(plan, draft.effectiveAt)
+        const key = `${plan.planId}:${plan.cadence}`
+        if (seen.has(key)) throw new EntitlementError('invalid', 'Price book contains a duplicate plan cadence.')
+        seen.add(key)
+        const group = pairs.get(plan.planId) ?? []
+        group.push(plan); pairs.set(plan.planId, group)
+        const economics = await calculateEconomics(this.#catalog, this.#usdMicrosToKesMinor, plan.amountMinor, plan.workloadAssumptions)
+        assertLaunchEconomics(economics, `Plan ${key}`)
+        priced.push(Object.freeze({ ...structuredClone(plan), economics }))
+      }
+      for (const [planId, pair] of pairs) {
+        if (pair.length !== 2 || new Set(pair.map((plan) => plan.cadence)).size !== 2 || !samePlanPair(pair[0]!, pair[1]!)) {
+          throw new EntitlementError('invalid', `Plan ${planId} requires matching monthly and annual definitions.`)
+        }
+      }
+      const versions = new Set(priced.map((plan) => plan.economics.costModelVersion))
+      if (versions.size !== 1) throw new EntitlementError('incomplete-cost', 'Every published plan must use one complete cost-model snapshot.')
+      const publicJson = Object.freeze({ items: Object.freeze(draft.plans.map((plan) => toPublicPricingPlan(plan, draft.effectiveAt))) })
+      const book = Object.freeze({
+        version: draft.version, currency: draft.currency, effectiveAt: draft.effectiveAt,
+        publishedAt: this.#now().toISOString(), costModelVersion: [...versions][0]!,
+        plans: Object.freeze(priced), publicJson,
+      })
+      if (!Value.Check(PriceBookSchema, book)) throw new EntitlementError('invalid', 'Price book snapshot failed strict validation.')
+      return await this.#repository.publishPriceBook(book)
+    } catch (error) { return entitlementError(error) }
+  }
+
+  async propose(raw: unknown): Promise<CustomOffer> {
+    try {
+      if (!Value.Check(CustomOfferDraftSchema, raw)) throw new EntitlementError('invalid', 'Custom offer draft failed strict TypeBox validation.')
+      const input = Object.freeze(structuredClone(raw)) as CustomOfferDraft
+      assertFiniteQuotas(input.quotas)
+      assertWindow(input.effectiveAt, input.expiresAt, input.renewalAt)
+      assertDiscount(input)
+      await this.#destinations.assertProvisional({
+        organizationId: input.destinationOrganizationId, workspaceId: input.destinationWorkspaceId, siteId: input.siteId,
+      })
+      if (input.replaces) {
+        const replaced = await this.#repository.exactOffer(input.replaces.offerId, input.replaces.version)
+        if (!replaced || replaced.state !== 'withdrawn') throw new EntitlementError('immutable', 'Replacement offers require an exact withdrawn predecessor.')
+      }
+      const recurringEconomics = await calculateEconomics(this.#catalog, this.#usdMicrosToKesMinor, minimumRecurringRevenue(input), input.workloadAssumptions)
+      assertLaunchEconomics(recurringEconomics, `Offer ${input.offerId}`)
+      const setupEconomics = await calculateEconomics(this.#catalog, this.#usdMicrosToKesMinor, input.setupFeeMinor, input.setupWorkloadAssumptions)
+      if (input.setupFeeMinor < setupEconomics.expectedCostMinor) throw new EntitlementError('margin', 'One-time setup fee does not cover its complete forecast cost.')
+      if (setupEconomics.costModelVersion !== recurringEconomics.costModelVersion) throw new EntitlementError('incomplete-cost', 'Setup and recurring economics must use one cost-model snapshot.')
+      const offer = Object.freeze({
+        ...structuredClone(input), recurringEconomics, setupEconomics,
+        state: 'draft' as const, issuedAt: null, acceptedAt: null,
+      })
+      if (!Value.Check(CustomOfferSchema, offer)) throw new EntitlementError('invalid', 'Custom offer snapshot failed strict validation.')
+      return offer
+    } catch (error) { return entitlementError(error) }
+  }
+
+  async issue(raw: unknown): Promise<CustomOffer> {
+    try {
+      if (!Value.Check(CustomOfferSchema, raw)) throw new EntitlementError('invalid', 'Offer failed strict validation.')
+      const offer = Object.freeze(structuredClone(raw)) as CustomOffer
+      if (offer.state !== 'draft' || offer.issuedAt !== null || offer.acceptedAt !== null) throw new EntitlementError('immutable', 'Only an exact draft can be issued.')
+      if (instant(offer.expiresAt, 'Offer expiry') <= this.#now().getTime()) throw new EntitlementError('expired', 'Offer already expired.')
+      await this.#destinations.assertProvisional({ organizationId: offer.destinationOrganizationId, workspaceId: offer.destinationWorkspaceId, siteId: offer.siteId })
+      const reproposed = await this.propose({
+        offerId: offer.offerId, version: offer.version, destinationOrganizationId: offer.destinationOrganizationId,
+        destinationWorkspaceId: offer.destinationWorkspaceId, siteId: offer.siteId, currency: offer.currency,
+        recurringAmountMinor: offer.recurringAmountMinor, cadence: offer.cadence, setupFeeMinor: offer.setupFeeMinor,
+        quotas: offer.quotas, workloadAssumptions: offer.workloadAssumptions, setupWorkloadAssumptions: offer.setupWorkloadAssumptions,
+        termsHash: offer.termsHash, effectiveAt: offer.effectiveAt, expiresAt: offer.expiresAt, renewalAt: offer.renewalAt,
+        renewalPolicy: offer.renewalPolicy, discount: offer.discount, replaces: offer.replaces,
+      })
+      if (!exactEconomics(offer, reproposed)) throw new EntitlementError('margin', 'Offer economics changed after proposal.')
+      return await this.#repository.issueOffer(Object.freeze({ ...offer, state: 'issued', issuedAt: this.#now().toISOString() }))
+    } catch (error) { return entitlementError(error) }
+  }
+
+  async withdraw(offerId: string, version: number): Promise<CustomOffer> {
+    return await this.#repository.transitionOffer(offerId, version, 'withdrawn', this.#now().toISOString())
+  }
+
+  async expire(offerId: string, version: number): Promise<CustomOffer> {
+    const offer = await this.#repository.exactOffer(offerId, version)
+    if (!offer) throw new EntitlementError('not-found', 'Offer does not exist.')
+    if (instant(offer.expiresAt, 'Offer expiry') > this.#now().getTime()) throw new EntitlementError('invalid', 'Offer cannot expire before its immutable expiry time.')
+    return await this.#repository.transitionOffer(offerId, version, 'expired', this.#now().toISOString())
+  }
+
+  async accept(raw: unknown): Promise<ContractCandidate> {
+    if (!Value.Check(AcceptOfferSchema, raw)) throw new EntitlementError('invalid', 'Offer acceptance failed strict validation.')
+    const input = raw as { offerId: string; version: number; destinationOrganizationId: string; destinationWorkspaceId: string; siteId: string }
+    await this.#destinations.assertProvisional({ organizationId: input.destinationOrganizationId, workspaceId: input.destinationWorkspaceId, siteId: input.siteId })
+    const result = await this.#repository.acceptOffer({
+      offerId: input.offerId, version: input.version, organizationId: input.destinationOrganizationId,
+      workspaceId: input.destinationWorkspaceId, siteId: input.siteId, now: this.#now().toISOString(),
+    })
+    return result.candidate
   }
 
   async saveAdjustment(raw: unknown): Promise<AllowanceAdjustment> {
     if (!Value.Check(AllowanceAdjustmentSchema, raw)) throw new EntitlementError('invalid', 'Allowance adjustment failed strict validation.')
     const adjustment = Object.freeze(structuredClone(raw)) as AllowanceAdjustment
-    if (Date.parse(adjustment.expiresAt) <= Date.parse(adjustment.effectiveAt)) throw new EntitlementError('invalid', 'Allowance adjustment expiry must follow its effective time.')
-    return await this.repository.saveAdjustment(adjustment)
-  }
-
-  async publishPriceBook(raw: unknown, workloads: Readonly<Record<string, Readonly<Record<string, number>>>>): Promise<PriceBook> {
-    if (!Value.Check(PriceBookSchema, raw)) throw new EntitlementError('invalid', 'Price book failed strict TypeBox validation.')
-    const book = Object.freeze(structuredClone(raw)) as PriceBook
-    const planKeys = new Set<string>()
-    const cadences = new Map<string, Set<string>>()
-    for (const plan of book.plans) {
-      assertQuotas(plan.quotas)
-      const key = `${plan.planId}:${plan.cadence}`
-      if (planKeys.has(key)) throw new EntitlementError('invalid', 'Price book contains a duplicate plan cadence.')
-      planKeys.add(key)
-      const set = cadences.get(plan.planId) ?? new Set<string>()
-      set.add(plan.cadence); cadences.set(plan.planId, set)
-      const assumptions = workloads[plan.planId]
-      if (!assumptions) throw new EntitlementError('incomplete-cost', 'Every plan requires workload assumptions.')
-      const expected = this.expectedCost(assumptions)
-      if (marginBasisPoints(plan.amountMinor, expected) < 7_000) throw new EntitlementError('margin', 'Public plan gross margin is below 70%.')
+    if (instant(adjustment.expiresAt, 'Adjustment expiry') <= instant(adjustment.effectiveAt, 'Adjustment effective time')) {
+      throw new EntitlementError('invalid', 'Allowance adjustment expiry must follow its effective time.')
     }
-    for (const set of cadences.values()) if (!set.has('monthly') || !set.has('annual')) throw new EntitlementError('invalid', 'Every plan requires exact monthly and annual KES prices.')
-    await this.repository.savePriceBook(book)
-    return book
+    return await this.#repository.saveAdjustment(adjustment)
   }
 
-  propose(input: Readonly<Omit<CustomOffer, 'expectedCostMinor' | 'marginBasisPoints' | 'state'>>): CustomOffer {
-    assertQuotas(input.quotas)
-    const expectedCostMinor = this.expectedCost(input.workloadAssumptions, input.costModelVersion)
-    const margin = marginBasisPoints(input.recurringAmountMinor, expectedCostMinor)
-    if (margin < 7_000) throw new EntitlementError('margin', 'Expected gross margin is below 70%.')
-    const offer = Object.freeze({ ...structuredClone(input), expectedCostMinor, marginBasisPoints: margin, state: 'draft' as const })
-    if (!Value.Check(CustomOfferSchema, offer) || Date.parse(offer.expiresAt) <= Date.parse(offer.effectiveAt)) throw new EntitlementError('invalid', 'Offer failed its strict immutable contract.')
-    return offer
+  async assignGrandfathered(raw: unknown): Promise<GrandfatheredAssignment> {
+    if (!Value.Check(GrandfatheredAssignmentSchema, raw)) throw new EntitlementError('invalid', 'Grandfathered assignment failed strict validation.')
+    const assignment = Object.freeze(structuredClone(raw)) as GrandfatheredAssignment
+    assertFiniteQuotas(assignment.quotas)
+    const priceBook = await this.#repository.exactPriceBook(assignment.priceBookVersion)
+    const plan = priceBook?.plans.find((value) => value.planId === assignment.planId && value.cadence === assignment.cadence)
+    if (!plan || evidenceSha256(plan.quotas) !== evidenceSha256(assignment.quotas)) {
+      throw new EntitlementError('not-found', 'Grandfathered assignment requires an exact immutable published plan and quota snapshot.')
+    }
+    if ((assignment.source === 'the-lawyer') !== (assignment.lawyerInventory !== null)) {
+      throw new EntitlementError('invalid', 'The Lawyer assignment requires complete FUMA-076 inventory evidence and no other assignment may carry it.')
+    }
+    if (assignment.lawyerInventory
+      && instant(assignment.lawyerInventory.observedAt, 'FUMA-076 inventory observation') > instant(assignment.effectiveAt, 'Grandfathered effective time')) {
+      throw new EntitlementError('invalid', 'FUMA-076 inventory evidence must be complete before grandfathering becomes effective.')
+    }
+    if (instant(assignment.renewalAt, 'Grandfathered renewal') <= instant(assignment.effectiveAt, 'Grandfathered effective time')) {
+      throw new EntitlementError('invalid', 'Grandfathered renewal must follow its effective time.')
+    }
+    return await this.#repository.saveGrandfathered(assignment)
   }
 
-  async issue(offer: CustomOffer): Promise<CustomOffer> {
-    if (!Value.Check(CustomOfferSchema, offer) || offer.state !== 'draft') throw new EntitlementError('immutable', 'Only an exact draft can be issued.')
-    if (Date.parse(offer.expiresAt) <= this.now().getTime()) throw new EntitlementError('expired', 'Offer already expired.')
-    const expectedCostMinor = this.expectedCost(offer.workloadAssumptions, offer.costModelVersion)
-    const margin = marginBasisPoints(offer.recurringAmountMinor, expectedCostMinor)
-    if (expectedCostMinor !== offer.expectedCostMinor || margin !== offer.marginBasisPoints || margin < 7_000) throw new EntitlementError('margin', 'Offer economics changed after proposal.')
-    const issued = Object.freeze({ ...structuredClone(offer), state: 'issued' as const })
-    await this.repository.saveOffer(issued)
-    return issued
-  }
-
-  async accept(input: Readonly<{ offerId: string; version: number; destinationOrganizationId: string; destinationWorkspaceId: string; siteId: string }>): Promise<ContractCandidate> {
-    const offer = await this.repository.exactOffer(input.offerId, input.version)
-    if (!offer || offer.state !== 'issued' || Date.parse(offer.expiresAt) <= this.now().getTime()) throw new EntitlementError('expired', 'Exact issued offer is unavailable.')
-    if (offer.destinationOrganizationId !== input.destinationOrganizationId || offer.destinationWorkspaceId !== input.destinationWorkspaceId || offer.siteId !== input.siteId) throw new EntitlementError('destination', 'Offer destination substitution denied.')
-    const candidate = await this.repository.createCandidate(Object.freeze({
-      candidateId: `candidate:${offer.offerId}:${offer.version}`, offerId: offer.offerId, offerVersion: offer.version,
-      destinationOrganizationId: offer.destinationOrganizationId, destinationWorkspaceId: offer.destinationWorkspaceId, siteId: offer.siteId,
-      state: 'awaiting-payment', setupFeeSettled: false, recurringSettled: false, activatedAt: null, paidTransferPending: false,
-    }))
-    await this.repository.saveOffer(Object.freeze({ ...offer, state: 'accepted' }))
-    return candidate
+  async evaluate(organizationId: string): Promise<EntitlementDecision> {
+    const internal = await this.#repository.findInternalGrant(organizationId)
+    if (internal) return Object.freeze({
+      organizationId, source: 'platform-internal', sourceId: internal.grantId, quotas: internal.quotas,
+      billingAllowed: false, providerAllowed: false, shadowCostRequired: true,
+    })
+    const snapshot: EntitlementSnapshot | null = await this.#repository.currentSnapshot(organizationId, this.#now().toISOString())
+    if (!snapshot) return Object.freeze({ organizationId, source: 'none', sourceId: null, quotas: null, billingAllowed: false, providerAllowed: false, shadowCostRequired: false })
+    return Object.freeze({
+      organizationId, source: snapshot.source, sourceId: snapshot.sourceId, quotas: snapshot.quotas,
+      billingAllowed: snapshot.source !== 'platform-internal', providerAllowed: snapshot.source !== 'platform-internal', shadowCostRequired: snapshot.source === 'platform-internal',
+    })
   }
 }
 
-export class MemoryEntitlementRepository implements EntitlementRepository {
-  readonly grants = new Map<string, InternalGrant>()
-  readonly priceBooks = new Map<string, PriceBook>()
-  readonly adjustments = new Map<string, AllowanceAdjustment>()
-  readonly offers = new Map<string, CustomOffer>()
-  readonly candidates = new Map<string, ContractCandidate>()
-  async createInternalGrant(grant: InternalGrant) {
-    const existing = this.grants.get('platform-internal')
-    if (existing && JSON.stringify(existing) !== JSON.stringify(grant)) throw new EntitlementError('immutable', 'The one platform-internal grant is immutable and non-transferable.')
-    if (existing) return existing
-    this.grants.set('platform-internal', structuredClone(grant)); return grant
-  }
-  async savePriceBook(book: PriceBook) {
-    const old = this.priceBooks.get(book.version)
-    if (old && JSON.stringify(old) !== JSON.stringify(book)) throw new EntitlementError('immutable', 'Published price-book versions are immutable.')
-    this.priceBooks.set(book.version, structuredClone(book))
-  }
-  async saveAdjustment(adjustment: AllowanceAdjustment) {
-    const old = this.adjustments.get(adjustment.adjustmentId)
-    if (old && JSON.stringify({ ...old, state: undefined }) !== JSON.stringify({ ...adjustment, state: undefined })) throw new EntitlementError('immutable', 'Allowance adjustment evidence is immutable.')
-    this.adjustments.set(adjustment.adjustmentId, structuredClone(adjustment)); return adjustment
-  }
-  async saveOffer(offer: CustomOffer) {
-    const key = `${offer.offerId}:${offer.version}`
-    const old = this.offers.get(key)
-    if (old) {
-      const permittedAcceptance = old.state === 'issued' && offer.state === 'accepted' && JSON.stringify({ ...old, state: undefined }) === JSON.stringify({ ...offer, state: undefined })
-      if (!permittedAcceptance && JSON.stringify(old) !== JSON.stringify(offer)) throw new EntitlementError('immutable', 'Issued and accepted offers are immutable.')
-    }
-    this.offers.set(key, structuredClone(offer))
-  }
-  async exactOffer(id: string, version: number) { return structuredClone(this.offers.get(`${id}:${version}`) ?? null) }
-  async createCandidate(candidate: ContractCandidate) {
-    const existing = [...this.candidates.values()].find((value) => value.offerId === candidate.offerId && value.offerVersion === candidate.offerVersion)
-    if (existing) return structuredClone(existing)
-    this.candidates.set(candidate.candidateId, structuredClone(candidate)); return candidate
-  }
-}
+export { MemoryEntitlementRepository } from './memory'
