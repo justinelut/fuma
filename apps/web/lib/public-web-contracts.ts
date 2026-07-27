@@ -79,7 +79,12 @@ const ContactBase = {
 
 export const ContactRequestSchema = Type.Union([
   Type.Object({
-    kind: Type.Union([Type.Literal('general'), Type.Literal('security'), Type.Literal('privacy')]),
+    kind: Type.Union([
+      Type.Literal('general'),
+      Type.Literal('security'),
+      Type.Literal('privacy'),
+      Type.Literal('abuse'),
+    ]),
     ...ContactBase,
   }, { additionalProperties: false }),
   Type.Object({
