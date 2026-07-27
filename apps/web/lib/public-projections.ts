@@ -29,7 +29,7 @@ const DEFAULT_PUBLIC_HOSTS = ['fuma.co.ke', 'www.fuma.co.ke', '3002.blyss.co.ke'
 const CACHE_CONTROL: Readonly<Record<PublicProjectionResource, string>> = Object.freeze({
   'product-facts': 'public, max-age=0, s-maxage=30, must-revalidate',
   pricing: 'public, max-age=0, s-maxage=30, must-revalidate',
-  templates: 'public, max-age=0, s-maxage=60, must-revalidate',
+  templates: 'no-store',
   showcases: 'no-store',
   experts: 'no-store',
   plugins: 'no-store',

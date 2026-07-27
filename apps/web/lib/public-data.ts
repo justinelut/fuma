@@ -43,5 +43,5 @@ export function formatKes(amountMinor: number): string {
 }
 
 export function isImmutableTemplatePreview(raw: string): boolean {
-  try { const url = new URL(raw); return url.protocol === 'https:' && (url.hostname === 'preview.fuma.co.ke' || url.hostname.endsWith('.preview.fuma.co.ke')) && /^\/releases\/[a-z0-9._-]+(?:\/|$)/.test(url.pathname) && !url.username && !url.password && !url.search && !url.hash } catch { return false }
+  try { const url = new URL(raw); return url.protocol === 'https:' && url.hostname === 'templates.preview.fuma.co.ke' && /^\/releases\/[a-z0-9](?:[a-z0-9._-]{0,94}[a-z0-9])?\/$/.test(url.pathname) && !url.username && !url.password && !url.search && !url.hash } catch { return false }
 }
