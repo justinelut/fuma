@@ -1,1 +1,22 @@
-import { PageMain } from '@/components/site-shell';import { readPublicStatus } from '@/lib/private-bridge';import { publicMetadata } from '@/lib/seo';export const metadata=publicMetadata('Status','Current public Fuma service status.','/status');export const dynamic='force-dynamic';export default async function Page(){const status=await readPublicStatus();return <PageMain className="max-w-4xl"><p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Service status</p><h1 className="mt-4 text-5xl font-semibold">Fuma is {status.status}.</h1><section role="status" className="mt-8 rounded-xl border p-6"><p className="text-lg">{status.message}</p><p className="mt-3 text-sm text-muted-foreground">Checked <time dateTime={status.checkedAt}>{status.checkedAt}</time></p></section><a className="mt-8 inline-block underline" href="https://status.fuma.co.ke" rel="noopener noreferrer">Open independent status history</a></PageMain>}
+import { StatusSummary } from '@/components/status-summary'
+import { PageMain } from '@/components/site-shell'
+import { readPublicStatus } from '@/lib/status-boundary'
+import { publicMetadata } from '@/lib/seo'
+
+export const metadata = publicMetadata(
+  'Service status',
+  'Authority-reported Fuma service status when available, with an explicit unavailable state otherwise.',
+  '/status',
+)
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+export default async function Page() {
+  const status = await readPublicStatus()
+  return <PageMain className="max-w-4xl">
+    <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Service status</p>
+    <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">Current service information</h1>
+    <p className="mt-5 max-w-3xl text-lg leading-8 text-muted-foreground">This page reports only a fresh, validated status-authority response. It does not infer uptime, incidents, providers, service levels, or resolution times.</p>
+    <StatusSummary value={status} />
+  </PageMain>
+}
