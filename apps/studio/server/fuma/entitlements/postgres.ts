@@ -145,6 +145,9 @@ export class PostgresEntitlementRepository implements EntitlementRepository {
   issueOffer(offer: CustomOffer): Promise<CustomOffer> {
     return this.#db.transaction(async (tx) => {
       await tx`select pg_advisory_xact_lock(hashtextextended(${`fuma:offer:${offer.offerId}:${offer.version}`},0))`
+      if (offer.replaces) {
+        await tx`select pg_advisory_xact_lock(hashtextextended(${`fuma:offer:${offer.replaces.offerId}:${offer.replaces.version}`},0))`
+      }
       const found = await tx<OfferRow>`select o.state,e.accepted_at,e.private_json from fuma_custom_offers o join fuma_custom_offer_evidence e on e.offer_id=o.offer_id and e.offer_version=o.version where o.offer_id=${offer.offerId} and o.version=${offer.version}`
       if (found.rows[0]) {
         const prior = mapOffer(found.rows[0])
@@ -176,8 +179,18 @@ export class PostgresEntitlementRepository implements EntitlementRepository {
 
   acceptOffer(input: Readonly<{ offerId: string; version: number; organizationId: string; workspaceId: string; siteId: string; now: string }>) {
     return this.#db.transaction(async (tx) => {
+      await tx`select pg_advisory_xact_lock(hashtextextended(${`fuma:offer:${input.offerId}:${input.version}`},0))`
       const found = await tx<OfferRow>`select o.state,e.accepted_at,e.private_json from fuma_custom_offers o join fuma_custom_offer_evidence e on e.offer_id=o.offer_id and e.offer_version=o.version where o.offer_id=${input.offerId} and o.version=${input.version} for update of o`
       if (!found.rows[0]) throw new EntitlementError('not-found', 'Exact offer does not exist.')
+      const replacement = await tx<{ replaced: number }>`
+        select 1 as replaced from fuma_custom_offer_evidence e
+        join fuma_custom_offers o on o.offer_id=e.offer_id and o.version=e.offer_version
+        where e.private_json->'replaces'->>'offerId'=${input.offerId}
+          and (e.private_json->'replaces'->>'version')::bigint=${input.version}
+          and o.state in ('issued','accepted') and o.expires_at>${input.now}
+        limit 1
+      `
+      if (replacement.rows[0]) throw new EntitlementError('expired', 'Exact issued offer was replaced.')
       const offer = mapOffer(found.rows[0])
       const destination = await tx<{ authorized: number }>`
         select 1 as authorized from auth_organizations o

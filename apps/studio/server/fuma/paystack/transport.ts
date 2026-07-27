@@ -32,6 +32,7 @@ export const PaystackInitializeOptionsSchema = Type.Object({
     Type.Literal('mobile_money'),
     Type.Literal('bank'),
   ]), { minItems: 1, maxItems: 3, uniqueItems: true })),
+  reference: Type.Optional(PaystackReferenceSchema),
 }, { additionalProperties: false })
 export type PaystackInitializeOptions = Static<typeof PaystackInitializeOptionsSchema>
 
@@ -365,7 +366,8 @@ export class ScopedPaystackTransport {
     const callbackUrl = options.callbackUrl === undefined
       ? undefined
       : exactHttpsUrl(options.callbackUrl, 'Checkout callback')
-    const reference = this.#referenceFactory(this.scope, purposeId)
+    const reference = options.reference
+      ?? this.#referenceFactory(this.scope, purposeId)
     if (
       !Value.Check(PaystackReferenceSchema, reference)
       || !reference.startsWith(expectedReferencePrefix(this.scope, purposeId))
