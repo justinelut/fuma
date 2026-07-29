@@ -74,4 +74,18 @@ describe('governance control-surface boundaries', () => {
     expect(route).toContain("path[9] === 'install'")
     expect(`${page}\n${catalog}\n${route}`).not.toMatch(/from ['"][^'"]*apps\/studio/)
   })
+
+  test('protects the platform console and exposes complete redacted lifecycle views', () => {
+    const host = readFileSync(join(APP, 'lib/host.ts'), 'utf8')
+    const page = readFileSync(join(APP, 'app/internal/page.tsx'), 'utf8')
+    const model = readFileSync(join(APP, 'app/internal/console-model.ts'), 'utf8')
+    expect(host).toContain('requireInternalConsoleAuthority')
+    expect(host).toContain('FUMA_INTERNAL_AUTHORITY_ATTESTATION_SECRET')
+    expect(host).toContain('timingSafeEqual')
+    expect(page).toContain('Kijani Law managed-client lifecycle')
+    expect(page).toContain('paid-transfer-pending')
+    expect(page).toContain('Empty by default')
+    for (const view of ['users', 'organizations', 'clients', 'workspaces', 'sites', 'plans', 'offers', 'contracts', 'invoices', 'economics', 'usage', 'domains', 'email', 'jobs', 'releases', 'ai', 'audit']) expect(model).toContain(`${view}:`)
+    expect(`${page}\n${model}`).not.toMatch(/from ['"][^'"]*apps\/studio/)
+  })
 })

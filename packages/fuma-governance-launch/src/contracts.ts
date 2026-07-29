@@ -147,9 +147,14 @@ export const CustomerPaymentRequestSchema = Type.Object({
   idempotencyKey: Id,
   returnPath: Type.String({ minLength: 1, maxLength: 256, pattern: '^/[A-Za-z0-9/_-]*$' }),
 }, { additionalProperties: false })
+export const CONSOLE_VIEWS = Object.freeze([
+  'users', 'organizations', 'clients', 'workspaces', 'sites', 'plans', 'offers', 'contracts',
+  'invoices', 'economics', 'usage', 'domains', 'email', 'jobs', 'releases', 'ai', 'audit',
+] as const)
+export const ConsoleViewSchema = Type.Union(CONSOLE_VIEWS.map((value) => Type.Literal(value)))
 export const ConsoleQuerySchema = Type.Object({
-  view: Type.Union([Type.Literal('users'), Type.Literal('organizations'), Type.Literal('clients'), Type.Literal('sites'), Type.Literal('subscriptions'), Type.Literal('offers'), Type.Literal('invoices'), Type.Literal('economics'), Type.Literal('usage'), Type.Literal('domains'), Type.Literal('email'), Type.Literal('jobs'), Type.Literal('releases'), Type.Literal('ai'), Type.Literal('audit')]),
-  filter: Type.Optional(Type.String({ minLength: 1, maxLength: 100 })),
+  view: ConsoleViewSchema,
+  filter: Type.Optional(Type.String({ minLength: 1, maxLength: 100, pattern: '^[^\\u0000-\\u001F\\u007F]*$' })),
   cursor: Type.Optional(Type.String({ minLength: 1, maxLength: 256, pattern: '^[A-Za-z0-9_-]+$' })),
   limit: Type.Integer({ minimum: 1, maximum: 100 }),
 }, { additionalProperties: false })
@@ -158,6 +163,19 @@ export const ConsoleContributionSchema = Type.Object({
   ownerTicket: Type.String({ pattern: '^FUMA-(068|072|073|074)$' }),
   routes: Type.Array(Type.String({ pattern: '^/internal/[a-z0-9/-]+$' }), { minItems: 1, uniqueItems: true }),
   requiredAuthorities: Type.Array(Type.String({ pattern: '^internal\\.[a-z0-9.:-]+$' }), { minItems: 1, uniqueItems: true }),
+  mounted: Type.Optional(Type.Literal(false)),
+}, { additionalProperties: false })
+export const ConsoleActionEnvelopeSchema = Type.Object({
+  actionId: Type.String({ minLength: 3, maxLength: 120, pattern: '^[a-z][a-z0-9.-]+$' }),
+  requestId: Id,
+  input: Type.Unknown(),
+}, { additionalProperties: false })
+export const ConsoleActionResultSchema = Type.Object({
+  actionId: Type.String({ minLength: 3, maxLength: 120, pattern: '^[a-z][a-z0-9.-]+$' }),
+  requestId: Id,
+  state: Type.Union([Type.Literal('accepted'), Type.Literal('completed')]),
+  resourceId: Id,
+  resourceVersion: Type.Union([PositiveUnits, Type.Null()]),
 }, { additionalProperties: false })
 export const SupportSessionSchema = Type.Object({
   sessionId: Id,
@@ -320,7 +338,10 @@ export type PluginInstallation = Static<typeof PluginInstallationSchema>
 export type PluginReview = Static<typeof PluginReviewSchema>
 export type CustomerPaymentRequest = Static<typeof CustomerPaymentRequestSchema>
 export type ConsoleQuery = Static<typeof ConsoleQuerySchema>
+export type ConsoleView = Static<typeof ConsoleViewSchema>
 export type ConsoleContribution = Static<typeof ConsoleContributionSchema>
+export type ConsoleActionEnvelope = Static<typeof ConsoleActionEnvelopeSchema>
+export type ConsoleActionResult = Static<typeof ConsoleActionResultSchema>
 export type SupportSession = Static<typeof SupportSessionSchema>
 export type BreakGlassRequest = Static<typeof BreakGlassRequestSchema>
 export type ExpertReleaseApproval = Static<typeof ExpertReleaseApprovalSchema>

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { requireControlRealm } from '@/lib/host'
+import { requireInternalConsoleAuthority } from '@/lib/host'
 
 const contributions = {
   'plugin-review': { owner: 'FUMA-068', title: 'Plugin review', description: 'Hash, permission diff, scans, reviewer separation, signature and revocation evidence.' },
@@ -10,7 +10,7 @@ const contributions = {
 } as const
 
 export default async function ContributionPage({ params }: Readonly<{ params: Promise<{ contribution: string }> }>) {
-  await requireControlRealm('admin')
+  await requireInternalConsoleAuthority()
   const { contribution } = await params
   const item = contributions[contribution as keyof typeof contributions]
   if (!item) notFound()

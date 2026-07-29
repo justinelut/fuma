@@ -2,13 +2,20 @@ import { createHash } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 
 test.describe('FUMA governance control surfaces', () => {
-  test('admin console exposes bounded contribution slots without customer mutations', async ({ page }) => {
+  test('admin console exposes complete redacted views, managed-offer evidence and bounded contribution seams', async ({ page }) => {
     await page.goto('/internal')
     await expect(page.getByRole('heading', { name: 'Platform console' })).toBeVisible()
-    await expect(page.getByText('Plugin review — FUMA-068')).toBeVisible()
-    await expect(page.getByText('Support/moderation — FUMA-072')).toBeVisible()
-    await expect(page.getByText('Expert moderation — FUMA-073')).toBeVisible()
-    await expect(page.getByText('Transfer recovery — FUMA-074')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Kijani Law managed-client lifecycle' })).toBeVisible()
+    await expect(page.getByText(/setup KES 650\.00 separate from recurring KES 2,400\.00/)).toBeVisible()
+    await expect(page.getByText(/paid-transfer-pending · ownership unchanged/)).toBeVisible()
+    await expect(page.getByText(/platform-internal/)).toBeVisible()
+    for (const label of ['Users', 'Organizations', 'Managed and provisional clients', 'Workspaces', 'Sites', 'Plans', 'Custom offers', 'Contracts', 'Invoices', 'COGS and margin', 'Usage and quota', 'Domains', 'Email', 'Jobs', 'Releases', 'AI catalog', 'Audit']) await expect(page.getByRole('link', { name: label, exact: true })).toBeVisible()
+    await page.getByLabel('Search current view').fill('Kijani')
+    await page.getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByText('org-provisional-kijani')).toBeVisible()
+    await expect(page.locator('body')).not.toContainText(/never-visible|sessionToken|privateJson|credentialCiphertext|rawBody/)
+    await expect(page.getByText(/FUMA-068 · Mounted from/)).toBeVisible()
+    for (const owner of ['FUMA-072', 'FUMA-073', 'FUMA-074']) await expect(page.getByText(new RegExp(`${owner} · Empty by default`))).toBeVisible()
   })
 
   test('marketplace never enables an unsigned install', async ({ page }) => {
