@@ -12,6 +12,7 @@ import {
   parseSiteApplicationContract,
   publicApplicationMember,
   publicAudience,
+  type SiteApplicationAccess,
   type SiteApplicationContext,
   type SiteApplicationMember,
   type SiteApplicationMutationRequest,
@@ -39,6 +40,7 @@ export type SiteRuntimeMemberProjection = Readonly<{
   audience: SiteRuntimeAudience
   member: SiteApplicationMember
   snapshot: SiteApplicationSnapshot
+  access?: SiteApplicationAccess
 }>
 
 export interface SiteRuntimeMemberProjectionPort {
@@ -172,6 +174,7 @@ export class SiteRuntimeApplicationAuthority {
       cacheIdentity: identity,
       member: projection.member,
       snapshot: projection.snapshot,
+      ...(projection.access ? { access: projection.access } : {}),
       cachePolicy: authenticated ? 'private' as const : 'public' as const,
     })
   }

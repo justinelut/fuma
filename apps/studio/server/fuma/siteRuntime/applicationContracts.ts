@@ -41,11 +41,19 @@ export const SiteApplicationSnapshotSchema = Type.Object({
 }, { additionalProperties: false })
 export type SiteApplicationSnapshot = Readonly<Static<typeof SiteApplicationSnapshotSchema>>
 
+export const SiteApplicationAccessSchema = Type.Object({
+  member: Type.Boolean(),
+  paid: Type.Boolean(),
+  memberSource: Type.Union([Type.Literal('none'), Type.Literal('registered'), Type.Literal('complimentary'), Type.Literal('manual'), Type.Literal('paid')]),
+  segmentIds: Type.Array(Id, { maxItems: 10_000, uniqueItems: true }),
+}, { additionalProperties: false })
+export type SiteApplicationAccess = Readonly<Static<typeof SiteApplicationAccessSchema>>
 export const SiteApplicationContextSchema = Type.Object({
   schemaVersion: Type.Literal(1),
   cacheIdentity: SiteApplicationCacheIdentitySchema,
   member: SiteApplicationMemberSchema,
   snapshot: SiteApplicationSnapshotSchema,
+  access: Type.Optional(SiteApplicationAccessSchema),
   cachePolicy: Type.Union([Type.Literal('public'), Type.Literal('private'), Type.Literal('no-store')]),
 }, { additionalProperties: false })
 export type SiteApplicationContext = Readonly<Static<typeof SiteApplicationContextSchema>>

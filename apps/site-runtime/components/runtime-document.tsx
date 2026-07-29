@@ -20,6 +20,8 @@ export function RuntimeDocument({ response }: Readonly<{ response: ResolveRespon
   const stylesheets = verifiedStylesheets(response)
   return (
     <>
+      <title>{routeArtifact.page.title}</title>
+      <link rel="canonical" href={`https://${cacheIdentity.host}${routeArtifact.route.route}`} />
       {generatedCss ? <style data-fuma-release-styles="manifest">{generatedCss}</style> : null}
       {stylesheets.map((stylesheet) => <style key={stylesheet.logicalPath} data-fuma-release-styles={stylesheet.logicalPath}>{stylesheet.cssText}</style>)}
       <ApplicationStateSeed context={response.application} />
@@ -38,7 +40,7 @@ export function RuntimeDocument({ response }: Readonly<{ response: ResolveRespon
         ? response.delivery.legacy
           ? <LegacyCompatibilityFrame document={response.delivery.legacy} title={routeArtifact.page.title} />
           : null
-        : <RuntimeTree route={routeArtifact} host={cacheIdentity.host} ownerKey={cacheIdentity.ownerKey} siteId={cacheIdentity.siteId} />}
+        : <RuntimeTree route={routeArtifact} host={cacheIdentity.host} ownerKey={cacheIdentity.ownerKey} siteId={cacheIdentity.siteId} applicationAccess={response.application.access} />}
     </>
   )
 }

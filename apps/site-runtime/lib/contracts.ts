@@ -171,9 +171,17 @@ export const SiteApplicationSnapshotSchema = Type.Object({
   account: Type.Union([Type.Object({ displayName: Type.String({ maxLength: 200 }), locale: Type.String({ minLength: 2, maxLength: 35 }), timezone: Type.String({ minLength: 1, maxLength: 100 }) }, { additionalProperties: false }), Type.Null()]),
 }, { additionalProperties: false })
 export type SiteApplicationSnapshot = Static<typeof SiteApplicationSnapshotSchema>
+export const SiteApplicationAccessSchema = Type.Object({
+  member: Type.Boolean(),
+  paid: Type.Boolean(),
+  memberSource: Type.Union([Type.Literal('none'), Type.Literal('registered'), Type.Literal('complimentary'), Type.Literal('manual'), Type.Literal('paid')]),
+  segmentIds: Type.Array(Id, { maxItems: 10_000, uniqueItems: true }),
+}, { additionalProperties: false })
+export type SiteApplicationAccess = Static<typeof SiteApplicationAccessSchema>
 export const SiteApplicationContextSchema = Type.Object({
   schemaVersion: Type.Literal(1), cacheIdentity: CacheIdentitySchema, member: SiteApplicationMemberSchema,
   snapshot: SiteApplicationSnapshotSchema,
+  access: Type.Optional(SiteApplicationAccessSchema),
   cachePolicy: Type.Union([Type.Literal('public'), Type.Literal('private'), Type.Literal('no-store')]),
 }, { additionalProperties: false })
 export type SiteApplicationContext = Static<typeof SiteApplicationContextSchema>

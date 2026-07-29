@@ -1,7 +1,16 @@
 import { createElement, Fragment, type CSSProperties, type ReactNode } from 'react'
-import type { ComponentRegistryEntry, RuntimeJson, RuntimeNode, RuntimeRouteArtifact } from '../lib/contracts'
+import type { ComponentRegistryEntry, RuntimeJson, RuntimeNode, RuntimeRouteArtifact, SiteApplicationAccess } from '../lib/contracts'
 import { componentKey, ExactRuntimeRegistry, RuntimeRegistryError } from '../lib/component-registry'
 import { ApplicationBookingAction, ApplicationCartAction, ApplicationMemberStatus } from './application-controls'
+import {
+  LawyerAccessGate,
+  LawyerAccountPanel,
+  LawyerEditorialHeader,
+  LawyerMembershipPanel,
+  LawyerSiteShell,
+  LawyerStoryCard,
+  type LawyerAccessProjection,
+} from './lawyer-components'
 import { RestrictedClientBoundary } from './restricted-client'
 import { RuntimeLink } from './runtime-link'
 
@@ -23,6 +32,7 @@ type RenderContext = Readonly<{
   componentStack: ReadonlySet<string>
   parameters: ReadonlyMap<string, RuntimeJson>
   slotFills: ReadonlyMap<string, readonly RuntimeNode[]>
+  access: LawyerAccessProjection
 }>
 
 type Decoration = Readonly<{ className?: string; style?: CSSProperties; 'data-fuma-node'?: string; 'data-fuma-component'?: string }>
@@ -242,6 +252,12 @@ function renderOfficial(node: RuntimeNode, props: JsonRecord, children: ReactNod
     case 'application.member-status': return <ApplicationMemberStatus decoration={decorated} label={stringValue(props.publicLabel, 'Sign in')} />
     case 'application.cart-action': return <ApplicationCartAction decoration={decorated} itemId={stringValue(props.itemId)} quantity={Math.max(1, Math.min(10_000, Math.trunc(numberValue(props.quantity, 1))))} label={stringValue(props.label, 'Add to cart')} />
     case 'application.booking-action': return <ApplicationBookingAction decoration={decorated} selectionId={stringValue(props.selectionId)} resourceId={stringValue(props.resourceId)} startsAt={stringValue(props.startsAt)} label={stringValue(props.label, 'Reserve')} />
+    case 'lawyer.site-shell': return <div {...decoration(node, inherited)}><LawyerSiteShell host={context.host} props={props}>{children}</LawyerSiteShell></div>
+    case 'lawyer.editorial-header': return <div {...decoration(node, inherited)}><LawyerEditorialHeader props={props} /></div>
+    case 'lawyer.story-card': return <div {...decoration(node, inherited)}><LawyerStoryCard host={context.host} props={props} /></div>
+    case 'lawyer.access-gate': return <div {...decoration(node, inherited)}><LawyerAccessGate host={context.host} props={props} access={context.access}>{children}</LawyerAccessGate></div>
+    case 'lawyer.membership-panel': return <div {...decoration(node, inherited)}><LawyerMembershipPanel host={context.host} props={props} /></div>
+    case 'lawyer.account-panel': return <div {...decoration(node, inherited)}><LawyerAccountPanel access={context.access} props={props} /></div>
     case 'base.outlet': {
       if (context.outlet !== null) return createElement(resolveTag(props.tag, props.customTag), { ...decorated, 'data-instatic-content-region': true }, context.outlet)
       const html = sanitizeMarkup(stringValue(props.html), false)
@@ -313,10 +329,13 @@ function hasOutlet(node: RuntimeNode): boolean {
   return node.slots.some((slot) => slot.children.some(hasOutlet))
 }
 
-export function RuntimeTree({ route, host, ownerKey, siteId }: Readonly<{ route: RuntimeRouteArtifact; host: string; ownerKey: string; siteId: string }>) {
+const PUBLIC_LAWYER_ACCESS: LawyerAccessProjection = Object.freeze({ member: false, paid: false, memberSource: 'none', segmentIds: Object.freeze([]) })
+
+export function RuntimeTree({ route, host, ownerKey, siteId, applicationAccess }: Readonly<{ route: RuntimeRouteArtifact; host: string; ownerKey: string; siteId: string; applicationAccess?: SiteApplicationAccess }>) {
   const registry = new ExactRuntimeRegistry(route, { ownerKey, siteId })
   const publicData = new Map(route.publicData.map(({ key, value }) => [key, value]))
-  const base: RenderContext = { host, registry, publicData, entry: null, outlet: null, componentStack: new Set(), parameters: new Map(), slotFills: new Map() }
+  const access: LawyerAccessProjection = applicationAccess ?? PUBLIC_LAWYER_ACCESS
+  const base: RenderContext = { host, registry, publicData, entry: null, outlet: null, componentStack: new Set(), parameters: new Map(), slotFills: new Map(), access }
   let content: ReactNode = <RuntimeTreeNode node={route.page.root} context={base} />
   for (const layout of [...route.layouts].reverse()) {
     const rendered = <RuntimeTreeNode key={layout.layoutId} node={layout.root} context={{ ...base, outlet: content }} />

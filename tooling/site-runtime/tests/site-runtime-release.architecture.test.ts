@@ -95,7 +95,7 @@ describe('FUMA-SITE-002 runtime release architecture', () => {
   test('keeps the closed SITE-002 publisher independent from the SITE-003 application', () => {
     expect(existsSync(join(ROOT, 'apps/site-runtime'))).toBe(true)
     const runtimeManifest = readFileSync(join(ROOT, 'apps/site-runtime/runtime.manifest.json'), 'utf8')
-    expect(runtimeManifest).toContain('"ticket": "FUMA-SITE-005"')
+    expect(runtimeManifest).toContain('"ticket": "FUMA-SITE-006"')
     const contracts = readFileSync(join(ROOT, 'apps/studio/server/fuma/publishing/runtimeTree/contracts.ts'), 'utf8')
     const adapter = readFileSync(join(ROOT, 'apps/studio/server/fuma/publishing/runtimeTree/renderer.ts'), 'utf8')
     const composition = readFileSync(join(ROOT, 'apps/studio/server/fuma/publishing/composition.ts'), 'utf8')

@@ -1,3 +1,4 @@
+import { LAWYER_SOURCE_COMPONENTS } from '../components/lawyer-components'
 import type {
   ComponentReference,
   ComponentRegistryEntry,
@@ -45,6 +46,7 @@ const FIRST_PARTY_COMPONENTS: readonly OfficialComponentDefinition[] = Object.fr
   { componentId: 'application.member-status', exactVersion: '1.0.0', client: true, capabilities: ['interaction.local-state'] },
   { componentId: 'application.cart-action', exactVersion: '1.0.0', client: true, capabilities: ['interaction.local-state'] },
   { componentId: 'application.booking-action', exactVersion: '1.0.0', client: true, capabilities: ['interaction.local-state'] },
+  ...LAWYER_SOURCE_COMPONENTS,
 ])
 
 export class RuntimeRegistryError extends Error {

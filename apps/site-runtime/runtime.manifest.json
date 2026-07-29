@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "application": "apps/site-runtime",
-  "ticket": "FUMA-SITE-005",
+  "ticket": "FUMA-SITE-006",
   "runtime": "node",
   "architecture": "linux-arm64",
   "output": "standalone",
