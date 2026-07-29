@@ -1,5 +1,5 @@
 import type {
-  PublicExpertsEnvelope, PublicPluginsEnvelope, PublicPricingCatalogEnvelope, PublicPricingDisplayPlan, PublicProductFactsEnvelope,
+  PublicComponentsEnvelope, PublicExpertsEnvelope, PublicPluginsEnvelope, PublicPricingCatalogEnvelope, PublicPricingDisplayPlan, PublicProductFactsEnvelope,
   PublicShowcasesEnvelope, PublicTemplatesEnvelope, PublicProjectionResource,
 } from '@fuma/public-contracts'
 import { fetchPublicProjection } from './public-projections'
@@ -11,6 +11,7 @@ export type PublicEnvelopeMap = {
   showcases: PublicShowcasesEnvelope
   experts: PublicExpertsEnvelope
   plugins: PublicPluginsEnvelope
+  components: PublicComponentsEnvelope
 }
 
 export async function readPublicData<R extends PublicProjectionResource>(resource: R, filters: Readonly<Record<string, string | number | undefined>> = {}): Promise<PublicEnvelopeMap[R] | null> {

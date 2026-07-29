@@ -1,6 +1,8 @@
 import {
   PublicExpertsEnvelopeSchema,
   PublicExpertsQuerySchema,
+  PublicComponentsEnvelopeSchema,
+  PublicComponentsQuerySchema,
   PublicPluginsEnvelopeSchema,
   PublicPluginsQuerySchema,
   PublicPricingCatalogEnvelopeSchema,
@@ -33,6 +35,7 @@ const CACHE_CONTROL: Readonly<Record<PublicProjectionResource, string>> = Object
   showcases: 'no-store',
   experts: 'no-store',
   plugins: 'no-store',
+  components: 'no-store',
 })
 
 const SPECS: Readonly<Record<PublicProjectionResource, Readonly<{
@@ -45,6 +48,7 @@ const SPECS: Readonly<Record<PublicProjectionResource, Readonly<{
   showcases: { query: PublicShowcasesQuerySchema, envelope: PublicShowcasesEnvelopeSchema },
   experts: { query: PublicExpertsQuerySchema, envelope: PublicExpertsEnvelopeSchema },
   plugins: { query: PublicPluginsQuerySchema, envelope: PublicPluginsEnvelopeSchema },
+  components: { query: PublicComponentsQuerySchema, envelope: PublicComponentsEnvelopeSchema },
 })
 
 export type PublicProjectionClientConfig = Readonly<{

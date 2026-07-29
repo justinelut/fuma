@@ -65,3 +65,21 @@ export function createPublishMcpTool(runtime?: McpPublishRuntime): AiTool {
     },
   }
 }
+
+export function createComponentPublishMcpTool(runtime?: McpPublishRuntime): AiTool {
+  const base = createPublishMcpTool(runtime)
+  return {
+    ...base,
+    name: 'site_publish_components',
+    mcpCapability: 'component.publish',
+    description: 'Validate every exact component pin and security revocation, then publish through the existing site publisher. Requires component.publish plus a fresh operation-bound confirmation and step-up.',
+    handler: async (input, context) => {
+      const { siteComponentCatalogPort } = await import('../../tools/site/componentCatalogPort')
+      const port = siteComponentCatalogPort()
+      if (!port) throw new Error('Hosted component catalog authority is unavailable.')
+      await port.execute({ conversationId: context.conversationId, actorId: context.userId, operationId: context.toolCallId ?? `${context.conversationId}:site_publish_components`, action: 'publish-check', command: {}, nativeAiAuthority: false })
+      if (!base.handler) throw new Error('MCP publish runtime is unavailable.')
+      return base.handler(input, context)
+    },
+  }
+}

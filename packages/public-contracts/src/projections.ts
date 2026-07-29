@@ -197,6 +197,22 @@ export const PublicPluginSchema = Type.Object({
 }, { additionalProperties: false })
 export type PublicPlugin = Static<typeof PublicPluginSchema>
 
+
+export const PublicComponentSchema = Type.Object({
+  id: PublicIdSchema,
+  slug: PublicSlugSchema,
+  name: PublicTextSchema,
+  summary: PublicSummarySchema,
+  categories: PublicTagListSchema,
+  publisherName: PublicTextSchema,
+  publisherVerified: Type.Literal(true),
+  version: Type.String({ minLength: 1, maxLength: 64, pattern: '^[0-9A-Za-z][0-9A-Za-z.+_-]*$' }),
+  permissionLabels: Type.Array(PublicTextSchema, { maxItems: 32 }),
+  imageUrl: Type.Union([PublicAssetUrlSchema, Type.Null()]),
+  reviewedAt: PublicTimestampSchema,
+  artifactKind: Type.Literal('component-pack'),
+}, { additionalProperties: false })
+export type PublicComponent = Static<typeof PublicComponentSchema>
 function querySchema(properties: Readonly<Record<string, TSchema>>) {
   return Type.Object({
     cursor: Type.Optional(PublicCursorSchema),
@@ -236,6 +252,9 @@ export const PublicExpertsQuerySchema = querySchema({
 export const PublicPluginsQuerySchema = querySchema({
   category: Type.Optional(PublicTagSchema),
 })
+export const PublicComponentsQuerySchema = querySchema({
+  category: Type.Optional(PublicTagSchema),
+})
 
 export type PublicProductFactsQuery = Static<typeof PublicProductFactsQuerySchema>
 export type PublicPricingQuery = Static<typeof PublicPricingQuerySchema>
@@ -243,6 +262,7 @@ export type PublicTemplatesQuery = Static<typeof PublicTemplatesQuerySchema>
 export type PublicShowcasesQuery = Static<typeof PublicShowcasesQuerySchema>
 export type PublicExpertsQuery = Static<typeof PublicExpertsQuerySchema>
 export type PublicPluginsQuery = Static<typeof PublicPluginsQuerySchema>
+export type PublicComponentsQuery = Static<typeof PublicComponentsQuerySchema>
 
 export const PublicProductFactsPageSchema = createCursorPageSchema(PublicProductFactSchema)
 const PublicPricingPageCursorSchema = createCursorPageSchema(PublicPricingDisplayPlanSchema).properties.page
@@ -266,6 +286,7 @@ export const PublicTemplatesPageSchema = Type.Object({
 export const PublicShowcasesPageSchema = createCursorPageSchema(PublicShowcaseSchema)
 export const PublicExpertsPageSchema = createCursorPageSchema(PublicExpertSchema)
 export const PublicPluginsPageSchema = createCursorPageSchema(PublicPluginSchema)
+export const PublicComponentsPageSchema = createCursorPageSchema(PublicComponentSchema)
 
 export const PublicProductFactsEnvelopeSchema = createPublicReadEnvelopeSchema(PublicProductFactsPageSchema)
 export const PublicPricingCatalogEnvelopeSchema = createPublicReadEnvelopeSchema(PublicPricingCatalogPageSchema)
@@ -273,6 +294,7 @@ export const PublicTemplatesEnvelopeSchema = createPublicReadEnvelopeSchema(Publ
 export const PublicShowcasesEnvelopeSchema = createPublicReadEnvelopeSchema(PublicShowcasesPageSchema)
 export const PublicExpertsEnvelopeSchema = createPublicReadEnvelopeSchema(PublicExpertsPageSchema)
 export const PublicPluginsEnvelopeSchema = createPublicReadEnvelopeSchema(PublicPluginsPageSchema)
+export const PublicComponentsEnvelopeSchema = createPublicReadEnvelopeSchema(PublicComponentsPageSchema)
 
 export type PublicProductFactsEnvelope = Static<typeof PublicProductFactsEnvelopeSchema>
 export type PublicPricingCatalogEnvelope = Static<typeof PublicPricingCatalogEnvelopeSchema>
@@ -280,6 +302,7 @@ export type PublicTemplatesEnvelope = Static<typeof PublicTemplatesEnvelopeSchem
 export type PublicShowcasesEnvelope = Static<typeof PublicShowcasesEnvelopeSchema>
 export type PublicExpertsEnvelope = Static<typeof PublicExpertsEnvelopeSchema>
 export type PublicPluginsEnvelope = Static<typeof PublicPluginsEnvelopeSchema>
+export type PublicComponentsEnvelope = Static<typeof PublicComponentsEnvelopeSchema>
 
 export const PUBLIC_PROJECTION_RESOURCES = [
   'product-facts',
@@ -288,6 +311,7 @@ export const PUBLIC_PROJECTION_RESOURCES = [
   'showcases',
   'experts',
   'plugins',
+  'components',
 ] as const
 
 export const PublicProjectionResourceSchema = Type.Union(

@@ -93,18 +93,18 @@ export class McpService {
     if (!current || current.state !== 'active' || current.revokedAt !== null || Date.parse(current.expiresAt) <= this.#now().getTime() || current.version !== connector.version || !live?.active || live.actorId !== current.actorId || !sameMcpScope(live.scope, current.scope)) throw new McpAuthorityError('denied', 'Live connector authority denied.')
   }
 
-  async revalidate(sessionId: string, capability?: McpOperationCapability): Promise<Readonly<{ connector: McpConnector; session: McpSession }>> {
+  async revalidate(sessionId: string, capability?: McpOperationCapability, connectorCapability?: McpConnectorCapability): Promise<Readonly<{ connector: McpConnector; session: McpSession }>> {
     const session = await this.#repository.session(sessionId)
     if (!session || session.state !== 'active' || Date.parse(session.expiresAt) <= this.#now().getTime()) throw new McpAuthorityError('denied', 'MCP session is unavailable.')
     const connector = await this.#repository.connector(session.connectorId)
-    if (!connector || connector.version !== session.connectorVersion || !sameMcpScope(connector.scope, session.scope) || (capability && !connector.capabilities.includes(capabilityName(capability)))) { await this.#repository.closeSessions(session.connectorId, 'revoked', this.instant()); throw new McpAuthorityError('denied', 'MCP session authority changed.') }
+    if (!connector || connector.version !== session.connectorVersion || !sameMcpScope(connector.scope, session.scope) || (capability && !connectorCapability && !connector.capabilities.includes(capabilityName(capability))) || (connectorCapability && !connector.capabilities.includes(connectorCapability))) { await this.#repository.closeSessions(session.connectorId, 'revoked', this.instant()); throw new McpAuthorityError('denied', 'MCP session authority changed.') }
     await this.#assertLive(connector)
     return { connector, session }
   }
 
   async beginOperation(raw: unknown): Promise<Readonly<{ receipt: McpToolReceipt; replay: AiToolOutput | null }>> {
     const command = parseMcpContract(BeginMcpOperationSchema, raw, 'mcp.beginOperation') as BeginMcpOperation
-    const { connector, session } = await this.revalidate(command.sessionId, command.capability)
+    const { connector, session } = await this.revalidate(command.sessionId, undefined, command.connectorCapability ?? capabilityName(command.capability))
     const rate = connector.rates[command.capability]
     if (command.estimatedInputTokens > rate.reserveInputTokens || command.estimatedOutputTokens > rate.reserveOutputTokens) throw new McpAuthorityError('rate', 'MCP operation exceeds its credit reservation bound.')
     const reservationId = `mcp:${connector.connectorId}:${command.operationId}`
@@ -132,7 +132,7 @@ export class McpService {
   }
 
   async completeOperation(input: Readonly<{ receipt: McpToolReceipt; output: AiToolOutput; inputTokens: number; outputTokens: number }>): Promise<void> {
-    const { connector, session } = await this.revalidate(input.receipt.sessionId, input.receipt.capability)
+    const { connector, session } = await this.revalidate(input.receipt.sessionId)
     if (session.connectorId !== input.receipt.connectorId) throw new McpAuthorityError('denied', 'Receipt session changed.')
     if (input.output.ok) await this.#credits.settle({ reservationId: input.receipt.reservationId, operationId: input.receipt.operationId, inputTokens: input.inputTokens, outputTokens: input.outputTokens })
     else await this.#credits.release({ reservationId: input.receipt.reservationId, operationId: input.receipt.operationId, reasonCode: 'tool-failed' })

@@ -46,6 +46,7 @@ const SOURCE_RESULT_SCHEMAS: Readonly<Record<PublicProjectionResource, ReturnTyp
   showcases: Type.Object({ datasetVersion: PublicDatasetVersionSchema, data: PUBLIC_PROJECTION_SPECS.showcases.pageSchema }, { additionalProperties: false }),
   experts: Type.Object({ datasetVersion: PublicDatasetVersionSchema, data: PUBLIC_PROJECTION_SPECS.experts.pageSchema }, { additionalProperties: false }),
   plugins: Type.Object({ datasetVersion: PublicDatasetVersionSchema, data: PUBLIC_PROJECTION_SPECS.plugins.pageSchema }, { additionalProperties: false }),
+  components: Type.Object({ datasetVersion: PublicDatasetVersionSchema, data: PUBLIC_PROJECTION_SPECS.components.pageSchema }, { additionalProperties: false }),
 })
 
 const PUBLIC_CONTACT_PATH = `${PUBLIC_PROJECTION_PATH_PREFIX}/contact`

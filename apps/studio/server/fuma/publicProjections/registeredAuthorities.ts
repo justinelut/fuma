@@ -1,8 +1,10 @@
 import {
+  PublicComponentSchema,
   PublicExpertSchema,
   PublicPluginSchema,
   PublicProfileSchema,
   PublicShowcaseSchema,
+  type PublicComponent,
   type PublicExpert,
   type PublicPlugin,
   type PublicPricingPlan,
@@ -68,7 +70,7 @@ interface PluginRow {
   decided_at: string | Date
 }
 
-type PublicPageItem = PublicProductFact | PublicPricingPlan | PublicTemplate | PublicShowcase | PublicExpert | PublicPlugin
+type PublicPageItem = PublicProductFact | PublicPricingPlan | PublicTemplate | PublicShowcase | PublicExpert | PublicPlugin | PublicComponent
 
 type PublicPage = Readonly<{
   items: readonly PublicPageItem[]
@@ -298,6 +300,34 @@ export function createHostedPublicProjectionAuthorityCatalog(
   if (db.dialect !== 'postgres') {
     throw new PublicProjectionUnavailableError('Hosted public projections require PostgreSQL authority.')
   }
+
+class ComponentsSource implements ApprovedPublicProjectionSource {
+  readonly db: DbClient
+  constructor(db: DbClient) { this.db = db }
+  async readApprovedDisplayPage(query: Readonly<Record<string, string | number>>) {
+    const { rows } = await this.db<PluginRow>`
+      select distinct on (submission.package_id) submission.exact_version as version,
+        submission.submission_json->'metadata'->'public' as public_json, decision.decided_at
+      from fuma_artifact_review_submissions_v2 submission
+      join fuma_artifact_review_decisions_v2 decision on decision.submission_id=submission.submission_id
+        and decision.artifact_id=submission.artifact_id and decision.content_hash_sha256=submission.content_hash_sha256
+      left join fuma_artifact_review_revocations_v2 revocation on revocation.decision_id=decision.decision_id
+      where submission.artifact_kind='component-pack' and submission.scan_state='clean'
+        and decision.decision='approved' and decision.signature_key_id is not null
+        and decision.signature_payload_hash_sha256 is not null and decision.signature_value is not null
+        and revocation.decision_id is null
+      order by submission.package_id,decision.decided_at desc,submission.exact_version desc
+    `
+    const items = rows.map((row): PublicComponent => {
+      const metadata = pluginMetadata(row)
+      const item = { ...metadata, version: row.version, reviewedAt: new Date(row.decided_at).toISOString(), artifactKind: 'component-pack' as const }
+      if (!Value.Check(PublicComponentSchema, item)) throw new PublicProjectionUnavailableError('Reviewed component row failed validation.')
+      return item
+    }).toSorted((left, right) => left.id.localeCompare(right.id))
+    const filtered = items.filter((item) => query.category === undefined || item.categories.includes(String(query.category)))
+    return paginate('components', items, filtered, query)
+  }
+}
   const catalog = new PublicProjectionAuthorityCatalog()
   const templateCatalog = new PublicTemplateCatalogService(
     new PostgresPublicTemplateCatalogRepository(db),
@@ -310,6 +340,7 @@ export function createHostedPublicProjectionAuthorityCatalog(
     showcases: new ShowcasesSource(db),
     experts: new ExpertsSource(db),
     plugins: new PluginsSource(db),
+    components: new ComponentsSource(db),
   })
   for (const resource of Object.keys(sources) as PublicProjectionResource[]) {
     catalog.register(resource, createValidatedPublicProjectionAdapter(resource, sources[resource]))

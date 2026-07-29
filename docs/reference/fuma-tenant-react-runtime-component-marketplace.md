@@ -1,6 +1,6 @@
 # Fuma tenant React runtime and component marketplace
 
-Status: **approved roadmap amendment; FUMA-SITE-001..005, FUMA-SITE-007, FUMA-067, and FUMA-068 closed; implementation pending FUMA-SITE-006 and FUMA-SITE-008**.
+Status: **approved roadmap amendment; FUMA-SITE-001..005, FUMA-SITE-007..008, FUMA-067, and FUMA-068 closed; implementation pending FUMA-SITE-006**.
 
 This reference defines the target hosted tenant-rendering architecture approved on 2026-07-28. [`fuma-tenant-runtime-architecture.md`](fuma-tenant-runtime-architecture.md) is the authoritative application/host/cache/component trust, migration, and rollback ADR; [`fuma-site-application-state.md`](fuma-site-application-state.md) records SITE-005. Immutable React release artifacts, the exact-host `apps/site-runtime`, first-party/private semantic React registry, app-local Tailwind/token bridge, persistent member/application state, fenced Bun mutation seam, bounded retained-release compatibility, component-pack policy, production artifact/install authority, and unified review/signing/revocation marketplace authority are implemented. AI/MCP component tools, the Lawyer source-component pilot, production routing, and capacity remain open. The existing semantic HTML publisher remains the production renderer until those dependency-ordered gates close.
 

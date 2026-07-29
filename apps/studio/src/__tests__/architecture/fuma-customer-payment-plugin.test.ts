@@ -71,11 +71,12 @@ describe('FUMA-069 reviewed customer-payment plugin architecture', () => {
 
   test('registers one additive migration at the canonical high-water mark', () => {
     const ids = hostedMigrations.map(({ id }) => id)
-    expect(ids.slice(-4)).toEqual([
+    expect(ids.slice(-5)).toEqual([
       '000071_artifact_review_marketplace',
       '000072_site_runtime_application',
       '000073_customer_payment_plugin',
       '000074_ai_payment_setup',
+      '000075_component_catalog_authority',
     ])
     expect(ids.filter((id) => id === '000073_customer_payment_plugin')).toHaveLength(1)
   })

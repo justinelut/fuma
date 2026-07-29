@@ -39,6 +39,8 @@ import { createHostedMcpProductionRuntime, readHostedAiByokMetadataKey } from '.
 import { createHostedArtifactRuntime } from './fuma/artifacts'
 import { createArtifactMarketplaceScopedRoutes, createHostedArtifactReviewRuntime } from './fuma/artifactReviews'
 import { createQuotaRuntime } from './fuma/quotas'
+import { createHostedComponentCatalogRuntime } from './fuma/componentCatalog'
+import { configureSiteComponentCatalogPort, PostgresSiteComponentCatalogPort } from './ai/tools/site/componentCatalogPort'
 import {
   createHostedMemberIdentityRuntime,
   createMemberImportBoundary,
@@ -181,6 +183,10 @@ const hostedArtifactReviewRuntime = hostedArtifactRuntime
 const artifactMarketplaceRoutes = hostedArtifactReviewRuntime
   ? createArtifactMarketplaceScopedRoutes(hostedArtifactReviewRuntime.service)
   : undefined
+const hostedComponentCatalogRuntime = hostedArtifactRuntime && hostedArtifactReviewRuntime
+  ? createHostedComponentCatalogRuntime({ db, artifacts: hostedArtifactRuntime.authority, reviews: hostedArtifactReviewRuntime.service })
+  : undefined
+if (hostedComponentCatalogRuntime) configureSiteComponentCatalogPort(new PostgresSiteComponentCatalogPort(db, hostedComponentCatalogRuntime.service))
 const siteRuntimeAuthority = hostedFumaConfig && releaseObjectStorage
   ? await createHostedSiteRuntimeAuthority({
     db,
@@ -367,6 +373,7 @@ const fumaScopedApi = createHostedFumaScopedApi({
   ...(quotaRuntime ? { quotaRoutes: quotaRuntime.scopedRoutes } : {}),
   ...(hostedMcpRuntime ? { mcpRoutes: hostedMcpRuntime.scopedRoutes } : {}),
   ...(artifactMarketplaceRoutes ? { marketplaceRoutes: artifactMarketplaceRoutes } : {}),
+  ...(hostedComponentCatalogRuntime ? { componentCatalogRoutes: hostedComponentCatalogRuntime.scopedRoutes } : {}),
 })
 const memberImportBoundary = memberIdentityRuntime && hostedStaffAuthRuntime && fumaScopedApi
   ? createMemberImportBoundary({

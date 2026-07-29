@@ -1,5 +1,5 @@
 import type { AiToolOutput } from '@core/ai'
-import type { McpNativeCapability, McpNativeExecutionAuthority, McpNativeHttpAuthority, McpNativeResolvedSession } from '../../ai/mcp/authority'
+import type { McpNativeCapability, McpNativeConnectorCapability, McpNativeExecutionAuthority, McpNativeHttpAuthority, McpNativeResolvedSession } from '../../ai/mcp/authority'
 import { hashConnectorToken } from '../../ai/mcp/connectors/token'
 import type { McpPublishConfirmationInput } from '../../ai/mcp/tools/publishTool'
 import { hashMcpValue, McpService } from './service'
@@ -21,17 +21,19 @@ class HostedMcpExecutionAuthority implements McpNativeExecutionAuthority {
   readonly #receipts = new Map<string, McpToolReceipt>()
   constructor(service: McpService, sessionId: string, connector: McpConnector) { this.#service = service; this.#sessionId = sessionId; this.#connector = connector }
 
-  async revalidate(input: Readonly<{ phase: 'list' | 'tool-dispatch' | 'bridge-dispatch' | 'tool-result'; toolName?: string; capability?: McpNativeCapability }>): Promise<void> { await this.#service.revalidate(this.#sessionId, input.capability ? operationCapability(input.capability) : undefined) }
+  async revalidate(input: Readonly<{ phase: 'list' | 'tool-dispatch' | 'bridge-dispatch' | 'tool-result'; toolName?: string; capability?: McpNativeCapability; connectorCapability?: McpNativeConnectorCapability }>): Promise<void> { await this.#service.revalidate(this.#sessionId, input.capability ? operationCapability(input.capability) : undefined, input.connectorCapability) }
 
-  async authorizeTool(input: Readonly<{ operationId: string; toolName: string; capability: McpNativeCapability; input: unknown }>): Promise<Readonly<{ replay: AiToolOutput | null }>> {
+  async authorizeTool(input: Readonly<{ operationId: string; toolName: string; capability: McpNativeCapability; connectorCapability: McpNativeConnectorCapability; input: unknown }>): Promise<Readonly<{ replay: AiToolOutput | null }>> {
     const capability = operationCapability(input.capability)
     const rate = this.#connector.rates[capability]
-    const confirmation = input.toolName === 'site_publish' ? ((input.input as { confirmation?: McpPublishConfirmationInput }).confirmation ?? null) : null
+    const confirmation = (input.toolName === 'site_publish' || input.toolName === 'site_publish_components') ? ((input.input as { confirmation?: McpPublishConfirmationInput }).confirmation ?? null) : null
+    await this.#service.revalidate(this.#sessionId, capability, input.connectorCapability)
     const result = await this.#service.beginOperation({
       sessionId: this.#sessionId,
       operationId: input.operationId,
       toolName: input.toolName,
       capability,
+      connectorCapability: input.connectorCapability,
       inputHashSha256: await hashMcpValue(input.input),
       estimatedInputTokens: Math.min(rate.reserveInputTokens, tokenUnits(input.input)),
       estimatedOutputTokens: rate.reserveOutputTokens,
@@ -86,6 +88,7 @@ export function createMcpNativeHttpAuthority(input: Readonly<{
         capabilities: connector.toolCapabilities,
         operationId,
         bridgeSiteKey: connector.scope.siteId,
+        connectorCapabilities: connector.capabilities,
         authority,
         publishRuntime: {
           connectorId: connector.connectorId,

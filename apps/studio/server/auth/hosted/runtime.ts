@@ -45,6 +45,7 @@ export type HostedFumaScopedApiInput = Readonly<{
   mcpRoutes?: readonly FumaScopedRouteDeclaration[]
   marketplaceRoutes?: readonly FumaScopedRouteDeclaration[]
   aiPaymentSetupRoutes?: readonly FumaScopedRouteDeclaration[]
+  componentCatalogRoutes?: readonly FumaScopedRouteDeclaration[]
 }>
 
 export function readHostedAuthSecret(
@@ -127,5 +128,6 @@ export function createHostedFumaScopedApi(
     ...(input.mcpRoutes ?? []),
     ...(input.marketplaceRoutes ?? []),
     ...(input.aiPaymentSetupRoutes ?? []),
+    ...(input.componentCatalogRoutes ?? []),
   ]))
 }

@@ -118,6 +118,10 @@ export interface AiTool {
    * at selection time and re-checked in `executeAiTool`.
    */
   readonly requiredCapabilities?: readonly CoreCapability[]
+  /** Exact hosted MCP connector grant; omitted tools retain site read/mutate/publish mapping. */
+  readonly mcpCapability?:
+    | 'component.read' | 'component.create-source' | 'component.install'
+    | 'component.mutate' | 'component.confirm' | 'component.publish'
   /**
    * Server-side handler. Required when `execution === 'server'`; ignored when
    * `execution === 'browser'` (the browser bridge runs the tool instead).

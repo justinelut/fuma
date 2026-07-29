@@ -74,6 +74,7 @@ import { siteRuntimeApplicationMigration } from './000072_site_runtime_applicati
 import { customerPaymentPluginMigration } from './000073_customer_payment_plugin'
 import { aiPaymentSetupMigration } from './000074_ai_payment_setup'
 
+import { componentCatalogAuthorityMigration } from './000075_component_catalog_authority'
 export const hostedMigrations = Object.freeze([
   transitionBookkeepingMigration,
   durableJobsMigration,
@@ -149,6 +150,7 @@ export const hostedMigrations = Object.freeze([
   siteRuntimeApplicationMigration,
   customerPaymentPluginMigration,
   aiPaymentSetupMigration,
+  componentCatalogAuthorityMigration,
 ])
 
 export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
@@ -232,6 +234,7 @@ export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Obje
   '000072_site_runtime_application': '48b68eb8fa97e6f47a9ef97c510adedd975e88ef39425d9b26e3b24db74722da',
   '000073_customer_payment_plugin': '393a785bfed74ef9e6f3545d8fb65ec7a76c6351573874c9d09650b825d6f9a6',
   '000074_ai_payment_setup': '29cc495c97c6bb78f915a9ab5116c2ca997294d4f483c6af8f9433f07b483615',
+  '000075_component_catalog_authority': '760f409e118eaffcd72323ffd2f70aaf008bbde3e732e3372afcaf8e64657f61',
 })
 
 const firstUnappliedMigration = hostedMigrations.findIndex(({ id }) => (

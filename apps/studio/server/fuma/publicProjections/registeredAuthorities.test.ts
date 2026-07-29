@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
   PUBLIC_PROJECTION_RESOURCES,
+  PublicComponentsPageSchema,
   PublicExpertsPageSchema,
   PublicPluginsPageSchema,
   PublicPricingCatalogPageSchema,
@@ -146,6 +147,7 @@ describe('hosted public projection authority registrations', () => {
       showcases: PublicShowcasesPageSchema,
       experts: PublicExpertsPageSchema,
       plugins: PublicPluginsPageSchema,
+      components: PublicComponentsPageSchema,
     } as const
 
     for (const resource of PUBLIC_PROJECTION_RESOURCES) {

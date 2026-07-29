@@ -71,12 +71,20 @@ function toolCapabilities(capabilities: readonly ScopedMcpCapability[]): string[
     output.add('ai.tools.write')
     output.add('pages.publish')
   }
+  if (capabilities.includes('component.read')) output.add('site.read')
+  if (capabilities.includes('component.create-source') || capabilities.includes('component.mutate')) {
+    output.add('ai.tools.write'); output.add('site.structure.edit')
+  }
+  if (capabilities.includes('component.install') || capabilities.includes('component.confirm')) output.add('plugins.install')
+  if (capabilities.includes('component.publish')) { output.add('ai.tools.write'); output.add('pages.publish') }
   return [...output]
 }
 
 function view(value: ConnectorWire): ScopedMcpConnectorView {
   const capabilities = value.capabilities.filter((candidate): candidate is ScopedMcpCapability => (
     candidate === 'site.read' || candidate === 'site.mutate' || candidate === 'site.publish'
+      || candidate === 'component.read' || candidate === 'component.create-source' || candidate === 'component.install'
+      || candidate === 'component.mutate' || candidate === 'component.confirm' || candidate === 'component.publish'
   ))
   return Object.freeze({
     connectorId: value.connectorId,

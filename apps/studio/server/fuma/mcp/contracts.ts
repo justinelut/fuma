@@ -119,6 +119,7 @@ export const BeginMcpOperationSchema = Type.Object({
   toolName: Id,
   capability: McpOperationCapabilitySchema,
   inputHashSha256: Sha256,
+  connectorCapability: Type.Optional(McpConnectorCapabilitySchema),
   estimatedInputTokens: Units,
   estimatedOutputTokens: Units,
   confirmation: Type.Union([McpPublishConfirmationSchema, Type.Null()]),

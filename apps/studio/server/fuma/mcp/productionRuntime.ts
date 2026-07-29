@@ -70,7 +70,7 @@ export class HostedMcpPublishConfirmationAuthority implements McpPublishConfirma
     if (!session || session.impersonatedBy !== null || session.userId !== input.connector.actorId || !Number.isFinite(ageMs) || ageMs < 0 || ageMs >= CONFIRMATION_MAX_AGE_MS) {
       throw new McpAuthorityError('confirmation', 'A fresh direct hosted staff session is required.')
     }
-    if (input.connector.state !== 'active' || !input.connector.capabilities.includes('site.publish') || Date.parse(input.connector.expiresAt) <= this.#now().getTime()) {
+    if (input.connector.state !== 'active' || (!input.connector.capabilities.includes('site.publish') && !input.connector.capabilities.includes('component.publish')) || Date.parse(input.connector.expiresAt) <= this.#now().getTime()) {
       throw new McpAuthorityError('confirmation', 'An active publish connector is required.')
     }
     const confirmationId = crypto.randomUUID()

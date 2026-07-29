@@ -21,7 +21,7 @@ import type { AiBrowserBridge, AiTool, AiToolOutput } from '../runtime/types'
 import { executeAiTool } from '../drivers/http/execTool'
 import { mcpToolsForCapabilities } from './registry'
 import { authorizeMcpContentTool } from './contentAuthorization'
-import type { McpNativeCapability, McpNativeExecutionAuthority } from './authority'
+import type { McpNativeCapability, McpNativeConnectorCapability, McpNativeExecutionAuthority } from './authority'
 import type { McpPublishRuntime } from './tools/publishTool'
 import {
   getEditorBridgeForUser,
@@ -33,6 +33,7 @@ export interface McpServerContext {
   userId: string
   connectorId: string
   capabilities: readonly CoreCapability[]
+  connectorCapabilities?: readonly McpNativeConnectorCapability[]
   uploadsDir?: string
   operationId?: string
   bridgeSiteKey?: string
@@ -53,10 +54,14 @@ const NO_WORKSPACE_MESSAGE: Record<EditorBridgeScope, string> = {
 }
 
 function nativeCapability(tool: AiTool): McpNativeCapability {
-  if (tool.name === 'site_publish') return 'publish'
+  if (tool.name === 'site_publish' || tool.name === 'site_publish_components') return 'publish'
   return tool.mutates ? 'mutate' : 'read'
 }
 
+
+function connectorCapability(tool: AiTool, capability: McpNativeCapability): McpNativeConnectorCapability {
+  return tool.mcpCapability ?? (capability === 'read' ? 'site.read' : capability === 'mutate' ? 'site.mutate' : 'site.publish')
+}
 function callToolResult(output: AiToolOutput): CallToolResult {
   if (!output.ok) return { isError: true, content: [{ type: 'text', text: output.error ?? 'Tool failed.' }] }
   const payload = output.data === undefined || output.data === null ? { ok: true } : output.data
@@ -74,7 +79,7 @@ export function buildMcpServer(ctx: McpServerContext): Server {
   const publishRuntime = ctx.publishRuntime ?? (ctx.uploadsDir
     ? { connectorId: ctx.connectorId, uploadsDir: ctx.uploadsDir }
     : undefined)
-  const tools = mcpToolsForCapabilities(ctx.capabilities, publishRuntime)
+  const tools = mcpToolsForCapabilities(ctx.capabilities, publishRuntime, ctx.connectorCapabilities)
   const byName = new Map<string, AiTool>(tools.map((t) => [t.name, t]))
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -100,10 +105,11 @@ export function buildMcpServer(ctx: McpServerContext): Server {
     }
     const input = args ?? {}
     const capability = nativeCapability(tool)
+    const exactConnectorCapability = connectorCapability(tool, capability)
     const operationId = ctx.operationId ?? `legacy:${ctx.connectorId}:${crypto.randomUUID()}`
     try {
-      await ctx.authority?.revalidate({ phase: 'tool-dispatch', toolName: name, capability })
-      const claim = await ctx.authority?.authorizeTool({ operationId, toolName: name, capability, input })
+      await ctx.authority?.revalidate({ phase: 'tool-dispatch', toolName: name, capability, connectorCapability: exactConnectorCapability })
+      const claim = await ctx.authority?.authorizeTool({ operationId, toolName: name, capability, connectorCapability: exactConnectorCapability, input })
       if (claim?.replay) return callToolResult(claim.replay)
     } catch (error) {
       return { isError: true, content: [{ type: 'text', text: getErrorMessage(error, 'MCP connector authority denied.') }] }
@@ -130,7 +136,7 @@ export function buildMcpServer(ctx: McpServerContext): Server {
       }
       bridge = {
         callBrowser: async (toolName, browserInput) => {
-          await ctx.authority?.revalidate({ phase: 'bridge-dispatch', toolName, capability })
+          await ctx.authority?.revalidate({ phase: 'bridge-dispatch', toolName, capability, connectorCapability: exactConnectorCapability })
           if (browserScope === 'content') {
             await authorizeMcpContentTool(ctx.db, ctx.userId, ctx.capabilities, toolName, browserInput)
           }
@@ -174,7 +180,7 @@ export function buildMcpServer(ctx: McpServerContext): Server {
     }
 
     try {
-      await ctx.authority?.revalidate({ phase: 'tool-result', toolName: name, capability })
+      await ctx.authority?.revalidate({ phase: 'tool-result', toolName: name, capability, connectorCapability: exactConnectorCapability })
       await ctx.authority?.recordToolResult({ operationId, toolName: name, capability, input, output })
     } catch (error) {
       await ctx.authority?.abortTool({ operationId, toolName: name, capability, input, reasonCode: 'authority-revoked' }).catch(() => {})

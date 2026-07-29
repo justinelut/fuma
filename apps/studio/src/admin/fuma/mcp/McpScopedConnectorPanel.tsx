@@ -4,7 +4,7 @@ import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
 import styles from './McpScopedConnectorPanel.module.css'
 
-export type ScopedMcpCapability = 'site.read' | 'site.mutate' | 'site.publish'
+export type ScopedMcpCapability = 'site.read' | 'site.mutate' | 'site.publish' | 'component.read' | 'component.create-source' | 'component.install' | 'component.mutate' | 'component.confirm' | 'component.publish'
 export interface ScopedMcpConnectorView { connectorId: string; label: string; siteId: string; ownerGeneration: number; capabilities: readonly ScopedMcpCapability[]; state: 'active' | 'revoked' | 'transferring'; expiresAt: string; requestsPerMinute: Readonly<Record<'read' | 'mutate' | 'publish', number>> }
 export interface ScopedMcpCreateIntent { label: string; capabilities: readonly ScopedMcpCapability[]; expiresAt: string }
 
@@ -12,6 +12,12 @@ const OPTIONS: readonly Readonly<{ id: ScopedMcpCapability; label: string; detai
   { id: 'site.read', label: 'Read', detail: 'Inspect only this site and its content.' },
   { id: 'site.mutate', label: 'Mutate drafts', detail: 'Edit the exact site draft through the live editor bridge.' },
   { id: 'site.publish', label: 'Publish', detail: 'Requires an explicit confirmation and current step-up for every publish.' },
+  { id: 'component.read', label: 'Read components', detail: 'Inspect starter, private, installed, and reviewed component definitions.' },
+  { id: 'component.create-source', label: 'Create source drafts', detail: 'Draft and isolated-validate restricted React/Tailwind source.' },
+  { id: 'component.install', label: 'Install and upgrade components', detail: 'Install exact reviewed pins and create rollback evidence.' },
+  { id: 'component.mutate', label: 'Author components', detail: 'Create declarative versions, variants, and usage records.' },
+  { id: 'component.confirm', label: 'Confirm executable artifacts', detail: 'Confirm exact validated bytes and disclosed permissions.' },
+  { id: 'component.publish', label: 'Publish component sites', detail: 'Validate every component pin, then require explicit step-up to publish.' },
 ]
 
 export function McpScopedConnectorPanel({ siteId, connectors, onCreate, onRevoke }: Readonly<{ siteId: string; connectors: readonly ScopedMcpConnectorView[]; onCreate(intent: ScopedMcpCreateIntent): Promise<Readonly<{ token: string }>>; onRevoke(connectorId: string): Promise<void> }>) {

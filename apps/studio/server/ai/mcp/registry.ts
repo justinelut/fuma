@@ -24,13 +24,14 @@
  */
 import type { CoreCapability } from '@core/capabilities'
 import type { AiTool } from '../runtime/types'
+import type { McpNativeConnectorCapability } from './authority'
 import { toolAllowedForCapabilities } from '../tools/capabilityGate'
 import { contentTools } from '../tools/content'
 import { siteTools } from '../tools/site'
 import { styleMcpTools } from './tools/styleTools'
 import { contextMcpTools } from './tools/contextTool'
 import { documentMcpTools } from './tools/documentTools'
-import { createPublishMcpTool, type McpPublishRuntime } from './tools/publishTool'
+import { createComponentPublishMcpTool, createPublishMcpTool, type McpPublishRuntime } from './tools/publishTool'
 
 // Server-resolved site read tools whose handlers read the browser-posted
 // `ctx.snapshot`, which is null over MCP — they'd return nothing or throw.
@@ -52,6 +53,7 @@ function allMcpTools(runtime?: McpPublishRuntime): AiTool[] {
     ...styleMcpTools,
     ...documentMcpTools,
     createPublishMcpTool(runtime),
+    createComponentPublishMcpTool(runtime),
     ...contentTools,
     ...siteTools,
   ]
@@ -66,6 +68,7 @@ function allMcpTools(runtime?: McpPublishRuntime): AiTool[] {
 export function mcpToolsForCapabilities(
   capabilities: readonly CoreCapability[],
   runtime?: McpPublishRuntime,
+  connectorCapabilities?: readonly McpNativeConnectorCapability[],
 ): AiTool[] {
-  return allMcpTools(runtime).filter((t) => toolAllowedForCapabilities(t, capabilities))
+  return allMcpTools(runtime).filter((t) => toolAllowedForCapabilities(t, capabilities) && (!t.mcpCapability || !connectorCapabilities || connectorCapabilities.includes(t.mcpCapability)))
 }

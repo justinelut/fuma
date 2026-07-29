@@ -54,6 +54,7 @@ export async function handleMcpHttp(
         connectorId: hosted.connectorId,
         capabilities: hosted.capabilities,
         operationId: hosted.operationId,
+        connectorCapabilities: hosted.connectorCapabilities,
         bridgeSiteKey: hosted.bridgeSiteKey,
         publishRuntime: hosted.publishRuntime,
         authority: hosted.authority,
