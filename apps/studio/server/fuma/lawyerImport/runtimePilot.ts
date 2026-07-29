@@ -151,8 +151,10 @@ export const LawyerRuntimePilotManifestSchema = Type.Object({
 export type LawyerRuntimePilotManifest = Readonly<Static<typeof LawyerRuntimePilotManifestSchema>>
 
 export class LawyerRuntimePilotError extends Error {
-  constructor(readonly code: 'invalid' | 'inventory' | 'disconnected' | 'authority', message: string) {
+  readonly code: 'invalid' | 'inventory' | 'disconnected' | 'authority'
+  constructor(code: 'invalid' | 'inventory' | 'disconnected' | 'authority', message: string) {
     super(message)
+    this.code = code
     this.name = 'LawyerRuntimePilotError'
   }
 }

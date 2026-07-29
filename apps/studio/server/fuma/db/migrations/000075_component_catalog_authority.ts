@@ -1,3 +1,4 @@
+import { jsonField } from '../../../db/jsonExtract'
 import type { HostedMigration } from '../migrationPolicy'
 
 /** FUMA-SITE-008 durable private/installed component authoring and usage authority. */
@@ -87,7 +88,7 @@ begin
     or old.created_at is distinct from new.created_at
     or (old.draft_json - 'state' - 'confirmedAt') is distinct from (new.draft_json - 'state' - 'confirmedAt')
     or old.state<>'validated' or new.state<>'confirmed' or old.confirmed_at is not null or new.confirmed_at is null
-    or new.draft_json->>'state'<>'confirmed' or (new.draft_json->>'confirmedAt')::timestamptz is distinct from new.confirmed_at
+    or new.${jsonField('draft_json', 'state', 'postgres').sql}<>'confirmed' or (new.${jsonField('draft_json', 'confirmedAt', 'postgres').sql})::timestamptz is distinct from new.confirmed_at
   then raise exception 'illegal component source draft transition' using errcode='55000'; end if;
   return new;
 end;

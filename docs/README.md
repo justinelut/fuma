@@ -92,6 +92,7 @@ docs/
 │   ├── fuma-ai-confirmed-payment-setup.md ← fixed AI proposal, explicit confirmation, secure credential handoff, and preview
 │   ├── fuma-tenant-runtime-architecture.md ← exact-host Next runtime and semantic component registry
 │   ├── fuma-site-application-state.md ← member/application state, mutation fencing, rollout, and legacy compatibility
+│   ├── fuma-component-catalog.md     ← private/reviewed component authoring, AI/MCP tools, installs, usage, and upgrades
 │   ├── fuma-publish-release.md          ← durable semantic publishing, exact retries, atomic activation
 │   ├── fuma-free-hosts.md               ← exact free-host allocation, active-release Host routing, fail-closed serving
 │   ├── fuma-staff-identity.md         ← additive hosted auth links and preserved staff credentials

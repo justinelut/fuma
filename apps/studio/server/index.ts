@@ -211,7 +211,7 @@ const siteRuntimeAuthority = hostedFumaConfig && releaseObjectStorage
               audience: Object.freeze({ kind: 'public' as const, memberId: null, accessFingerprintSha256: '0'.repeat(64) }),
               member: Object.freeze({ authenticated: false as const, memberIdentityId: null, memberId: null, sessionId: null, displayName: null }),
               snapshot: emptyApplicationSnapshot(),
-              access: Object.freeze({ member: false, paid: false, memberSource: 'none' as const, segmentIds: Object.freeze([]) }),
+              access: Object.freeze({ member: false, paid: false, memberSource: 'none' as const, segmentIds: [] as string[] }),
             })
           }
           const audience = await publicationRuntime.graph.memberAccess.audienceForIdentity(scope, session.principal.memberIdentityId)
@@ -247,7 +247,7 @@ const siteRuntimeAuthority = hostedFumaConfig && releaseObjectStorage
               member: audience.member,
               paid: audience.paid,
               memberSource: audience.memberSource,
-              segmentIds: Object.freeze([...audience.segmentIds].toSorted()),
+              segmentIds: [...audience.segmentIds].toSorted(),
             }),
           })
         },

@@ -22,8 +22,10 @@ import {
 } from './contracts'
 
 export class OperationsPolicyError extends Error {
-  constructor(readonly code: 'host-denied' | 'authority-denied' | 'contribution-denied' | 'support-denied' | 'break-glass-denied' | 'expert-hidden' | 'transfer-denied', message: string) {
+  readonly code: 'host-denied' | 'authority-denied' | 'contribution-denied' | 'support-denied' | 'break-glass-denied' | 'expert-hidden' | 'transfer-denied'
+  constructor(code: 'host-denied' | 'authority-denied' | 'contribution-denied' | 'support-denied' | 'break-glass-denied' | 'expert-hidden' | 'transfer-denied', message: string) {
     super(message)
+    this.code = code
     this.name = 'OperationsPolicyError'
   }
 }

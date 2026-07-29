@@ -232,8 +232,10 @@ export function parseContract<T extends TSchema>(schema: T, value: unknown, labe
 }
 
 export class SiteRuntimeClientError extends Error {
-  constructor(readonly code: 'invalid-request' | 'direct-origin' | 'authority-unavailable' | 'invalid-response' | 'runtime-conflict', message: string) {
+  readonly code: 'invalid-request' | 'direct-origin' | 'authority-unavailable' | 'invalid-response' | 'runtime-conflict'
+  constructor(code: 'invalid-request' | 'direct-origin' | 'authority-unavailable' | 'invalid-response' | 'runtime-conflict', message: string) {
     super(message)
+    this.code = code
     this.name = 'SiteRuntimeClientError'
 
   }

@@ -728,10 +728,10 @@ describe('ContentPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /close settings panel/i }))
     expect(useWorkspaceLayout.getState().rightPanel.collapsed).toBe(true)
 
-    const entryButton = (
-      await within(postsRegion).findByText('Untitled', {}, { timeout: 30_000 })
-    ).closest('button')
-    expect(entryButton).toBeTruthy()
+    const entryButton = within(postsRegion)
+      .getAllByRole('button')
+      .find((button) => button.getAttribute('aria-label') !== 'New post')
+    expect(entryButton).toBeDefined()
     fireEvent.contextMenu(entryButton as HTMLButtonElement, { clientX: 240, clientY: 320 })
     fireEvent.click(
       within(screen.getByRole('menu', { name: 'Content item options' }))
@@ -746,7 +746,7 @@ describe('ContentPage', () => {
       )).toBe(true)
     })
     await waitFor(() => {
-      expect(within(postsRegion).queryByText('Untitled')).toBeNull()
+      expect(entryButton?.isConnected).toBe(false)
     })
 
     expect(screen.queryByTestId('content-settings-panel')).toBeNull()

@@ -1,8 +1,8 @@
 import {
   PlatformConsoleRegistry,
   type ConsoleActionDelegate,
-  type ConsoleActionResult,
-} from '../../../../../packages/fuma-governance-launch/src'
+} from '../../../../../packages/fuma-governance-launch/src/operations'
+import type { ConsoleActionResult } from '../../../../../packages/fuma-governance-launch/src/contracts'
 import type { ArtifactReviewService } from '../artifactReviews/service'
 import { artifactReviewConsoleContribution } from '../artifactReviews/consoleContribution'
 import type { EntitlementService } from '../entitlements/service'
@@ -35,7 +35,7 @@ export function customOfferIssueConsoleDelegate(
     actionId: 'commercial.offer.issue',
     requiredAuthority: 'internal.commercial.offer.issue',
     requiresFreshStepUp: true,
-    async execute(input, context) {
+    async execute(input: unknown, context: Readonly<{ actorId: string; requestId: string; now: string }>) {
       const draft = await entitlements.propose(input)
       const issued = await entitlements.issue(draft)
       return completed('commercial.offer.issue', context.requestId, issued.offerId, issued.version)

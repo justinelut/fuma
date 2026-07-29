@@ -82,3 +82,14 @@ FUMA-070 was completed directly in the preserved `integration/fuma-batch-7-20260
 The ticket is closed after strict TypeBox schema-identity, scope, fresh-confirmation, one-time handoff, secret-redaction, contention, browser, strict TypeScript, frozen install, full lint/build/aggregate, bootstrap/checksum/lock/diff and cleanup gates recorded in `fuma-tracker-closure-audit.md`. The backlog is **17/40 closed, 23 open**. The exact ready frontier is **FUMA-071, FUMA-SITE-008, FUMA-SITE-006, and FUMA-078**; FUMA-079 still waits on FUMA-071 and FUMA-078.
 
 The user authorized one local checkpoint commit with no push, followed by one invocation containing exactly four parallel ticket agents. Each agent starts from that checkpoint in an isolated branch/worktree, owns one complete ready ticket, and writes `docs/handoffs/agent-results/<TICKET>.md`. The assignments are FUMA-071, FUMA-SITE-008, FUMA-SITE-006, and FUMA-078. The conductor alone performs aggregate validation, dependency-safe integration, and formal tracker closure.
+
+## Coding batch 17 exact-four worktree integration — 2026-07-31
+
+The authorized checkpoint `55e260c15b345791d9f07f7eef4d56122aa78a73` produced four isolated clean worktrees and ticket handoffs:
+
+- `fuma-orch-21`, branch `orchestrator/21-platform-console-fuma071`, ticket commit `0729f5cf97575da000b746082d889ab9c84acbd9`, integrated as `bce21b38`: **FUMA-071 closed**.
+- `fuma-orch-22`, branch `orchestrator/22-component-catalog-fuma-site008`, ticket commit `fd648daf7310958a9654234579fed5f33721d5f8`, integrated as `46b8009d`: **FUMA-SITE-008 closed**, canonical migration `000075` finalized at `760f409e118eaffcd72323ffd2f70aaf008bbde3e732e3372afcaf8e64657f61`.
+- `fuma-orch-23`, branch `orchestrator/23-lawyer-runtime-fuma-site006`, ticket commit `c163fe3c77d2e929e47d0aa87c1360d0abb4467f`, integrated as `af348a26`: **FUMA-SITE-006 closed**.
+- `fuma-orch-24`, branch `orchestrator/24-arm64-delivery-fuma078`, ticket commit `29b822ba871750f130825b055df24e437305e92f`, integrated as `4708d38c`: **FUMA-078 repository implementation complete but formal ticket open** pending authorized protected publication/signing/scanning/runtime evidence.
+
+All aggregate/build/lint/typecheck/frozen-install/migration/lock/bootstrap/native-host/PostgreSQL cleanup gates pass as recorded in `fuma-tracker-closure-audit.md`. The formal backlog is **20/40 closed, 20 open**. The dependency-ready complete implementation frontier is **FUMA-072, FUMA-077, and FUMA-WEB-013**; it does not satisfy the exact-four threshold. FUMA-079 remains blocked by open FUMA-078. No push, deployment, provider mutation, Docker/buildx/QEMU/emulation, or protected supply-chain action occurred.
