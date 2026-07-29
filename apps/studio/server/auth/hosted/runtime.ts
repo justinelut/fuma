@@ -42,6 +42,9 @@ export type HostedFumaScopedApiInput = Readonly<{
   publicationRoutes?: readonly FumaScopedRouteDeclaration[]
   checkoutRoutes?: readonly FumaScopedRouteDeclaration[]
   quotaRoutes?: readonly FumaScopedRouteDeclaration[]
+  mcpRoutes?: readonly FumaScopedRouteDeclaration[]
+  marketplaceRoutes?: readonly FumaScopedRouteDeclaration[]
+  aiPaymentSetupRoutes?: readonly FumaScopedRouteDeclaration[]
 }>
 
 export function readHostedAuthSecret(
@@ -121,5 +124,8 @@ export function createHostedFumaScopedApi(
     ...(input.publicationRoutes??[]),
     ...(input.checkoutRoutes ?? []),
     ...(input.quotaRoutes ?? []),
+    ...(input.mcpRoutes ?? []),
+    ...(input.marketplaceRoutes ?? []),
+    ...(input.aiPaymentSetupRoutes ?? []),
   ]))
 }

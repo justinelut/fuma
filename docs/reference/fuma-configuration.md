@@ -72,6 +72,8 @@ Production roles are limited to `web`, `worker`, and `scheduler`. This is config
 
 Hosted Studio web and production durable workers additionally require `FUMA_OBJECT_ACCESS_SIGNING_SECRET` (at least 32 bytes) when composing MinIO-backed revision and release storage. It must be independent from `FUMA_MINIO_SECRET_ACCESS_KEY`; `.env.fuma.example` leaves both blank. Each process fails before accepting requests or jobs when this signing authority is absent.
 
+Hosted Studio web additionally requires `FUMA_AI_BYOK_METADATA_KEY`, one canonical unpadded base64url encoding of exactly 32 random bytes. Startup imports it as a non-extractable AES-GCM key for the existing FUMA-064 service before activating hosted MCP. It must be independent from staff auth, object signing, MinIO, and provider credentials; only its SHA-256-derived opaque key ID is persisted with encrypted metadata.
+
 ## Security invariants
 
 Production loading rejects:

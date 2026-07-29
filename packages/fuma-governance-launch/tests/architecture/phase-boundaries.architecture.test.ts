@@ -82,7 +82,7 @@ describe('FUMA-063..085 and TRACKER-086 architecture boundary', () => {
     const plugin = readFileSync(join(PACKAGE, 'plugins/customer-payments/server/index.js'), 'utf8')
     const manifest = readFileSync(join(PACKAGE, 'plugins/customer-payments/plugin.json'), 'utf8')
     expect(plugin).not.toContain("routes.public.post('/webhook'")
-    expect(manifest).toContain('"network": []')
+    expect(manifest).toContain('"networkAllowedHosts": []')
     expect(manifest).not.toMatch(/content\.(?:read|write)/)
   })
 

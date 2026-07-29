@@ -231,7 +231,14 @@ export async function* runToolLoop<TMessage>(
       let output: AiToolOutput
       try {
         output = tool
-          ? await executeAiTool(tool, input, req.bridge, req.signal, req.toolContextBase)
+          ? await executeAiTool(
+            tool,
+            input,
+            req.bridge,
+            req.signal,
+            req.toolContextBase,
+            call.id,
+          )
           : { ok: false, error: `Unknown tool: ${call.name}` }
       } catch (err) {
         // Browser tools communicate domain failures by resolving an

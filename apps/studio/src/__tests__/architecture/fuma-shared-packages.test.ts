@@ -17,7 +17,7 @@ import ts from 'typescript'
 const REPOSITORY_ROOT = resolve(import.meta.dir, '../../../../..')
 const BOUNDED_PACKAGE_IDS = ['brand', 'design-tokens', 'public-contracts'] as const
 const REPOSITORY_PACKAGE_IDS = [...BOUNDED_PACKAGE_IDS, 'fuma-governance-launch'] as const
-const REPOSITORY_APP_IDS = ['control-surfaces', 'studio', 'web'] as const
+const REPOSITORY_APP_IDS = ['control-surfaces', 'site-runtime', 'studio', 'web'] as const
 const EXPECTED_PACKAGE_NAMES = new Map([
   ['brand', '@fuma/brand'],
   ['design-tokens', '@fuma/design-tokens'],
@@ -429,6 +429,7 @@ function fixture(): string {
   const root = mkdtempSync(join(tmpdir(), 'fuma-shared-packages-'))
   temporaryDirectories.push(root)
   write(root, 'apps/control-surfaces/package.json', `${JSON.stringify({ name: '@fuma/control-surfaces', private: true, dependencies: { '@fuma/governance-launch': 'workspace:*' } })}\n`)
+  write(root, 'apps/site-runtime/runtime.manifest.json', '{}\n')
   write(root, 'apps/studio/package.json', `${JSON.stringify({ name: '@fuma/studio', private: true })}\n`)
   write(root, 'apps/web/package.json', `${JSON.stringify({ name: '@fuma/web', private: true })}\n`)
   writeManifest(root, 'fuma-governance-launch', packageManifest('@fuma/governance-launch', { '@sinclair/typebox': '0.34.49' }))
@@ -456,7 +457,7 @@ afterEach(() => {
 })
 
 describe('FUMA-WEB-004 bounded shared package architecture', () => {
-  test('the actual workspace contains the bounded leaves plus the approved governance package and control app', () => {
+  test('the actual workspace contains the bounded leaves plus approved governance, control, and tenant-runtime applications', () => {
     expect(auditSharedPackages(REPOSITORY_ROOT)).toEqual([])
   })
 

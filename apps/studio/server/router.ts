@@ -1,5 +1,6 @@
 import { tryHandleAi } from './ai/handlers'
 import { handleMcpHttp, MCP_ENDPOINT_PATH } from './ai/mcp'
+import type { McpNativeHttpAuthority } from './ai/mcp/authority'
 import { handleCmsRequest } from './handlers/cms'
 import type { DbClient } from './db/client'
 import { renderNotFoundResponse, renderPublicResolution } from './publish/publicRouter'
@@ -49,6 +50,7 @@ export interface ServerRuntime {
   memberImports?: MemberImportBoundary
   paystackWebhooks?: PaystackWebhookBoundary
   fumaScopedApi?: FumaScopedRouteBoundary
+  mcpAuthority?: McpNativeHttpAuthority
   staticDir?: string
   uploadsDir?: string
   /**
@@ -209,7 +211,10 @@ function tryServeAi(req: Request, runtime: ServerRuntime, url: URL, _pathname: s
  */
 function tryServeMcp(req: Request, runtime: ServerRuntime, _url: URL, pathname: string): Promise<Response | null> | null {
   if (pathname !== MCP_ENDPOINT_PATH) return null
-  return handleMcpHttp(req, runtime.db, { uploadsDir: runtime.uploadsDir })
+  return handleMcpHttp(req, runtime.db, {
+    uploadsDir: runtime.uploadsDir,
+    ...(runtime.mcpAuthority ? { authority: runtime.mcpAuthority } : {}),
+  })
 }
 
 async function tryServePublicProjections(
@@ -709,7 +714,6 @@ async function serveSiteCss(db: DbClient, pathname: string, uploadsDir?: string)
   const content = await promise
   return content === null ? new Response('Not found', { status: 404 }) : cssResponse(content, requestedHash)
 }
-
 /**
  * Rebuild the requested CSS bundle file from the latest published snapshot.
  * Returns the file body, or `null` when no page (nor the page-agnostic view)

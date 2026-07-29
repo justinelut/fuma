@@ -83,7 +83,7 @@ describe('FUMA-056 platform billing reconciliation architecture', () => {
     expect(migration).toContain('fuma_organization_contract_identity_guard_v2')
     expect(migrationExport).toContain("../db/migrations/000059_platform_billing_reconciliation")
     expect(manifest).toContain("'000059_platform_billing_reconciliation': '2e66877da6c258cb060cd0d525c70274509d8134248d7bb6c686fbb505e3d4a3'")
-    expect(releaseMigrationTest).toContain(".toBe('000061_release_followup')")
+    expect(releaseMigrationTest).toContain(".toBe('000075_release_followup')")
     expect(historicalBilling).toContain("id:'000028_billing_reconciliation'")
     expect(historicalCheckout).toContain("id:'000027_checkout'")
   })

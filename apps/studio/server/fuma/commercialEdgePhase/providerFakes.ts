@@ -1,7 +1,7 @@
 import type { PaystackHttp } from '../paystack/transport'
 import type { RegistrarAdapter, RegistrarQuote, DomainRegistration } from '../registrar/service'
-import type { DnsProbe, DnsObservation } from '../domainOperations/service'
 import type { DomainCredentialEnvelope, DomainSecretCipher } from '../domains/service'
+import { credentialAuthorityKey, type DomainCredentialAuthority } from '../domains/contracts'
 
 export class FakePaystackHttp implements PaystackHttp {
  readonly requests:Readonly<{url:string;method:string;authorizationPresent:boolean}>[]=[]
@@ -22,15 +22,22 @@ export class FakeRegistrarAdapter implements RegistrarAdapter {
  async lookupRenewalByIdempotency(key:string){return this.renewals.get(key)??null}
 }
 
-export class FakeDnsProbe implements DnsProbe {
- readonly records=new Map<string,DnsObservation>()
+export type FakeDnsObservation = Readonly<{
+ type:'CNAME'|'TXT'|'A'
+ name:string
+ values:readonly string[]
+ ttl:number|null
+}>
+
+export class FakeDnsProbe {
+ readonly records=new Map<string,FakeDnsObservation>()
  async lookup(type:'CNAME'|'TXT'|'A',name:string){return this.records.get(`${type}:${name}`)??{type,name,values:[],ttl:null}}
- set(observation:DnsObservation){this.records.set(`${observation.type}:${observation.name}`,observation)}
+ set(observation:FakeDnsObservation){this.records.set(`${observation.type}:${observation.name}`,observation)}
 }
 
 /** Test-only reversible envelope. It stores only base64 ciphertext and enforces exact scope on decrypt. */
 export class FakeDomainSecretCipher implements DomainSecretCipher {
  private readonly scopes=new Map<string,string>()
- async encrypt(scope:string,plaintext:Uint8Array){const ciphertext=Buffer.from(plaintext.map((value)=>value^0xa5)).toString('base64');this.scopes.set(ciphertext,scope);return{ciphertext,keyId:'fake-test-key'}}
- async decrypt(scope:string,envelope:DomainCredentialEnvelope){if(this.scopes.get(envelope.ciphertext)!==scope)throw new Error('credential scope denied');return new Uint8Array(Buffer.from(envelope.ciphertext,'base64')).map((value)=>value^0xa5)}
+ async encrypt(authority:DomainCredentialAuthority,plaintext:Uint8Array){const ciphertext=Buffer.from(plaintext.map((value)=>value^0xa5)).toString('base64');this.scopes.set(ciphertext,credentialAuthorityKey(authority));return{ciphertext,keyId:'fake-test-key'}}
+ async decrypt(authority:DomainCredentialAuthority,envelope:DomainCredentialEnvelope){if(this.scopes.get(envelope.ciphertext)!==credentialAuthorityKey(authority))throw new Error('credential scope denied');return new Uint8Array(Buffer.from(envelope.ciphertext,'base64')).map((value)=>value^0xa5)}
 }

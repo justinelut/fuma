@@ -54,7 +54,7 @@ export type PublicProductFact = Static<typeof PublicProductFactSchema>
 export const PublicPricingQuotaSchema = Type.Object({
   key: PublicTagSchema,
   label: PublicTextSchema,
-  limit: Type.Integer({ minimum: 0, maximum: 1_000_000_000 }),
+  limit: Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER }),
   unit: Type.Union([
     Type.Literal('count'),
     Type.Literal('bytes'),
@@ -88,6 +88,20 @@ export const PublicPricingPlanSchema = Type.Object({
   expiresAt: Type.Union([PublicTimestampSchema, Type.Null()]),
 }, { additionalProperties: false })
 export type PublicPricingPlan = Static<typeof PublicPricingPlanSchema>
+
+export const PublicPriceBookVersionSchema = Type.String({
+  minLength: 1,
+  maxLength: 100,
+  pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$',
+})
+export type PublicPriceBookVersion = Static<typeof PublicPriceBookVersionSchema>
+
+/** Display-only identity added by the pricing authority after validating FUMA-054 evidence. */
+export const PublicPricingDisplayPlanSchema = Type.Object({
+  ...PublicPricingPlanSchema.properties,
+  planId: PublicIdSchema,
+}, { additionalProperties: false })
+export type PublicPricingDisplayPlan = Static<typeof PublicPricingDisplayPlanSchema>
 
 export const PublicTemplateImageSchema = Type.Object({
   url: PublicAssetUrlSchema,
@@ -231,7 +245,19 @@ export type PublicExpertsQuery = Static<typeof PublicExpertsQuerySchema>
 export type PublicPluginsQuery = Static<typeof PublicPluginsQuerySchema>
 
 export const PublicProductFactsPageSchema = createCursorPageSchema(PublicProductFactSchema)
-export const PublicPricingCatalogPageSchema = createCursorPageSchema(PublicPricingPlanSchema)
+const PublicPricingPageCursorSchema = createCursorPageSchema(PublicPricingDisplayPlanSchema).properties.page
+export const PublicPricingCatalogPageSchema = Type.Union([
+  Type.Object({
+    effectiveVersion: PublicPriceBookVersionSchema,
+    items: Type.Array(PublicPricingDisplayPlanSchema, { maxItems: PUBLIC_PAGE_SIZE_MAX }),
+    page: PublicPricingPageCursorSchema,
+  }, { additionalProperties: false }),
+  Type.Object({
+    effectiveVersion: Type.Null(),
+    items: Type.Array(PublicPricingDisplayPlanSchema, { maxItems: 0 }),
+    page: PublicPricingPageCursorSchema,
+  }, { additionalProperties: false }),
+])
 export const PublicTemplatesPageSchema = Type.Object({
   items: Type.Array(PublicTemplateSchema, { maxItems: PUBLIC_PAGE_SIZE_MAX }),
   tombstones: Type.Array(PublicTemplateTombstoneSchema, { maxItems: PUBLIC_PAGE_SIZE_MAX }),

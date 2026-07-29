@@ -2,6 +2,8 @@
 
 This reference covers FUMA-WEB-006 through FUMA-WEB-018. `apps/web` is an independent Next.js presentation service. It owns acquisition copy, reviewed Git content, same-origin presentation endpoints, metadata, consent UI, and public deployment artifacts. Studio remains the authority for mutable product, pricing, release, expert, showcase, plugin, handoff, contact-routing, and conversion facts.
 
+The approved final visual and animation direction is [`fuma-public-web-visual-motion-direction.md`](fuma-public-web-visual-motion-direction.md). FUMA-WEB-012 owns its original Fuma hero-to-footer implementation and later exact-pinned `motion/react` integration; FUMA-WEB-018 owns Blyss-only desktop/mobile/reduced-motion launch acceptance. The `motion` dependency is not currently installed and the active SITE-002/SITE-007/FUMA-066 checkpoint must not change the root lock.
+
 ## Runtime boundaries
 
 Public browsers use only `fuma.co.ke` or the required acceptance endpoint `https://3002.blyss.co.ke`. `/api/public/v1/*`, `/api/handoff`, `/api/contact`, `/api/events`, and `/api/vitals` require exact HTTPS Host/Origin agreement where applicable, bounded JSON, and strict TypeBox values, then construct private requests from scratch. Every submission response is no-store and emits no cookie. Browser cookies and authorization headers are never forwarded. The private origin, projection token, preview token, and metrics token are server-only configuration. There is no public API hostname.
@@ -80,3 +82,11 @@ Executed app-local evidence from `apps/web`:
 - `bun run build` — token check, search generation, Next production compile/typecheck, **31 static pages**, dynamic docs/guides/blog/changelog/preview/search/RSS/Atom routes, and budget enforcement passed; measured acquisition routes remained at **152,821 B gzip JavaScript, 0 B images, and 0 B fonts**.
 
 No browser run was needed or claimed: this ticket's deterministic compiler lifecycle, static React accessibility markup, route generation, and production integration are fully exercised by the focused tests and build. Browser acceptance, deployment, and launch-signature concerns remain with their later owning tickets.
+
+## FUMA-WEB-009 authoritative pricing closure evidence (2026-07-28)
+
+Studio now registers `ApprovedPricingProjectionSource`, not the legacy permissive pricing source. It validates the complete FUMA-054 `PriceBookSchema`, exact evidence SHA, every meter input, exact integer cost/margin math, the 70% gross-margin floor, the 30% variable-COGS ceiling, monthly/annual cadence pairs, effective/freshness dates, and no fallback to an older malformed or rejected publication. The display-safe projection excludes private offers, setup negotiation, provisional organizations, internal grants, provider IDs, COGS/margin evidence, payment, and transfer state.
+
+`apps/web/app/pricing/page.tsx` and the app-local `PricingCatalog` render only the strict current projection. Promotions expire at their half-open boundary; missing, stale, withdrawn, malformed, incomplete-cost, or margin-rejected authority suppresses paid checkout. `/start` carries only the stable plan intent, and the app remains responsible for authoritative re-resolution. Publish, switch, and withdraw fixtures update `/pricing` without changing Web content.
+
+Conductor acceptance passed the complete Web unit/contract/accessibility suite (95 tests, 557 expectations), Studio pricing-authority and central-registration gates, strict public-contract typechecking, Web typechecking, changed-file and aggregate lint, and the production Next build with 31 generated pages/routes and enforced acquisition budgets. The required public endpoint `https://3002.blyss.co.ke` had returned 502 during ticket work, so no browser acceptance is claimed and no localhost substitute is used.

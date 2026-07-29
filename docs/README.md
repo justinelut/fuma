@@ -85,6 +85,13 @@ docs/
 │   ├── fuma-tenant-keys.md            ← stable owner keys, resource inventory, and resumable evidence
 │   ├── fuma-object-ownership-transfer.md ← manifest-gated object authorization policy transfer
 │   ├── fuma-immutable-releases.md       ← immutable manifests, lifecycle, active pointer, retention roots
+│   ├── fuma-artifact-installations.md   ← immutable plugin/component-pack releases and scoped installations
+│   ├── fuma-artifact-reviews.md         ← scans, signed review, revocation, marketplace and install gate
+│   ├── fuma-customer-payments.md        ← customer-merchant credentials, transport, ledger, webhooks, and transfer
+│   ├── fuma-reviewed-customer-payment-plugin.md ← reviewed QuickJS payment blocks over shared merchant authority
+│   ├── fuma-ai-confirmed-payment-setup.md ← fixed AI proposal, explicit confirmation, secure credential handoff, and preview
+│   ├── fuma-tenant-runtime-architecture.md ← exact-host Next runtime and semantic component registry
+│   ├── fuma-site-application-state.md ← member/application state, mutation fencing, rollout, and legacy compatibility
 │   ├── fuma-publish-release.md          ← durable semantic publishing, exact retries, atomic activation
 │   ├── fuma-free-hosts.md               ← exact free-host allocation, active-release Host routing, fail-closed serving
 │   ├── fuma-staff-identity.md         ← additive hosted auth links and preserved staff credentials

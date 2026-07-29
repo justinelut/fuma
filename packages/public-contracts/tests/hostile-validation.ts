@@ -80,9 +80,17 @@ assert(accepts(PublicHandoffRequestSchema, {
   source: 'template',
   templateId: 'portfolio-v2',
 }), 'allowlisted handoff should validate')
+assert(accepts(PublicHandoffRequestSchema, {
+  kind: 'choose_plan',
+  source: 'pricing',
+  planId: 'starter',
+  priceBookVersion: 'ke-2026-07-v1',
+  cadence: 'annual',
+}), 'version-bound plan handoff should validate')
 for (const hostileHandoff of [
   { kind: 'use_template', source: 'template', templateId: 'portfolio-v2', redirectUrl: 'https://attacker.invalid' },
-  { kind: 'choose_plan', source: 'pricing', planId: 'starter', email: 'person@example.test' },
+  { kind: 'choose_plan', source: 'pricing', planId: 'starter', priceBookVersion: 'ke-2026-07-v1', cadence: 'annual', email: 'person@example.test' },
+  { kind: 'choose_plan', source: 'pricing', planId: 'starter', priceBookVersion: 'ke-2026-07-v1' },
   { kind: 'create_site', source: 'home', profile: 'commerce' },
   { kind: 'admin', source: 'direct' },
   { kind: 'contact_expert', source: 'expert', expertId: '../private' },
@@ -190,8 +198,10 @@ assert(!accepts(PublicProductFactsEnvelopeSchema, {
 
 const publicPricingEnvelope = {
   data: {
+    effectiveVersion: 'ke-2026-07-v1',
     items: [{
       id: 'plan_publication_monthly',
+      planId: 'plan_publication',
       slug: 'publication-monthly',
       name: 'Publication monthly',
       summary: 'A publish-approved public plan.',
@@ -211,6 +221,18 @@ const publicPricingEnvelope = {
   meta: { schemaVersion: 1, datasetVersion: 'pricing:3', etag: '"pricing-3"' },
 }
 assert(accepts(PublicPricingCatalogEnvelopeSchema, publicPricingEnvelope), 'published pricing projection should validate')
+assert(!accepts(PublicPricingCatalogEnvelopeSchema, {
+  ...publicPricingEnvelope,
+  data: { ...publicPricingEnvelope.data, effectiveVersion: null },
+}), 'withdrawn pricing cannot retain display plans')
+assert(accepts(PublicPricingCatalogEnvelopeSchema, {
+  ...publicPricingEnvelope,
+  data: {
+    effectiveVersion: 'ke-2026-07-v1',
+    items: [{ ...publicPricingEnvelope.data.items[0], quotas: [{ key: 'storage', label: 'Storage', limit: 5_000_000_000, unit: 'bytes' }] }],
+    page: { hasMore: false, nextCursor: null },
+  },
+}), 'finite safe-integer byte quotas above one gigabyte should validate')
 for (const privateField of ['privateOffer', 'setupNegotiation', 'internalGrant', 'providerPlanId', 'providerCost', 'cogs', 'grossMargin', 'paymentState', 'transferState']) {
   assert(!accepts(PublicPricingCatalogEnvelopeSchema, {
     ...publicPricingEnvelope,

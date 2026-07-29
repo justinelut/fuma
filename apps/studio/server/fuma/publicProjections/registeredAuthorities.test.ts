@@ -11,6 +11,9 @@ import {
 } from '@fuma/public-contracts'
 import { Value } from '@sinclair/typebox/value'
 import type { DbClient, DbResult } from '../../db/client'
+import { QUOTA_CLASSES, type PriceBook, type PricedPlan } from '../entitlements/contracts'
+import { evidenceSha256, toPublicPricingPlan } from '../entitlements/economics'
+import { METER_CLASSES } from '../metering/contracts'
 import { PublicProjectionInvalidRequestError, PublicProjectionUnavailableError } from './authority'
 import { createPublicProjectionBoundary, type PublicProjectionCoordination } from './boundary'
 import { createHostedPublicProjectionAuthorityCatalog } from './registeredAuthorities'
@@ -18,22 +21,53 @@ import { createHostedPublicProjectionAuthorityCatalog } from './registeredAuthor
 const TOKEN = 'projection-service-token-0000000001'
 const HOST = 'studio-internal.service:3001'
 
-const pricingItem = Object.freeze({
-  id: 'plan_launch_monthly',
-  slug: 'launch-monthly',
-  name: 'Launch',
-  summary: 'A publish-approved Website plan.',
-  profile: 'website',
-  currency: 'KES',
-  cadence: 'monthly',
-  amountMinor: 250000,
-  featureKeys: ['pages'],
-  quotas: [{ key: 'sites', label: 'Sites', limit: 1, unit: 'count' }],
-  promotion: null,
-  checkoutAvailable: true,
-  effectiveAt: '2026-07-01T00:00:00.000Z',
-  expiresAt: null,
-})
+const COST_MODEL_VERSION = `cost-model:sha256:${'a'.repeat(64)}`
+const pricingQuotas = Object.freeze(Object.fromEntries(
+  QUOTA_CLASSES.map((key, index) => [key, index + 1]),
+)) as PricedPlan['quotas']
+const pricingAssumptions = Object.freeze(Object.fromEntries(
+  METER_CLASSES.map((meter) => [meter, 1]),
+)) as PricedPlan['workloadAssumptions']
+const pricingInputs = Object.freeze(METER_CLASSES.map((meter) => Object.freeze({
+  meter, version: 'cost-v1', source: 'invoice' as const,
+})))
+
+function pricingPlan(cadence: 'monthly' | 'annual', amountMinor: number): PricedPlan {
+  const variableCostMinor = 10_000
+  const fixedSharedCostMinor = 10_000
+  const expectedCostMinor = variableCostMinor + fixedSharedCostMinor
+  return Object.freeze({
+    planId: 'launch', slug: 'launch', name: 'Launch', summary: 'A publish-approved Website plan.',
+    profile: 'website', cadence, amountMinor, offeringClass: 'paid', quotas: pricingQuotas,
+    workloadAssumptions: pricingAssumptions, featureKeys: Object.freeze(['pages']), promotion: null,
+    checkoutAvailable: true, expiresAt: null,
+    economics: Object.freeze({
+      costModelVersion: COST_MODEL_VERSION, conversionVersion: 'fx-v1', variableCostMinor,
+      fixedSharedCostMinor, expectedCostMinor,
+      marginBasisPoints: Math.floor(((amountMinor - expectedCostMinor) * 10_000) / amountMinor),
+      variableCogsBasisPoints: Math.ceil((variableCostMinor * 10_000) / amountMinor),
+      inputs: pricingInputs,
+    }),
+  })
+}
+
+function publishedPricingBook(): PriceBook {
+  const effectiveAt = '2026-07-01T00:00:00.000Z'
+  const plans = Object.freeze([pricingPlan('monthly', 250_000), pricingPlan('annual', 2_500_000)])
+  return Object.freeze({
+    version: 'price-book-7', currency: 'KES', effectiveAt, publishedAt: '2026-07-01T00:00:01.000Z',
+    costModelVersion: COST_MODEL_VERSION, plans,
+    publicJson: Object.freeze({ items: Object.freeze(plans.map((plan) => toPublicPricingPlan(plan, effectiveAt))) }),
+  })
+}
+
+function pricingRow(value: PriceBook = publishedPricingBook()): Record<string, unknown> {
+  return {
+    version: value.version, currency: value.currency, public_json: value.publicJson,
+    effective_at: value.effectiveAt, published_at: value.publishedAt,
+    cost_model_version: value.costModelVersion, evidence_sha256: evidenceSha256(value), private_json: value,
+  }
+}
 
 const expertPublic = Object.freeze({
   id: 'expert_nairobi_designer',
@@ -81,7 +115,7 @@ function fakeDb(fixture: FixtureRows = {}): DbClient {
   const query = (async <Row>(strings: TemplateStringsArray): Promise<DbResult<Row>> => {
     const sql = strings.join(' ').replace(/\s+/g, ' ').trim()
     const rows = sql.includes('from fuma_price_books')
-      ? fixture.pricing ?? [{ version: 'price-book-7', public_json: { items: [pricingItem] }, effective_at: '2026-07-01T00:00:00.000Z', published_at: '2026-07-01T00:00:00.000Z' }]
+      ? fixture.pricing ?? [pricingRow()]
       : sql.includes('from fuma_expert_profiles')
         ? fixture.experts ?? [{ expert_id: 'private-expert-row', kind: 'designer', display_name: 'Nairobi Designer', profile_json: { public: expertPublic, privateEmail: 'never-selected@example.test' }, public_revision: 7, approved_at: '2026-07-20T00:00:00.000Z' }]
         : sql.includes('from fuma_plugin_artifacts')
@@ -147,7 +181,7 @@ describe('hosted public projection authority registrations', () => {
 
   test('rejects private price-book fields and stale or forged cursors', async () => {
     const catalog = createHostedPublicProjectionAuthorityCatalog(fakeDb({
-      pricing: [{ version: 'bad', public_json: { items: [{ ...pricingItem, marginBasisPoints: 7500 }] }, effective_at: '2026-07-01T00:00:00.000Z', published_at: '2026-07-01T00:00:00.000Z' }],
+      pricing: [{ ...pricingRow(), public_json: { items: publishedPricingBook().publicJson.items.map((item) => ({ ...item, marginBasisPoints: 7500 })) } }],
     }))
     await expect(catalog.read({ resource: 'pricing', query: {} })).rejects.toBeInstanceOf(PublicProjectionUnavailableError)
 

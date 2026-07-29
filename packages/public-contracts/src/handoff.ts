@@ -48,6 +48,12 @@ export const PublicHandoffRequestSchema = Type.Union([
     kind: Type.Literal('choose_plan'),
     source: PublicHandoffSourceSchema,
     planId: PublicIdSchema,
+    priceBookVersion: Type.String({
+      minLength: 1,
+      maxLength: 100,
+      pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$',
+    }),
+    cadence: Type.Union([Type.Literal('monthly'), Type.Literal('annual')]),
   }, { additionalProperties: false }),
   Type.Object({
     kind: Type.Literal('use_template'),

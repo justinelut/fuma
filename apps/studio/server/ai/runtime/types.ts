@@ -125,6 +125,41 @@ export interface AiTool {
   handler?: (input: unknown, ctx: ToolContext) => Promise<unknown>
 }
 
+export type AiRuntimeAuthorityPhase =
+  | 'provider'
+  | 'persistence'
+  | 'tool-dispatch'
+  | 'tool-result'
+  | 'usage'
+
+export interface AiRuntimeExecutionAuthority {
+  verifySnapshot(snapshot: unknown): Promise<void>
+  revalidate(input: Readonly<{
+    phase: AiRuntimeAuthorityPhase
+    toolCallId?: string
+    toolName?: string
+    mutates?: boolean
+  }>): Promise<void>
+  authorizeTool(input: Readonly<{
+    toolCallId: string
+    toolName: string
+    mutates: boolean
+    input: unknown
+  }>): Promise<Readonly<{ replay: AiToolOutput | null }>>
+  recordToolResult(input: Readonly<{
+    toolCallId: string
+    toolName: string
+    mutates: boolean
+    input: unknown
+    output: AiToolOutput
+  }>): Promise<void>
+  recordUsage(input: Readonly<{
+    promptTokens: number
+    completionTokens: number
+  }>): Promise<void>
+  finish(outcome: 'succeeded' | 'failed' | 'cancelled', failureCode?: string): Promise<void>
+}
+
 /**
  * Context passed to server-side tool handlers. Carries the per-request
  * snapshot (page tree, posts list, table schemas, …) the tool reads from,
@@ -140,6 +175,10 @@ export interface ToolContext {
   readonly capabilities: readonly CoreCapability[]
   readonly scope: ToolScope
   readonly conversationId: string
+  /** Exact provider call identity; supplied during dispatch for durable mutating server tools. */
+  readonly toolCallId?: string
+  /** Optional hosted scope guard; absent for legacy/self-hosted native turns. */
+  readonly authority?: AiRuntimeExecutionAuthority
   readonly snapshot: unknown
   readonly signal: AbortSignal
 }

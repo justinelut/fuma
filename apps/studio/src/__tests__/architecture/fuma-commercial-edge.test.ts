@@ -1,19 +1,88 @@
-import {describe,expect,it} from 'bun:test'
-import {readdirSync,readFileSync} from 'node:fs'
-import {join} from 'node:path'
-const ROOT=join(import.meta.dir,'../../..')
-const files=['server/fuma/publishing/workerPublisher.ts','server/fuma/freeHosts/service.ts','server/fuma/edgeDelivery/service.ts','server/fuma/metering/service.ts','server/fuma/paystack/transport.ts','server/fuma/entitlements/service.ts','server/fuma/checkout/service.ts','server/fuma/billing/reconciler.ts','server/fuma/quotas/service.ts','server/fuma/customerPayments/service.ts','server/fuma/domains/service.ts','server/fuma/cloudflare/reconciler.ts','server/fuma/registrar/service.ts','server/fuma/domainOperations/service.ts']
-const sources=()=>Object.fromEntries(files.map((file)=>[file,readFileSync(join(ROOT,file),'utf8')]))
-function findings(input:Record<string,string>){const all=Object.values(input).join('\n');const compact=all.replaceAll(/\s+/g,'');const result:string[]=[];if(/\b(?:zod|z\.object)\b/i.test(all))result.push('typebox-only');if(!compact.includes("transport.scope!=='platform_billing'"))result.push('platform-scope');if(!compact.includes("transport.scope!=='customer_merchant'"))result.push('customer-scope');if(!all.includes('No default host is configured.'))result.push('no-default-host');if(/\bDaraja\b/.test(all)&&!all.includes("Daraja is not implemented."))result.push('no-daraja');if(!all.includes("manual-mobile-money"))result.push('manual-mobile-renewal');if(!all.includes("'[REDACTED]'"))result.push('redaction');if(!compact.includes('exactSite(scope:Readonly<{'))result.push('free-host-exact-scope');if(!all.includes('lookupRenewalByIdempotency'))result.push('registrar-renewal-reconciliation');if(!compact.includes('assertCurrentOwner(domainId);awaitthis.repository.detach'))result.push('domain-transfer-authority');return result}
-describe('FUMA-048–062 architecture gates',()=>{
- it('accepts the production phase boundary',()=>expect(findings(sources())).toEqual([]))
- it.each([
-  ['typebox-only', 'typebox-only'],
-  ['platform-scope', 'platform-scope'],
-  ['customer-scope', 'customer-scope'],
-  ['free-host-exact-scope', 'free-host-exact-scope'],
-  ['registrar-renewal-reconciliation', 'registrar-renewal-reconciliation'],
-  ['domain-transfer-authority', 'domain-transfer-authority'],
- ] as const)('hostile mutation triggers %s',(rule,mutation)=>{const source=sources();if(mutation==='typebox-only')source[files[0]]+="\nimport { z } from 'zod'";else if(mutation==='platform-scope'||mutation==='customer-scope'){const scope=mutation==='platform-scope'?'platform_billing':'customer_merchant';const needle=new RegExp(`transport\\.scope\\s*!==\\s*'${scope}'`,'g');for(const key of files)source[key]=source[key].replaceAll(needle,'scope-check-removed')}else if(mutation==='free-host-exact-scope')source['server/fuma/freeHosts/service.ts']=source['server/fuma/freeHosts/service.ts'].replace('exactSite(scope: Readonly<{','exactSite(siteId: string, ownerKey: string): Promise<Readonly<{');else if(mutation==='registrar-renewal-reconciliation')source['server/fuma/registrar/service.ts']=source['server/fuma/registrar/service.ts'].replaceAll('lookupRenewalByIdempotency','renewWithoutLookup');else source['server/fuma/domainOperations/service.ts']=source['server/fuma/domainOperations/service.ts'].replace('assertCurrentOwner(domainId);await this.repository.detach','this.repository.detach');expect(findings(source)).toContain(rule)})
- it('keeps every phase migration additive and forward-only',()=>{const directory=join(ROOT,'server/fuma/db/migrations');const names=readdirSync(directory);for(let id=21;id<=34;id+=1){const name=names.find((file)=>file.startsWith(`${String(id).padStart(6,'0')}_`));expect(name).toBeDefined();const sql=readFileSync(join(directory,name!),'utf8');expect(sql).not.toMatch(/\bdrop\s+(?:table|column|schema)\b/i);expect(sql).not.toMatch(/\balter\s+table\b/i)}})
+import { describe, expect, it } from 'bun:test'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+const ROOT = join(import.meta.dir, '../../..')
+const files = [
+  'server/fuma/publishing/workerPublisher.ts',
+  'server/fuma/freeHosts/service.ts',
+  'server/fuma/edgeDelivery/service.ts',
+  'server/fuma/metering/service.ts',
+  'server/fuma/paystack/transport.ts',
+  'server/fuma/entitlements/service.ts',
+  'server/fuma/checkout/service.ts',
+  'server/fuma/billing/reconciler.ts',
+  'server/fuma/quotas/service.ts',
+  'server/fuma/customerPayments/service.ts',
+  'server/fuma/domains/service.ts',
+  'server/fuma/cloudflare/reconciler.ts',
+  'server/fuma/registrar/service.ts',
+  'server/fuma/domainOperations/service.ts',
+]
+const sources = () => Object.fromEntries(
+  files.map((file) => [file, readFileSync(join(ROOT, file), 'utf8')]),
+)
+
+function findings(input: Record<string, string>) {
+  const all = Object.values(input).join('\n')
+  const compact = all.replaceAll(/\s+/g, '')
+  const result: string[] = []
+  if (/\b(?:zod|z\.object)\b/i.test(all)) result.push('typebox-only')
+  if (!compact.includes("transport.scope!=='platform_billing'")) result.push('platform-scope')
+  if (!compact.includes("transport.scope!=='customer_merchant'")) result.push('customer-scope')
+  if (!all.includes('No default host is configured.')) result.push('no-default-host')
+  if (/\bDaraja\b/.test(all) && !all.includes('Daraja is not implemented.')) result.push('no-daraja')
+  if (!all.includes('manual-mobile-money')) result.push('manual-mobile-renewal')
+  if (!all.includes("'[REDACTED]'")) result.push('redaction')
+  if (!compact.includes('exactSite(scope:Readonly<{')) result.push('free-host-exact-scope')
+  if (!all.includes('lookupRenewalByIdempotency')) result.push('registrar-renewal-reconciliation')
+  if (
+    !compact.includes('exactScope(scope,choice.source)')
+    || !compact.includes('activeRegistrarTransfer(scope,domainId)')
+    || !compact.includes("DomainOperationError('unsafe-detachment'")
+  ) result.push('domain-transfer-authority')
+  return result
+}
+
+describe('FUMA-048–062 architecture gates', () => {
+  it('accepts the production phase boundary', () => expect(findings(sources())).toEqual([]))
+
+  it.each([
+    ['typebox-only', 'typebox-only'],
+    ['platform-scope', 'platform-scope'],
+    ['customer-scope', 'customer-scope'],
+    ['free-host-exact-scope', 'free-host-exact-scope'],
+    ['registrar-renewal-reconciliation', 'registrar-renewal-reconciliation'],
+    ['domain-transfer-authority', 'domain-transfer-authority'],
+  ] as const)('hostile mutation triggers %s', (rule, mutation) => {
+    const source = sources()
+    if (mutation === 'typebox-only') source[files[0]!] += "\nimport { z } from 'zod'"
+    else if (mutation === 'platform-scope' || mutation === 'customer-scope') {
+      const scope = mutation === 'platform-scope' ? 'platform_billing' : 'customer_merchant'
+      const needle = new RegExp(`transport\\.scope\\s*!==\\s*'${scope}'`, 'g')
+      for (const key of files) source[key] = source[key]!.replaceAll(needle, 'scope-check-removed')
+    } else if (mutation === 'free-host-exact-scope') {
+      source['server/fuma/freeHosts/service.ts'] = source['server/fuma/freeHosts/service.ts']!
+        .replace('exactSite(scope: Readonly<{', 'exactSite(siteId: string, ownerKey: string): Promise<Readonly<{')
+    } else if (mutation === 'registrar-renewal-reconciliation') {
+      source['server/fuma/registrar/service.ts'] = source['server/fuma/registrar/service.ts']!
+        .replaceAll('lookupRenewalByIdempotency', 'renewWithoutLookup')
+    } else {
+      source['server/fuma/domainOperations/service.ts'] = source['server/fuma/domainOperations/service.ts']!
+        .replace('exactScope(scope, choice.source)', 'void choice.source')
+    }
+    expect(findings(source)).toContain(rule)
+  })
+
+  it('keeps every phase migration additive and forward-only', () => {
+    const directory = join(ROOT, 'server/fuma/db/migrations')
+    const names = readdirSync(directory)
+    for (let id = 21; id <= 34; id += 1) {
+      const name = names.find((file) => file.startsWith(`${String(id).padStart(6, '0')}_`))
+      expect(name).toBeDefined()
+      const sql = readFileSync(join(directory, name!), 'utf8')
+      expect(sql).not.toMatch(/\bdrop\s+(?:table|column|schema)\b/i)
+      expect(sql).not.toMatch(/\balter\s+table\b/i)
+    }
+  })
 })

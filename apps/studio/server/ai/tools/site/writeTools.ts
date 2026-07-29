@@ -53,6 +53,7 @@ import {
 } from '@core/ai'
 import type { CoreCapability } from '@core/capabilities'
 import type { AiTool } from '../types'
+import { siteProposePaymentSetupTool } from './paymentSetupTool'
 
 // ---------------------------------------------------------------------------
 // Capability requirements (ANY-OF) — mirror the editor's change-class model
@@ -410,6 +411,7 @@ const renderSnapshotTool: AiTool = {
 // ---------------------------------------------------------------------------
 
 export const siteWriteTools: AiTool[] = [
+  siteProposePaymentSetupTool,
   insertHtmlTool,
   getNodeHtmlTool,
   readDocumentTool,

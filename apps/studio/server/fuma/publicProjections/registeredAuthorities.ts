@@ -1,7 +1,6 @@
 import {
   PublicExpertSchema,
   PublicPluginSchema,
-  PublicPricingPlanSchema,
   PublicProfileSchema,
   PublicShowcaseSchema,
   type PublicExpert,
@@ -18,6 +17,7 @@ import { fumaLaunchRegistry, type FumaRegistry } from '@core/fuma'
 import type { DbClient } from '../../db/client'
 import { PostgresPublicTemplateCatalogRepository, PostgresTemplateReleaseAuthority } from '../publicTemplates/postgres'
 import { ApprovedTemplatesProjectionSource } from '../publicTemplates/projection'
+import { ApprovedPricingProjectionSource } from './pricingAuthority'
 import { PublicTemplateCatalogService } from '../publicTemplates/service'
 import {
   PublicProjectionAuthorityCatalog,
@@ -31,9 +31,6 @@ import {
 
 const DEFAULT_PAGE_SIZE = 24
 const PRODUCT_FACTS_UPDATED_AT = '2026-07-26T00:00:00.000Z'
-const PricingDocumentSchema = Type.Object({
-  items: Type.Array(PublicPricingPlanSchema, { maxItems: 100 }),
-}, { additionalProperties: false })
 const ExpertPublicMetadataSchema = Type.Object({
   id: PublicExpertSchema.properties.id,
   slug: PublicExpertSchema.properties.slug,
@@ -58,10 +55,6 @@ const PluginPublicMetadataSchema = Type.Object({
   imageUrl: PublicPluginSchema.properties.imageUrl,
 }, { additionalProperties: false })
 
-interface PriceBookRow {
-  public_json: unknown
-}
-
 interface ExpertRow {
   kind: PublicExpert['expertType']
   display_name: string
@@ -71,7 +64,7 @@ interface ExpertRow {
 
 interface PluginRow {
   version: string
-  provenance_json: unknown
+  public_json: unknown
   decided_at: string | Date
 }
 
@@ -170,32 +163,6 @@ class ProductFactsSource implements ApprovedPublicProjectionSource {
   }
 }
 
-class PricingSource implements ApprovedPublicProjectionSource {
-  readonly #db: DbClient
-  constructor(db: DbClient) { this.#db = db }
-
-  async readApprovedDisplayPage(query: Readonly<Record<string, string | number>>) {
-    const { rows } = await this.#db<PriceBookRow>`
-      select public_json
-      from fuma_price_books
-      where published_at is not null and effective_at <= current_timestamp
-      order by effective_at desc, version desc
-      limit 1
-    `
-    const row = rows[0]
-    if (!row) return paginate('pricing', [], [], query)
-    if (!Value.Check(PricingDocumentSchema, row.public_json)) {
-      throw new PublicProjectionUnavailableError('Published price-book public data failed validation.')
-    }
-    const items = [...row.public_json.items].toSorted((left, right) => left.id.localeCompare(right.id))
-    const filtered = items.filter((item) => (
-      (query.profile === undefined || item.profile === query.profile)
-      && (query.cadence === undefined || item.cadence === query.cadence)
-    ))
-    return paginate('pricing', items, filtered, query)
-  }
-}
-
 async function approvedExpertRows(db: DbClient): Promise<readonly ExpertRow[]> {
   const { rows } = await db<ExpertRow>`
     select p.kind, p.display_name, p.profile_json, r.approved_at
@@ -281,9 +248,7 @@ class ShowcasesSource implements ApprovedPublicProjectionSource {
 }
 
 function pluginMetadata(row: PluginRow): typeof PluginPublicMetadataSchema.static {
-  const value = typeof row.provenance_json === 'object' && row.provenance_json !== null
-    ? (row.provenance_json as Record<string, unknown>).public
-    : undefined
+  const value = row.public_json
   if (!Value.Check(PluginPublicMetadataSchema, value)) {
     throw new PublicProjectionUnavailableError('Reviewed plugin public data failed validation.')
   }
@@ -296,13 +261,19 @@ class PluginsSource implements ApprovedPublicProjectionSource {
 
   async readApprovedDisplayPage(query: Readonly<Record<string, string | number>>) {
     const { rows } = await this.#db<PluginRow>`
-      select distinct on (a.plugin_id)
-        a.version, a.provenance_json, r.decided_at
-      from fuma_plugin_artifacts a
-      join fuma_plugin_reviews r on r.artifact_id = a.artifact_id and r.package_hash_sha256 = a.package_hash_sha256
-      where r.decision = 'approved' and r.scan_state = 'clean' and r.signature is not null
-        and r.decided_at is not null and r.revoked_at is null
-      order by a.plugin_id, r.decided_at desc, a.version desc
+      select distinct on (submission.package_id)
+        submission.exact_version as version,
+        submission.submission_json->'metadata'->'public' as public_json,
+        decision.decided_at
+      from fuma_artifact_review_submissions_v2 submission
+      join fuma_artifact_review_decisions_v2 decision on decision.submission_id=submission.submission_id
+        and decision.artifact_id=submission.artifact_id and decision.content_hash_sha256=submission.content_hash_sha256
+      left join fuma_artifact_review_revocations_v2 revocation on revocation.decision_id=decision.decision_id
+      where submission.artifact_kind='plugin' and submission.scan_state='clean'
+        and decision.decision='approved' and decision.signature_key_id is not null
+        and decision.signature_payload_hash_sha256 is not null and decision.signature_value is not null
+        and revocation.decision_id is null
+      order by submission.package_id,decision.decided_at desc,submission.exact_version desc
     `
     const items = rows.map((row): PublicPlugin => {
       const metadata = pluginMetadata(row)
@@ -334,7 +305,7 @@ export function createHostedPublicProjectionAuthorityCatalog(
   )
   const sources: Readonly<Record<PublicProjectionResource, ApprovedPublicProjectionSource>> = Object.freeze({
     'product-facts': new ProductFactsSource(registry),
-    pricing: new PricingSource(db),
+    pricing: new ApprovedPricingProjectionSource(db),
     templates: new ApprovedTemplatesProjectionSource(templateCatalog),
     showcases: new ShowcasesSource(db),
     experts: new ExpertsSource(db),

@@ -36,6 +36,11 @@ import { handleScheduleRegister, handleScheduleCancel } from './handlers/schedul
 import { handleMediaRegisterStorageAdapter, handleMediaRegisterUrlTransformer, handleMediaRegisterVariantDelegate } from './handlers/media'
 import { handleCryptoDigest, handleCryptoSignHmac } from './handlers/crypto'
 import {
+  handleCustomerPaymentCreate,
+  handleCustomerPaymentReceipt,
+  handleCustomerPaymentRefund,
+} from './handlers/payments'
+import {
   handleContentEntriesCreate,
   handleContentEntriesCreateMany,
   handleContentEntriesDelete,
@@ -117,6 +122,9 @@ const apiHandlers = {
   'cms.content.search': handleContentSearch,
   'cms.content.snapshot': handleContentSnapshot,
   'cms.content.republishAll': handleContentRepublishAll,
+  'payments.customer.create': handleCustomerPaymentCreate,
+  'payments.customer.receipt': handleCustomerPaymentReceipt,
+  'payments.customer.refund': handleCustomerPaymentRefund,
 } satisfies HostApiHandlerTable
 
 export async function dispatchApiCall(msg: ValidatedApiCall): Promise<void> {

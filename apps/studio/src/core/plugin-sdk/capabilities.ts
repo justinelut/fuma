@@ -203,6 +203,20 @@ export const PLUGIN_CAPABILITIES: PluginCapability[] = [
     surfaces: ['server', 'cms'],
   },
   {
+    permission: 'payments.customer.create',
+    label: 'Create customer-merchant payments',
+    description: 'Allows a reviewed plugin to initialize and reconcile KES deposits, donations, and checkout payments through the host-owned customer-merchant credential, transport, webhook, and ledger authority. Merchant secrets and provider payloads are never exposed to the plugin.',
+    risk: 'high',
+    surfaces: ['server', 'cms'],
+  },
+  {
+    permission: 'payments.customer.refund',
+    label: 'Refund customer-merchant payments',
+    description: 'Allows a reviewed plugin to request a full refund of one exact host-verified payment receipt. Refund execution, idempotency, and provider credentials remain host-owned.',
+    risk: 'dangerous',
+    surfaces: ['server', 'cms'],
+  },
+  {
     permission: 'unstable.internals',
     label: 'Use unstable internal APIs',
     description: 'Reserved for trusted first-party plugins that need unstable host internals.',

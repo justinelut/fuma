@@ -85,4 +85,9 @@ export const TARGET_PERMISSIONS = {
   'cms.content.search': 'cms.content.read',
   'cms.content.snapshot': 'cms.content.read',
   'cms.content.republishAll': 'cms.content.publish',
+  // Customer payments — receipt reconciliation is part of create authority;
+  // refunds remain independently grantable.
+  'payments.customer.create': 'payments.customer.create',
+  'payments.customer.receipt': 'payments.customer.create',
+  'payments.customer.refund': 'payments.customer.refund',
 } satisfies Partial<Record<AllowedApiTarget, PluginPermission>>

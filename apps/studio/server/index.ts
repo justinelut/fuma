@@ -15,6 +15,7 @@ import {
   readHostedAuthSecret,
 } from './auth/hosted/runtime'
 import { createHostedPublicProjectionRuntime } from './fuma/publicProjections'
+import { createHostedSiteRuntimeAuthority, emptyApplicationSnapshot, type SiteRuntimeMemberProjectionPort } from './fuma/siteRuntime'
 import { createHostedFreeHostRuntime, createHostedReleaseObjectStorage, type FreeHostResolution } from './fuma/freeHosts'
 import {
   AnonymousEdgeVisitorAuthority,
@@ -34,6 +35,9 @@ import { createHostedPaystackRuntime } from './fuma/paystack/runtime'
 import { createHostedEntitlementRuntime, readHostedKesCostConversion } from './fuma/entitlements'
 import { createHostedPlatformCheckoutRuntime } from './fuma/checkout'
 import { createHostedPlatformBillingRuntime } from './fuma/billing'
+import { createHostedMcpProductionRuntime, readHostedAiByokMetadataKey } from './fuma/mcp/productionRuntime'
+import { createHostedArtifactRuntime } from './fuma/artifacts'
+import { createArtifactMarketplaceScopedRoutes, createHostedArtifactReviewRuntime } from './fuma/artifactReviews'
 import { createQuotaRuntime } from './fuma/quotas'
 import {
   createHostedMemberIdentityRuntime,
@@ -161,6 +165,83 @@ const releaseObjectStorage = hostedFumaConfig
     objectAccessSigningSecret: requiredFumaObjectSigningSecret(),
   })
   : undefined
+const hostedArtifactRuntime = hostedFumaConfig
+  ? createHostedArtifactRuntime({
+    db,
+    config: hostedFumaConfig,
+    objectAccessSigningSecret: requiredFumaObjectSigningSecret(),
+  })
+  : undefined
+const hostedArtifactReviewRuntime = hostedArtifactRuntime
+  ? createHostedArtifactReviewRuntime({
+    db,
+    artifacts: hostedArtifactRuntime.authority,
+  })
+  : undefined
+const artifactMarketplaceRoutes = hostedArtifactReviewRuntime
+  ? createArtifactMarketplaceScopedRoutes(hostedArtifactReviewRuntime.service)
+  : undefined
+const siteRuntimeAuthority = hostedFumaConfig && releaseObjectStorage
+  ? await createHostedSiteRuntimeAuthority({
+    db,
+    storage: releaseObjectStorage,
+    ...(memberIdentityRuntime && publicationRuntime ? {
+      members: Object.freeze({
+        async resolve(input: Parameters<SiteRuntimeMemberProjectionPort['resolve']>[0]) {
+          const scope: PublicationRepositoryScope = Object.freeze({
+            platformId: input.binding.platformId,
+            organizationId: input.binding.organizationId,
+            workspaceId: input.binding.workspaceId,
+            siteId: input.binding.siteId,
+            ownerKey: input.binding.ownerKey,
+            generation: input.binding.ownerGeneration,
+            state: 'active',
+            transferFence: null,
+            profileId: 'website',
+          })
+          const session = await memberIdentityRuntime.service.resolve(scope, input.memberSessionToken)
+          if (!session.authenticated || session.principal === null) {
+            return Object.freeze({
+              audience: Object.freeze({ kind: 'public' as const, memberId: null, accessFingerprintSha256: '0'.repeat(64) }),
+              member: Object.freeze({ authenticated: false as const, memberIdentityId: null, memberId: null, sessionId: null, displayName: null }),
+              snapshot: emptyApplicationSnapshot(),
+            })
+          }
+          const audience = await publicationRuntime.graph.memberAccess.audienceForIdentity(scope, session.principal.memberIdentityId)
+          const memberId = audience.memberId ?? session.principal.memberIdentityId
+          const account = (await publicationRuntime.graph.memberAccess.listAccounts(scope, { limit: 200, afterId: null }))
+            .find((item) => item.memberIdentityId === session.principal!.memberIdentityId && item.state === 'active') ?? null
+          const evidence = JSON.stringify({
+            memberIdentityId: session.principal.memberIdentityId,
+            memberId,
+            member: audience.member,
+            paid: audience.paid,
+            segmentIds: [...audience.segmentIds].toSorted(),
+          })
+          const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(evidence)))
+          return Object.freeze({
+            audience: Object.freeze({
+              kind: 'member' as const,
+              memberId,
+              accessFingerprintSha256: [...digest].map((value) => value.toString(16).padStart(2, '0')).join(''),
+            }),
+            member: Object.freeze({
+              authenticated: true as const,
+              memberIdentityId: session.principal.memberIdentityId,
+              memberId,
+              sessionId: session.principal.sessionId,
+              displayName: account?.displayName ?? session.principal.displayName,
+            }),
+            snapshot: Object.freeze({
+              ...emptyApplicationSnapshot(),
+              account: account ? Object.freeze({ displayName: account.displayName, locale: account.locale, timezone: account.timezone }) : null,
+            }),
+          })
+        },
+      }),
+    } : {}),
+  })
+  : undefined
 const templateCatalog = hostedFumaConfig
   ? new PublicTemplateCatalogService(
     new PostgresPublicTemplateCatalogRepository(db),
@@ -257,12 +338,28 @@ const platformBillingRuntime = platformCheckoutRuntime && paystackRuntime && hos
     customerMerchant: paystackRuntime.customerMerchant,
   })
   : undefined
+const hostedMcpRuntime = hostedFumaConfig && hostedStaffAuthRuntime && hostedStaffSecret && publicationRuntime
+  ? await (async () => {
+    const key = readHostedAiByokMetadataKey()
+    return await createHostedMcpProductionRuntime({
+      db,
+      productHost: hostedFumaConfig.hosts.product,
+      staffSecret: hostedStaffSecret,
+      resolveStaffSession: hostedStaffAuthRuntime.resolveSession,
+      publishJobs: publicationRuntime.jobs,
+      byokMetadataKey: key.bytes,
+      byokMetadataKeyId: key.keyId,
+    })
+  })()
+  : undefined
 const fumaScopedApi = createHostedFumaScopedApi({
   db,
   hostedStaffAuth: hostedStaffAuthRuntime,
   ...(publicationRuntime ? { publicationRoutes: publicationRuntime.graph.scopedRoutes } : {}),
   ...(platformCheckoutRuntime ? { checkoutRoutes: platformCheckoutRuntime.scopedRoutes } : {}),
   ...(quotaRuntime ? { quotaRoutes: quotaRuntime.scopedRoutes } : {}),
+  ...(hostedMcpRuntime ? { mcpRoutes: hostedMcpRuntime.scopedRoutes } : {}),
+  ...(artifactMarketplaceRoutes ? { marketplaceRoutes: artifactMarketplaceRoutes } : {}),
 })
 const memberImportBoundary = memberIdentityRuntime && hostedStaffAuthRuntime && fumaScopedApi
   ? createMemberImportBoundary({
@@ -354,7 +451,15 @@ const server = Bun.serve<PublicationSocketData>({
       if (previewResponse) return applySecurityHeaders(previewResponse, pathname)
     }
 
-    // Hosted public authority is the process's first request boundary. This
+    // The tenant Next renderer consumes exact host/release data only through
+    // this private-host, bearer-bound TypeBox boundary. It never falls through
+    // to public tenant routing or staff/CMS authority.
+    if (siteRuntimeAuthority?.boundary.handles(req)) {
+      const runtimeResponse = await siteRuntimeAuthority.boundary.handle(req)
+      if (runtimeResponse) return applySecurityHeaders(runtimeResponse, pathname)
+    }
+
+    // Hosted public authority is the process's first public request boundary. This
     // prevents WebSocket and CORS shortcuts from creating unknown-host paths.
     // A null response is possible only for the configured control Host.
     if (freeHostRuntime && pathname !== '/health') {
@@ -390,6 +495,7 @@ const server = Bun.serve<PublicationSocketData>({
         memberImports: memberImportBoundary,
         paystackWebhooks: platformBillingRuntime?.webhooks ?? paystackRuntime?.webhooks,
         fumaScopedApi,
+        mcpAuthority: hostedMcpRuntime?.nativeHttpAuthority,
       })
       for (const [k, v] of Object.entries(cors)) {
         res.headers.set(k, v)
@@ -431,6 +537,7 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
       publicationSockets?.close(),
       hostedStaffAuthRuntime?.close(),
       publicProjectionRuntime?.close(),
+      siteRuntimeAuthority?.close(),
       publicationRuntime?.close(),
       edgeRuntime?.cache.close(),
     ])

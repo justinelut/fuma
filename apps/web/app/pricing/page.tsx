@@ -1,1 +1,39 @@
-import { AuthorityUnavailable, CTA, Hero, Tag } from '@/components/public-sections'; import { PageMain } from '@/components/site-shell'; import { activePromotion, formatKes, readPublicData, visiblePricing } from '@/lib/public-data'; import { publicMetadata } from '@/lib/seo'; export const metadata=publicMetadata('Pricing','Current publish-approved Fuma pricing in Kenyan shillings.','/pricing'); export const dynamic='force-dynamic'; export default async function Page({searchParams}:{searchParams:Promise<{cadence?:string;profile?:string}>}){const raw=await searchParams;const cadence=raw.cadence==='annual'?'annual':'monthly';const profile=raw.profile==='publication'?'publication':raw.profile==='website'?'website':undefined;const envelope=await readPublicData('pricing',{cadence,profile,limit:100});const plans=visiblePricing(envelope);return <PageMain><Hero eyebrow="Authoritative pricing" title="Clear KES pricing, when it is approved." description="Amounts, quotas, promotions and checkout availability come directly from the platform pricing authority. The application confirms every choice again."><CTA href={`/pricing?cadence=${cadence==='monthly'?'annual':'monthly'}${profile?`&profile=${profile}`:''}`} secondary>Show {cadence==='monthly'?'annual':'monthly'} billing</CTA></Hero>{plans.length===0?<AuthorityUnavailable subject="Pricing"/>:<div className="mt-12 grid gap-5 lg:grid-cols-3">{plans.map(plan=>{const promotion=activePromotion(plan);return <article className="flex flex-col rounded-xl border bg-card p-6" key={plan.id}><p className="text-sm text-muted-foreground">{plan.profile} · {plan.cadence}</p><h2 className="mt-2 text-2xl font-semibold">{plan.name}</h2><p className="mt-3 text-muted-foreground">{plan.summary}</p><p className="mt-6 text-4xl font-semibold">{formatKes(plan.amountMinor)}</p><p className="text-sm text-muted-foreground">per {plan.cadence==='monthly'?'month':'year'}</p>{promotion&&<p className="mt-4 rounded-md bg-brand-mint p-2 text-sm text-brand-black">{promotion.label} until {promotion.endsAt.slice(0,10)}</p>}<div className="mt-5 flex flex-wrap gap-2">{plan.featureKeys.map(key=><Tag key={key}>{key.replace(/-/g,' ')}</Tag>)}</div><dl className="mt-6 grid gap-2 text-sm">{plan.quotas.map(q=><div className="flex justify-between gap-4" key={q.key}><dt>{q.label}</dt><dd>{q.limit.toLocaleString('en-KE')} {q.unit}</dd></div>)}</dl><div className="mt-auto pt-8">{plan.checkoutAvailable?<CTA href={`/start?kind=choose_plan&source=pricing&planId=${plan.id}`}>Choose {plan.name}</CTA>:<p role="status" className="text-sm text-muted-foreground">Checkout is not currently available for this plan.</p>}</div></article>})}</div>}<p className="mt-8 text-sm text-muted-foreground">The application re-resolves current price, availability and eligibility before checkout. Public display is not a payment commitment.</p></PageMain>}
+import { Hero } from '@/components/public-sections'
+import { PricingCatalog } from '@/components/pricing-catalog'
+import { PageMain } from '@/components/site-shell'
+import { readPublicData } from '@/lib/public-data'
+import { publicMetadata } from '@/lib/seo'
+
+export const metadata = publicMetadata(
+  'Pricing',
+  'Current publish-approved Fuma pricing in Kenyan shillings.',
+  '/pricing',
+)
+export const dynamic = 'force-dynamic'
+
+type PricingCadence = 'monthly' | 'annual'
+type PricingProfile = 'website' | 'publication'
+
+export default async function PricingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cadence?: string | string[]; profile?: string | string[] }>
+}) {
+  const raw = await searchParams
+  const cadence: PricingCadence = raw.cadence === 'annual' ? 'annual' : 'monthly'
+  const profile: PricingProfile | undefined = raw.profile === 'publication'
+    ? 'publication'
+    : raw.profile === 'website'
+      ? 'website'
+      : undefined
+  const envelope = await readPublicData('pricing', { cadence, profile, limit: 100 })
+
+  return <PageMain>
+    <Hero
+      description="Amounts, allowances, promotions and checkout availability come directly from the platform pricing authority. If that evidence is not safe and current, this page hides it."
+      eyebrow="Authoritative pricing"
+      title="Clear KES pricing, only when approved."
+    />
+    <PricingCatalog cadence={cadence} envelope={envelope} profile={profile} />
+  </PageMain>
+}

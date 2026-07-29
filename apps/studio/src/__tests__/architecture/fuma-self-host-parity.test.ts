@@ -83,7 +83,7 @@ describe('FUMA-WEB-003 self-host parity after the apps/studio move', () => {
 
 
     expect(root.scripts.build).toBe(
-      'bun --cwd=packages/brand run typecheck && bun --cwd=packages/design-tokens run typecheck && bun --cwd=packages/public-contracts run typecheck && bun run typecheck:governance && bun run build:studio && bun run build:web && bun run build:control',
+      'bun --cwd=packages/brand run typecheck && bun --cwd=packages/design-tokens run typecheck && bun --cwd=packages/public-contracts run typecheck && bun run typecheck:governance && bun run build:studio && bun run build:web && bun run build:site-runtime && bun run build:control',
     )
     expect(studio.scripts).toMatchObject({
       dev: 'bun run scripts/dev.ts',

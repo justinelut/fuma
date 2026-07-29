@@ -22,6 +22,7 @@ import { materializeRouteResponse, serializeRouteRequest } from './routeIo'
 import { hostPlugins } from './registry'
 import { requestFromWorker } from './workerPool'
 import { describeWorkerError, workerCallError } from './workerErrors'
+import { unbindHostCustomerPayments } from './paymentBindings'
 import { workers } from './workerState'
 import type { HostRouteAccess } from './types'
 
@@ -46,6 +47,7 @@ export async function loadPluginInWorker(args: {
   // to send an explicit `unload-plugin` first.
   const prior = hostPlugins.get(args.manifest.id)
   if (prior) {
+    unbindHostCustomerPayments(args.manifest.id)
     for (const source of prior.loopSources) {
       loopSourceRegistry.unregister(source.sourceId)
     }
@@ -102,6 +104,7 @@ export async function unloadPluginInWorker(pluginId: string): Promise<void> {
     mediaVariantDelegateRegistry.unregisterPlugin(pluginId)
   }
   hostPlugins.delete(pluginId)
+  unbindHostCustomerPayments(pluginId)
 
   const w = workers.get(pluginId)
   if (!w) return

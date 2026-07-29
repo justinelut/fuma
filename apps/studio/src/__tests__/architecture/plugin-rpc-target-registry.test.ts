@@ -85,6 +85,9 @@ const EXPECTED_TARGET_PERMISSIONS: Record<string, string> = {
   'cms.content.search': 'cms.content.read',
   'cms.content.snapshot': 'cms.content.read',
   'cms.content.republishAll': 'cms.content.publish',
+  'payments.customer.create': 'payments.customer.create',
+  'payments.customer.receipt': 'payments.customer.create',
+  'payments.customer.refund': 'payments.customer.refund',
 }
 
 /** Targets that intentionally require NO permission (must be absent from map). */

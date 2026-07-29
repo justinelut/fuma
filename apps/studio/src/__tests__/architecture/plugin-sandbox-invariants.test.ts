@@ -206,6 +206,9 @@ describe('plugin sandbox invariants', () => {
       'crypto.signHmac',
       'network.abort',
       'network.fetch',
+      'payments.customer.create',
+      'payments.customer.receipt',
+      'payments.customer.refund',
     ])
   })
 })

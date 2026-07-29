@@ -37,6 +37,7 @@ export async function executeAiTool(
   bridge: AiBrowserBridge,
   signal: AbortSignal,
   toolContextBase: ToolContextBase,
+  toolCallId?: string,
 ): Promise<AiToolOutput> {
   let validated: unknown
   try {
@@ -53,24 +54,65 @@ export async function executeAiTool(
     return { ok: false, error: `Tool ${aiTool.name} is not permitted for this user.` }
   }
 
+  const authority = toolContextBase.authority
+  const callId = toolCallId ?? `${toolContextBase.conversationId}:${aiTool.name}`
+  if (authority) {
+    await authority.revalidate({
+      phase: 'tool-dispatch',
+      toolCallId: callId,
+      toolName: aiTool.name,
+      mutates: aiTool.mutates === true,
+    })
+    const authorization = await authority.authorizeTool({
+      toolCallId: callId,
+      toolName: aiTool.name,
+      mutates: aiTool.mutates === true,
+      input: validated,
+    })
+    if (authorization.replay) return authorization.replay
+  }
+
   if (aiTool.execution === 'server') {
     if (!aiTool.handler) {
       return { ok: false, error: `Tool ${aiTool.name} declares execution='server' but has no handler.` }
     }
+    let output: AiToolOutput
     try {
-      const ctx: ToolContext = { ...toolContextBase, signal }
+      const ctx: ToolContext = { ...toolContextBase, signal, toolCallId: callId }
       const result = await aiTool.handler(validated, ctx)
-      return normaliseToolOutput(result)
+      output = normaliseToolOutput(result)
     } catch (err) {
       const message = err instanceof Error ? err.message : `Tool ${aiTool.name} failed.`
-      return { ok: false, error: message }
+      output = { ok: false, error: message }
     }
+    await authority?.recordToolResult({
+      toolCallId: callId,
+      toolName: aiTool.name,
+      mutates: aiTool.mutates === true,
+      input: validated,
+      output,
+    })
+    return output
   }
 
   // Browser execution: forward to the bridge and wait for the POST-back.
   // A resolved `{ ok: false }` remains a recoverable domain failure. Rejection
   // means the transport itself is unavailable and deliberately propagates.
-  return await bridge.callBrowser(aiTool.name, validated)
+  const output = await bridge.callBrowser(aiTool.name, validated)
+  await authority?.revalidate({
+    phase: 'tool-result',
+    toolCallId: callId,
+    toolName: aiTool.name,
+    mutates: aiTool.mutates === true,
+  })
+  await authority?.recordToolResult({
+    toolCallId: callId,
+    toolName: aiTool.name,
+    mutates: aiTool.mutates === true,
+    input: validated,
+    output,
+  })
+  return output
 }
 
 /**

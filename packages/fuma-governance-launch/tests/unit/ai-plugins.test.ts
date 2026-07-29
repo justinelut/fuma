@@ -3,12 +3,10 @@ import {
   AiCatalogPolicy,
   AiCreditService,
   PluginReviewService,
-  ReviewedCustomerPaymentBinding,
   authorizeByokTransfer,
   authorizeMcp,
   authorizeMcpUsage,
   authorizeSiteAi,
-  confirmAiPaymentProposal,
   issueMcpToken,
   safeByokMetadata,
   type AiCreditAccount,
@@ -112,7 +110,7 @@ describe('FUMA-065 site AI and FUMA-066 MCP', () => {
   })
 })
 
-describe('FUMA-067..070 plugin and payment governance', () => {
+describe('FUMA-067..069 plugin and payment governance compatibility', () => {
   const artifact: PluginArtifact = { artifactId: 'artifact-a', pluginId: 'payments', version: '1.0.0', objectKey: 'plugins/artifacts/payments/1.0.0.zip', packageHashSha256: hash, permissions: ['payments.customer.create'], provenance: { sourceSha: hash, lockHashSha256: hash, builderId: 'builder-a' } }
   const pending: PluginReview = { submissionId: 'submission-a', artifactId: 'artifact-a', packageHashSha256: hash, submitterId: 'submitter-a', reviewerId: null, scanState: 'clean', decision: 'pending', permissionDiff: [], signature: null }
   it('rejects self approval and produces a hash-bound signature', async () => {
@@ -124,17 +122,5 @@ describe('FUMA-067..070 plugin and payment governance', () => {
     const revoked = reviews.revoke(approved, 'reviewer-b')
     expect(revoked.decision).toBe('revoked')
     await expect(reviews.verify(revoked, artifact)).rejects.toThrow('invalid or revoked')
-  })
-  it('delegates payment transport and requires live explicit AI confirmation', async () => {
-    let captured: unknown
-    const binding = new ReviewedCustomerPaymentBinding({ createCheckout: async (input) => { captured = input; return { checkoutId: 'checkout-a', redirectUrl: 'https://pay.example/checkout-a' } }, verifyEvent: async () => ({ ledgerId: 'ledger-a', duplicate: false }), refund: async () => ({ refundId: 'refund-a' }) })
-    await binding.checkout({ ...scope, installationId: 'install-a', purpose: 'deposit', amountMinor: 10_000, currency: 'KES', idempotencyKey: 'payment-a', returnPath: '/thanks' }, { siteId: 'site-a', permissions: ['payments.customer.create'], allowedReturnOrigin: 'https://tenant.fuma.co.ke' })
-    expect(captured).toMatchObject({ siteId: 'site-a', purpose: 'deposit' })
-    const review: PluginReview = { ...pending, reviewerId: 'reviewer-a', decision: 'approved', signature: 'b'.repeat(64) }
-    const proposal = { proposalId: 'proposal-a', siteId: 'site-a', createdByActorId: 'actor-a', reviewedArtifactId: 'artifact-a', permissions: ['payments.customer.create'], feeDisclosure: 'Provider and platform fees apply.', configuration: { purposes: ['deposit'] }, confirmationNonceHashSha256: hash, expiresAt: '2026-07-26T08:10:00Z', confirmedAt: null }
-    const confirmation = { proposalId: 'proposal-a', actorId: 'actor-a', nonceHashSha256: hash, confirmedAt: now, stepUpAt: now }
-    const input = { confirmation, actorMayInstall: true, expectedActorId: 'actor-a', nonceUnused: true, now: new Date(now), review, artifact }
-    expect(() => confirmAiPaymentProposal(proposal, { ...input, confirmation: { ...confirmation, nonceHashSha256: 'c'.repeat(64) } })).toThrow('confirmation')
-    expect(confirmAiPaymentProposal(proposal, input).confirmedAt).toBe(now)
   })
 })

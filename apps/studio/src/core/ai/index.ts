@@ -73,6 +73,7 @@ export {
   SetTypeScaleInputSchema,
   SetSpacingScaleInputSchema,
   RenderSnapshotInputSchema,
+  SiteProposePaymentSetupInputSchema,
 } from './toolSchemas'
 export type {
   InsertHtmlInput,

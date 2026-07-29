@@ -8,12 +8,12 @@ The current Git repository becomes the Fuma workspace root. FUMA-WEB-001 records
 
 ## Status
 
-**Accepted — FUMA-WEB-001.** Mechanical workspace conversion belongs to FUMA-WEB-002.
+**Accepted — FUMA-WEB-001; SITE runtime implemented through application state and compatibility on 2026-07-30.** Mechanical workspace conversion belongs to FUMA-WEB-002. FUMA-SITE-003 provides the isolated manifestless `apps/site-runtime` application under the one-root-lock policy; SITE-004 provides exact component parity; SITE-005 provides persistent state, fenced private mutation adapters, and bounded retained-release compatibility. Infrastructure, pilot, and launch gates still own production traffic cutover.
 
 ## TL;DR
 
 - Keep this repository as the workspace root. Do not wrap it in another repository, add nested Git repositories, or use submodules.
-- The target application layout is `apps/studio` for the existing Bun/React/Vite product and self-host distribution, and `apps/web` for the independent Next.js App Router public site.
+- The accepted initial layout is `apps/studio` plus `apps/web`; the approved FUMA-SITE extension adds a third independent `apps/site-runtime` Next App Router application for all exact tenant/customer hosts, never one application per customer.
 - The initial shared-package set is exactly `packages/brand`, `packages/design-tokens`, and `packages/public-contracts`. Do not extract additional packages without a demonstrated second consumer.
 - Use native Bun workspaces, one private root orchestrator, and one root `bun.lock`. Do not add Turborepo or nested lockfiles.
 - `fuma.co.ke`, `auth.fuma.co.ke`, `app.fuma.co.ke`, `admin.fuma.co.ke`, tenant subdomains, and customer domains have distinct route, session, and data ownership. There is no public `api.fuma.co.ke`.
@@ -59,11 +59,11 @@ The initial `packages/` directory contains exactly three packages:
 | `design-tokens` | Framework-neutral primitive values and app-specific CSS generation inputs | Shared admin component CSS or an app-owned React component library |
 | `public-contracts` | Strict TypeBox schemas and schema-derived types for public reads, handoff intents, events, pagination, and safe errors | React, Next.js, Bun runtime, database, Redis, MinIO, provider, auth, repository, publisher, or migration dependencies |
 
-`apps/web` owns its own small accessible component library. It does not consume the existing Studio admin components. Further extraction requires an actual second consumer; the conversion does not create speculative utility, database, auth, UI, server, or domain packages.
+`apps/web` owns its own small accessible component library. It does not consume the existing Studio admin components. FUMA-SITE later gives `apps/site-runtime` its own app-local trusted React/Tailwind component registry and reviewed component-pack boundary; it likewise imports no application and creates no shared UI package. Further extraction requires an actual second consumer; the conversion does not create speculative utility, database, auth, UI, server, or domain packages.
 
 ### Frontend styling ownership
 
-The existing Instatic interface in `apps/studio` keeps its established CSS Modules, token vocabulary, UI primitives, and Pixelarticons gates. New Fuma-owned React and Next.js surfaces—including the public Web app, hosted dashboards and console screens, authentication, and marketing interfaces—use app-local Tailwind CSS and shadcn/ui source components by default. Responsive behavior is authored with Tailwind utilities rather than a parallel custom responsive framework.
+The existing Instatic interface in `apps/studio` keeps its established CSS Modules, token vocabulary, UI primitives, and Pixelarticons gates. New Fuma-owned React and Next.js surfaces—including the public Web app, future tenant site runtime, hosted dashboards and console screens, authentication, and marketing interfaces—use app-local Tailwind CSS and shadcn/ui source components by default. Responsive behavior is authored with Tailwind utilities rather than a parallel custom responsive framework.
 
 Tailwind, shadcn/ui, their generated components, semantic theme aliases, and supporting dependencies are owned by the application that builds them. They must not enter `packages/brand`, `packages/design-tokens`, or `packages/public-contracts`, and they do not justify a fourth shared package. `packages/design-tokens` remains framework-neutral and supplies namespaced primitive CSS-variable inputs; each Fuma application maps those primitives into its own Tailwind/shadcn semantic variables. Dependencies are exact-pinned, generated component source is reviewed and committed app-locally, Zod remains forbidden, and the single root `bun.lock` remains authoritative.
 
@@ -97,8 +97,8 @@ Host dispatch is exact and fails closed. No host may fall through to a default s
 | `auth.fuma.co.ke` | Central Better Auth boundary in Studio | Signup, sign-in, verification, MFA, recovery, central account state, logout, global revocation, and relying-party code issuance/exchange entry | Host-only identity cookie | Better Auth identity, credential, verification, MFA, recovery, and central security state |
 | `app.fuma.co.ke` | Studio customer product | Organization/workspace/site routes, onboarding, editor, customer mutations, billing self-service, and product WebSocket/API routes | Host-only `__Host-fuma_app` relying session | Customer product and tenant-scoped domain authorities in the Bun platform |
 | `admin.fuma.co.ke` | Studio internal console | Fuma-internal operations, moderation, support, break-glass, managed-client commercial setup, and bounded domain-service actions | Host-only `__Host-fuma_admin` relying session | Internal read models and authorized domain-service actions; customer roles never authorize this host |
-| `<tenant>.fuma.co.ke` | Studio tenant release runtime | Active immutable tenant releases and explicitly scoped dynamic holes | No auth/app/admin cookie; any site-member realm is separate and site-scoped | Exact durable host registry, release metadata, and immutable release artifacts |
-| Activated customer domain | Studio tenant release runtime | The same release and scoped-hole surface as the mapped tenant host | No auth/app/admin cookie; any site-member realm is separate and site-scoped | The same exact durable host registry and release authority |
+| `<tenant>.fuma.co.ke` | Runtime/component/application boundary implemented in `apps/site-runtime`; production traffic remains on Studio until infrastructure/pilot/launch cutover gates | Active immutable releases through the current semantic path or gated React runtime, with explicit route shadow/fallback/retained-legacy rollback | No auth/app/admin cookie; the separate host-only site-member realm is exact-site scoped | Exact durable host/release authority, member projection, rollout policies, and immutable replay evidence in Bun/PostgreSQL |
+| Activated customer domain | Same implemented `apps/site-runtime` target and pending infrastructure/pilot/launch cutover gates | The same exact release/application surface as the mapped tenant host; React/legacy rollout remains explicit per known host/route | No auth/app/admin cookie; the separate host-only site-member realm is exact-site scoped | The same exact durable host, release, member, rollout, and replay authorities |
 
 Better Auth routes exist only on `auth.fuma.co.ke`. Product routes do not mount on `admin.fuma.co.ke`; console routes do not mount on `app.fuma.co.ke`. Public, tenant, and customer hosts mount neither staff identity nor relying-party routes.
 
@@ -149,7 +149,7 @@ Mutable facts remain platform-owned and are exported only as explicit public pro
 | Product facts and availability | Bun platform domain owner | Versioned, display-safe projection |
 | Published KES plans, quotas, features, promotions, and checkout availability | Platform billing/entitlement authority | Publish-approved pricing projection only |
 | Approved templates and immutable preview references | Template/release authority | Approved metadata projection |
-| Approved showcases, experts, and reviewed plugins | Their platform moderation/marketplace authorities | PII-free approved projections |
+| Approved showcases, experts, reviewed plugins, and reviewed component packs | Their platform moderation/marketplace authorities | PII-free approved projections with artifact-kind/trust-tier separation |
 | Public handoff intents | Product handoff authority | Opaque allowlisted intent contract |
 | Identity, organization, workspace, site, billing, payment, transfer, moderation, and support state | Studio platform authorities | Excluded unless a purpose-built public projection explicitly permits a field |
 
@@ -233,7 +233,7 @@ tooling/workspace/auditor.ts
 tooling/workspaceMigrationBaseline.ts
 ```
 
-The future-workspace gate exercises one complete valid fixture and an independent hostile fixture for every typed rule. It rejects:
+The FUMA-WEB-001 future-workspace gate exercises one complete valid fixture and an independent hostile fixture for every typed rule. It rejects:
 
 - nested Git repositories/submodules and nested or foreign lockfiles;
 - Turborepo or a non-Bun workspace orchestrator;
@@ -255,7 +255,7 @@ apps/studio/src/__tests__/architecture/migration-parity.test.ts
 apps/studio/src/__tests__/fuma/hostedMigrationsTransition.test.ts
 ```
 
-The primary implementation owner must record the actual current output of the following commands before relocation, then repeat the repository-required checks after implementation:
+FUMA-SITE-001 must add independent hostile gates for `apps/site-runtime`, exact tenant host/cache isolation, app-local Tailwind, release-bound component versions, and arbitrary server-code rejection before the target owner changes. The primary implementation owner must record the actual current output of the following commands before relocation, then repeat the repository-required checks after implementation:
 
 ```sh
 bun test

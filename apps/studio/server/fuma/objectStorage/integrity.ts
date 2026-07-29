@@ -88,7 +88,13 @@ export function assertMimeType(
     throw new ObjectStorageError('mime_not_allowed', `MIME type ${declaredMimeType} is not allowed.`, 'mimeType')
   }
   const detected = detectMimeType(bytes)
-  if (detected !== declaredMimeType) {
+  const compatibleRuntimeJson = detected === 'application/json'
+    && (declaredMimeType === 'application/vnd.fuma.runtime+json'
+      || declaredMimeType === 'application/vnd.fuma.runtime-route+json')
+  const compatibleJavaScript = detected === 'text/plain'
+    && (declaredMimeType === 'text/javascript'
+      || declaredMimeType === 'application/javascript')
+  if (detected !== declaredMimeType && !compatibleRuntimeJson && !compatibleJavaScript) {
     throw new ObjectStorageError(
       'mime_mismatch',
       `Object MIME mismatch: declared ${declaredMimeType}, detected ${detected}.`,

@@ -27,7 +27,10 @@ describe('privacy-minimized acquisition client', () => {
 
   test('builds a strict handoff event with only opaque correlation and approved target IDs', () => {
     const event = handoffStartedEvent(
-      { kind: 'choose_plan', source: 'pricing', planId: 'plan_launch' },
+      {
+        kind: 'choose_plan', source: 'pricing', planId: 'plan_launch',
+        priceBookVersion: 'ke-2026-07-v1', cadence: 'monthly',
+      },
       'opaque_correlation_0001',
       '2026-07-26T09:00:00Z',
       'granted',

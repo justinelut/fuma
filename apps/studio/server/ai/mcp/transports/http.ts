@@ -16,11 +16,22 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import type { DbClient } from '../../../db/client'
 import { resolveMcpAuth, unauthorizedResponse } from '../auth'
 import { buildMcpServer } from '../server'
+import type { McpNativeHttpAuthority } from '../authority'
 
 export const MCP_ENDPOINT_PATH = '/_instatic/mcp'
 
-interface McpHttpOptions {
+export interface McpHttpOptions {
   uploadsDir?: string
+  authority?: McpNativeHttpAuthority
+}
+
+async function requestIdentity(req: Request): Promise<Readonly<{ rpcMethod: string | null; rpcId: string | null; operationId: string }>> {
+  const body = await req.clone().json().catch(() => null) as { method?: unknown; id?: unknown } | null
+  const rpcMethod = typeof body?.method === 'string' ? body.method : null
+  const rpcId = typeof body?.id === 'string' || typeof body?.id === 'number' ? String(body.id) : null
+  const supplied = req.headers.get('Idempotency-Key')?.trim()
+  const safe = supplied && /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,200}$/.test(supplied) ? supplied : null
+  return { rpcMethod, rpcId, operationId: safe ?? `rpc:${rpcId ?? crypto.randomUUID()}` }
 }
 
 export async function handleMcpHttp(
@@ -31,16 +42,33 @@ export async function handleMcpHttp(
   const url = new URL(req.url)
   if (url.pathname !== MCP_ENDPOINT_PATH) return null
 
-  const auth = await resolveMcpAuth(req, db)
-  if (!auth.ok) return unauthorizedResponse(url)
+  const identity = await requestIdentity(req)
+  const hosted = options.authority ? await options.authority.resolve(req, identity).catch(() => null) : null
+  const legacy = options.authority ? null : await resolveMcpAuth(req, db)
+  if (!hosted && !legacy?.ok) return unauthorizedResponse(url)
 
-  const server = buildMcpServer({
-    db,
-    userId: auth.userId,
-    connectorId: auth.connectorId,
-    capabilities: auth.capabilities,
-    uploadsDir: options.uploadsDir,
-  })
+  const server = hosted
+    ? buildMcpServer({
+        db,
+        userId: hosted.userId,
+        connectorId: hosted.connectorId,
+        capabilities: hosted.capabilities,
+        operationId: hosted.operationId,
+        bridgeSiteKey: hosted.bridgeSiteKey,
+        publishRuntime: hosted.publishRuntime,
+        authority: hosted.authority,
+      })
+    : legacy?.ok
+      ? buildMcpServer({
+          db,
+          userId: legacy.userId,
+          connectorId: legacy.connectorId,
+          capabilities: legacy.capabilities,
+          uploadsDir: options.uploadsDir,
+          operationId: identity.operationId,
+        })
+      : null
+  if (!server) return unauthorizedResponse(url)
 
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined, // stateless

@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'bun:test'
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '../../../..')
 const read = (path: string) => readFileSync(join(ROOT, path), 'utf8')
 
+const WALK_EXCLUDED = new Set(['.git', '.next', 'build', 'dist', 'node_modules', 'out', 'target'])
 function walk(directory: string): string[] {
   return readdirSync(directory).flatMap((name) => {
+    if (WALK_EXCLUDED.has(name)) return []
     const path = join(directory, name)
-    return statSync(path).isDirectory() ? walk(path) : [path]
+    const metadata = lstatSync(path)
+    if (metadata.isSymbolicLink()) return []
+    return metadata.isDirectory() ? walk(path) : [path]
   })
 }
 

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "application": "apps/site-runtime",
+  "ticket": "FUMA-SITE-005",
+  "runtime": "node",
+  "architecture": "linux-arm64",
+  "output": "standalone",
+  "dependencies": {
+    "@sinclair/typebox": "0.34.49",
+    "next": "16.2.9",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "postcss": "8.5.16",
+    "@tailwindcss/postcss": "4.3.3",
+    "tailwindcss": "4.3.3",
+    "shadcn": "4.14.1"
+  },
+  "rootLockMutation": false
+}

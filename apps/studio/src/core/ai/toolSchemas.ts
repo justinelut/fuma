@@ -412,3 +412,18 @@ export const RenderSnapshotInputSchema = Type.Object({
   breakpointId: Type.Optional(Type.String({ minLength: 1 })),
   nodeId: Type.Optional(Type.String({ minLength: 1 })),
 })
+
+// ---------------------------------------------------------------------------
+// Hosted payment setup proposal
+//
+// AI may choose only the user-facing purpose. Artifact identity, grants,
+// credentials, code, and test amount remain fixed server policy.
+// ---------------------------------------------------------------------------
+
+export const SiteProposePaymentSetupInputSchema = Type.Object({
+  purpose: Type.Union([
+    Type.Literal('deposit'),
+    Type.Literal('donation'),
+    Type.Literal('checkout'),
+  ]),
+}, { additionalProperties: false })

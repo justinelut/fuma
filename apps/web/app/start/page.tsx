@@ -12,7 +12,7 @@ const KIND_KEYS: Readonly<Record<string, ReadonlySet<string>>> = Object.freeze({
   sign_up: new Set([...BASE_KEYS, 'profile']),
   sign_in: new Set([...BASE_KEYS, 'profile']),
   create_site: new Set([...BASE_KEYS, 'profile']),
-  choose_plan: new Set([...BASE_KEYS, 'planId']),
+  choose_plan: new Set([...BASE_KEYS, 'planId', 'priceBookVersion', 'cadence']),
   use_template: new Set([...BASE_KEYS, 'templateId']),
   contact_expert: new Set([...BASE_KEYS, 'expertId']),
 })
@@ -35,7 +35,13 @@ export default async function Page({
   } else if (kind === 'create_site') {
     value = { kind, source, profile: raw.profile }
   } else if (kind === 'choose_plan') {
-    value = { kind, source, planId: raw.planId }
+    value = {
+      kind,
+      source,
+      planId: raw.planId,
+      priceBookVersion: raw.priceBookVersion,
+      cadence: raw.cadence,
+    }
   } else if (kind === 'use_template') {
     value = { kind, source, templateId: raw.templateId }
   } else if (kind === 'contact_expert') {

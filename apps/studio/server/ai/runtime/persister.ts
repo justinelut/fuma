@@ -11,7 +11,11 @@ import type { DbClient } from '../../db/client'
 import { appendMessage } from '../conversations/store'
 import { resolveCostUsd } from '../pricing'
 import { normalizeContextTokens } from '../contextTokens'
-import type { AiContentBlock, AiProviderId } from './types'
+import type {
+  AiContentBlock,
+  AiProviderId,
+  AiRuntimeExecutionAuthority,
+} from './types'
 
 export interface ConversationsPersister {
   appendAssistantText(text: string): Promise<void>
@@ -50,6 +54,8 @@ interface ConversationsPersisterContext {
   providerId: AiProviderId
   /** Used together with providerId to look up the per-million-token rates. */
   modelId: string
+  /** Hosted site-AI authority; absent for legacy/self-hosted turns. */
+  authority?: AiRuntimeExecutionAuthority
 }
 
 export function createConversationsPersister(
@@ -70,6 +76,7 @@ export function createConversationsPersister(
 
   return {
     async appendAssistantText(text) {
+      await ctx.authority?.revalidate({ phase: 'persistence' })
       const blocks: AiContentBlock[] = [{ kind: 'text', text }]
       const row = await appendMessage(db, conversationId, {
         role: 'assistant',
@@ -79,6 +86,11 @@ export function createConversationsPersister(
     },
 
     async appendToolCall({ toolCallId, toolName, input }) {
+      await ctx.authority?.revalidate({
+        phase: 'persistence',
+        toolCallId,
+        toolName,
+      })
       const blocks: AiContentBlock[] = [{
         kind: 'toolCall',
         toolCallId,
@@ -95,6 +107,11 @@ export function createConversationsPersister(
     },
 
     async appendToolResult({ toolCallId, toolName, ok, error }) {
+      await ctx.authority?.revalidate({
+        phase: 'persistence',
+        toolCallId,
+        toolName,
+      })
       // role='tool' messages mirror the OpenAI shape; the Anthropic driver
       // maps these to `{ role: 'user', content: [tool_result block] }`
       // when replaying history into the Messages API.
@@ -126,6 +143,7 @@ export function createConversationsPersister(
     },
 
     async recordUsage(usage) {
+      await ctx.authority?.revalidate({ phase: 'usage' })
       // Persist usage as a denormalised update on the LAST assistant
       // message so a per-message cost view is possible later. A normal turn
       // always has a text or tool-call row by this point; if a non-conforming

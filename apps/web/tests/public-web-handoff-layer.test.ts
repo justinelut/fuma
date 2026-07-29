@@ -32,12 +32,24 @@ describe('public-to-app handoff layer', () => {
       expect(headers.get('authorization')).toBe(`Bearer ${config.serviceToken}`)
       expect(headers.get('x-fuma-audience')).toBe('fuma-public-web')
       expect(headers.get('cookie')).toBeNull()
-      expect(JSON.parse(String(init?.body))).toEqual({ kind: 'create_site', source: 'product', profile: 'website' })
+      expect(JSON.parse(String(init?.body))).toEqual({
+        kind: 'choose_plan',
+        source: 'pricing',
+        planId: 'plan_launch',
+        priceBookVersion: 'ke-2026-07-v1',
+        cadence: 'monthly',
+      })
       return Response.json(envelope)
     }
 
     const result = await issueHandoff(
-      { kind: 'create_site', source: 'product', profile: 'website' },
+      {
+        kind: 'choose_plan',
+        source: 'pricing',
+        planId: 'plan_launch',
+        priceBookVersion: 'ke-2026-07-v1',
+        cadence: 'monthly',
+      },
       { config, fetchImpl },
     )
     expect(result).toEqual({

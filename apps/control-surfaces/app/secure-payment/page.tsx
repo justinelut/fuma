@@ -1,10 +1,28 @@
-import { cookies } from 'next/headers'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { requireControlRealm } from '@/lib/host'
+import { SecurePaymentSetup } from './payment-setup'
 
-export default async function SecurePaymentPage() {
+const idPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,254}$/
+function one(value: string | string[] | undefined): string | null {
+  return typeof value === 'string' && idPattern.test(value) ? value : null
+}
+
+export default async function SecurePaymentPage({ searchParams }: Readonly<{
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}>) {
   await requireControlRealm('app')
-  const handoffReady = Boolean((await cookies()).get('__Host-fuma-payment-handoff')?.value)
-  return <main className="mx-auto max-w-xl p-6"><h1 className="mb-6 text-3xl font-semibold">Secure payment setup</h1><Card><CardHeader><CardTitle>Enter provider credentials</CardTitle><CardDescription>This form posts directly to the encrypted credential boundary. Values are never returned to AI, logs, audit payloads or plugin workers.</CardDescription></CardHeader><CardContent><form className="space-y-4" method="post" action="/api/secure-payment-settings" autoComplete="off"><label className="block text-sm font-medium" htmlFor="public-key">Public key</label><input className="h-10 w-full rounded-md border bg-background px-3" id="public-key" name="publicKey" required maxLength={256} spellCheck={false} disabled={!handoffReady} /><label className="block text-sm font-medium" htmlFor="secret-key">Secret key</label><input className="h-10 w-full rounded-md border bg-background px-3" id="secret-key" name="secretKey" type="password" required maxLength={512} spellCheck={false} disabled={!handoffReady} /><label className="flex gap-2 text-sm"><input name="testMode" type="checkbox" defaultChecked disabled={!handoffReady} />Test mode preview</label><Button type="submit" disabled={!handoffReady}>Store through one-time handoff</Button>{!handoffReady && <p className="text-sm text-muted-foreground" role="status">Return to the confirmed AI proposal and open its one-time secure setup link.</p>}</form></CardContent></Card></main>
+  const query = await searchParams
+  const organizationId = one(query.organizationId)
+  const workspaceId = one(query.workspaceId)
+  const siteId = one(query.siteId)
+  const proposalId = one(query.proposalId)
+  const scope = organizationId && workspaceId && siteId ? { organizationId, workspaceId, siteId } : null
+
+  return <main className="mx-auto max-w-3xl p-6">
+    <p className="text-sm text-muted-foreground">Signed review · explicit actor confirmation · credentials outside AI</p>
+    <h1 className="mb-6 text-3xl font-semibold">Secure payment setup</h1>
+    {scope && proposalId
+      ? <SecurePaymentSetup scope={scope} proposalId={proposalId} />
+      : <Card><CardHeader><CardTitle>Select the originating site and proposal</CardTitle><CardDescription>Payment setup cannot infer or accept tenant authority from form fields.</CardDescription></CardHeader><CardContent><p className="text-sm text-muted-foreground" role="status">Open this page from the authenticated site navigation with organizationId, workspaceId, siteId, and proposalId. No installation or credential fields are enabled.</p></CardContent></Card>}
+  </main>
 }

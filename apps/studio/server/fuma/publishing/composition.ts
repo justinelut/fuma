@@ -7,14 +7,25 @@ import {
   PostgresPublishSnapshotAuthority,
 } from './postgresAdapters'
 import { CoreSemanticReleaseRenderer } from './semanticRenderer'
+import { projectEditorRuntimeRelease } from './runtimeTree/projector'
+import { RuntimeTreeRendererAdapter } from './runtimeTree/renderer'
 import {
   AtomicPublishWorker,
   publishWorkerRegistration,
 } from './workerPublisher'
 
 const PUBLISH_MIME_TYPES = Object.freeze([
-  'text/html', 'text/css',
-  'image/avif', 'image/jpeg', 'image/png', 'image/webp',
+  'text/html',
+  'text/css',
+  'text/javascript',
+  'application/javascript',
+  'application/json',
+  'application/vnd.fuma.runtime+json',
+  'application/vnd.fuma.runtime-route+json',
+  'image/avif',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
 ])
 
 export function createPostgresPublishReleaseComposition(input: Readonly<{
@@ -44,7 +55,10 @@ export function createPostgresPublishReleaseComposition(input: Readonly<{
   })
   const worker = new AtomicPublishWorker({
     snapshots: new PostgresPublishSnapshotAuthority(input.db),
-    renderer: new CoreSemanticReleaseRenderer(),
+    renderer: new RuntimeTreeRendererAdapter({
+      semanticRenderer: new CoreSemanticReleaseRenderer(),
+      project: projectEditorRuntimeRelease,
+    }),
     storage,
     releases: releases.service,
     attempts: new PostgresPublishAttemptAuthority(input.db, input.now),

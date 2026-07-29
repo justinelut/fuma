@@ -147,19 +147,6 @@ export const CustomerPaymentRequestSchema = Type.Object({
   idempotencyKey: Id,
   returnPath: Type.String({ minLength: 1, maxLength: 256, pattern: '^/[A-Za-z0-9/_-]*$' }),
 }, { additionalProperties: false })
-export const AiPaymentProposalSchema = Type.Object({
-  proposalId: Id,
-  siteId: Id,
-  createdByActorId: Id,
-  reviewedArtifactId: Id,
-  permissions: Type.Array(Type.String({ minLength: 1, maxLength: 96 }), { uniqueItems: true }),
-  feeDisclosure: Type.String({ minLength: 1, maxLength: 1_000 }),
-  configuration: Type.Object({ purposes: Type.Array(PaymentPurposeSchema, { minItems: 1, uniqueItems: true }) }, { additionalProperties: false }),
-  confirmationNonceHashSha256: Sha256,
-  expiresAt: Timestamp,
-  confirmedAt: Type.Union([Timestamp, Type.Null()]),
-}, { additionalProperties: false })
-
 export const ConsoleQuerySchema = Type.Object({
   view: Type.Union([Type.Literal('users'), Type.Literal('organizations'), Type.Literal('clients'), Type.Literal('sites'), Type.Literal('subscriptions'), Type.Literal('offers'), Type.Literal('invoices'), Type.Literal('economics'), Type.Literal('usage'), Type.Literal('domains'), Type.Literal('email'), Type.Literal('jobs'), Type.Literal('releases'), Type.Literal('ai'), Type.Literal('audit')]),
   filter: Type.Optional(Type.String({ minLength: 1, maxLength: 100 })),
@@ -332,7 +319,6 @@ export type PluginArtifact = Static<typeof PluginArtifactSchema>
 export type PluginInstallation = Static<typeof PluginInstallationSchema>
 export type PluginReview = Static<typeof PluginReviewSchema>
 export type CustomerPaymentRequest = Static<typeof CustomerPaymentRequestSchema>
-export type AiPaymentProposal = Static<typeof AiPaymentProposalSchema>
 export type ConsoleQuery = Static<typeof ConsoleQuerySchema>
 export type ConsoleContribution = Static<typeof ConsoleContributionSchema>
 export type SupportSession = Static<typeof SupportSessionSchema>
@@ -349,9 +335,13 @@ export type LaunchGate = Static<typeof LaunchGateSchema>
 export type PublicWebDeploymentSeam = Static<typeof PublicWebDeploymentSeamSchema>
 
 export class PhaseContractError extends Error {
-  constructor(readonly boundary: string, readonly detail: string) {
+  readonly boundary: string
+  readonly detail: string
+  constructor(boundary: string, detail: string) {
     super(`${boundary}: ${detail}`)
     this.name = 'PhaseContractError'
+    this.boundary = boundary
+    this.detail = detail
   }
 }
 

@@ -366,6 +366,22 @@ globalThis.__buildApi = function buildApi() {
         return base + '/' + rel
       },
     },
+    payments: {
+      customer: {
+        create: function (input: unknown) {
+          assertTargetPermission('payments.customer.create')
+          return call('payments.customer.create', [input])
+        },
+        receipt: function (input: unknown) {
+          assertTargetPermission('payments.customer.receipt')
+          return call('payments.customer.receipt', [input])
+        },
+        refund: function (input: unknown) {
+          assertTargetPermission('payments.customer.refund')
+          return call('payments.customer.refund', [input])
+        },
+      },
+    },
     cms: {
       routes: {
         // Capability-gated routes — most common shape.

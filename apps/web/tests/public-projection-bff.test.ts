@@ -143,7 +143,7 @@ describe('Next public projection BFF', () => {
     })
     expect(response.status).toBe(304)
     expect(response.headers.get('etag')).toBe('"pricing-7"')
-    expect(response.headers.get('cache-control')).toContain('must-revalidate')
+    expect(response.headers.get('cache-control')).toBe('no-store')
     expect(response.headers.get('cache-control')).not.toContain('stale-while-revalidate')
     expect(response.headers.get('set-cookie')).toBeNull()
   })

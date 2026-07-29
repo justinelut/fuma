@@ -1,0 +1,10 @@
+import { describe, expect, it } from 'bun:test'
+import type { TransferManifest } from '../../../server/fuma/transfers/contracts'
+import { createMcpTransferStep } from '../../../server/fuma/mcp'
+import { createMcpFixture, MCP_NOW, mcpScope } from './mcpTestFixture'
+
+const destination = Object.freeze({ ...mcpScope('a'), organizationId: 'organization-destination', workspaceId: 'workspace-destination', ownerKey: 'owner-destination', ownerGeneration: 2 })
+const manifest: TransferManifest = Object.freeze({ schemaVersion: 1, transferId: 'transfer-mcp', source: { platformId: 'platform-test', organizationId: 'organization-a', workspaceId: 'workspace-a', siteId: 'site-a' }, destination: { platformId: 'platform-test', organizationId: 'organization-destination', workspaceId: 'workspace-destination', siteId: 'site-a' }, siteProfileId: 'website', siteCapabilityOverrides: { grant: [], revoke: [] }, siteCapabilityIds: [], snapshotChecksum: 'a'.repeat(64), resources: ['mcp-artifact'], collaborators: [], capturedAt: MCP_NOW })
+const saga = Object.freeze({ transferId: manifest.transferId, lockId: 'lock-mcp', fence: 9 })
+
+describe('FUMA-066 MCP transfer', () => { it('re-scopes the connector, revokes old sessions, replays, and compensates', async () => { const h = await createMcpFixture(); await h.connector('a'); await h.service.recordTransferChoice({ transferId: manifest.transferId, connectorId: 'connector-a', choice: 'rescope', destinationScope: destination, recordedAt: MCP_NOW }); const step = createMcpTransferStep(h.repository); const applied = await step.apply({ manifest, saga, receipt: null }); expect(await step.verify({ manifest, saga, receipt: applied })).toEqual({ status: 'verified', receipt: applied }); expect((await h.repository.connector('connector-a'))?.scope).toEqual(destination); expect(await step.apply({ manifest, saga, receipt: applied })).toEqual(applied); expect(await step.compensate({ manifest, saga, receipt: applied })).toMatchObject({ status: 'compensated' }); expect((await h.repository.connector('connector-a'))?.scope).toEqual(mcpScope('a')); }) })

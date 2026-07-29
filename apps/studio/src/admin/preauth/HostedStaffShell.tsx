@@ -3,6 +3,7 @@ import { FumaScopedShell } from '../fuma/FumaScopedShell'
 import { PublicationRouteContent } from '../fuma/publication'
 import { PlatformCheckoutRouteContent } from '../fuma/billing'
 import { QuotaSelfServiceRouteContent } from '../fuma/usage'
+import { McpScopedRouteContent } from '../fuma/mcp'
 import {
   HostedProfileEditorSurface,
   type HostedProfileEditorRenderAdapter,
@@ -122,6 +123,7 @@ export function HostedStaffShell({
           {(shell) => (
             <>
               <PublicationRouteContent shell={shell} permissionDecisions={permissionDecisions} />
+              <McpScopedRouteContent shell={shell} permissionDecisions={permissionDecisions} />
               <QuotaSelfServiceRouteContent
                 shell={shell}
                 permissionDecisions={permissionDecisions}

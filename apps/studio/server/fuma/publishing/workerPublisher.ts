@@ -87,8 +87,16 @@ export interface PublishSnapshotAuthority {
   ): Promise<ClaimedSnapshot>
 }
 
+export type ReleaseRenderContext = Readonly<{
+  releaseId: string
+}>
+
 export interface SemanticReleaseRenderer {
-  render(authority: PublishAuthority, snapshot: ClaimedSnapshot): AsyncIterable<RenderedArtifact>
+  render(
+    authority: PublishAuthority,
+    snapshot: ClaimedSnapshot,
+    context?: ReleaseRenderContext,
+  ): AsyncIterable<RenderedArtifact>
 }
 
 export type PublishProgressEvent = Readonly<{
@@ -497,7 +505,11 @@ export class AtomicPublishWorker {
   ): Promise<ReleaseManifest> {
     const rendered: RenderedArtifact[] = []
     const paths = new Set<string>()
-    for await (const rawArtifact of this.dependencies.renderer.render(authority, snapshot)) {
+    for await (const rawArtifact of this.dependencies.renderer.render(
+      authority,
+      snapshot,
+      { releaseId: claim.releaseId },
+    )) {
       await cancel()
       const parsed = safeParseValue(RenderedArtifactSchema, rawArtifact)
       if (!parsed.ok) {

@@ -6,6 +6,7 @@ const config: NextConfig = {
   outputFileTracingRoot: resolve(import.meta.dirname, '../..'),
   reactCompiler: true,
   poweredByHeader: false,
+  allowedDevOrigins: ['5174.blyss.co.ke'],
   transpilePackages: ['@fuma/governance-launch'],
   typedRoutes: true,
 }
