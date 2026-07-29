@@ -25,32 +25,39 @@ export function verifyPairedRelease(value: unknown): PairedReleaseManifest {
     manifest.lockHashSha256,
     manifest.runtimeIndexHashSha256,
     manifest.webIndexHashSha256,
+    manifest.siteRuntimeIndexHashSha256,
     manifest.runtimeScanReportHashSha256,
     manifest.webScanReportHashSha256,
+    manifest.siteRuntimeScanReportHashSha256,
     manifest.runtimeSbomHashSha256,
     manifest.webSbomHashSha256,
+    manifest.siteRuntimeSbomHashSha256,
     manifest.runtimeProvenanceHashSha256,
     manifest.webProvenanceHashSha256,
+    manifest.siteRuntimeProvenanceHashSha256,
     manifest.runtimeSignatureVerificationHashSha256,
     manifest.webSignatureVerificationHashSha256,
+    manifest.siteRuntimeSignatureVerificationHashSha256,
     manifest.runtimeSmokeEvidenceHashSha256,
     manifest.webSmokeEvidenceHashSha256,
+    manifest.siteRuntimeSmokeEvidenceHashSha256,
     manifest.publicationPlanHashSha256,
     manifestHashSha256,
   ]
-  const runtimeDigest = manifest.runtimeImage.slice(-64)
-  const webDigest = manifest.webImage.slice(-64)
+  const imageDigests = [manifest.runtimeImage, manifest.webImage, manifest.siteRuntimeImage].map((image) => image.slice(-64))
   if (/^0{40}(?:0{24})?$/.test(manifest.sourceSha)
     || evidenceHashes.some((hash) => /^0{64}$/.test(hash))
-    || /^0{64}$/.test(runtimeDigest)
-    || /^0{64}$/.test(webDigest)) {
+    || imageDigests.some((digest) => /^0{64}$/.test(digest))) {
     throw new LaunchPolicyError('mixed-release', 'Placeholder release evidence is not promotable.')
   }
-  if (runtimeDigest === webDigest || manifest.runtimeImage.includes('REQUIRED_') || manifest.webImage.includes('REQUIRED_')) {
-    throw new LaunchPolicyError('mixed-release', 'Runtime and public web require separate immutable images.')
+  if (new Set(imageDigests).size !== imageDigests.length
+    || [manifest.runtimeImage, manifest.webImage, manifest.siteRuntimeImage].some((image) => image.includes('REQUIRED_'))) {
+    throw new LaunchPolicyError('mixed-release', 'Runtime, public web, and site runtime require separate immutable images.')
   }
-  if (manifest.runtimeImageSourceSha !== manifest.sourceSha || manifest.webImageSourceSha !== manifest.sourceSha) {
-    throw new LaunchPolicyError('mixed-release', 'Runtime and public web image source revisions must match the paired release source revision.')
+  if (manifest.runtimeImageSourceSha !== manifest.sourceSha
+    || manifest.webImageSourceSha !== manifest.sourceSha
+    || manifest.siteRuntimeImageSourceSha !== manifest.sourceSha) {
+    throw new LaunchPolicyError('mixed-release', 'All image source revisions must match the paired release source revision.')
   }
   if (pairedReleaseManifestHash(hashInput) !== manifestHashSha256) {
     throw new LaunchPolicyError('mixed-release', 'Paired release manifest hash does not match its canonical immutable content.')

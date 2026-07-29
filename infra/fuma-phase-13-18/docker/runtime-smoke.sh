@@ -19,9 +19,8 @@ printf '%s' "$lock_hash_sha256" | grep -Eq '^[a-f0-9]{64}$' && ! printf '%s' "$l
 printf '%s' "$migration_high_water" | grep -Eq '^000[0-9]{3}_[a-z0-9_]+$' || { echo "invalid migration high-water mark" >&2; exit 64; }
 [ ! -e "$output" ] || { echo "refusing to overwrite smoke evidence: $output" >&2; exit 73; }
 case "$platform" in
-  linux/amd64) expected_arch=x64 ;;
   linux/arm64) expected_arch=arm64 ;;
-  *) echo "unsupported platform: $platform" >&2; exit 64 ;;
+  *) echo "unsupported platform: $platform; Fuma release smoke is native linux/arm64 only" >&2; exit 64 ;;
 esac
 
 assert_image_identity() {
@@ -38,10 +37,7 @@ assert_image_identity() {
   [ "$actual_lock" = "$lock_hash_sha256" ] || { echo "$label lock label mismatch" >&2; exit 1; }
   [ "$actual_migration" = "$migration_high_water" ] || { echo "$label migration label mismatch" >&2; exit 1; }
   [ "$actual_user" = "$expected_user" ] || { echo "$label image must run as $expected_user" >&2; exit 1; }
-  case "$platform:$actual_arch" in
-    linux/amd64:amd64|linux/arm64:arm64) ;;
-    *) echo "$label image architecture mismatch: $actual_arch" >&2; exit 1 ;;
-  esac
+  [ "$actual_arch" = "arm64" ] || { echo "$label image architecture mismatch: $actual_arch" >&2; exit 1; }
 }
 
 assert_image_identity "$runtime_image" bun runtime
@@ -91,7 +87,7 @@ jq -n --arg sourceSha "$source_sha" --arg lockHashSha256 "$lock_hash_sha256" \
   --arg migrationHighWaterMark "$migration_high_water" --arg platform "$platform" \
   --arg image "$runtime_image" --arg migration "$migration" \
   --argjson roles "$role_results" --argjson email "$email" \
-  '{schemaVersion:1,sourceSha:$sourceSha,lockHashSha256:$lockHashSha256,migrationHighWaterMark:$migrationHighWaterMark,platform:$platform,image:$image,nonRoot:true,roles:$roles,migrationCommand:$migration,emailRenderer:$email}' > "$tmp_output"
+  '{schemaVersion:2,sourceSha:$sourceSha,lockHashSha256:$lockHashSha256,migrationHighWaterMark:$migrationHighWaterMark,platform:$platform,image:$image,nonRoot:true,roles:$roles,migrationCommand:$migration,emailRenderer:$email}' > "$tmp_output"
 ln "$tmp_output" "$output"
 rm -f "$tmp_output"
 trap - EXIT INT TERM

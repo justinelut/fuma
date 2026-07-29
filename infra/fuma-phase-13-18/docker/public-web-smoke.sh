@@ -18,8 +18,8 @@ printf '%s' "$lock_hash_sha256" | grep -Eq '^[a-f0-9]{64}$' && ! printf '%s' "$l
 printf '%s' "$migration_high_water" | grep -Eq '^000[0-9]{3}_[a-z0-9_]+$' || { echo "invalid migration high-water mark" >&2; exit 64; }
 [ ! -e "$output" ] || { echo "refusing to overwrite smoke evidence: $output" >&2; exit 73; }
 case "$platform" in
-  linux/amd64|linux/arm64) ;;
-  *) echo "unsupported platform: $platform" >&2; exit 64 ;;
+  linux/arm64) ;;
+  *) echo "unsupported platform: $platform; Fuma release smoke is native linux/arm64 only" >&2; exit 64 ;;
 esac
 inspect=$(docker image inspect "$image")
 actual_source=$(printf '%s' "$inspect" | jq -r '.[0].Config.Labels["org.opencontainers.image.revision"]')
@@ -31,10 +31,7 @@ actual_arch=$(printf '%s' "$inspect" | jq -r '.[0].Architecture')
 [ "$actual_lock" = "$lock_hash_sha256" ] || { echo "public-web lock label mismatch" >&2; exit 1; }
 [ "$actual_migration" = "$migration_high_water" ] || { echo "public-web migration label mismatch" >&2; exit 1; }
 [ "$actual_user" = "10001:10001" ] || { echo "public-web image must run as 10001:10001" >&2; exit 1; }
-case "$platform:$actual_arch" in
-  linux/amd64:amd64|linux/arm64:arm64) ;;
-  *) echo "public-web image architecture mismatch: $actual_arch" >&2; exit 1 ;;
-esac
+[ "$actual_arch" = "arm64" ] || { echo "public-web image architecture mismatch: $actual_arch" >&2; exit 1; }
 
 name="fuma-078-public-web-$$"
 container_id=''
@@ -67,7 +64,7 @@ trap 'rm -f "$tmp_output"' EXIT INT TERM
 jq -n --arg sourceSha "$source_sha" --arg lockHashSha256 "$lock_hash_sha256" \
   --arg migrationHighWaterMark "$migration_high_water" --arg platform "$platform" --arg image "$image" \
   --arg logsSha "$(printf '%s' "$logs" | sha256sum | cut -d' ' -f1)" --argjson response "$response" \
-  '{schemaVersion:1,sourceSha:$sourceSha,lockHashSha256:$lockHashSha256,migrationHighWaterMark:$migrationHighWaterMark,platform:$platform,image:$image,nonRoot:true,response:$response,logsSha256:$logsSha,acceptanceScope:"container-http-liveness-not-browser-or-public-host"}' > "$tmp_output"
+  '{schemaVersion:2,sourceSha:$sourceSha,lockHashSha256:$lockHashSha256,migrationHighWaterMark:$migrationHighWaterMark,platform:$platform,image:$image,nonRoot:true,response:$response,logsSha256:$logsSha,acceptanceScope:"container-http-liveness-not-browser-or-public-host"}' > "$tmp_output"
 ln "$tmp_output" "$output"
 rm -f "$tmp_output"
 trap - EXIT INT TERM
