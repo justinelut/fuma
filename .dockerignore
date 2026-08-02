@@ -17,6 +17,10 @@ docs/superpowers
 **/__tests__
 **/*.test.ts
 **/*.test.tsx
+# These exact tests are hashed into the native email compatibility receipt read by migrations.
+!apps/studio/server/fuma/email/compatibility/compatibility.test.ts
+!apps/studio/src/__tests__/architecture/fuma-email-boundaries.test.ts
+!apps/studio/src/__tests__/fuma/emailDocumentRenderer.test.ts
 # The E2E TypeScript project imports this canonical non-test fixture during tsc.
 !apps/studio/src/__tests__/helpers/fuma/fixtures.ts
 

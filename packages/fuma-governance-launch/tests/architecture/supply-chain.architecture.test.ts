@@ -75,6 +75,16 @@ describe('FUMA-078 native ARM64 supply-chain architecture', () => {
     expect(web).toContain('CMD ["node", "apps/web/server.js"]')
     expect(siteRuntime).toContain('USER 10002:10002')
     expect(siteRuntime).toContain('CMD ["node", "apps/site-runtime/server.js"]')
+
+    const dockerignore = read('.dockerignore')
+    for (const path of [
+      'apps/studio/server/fuma/email/compatibility/compatibility.test.ts',
+      'apps/studio/src/__tests__/architecture/fuma-email-boundaries.test.ts',
+      'apps/studio/src/__tests__/fuma/emailDocumentRenderer.test.ts',
+    ]) expect(dockerignore).toContain(`!${path}`)
+    expect(runtime).toContain('.github/workflows/fuma-email-compatibility.yml')
+    expect(runtime).toContain('fuma-email-compatibility-matrix.ts')
+    expect(runtime).toContain('fuma-email-compatibility-target.ts')
   })
 
   it('binds ARM64 smoke evidence to labels and uses create-only output ownership', () => {
