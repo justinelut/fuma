@@ -44,6 +44,9 @@ ENV NODE_ENV=production FUMA_ENV=production FUMA_HOSTED=true
 WORKDIR /workspace
 COPY --from=production-deps --chown=bun:bun /workspace/node_modules ./node_modules
 COPY --from=production-deps --chown=bun:bun /workspace/apps/studio/node_modules ./apps/studio/node_modules
+# Workspace package sources resolve external dependencies from /workspace/node_modules,
+# while Bun's filtered production install nests this namespace under the Studio app.
+COPY --from=production-deps --chown=bun:bun /workspace/apps/studio/node_modules/@sinclair ./node_modules/@sinclair
 COPY --chown=bun:bun package.json bun.lock tsconfig.base.json ./
 COPY --chown=bun:bun apps/studio/package.json apps/studio/tsconfig*.json ./apps/studio/
 COPY --chown=bun:bun apps/studio/server ./apps/studio/server
