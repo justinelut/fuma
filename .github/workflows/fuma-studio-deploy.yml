@@ -158,12 +158,23 @@ jobs:
             sudo kubectl rollout status deployment/minio -n $NS --timeout=4m
 
             echo "running migrations"
-            if ! sudo kubectl wait --for=condition=complete job/fuma-migrate -n $NS --timeout=12m; then
+            migrated=0
+            for attempt in $(seq 1 72); do
+              succeeded="$(sudo kubectl -n $NS get job fuma-migrate -o jsonpath='{.status.succeeded}' 2>/dev/null || echo '')"
+              failed="$(sudo kubectl -n $NS get job fuma-migrate -o jsonpath='{.status.failed}' 2>/dev/null || echo '')"
+              if [ "${succeeded:-0}" -ge 1 ] 2>/dev/null; then migrated=1; break; fi
+              if [ "${failed:-0}" -ge 3 ] 2>/dev/null; then break; fi
+              sleep 10
+            done
+            if [ "$migrated" != "1" ]; then
               echo "════════ migration failed ════════"
-              sudo kubectl -n $NS describe job/fuma-migrate | tail -30
-              sudo kubectl -n $NS logs job/fuma-migrate --tail=200 || true
+              sudo kubectl -n $NS describe job/fuma-migrate 2>&1 | tail -30 || true
+              sudo kubectl -n $NS logs job/fuma-migrate --tail=200 2>&1 || true
+              sudo kubectl -n $NS logs -l job-name=fuma-migrate --tail=200 --all-containers=true 2>&1 || true
               exit 1
             fi
+            echo "migrations complete"
+            sudo kubectl -n $NS logs job/fuma-migrate --tail=40 2>&1 || true
 
             # Clear pods stuck in image-pull backoff so they retry with the refreshed secret.
             sudo kubectl -n $NS delete pod -l app=fuma-studio --field-selector=status.phase=Pending --ignore-not-found
