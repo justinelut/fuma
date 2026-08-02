@@ -6,7 +6,7 @@ ARG FUMA_DEPLOYMENT_ROOT_DOMAIN
 FROM ${BUN_IMAGE} AS build
 ARG FUMA_DEPLOYMENT_ROOT_DOMAIN
 ENV FUMA_DEPLOYMENT_ROOT_DOMAIN=${FUMA_DEPLOYMENT_ROOT_DOMAIN}
-RUN printf '%s' "$FUMA_DEPLOYMENT_ROOT_DOMAIN" | grep -Eq '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$'
+RUN printf '%s' "$FUMA_DEPLOYMENT_ROOT_DOMAIN" | grep -Eq '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$'
 WORKDIR /workspace
 COPY package.json bun.lock ./
 COPY tsconfig.base.json ./
