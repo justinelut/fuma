@@ -27,13 +27,56 @@ export type HostedAuthDelivery = Readonly<{
   }>) => Promise<void>
 }>
 
+/**
+ * Optional hosted social sign-in. A provider is configured only when both of
+ * its credentials are present and non-blank; a partially configured provider is
+ * omitted entirely rather than half-enabled, so sign-in never advertises a
+ * button that cannot complete.
+ *
+ * These are platform-owned identity credentials for the Fuma auth host. They
+ * are unrelated to tenant payment or provider secrets and never reach site AI,
+ * imported runtimes, or exported adapters.
+ */
+export type HostedSocialProviderCredential = Readonly<{
+  clientId: string
+  clientSecret: string
+}>
+
+export type HostedSocialProviders = Readonly<{
+  google?: HostedSocialProviderCredential
+  github?: HostedSocialProviderCredential
+}>
+
+export const HOSTED_SOCIAL_PROVIDER_IDS = Object.freeze(['google', 'github'] as const)
+export type HostedSocialProviderId = typeof HOSTED_SOCIAL_PROVIDER_IDS[number]
+
 export type HostedAuthInput = Readonly<{
   baseURL: string
   secret: string
   secureCookies: boolean
   cookieName?: string
   delivery?: HostedAuthDelivery
+  socialProviders?: HostedSocialProviders
 }>
+
+function usableCredential(value: HostedSocialProviderCredential | undefined): HostedSocialProviderCredential | null {
+  if (!value) return null
+  const clientId = value.clientId.trim()
+  const clientSecret = value.clientSecret.trim()
+  if (clientId.length === 0 || clientSecret.length === 0) return null
+  return Object.freeze({ clientId, clientSecret })
+}
+
+/**
+ * Providers Fuma will actually expose, in a stable order. Callers use this to
+ * render sign-in buttons so the UI can never offer an unconfigured provider.
+ */
+export function enabledHostedSocialProviders(
+  providers: HostedSocialProviders | undefined,
+): readonly HostedSocialProviderId[] {
+  if (!providers) return Object.freeze([])
+  return Object.freeze(HOSTED_SOCIAL_PROVIDER_IDS.filter((id) => usableCredential(providers[id]) !== null))
+}
 
 export type HostedAuthImpersonationMutation = Readonly<{
   userId: string
@@ -93,6 +136,40 @@ export type HostedResolvedSession = Readonly<{
 type AuthDatabase = NonNullable<BetterAuthOptions['database']>
 type HostedAuth = ReturnType<typeof betterAuth>
 
+/**
+ * Emits `socialProviders` plus `account.accountLinking` only when at least one
+ * provider is fully configured. Linking is restricted to the exact configured
+ * providers and requires a verified email, so a social account can never take
+ * over an existing Fuma staff identity by asserting an unverified address.
+ */
+function hostedSocialAuthOptions(input: HostedAuthInput): Partial<BetterAuthOptions> {
+  const configured = enabledHostedSocialProviders(input.socialProviders)
+  if (configured.length === 0) return {}
+  const authOrigin = new URL(input.baseURL).origin
+  const socialProviders: Record<string, unknown> = {}
+  for (const id of configured) {
+    const credential = usableCredential(input.socialProviders?.[id])
+    if (!credential) continue
+    socialProviders[id] = {
+      clientId: credential.clientId,
+      clientSecret: credential.clientSecret,
+      // Callback stays on the exact auth host: never a tenant or wildcard origin.
+      redirectURI: `${authOrigin}/api/auth/callback/${id}`,
+    }
+  }
+  return {
+    socialProviders: socialProviders as BetterAuthOptions['socialProviders'],
+    account: {
+      modelName: AUTH_MODEL_NAMES.account,
+      accountLinking: {
+        enabled: true,
+        trustedProviders: [...configured],
+        allowDifferentEmails: false,
+      },
+    },
+  }
+}
+
 export function createHostedAuthOptions(
   database: AuthDatabase,
   input: HostedAuthInput,
@@ -113,6 +190,7 @@ export function createHostedAuthOptions(
     },
     account: { modelName: AUTH_MODEL_NAMES.account },
     verification: { modelName: AUTH_MODEL_NAMES.verification },
+    ...hostedSocialAuthOptions(input),
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: input.delivery !== undefined,
