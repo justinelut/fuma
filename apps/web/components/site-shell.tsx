@@ -38,7 +38,7 @@ const columns: readonly (readonly Column[])[] = [
   ],
   [{
     heading: 'Get started',
-    links: [['/start?kind=sign_up&source=footer', 'Sign up'], ['/start?kind=sign_in&source=footer', 'Log in'], ['/pricing', 'Compare plans'], ['/contact', 'Talk to us']],
+    links: [['/start?kind=sign_up&source=direct', 'Sign up'], ['/start?kind=sign_in&source=direct', 'Log in'], ['/pricing', 'Compare plans'], ['/contact', 'Talk to us']],
   }],
 ]
 

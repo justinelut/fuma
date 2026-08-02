@@ -116,11 +116,39 @@ jobs:
           FUMA_DEPLOYMENT_ROOT_DOMAIN: ${{ vars.FUMA_DEPLOYMENT_ROOT_DOMAIN }}
         run: |
           set -euo pipefail
+          base="https://$FUMA_DEPLOYMENT_ROOT_DOMAIN"
+
           for attempt in $(seq 1 30); do
-            if curl -fsS --max-time 10 "https://$FUMA_DEPLOYMENT_ROOT_DOMAIN/api/health" -o health.json; then break; fi
+            if curl -fsS --max-time 10 "$base/api/health" -o health.json; then break; fi
             sleep 10
           done
           cat health.json
           jq -e '.status == "ok"' health.json
-          curl -fsS --max-time 20 "https://$FUMA_DEPLOYMENT_ROOT_DOMAIN/" -o apex.html
+
+          curl -fsS --max-time 20 "$base/" -o apex.html
           grep -Fq 'Build, manage and publish in one place.' apex.html
+
+          # Login and sign-up must actually render, not 404 on an invalid handoff source.
+          for target in 'kind=sign_in&source=direct' 'kind=sign_up&source=direct' 'kind=sign_up&source=home'; do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$base/start?$target")"
+            echo "start?$target -> $code"
+            [ "$code" = "200" ]
+          done
+
+          # Every /start link the homepage renders must resolve.
+          grep -oE 'href="/start\?[^"]+"' apex.html | sed 's/href="//;s/"$//;s/&amp;/\&/g' | sort -u > start-links.txt
+          while read -r link; do
+            [ -n "$link" ] || continue
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$base$link")"
+            echo "homepage link $link -> $code"
+            [ "$code" = "200" ]
+          done < start-links.txt
+
+          # Every image the homepage requests must be served, not 404.
+          grep -oE 'src="/[^"]+\.(webp|png|jpg|jpeg|svg|avif)"' apex.html | sed 's/src="//;s/"$//' | sort -u > images.txt
+          while read -r img; do
+            [ -n "$img" ] || continue
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$base$img")"
+            echo "image $img -> $code"
+            [ "$code" = "200" ]
+          done < images.txt
