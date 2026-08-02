@@ -92,7 +92,11 @@ jobs:
             sudo kubectl set image deployment/public-web \
               web=ghcr.io/$REPO_OWNER/fuma-web:$IMAGE_TAG -n $NS
 
-            if ! sudo kubectl rollout status deployment/public-web -n $NS --timeout=5m; then
+            # Clear pods stuck in image-pull backoff so they retry with the refreshed secret.
+            sudo kubectl -n $NS delete pod -l app=public-web \
+              --field-selector=status.phase=Pending --ignore-not-found
+
+            if ! sudo kubectl rollout status deployment/public-web -n $NS --timeout=8m; then
               echo "════════════ rollout failed ════════════"
               sudo kubectl -n $NS get pods -o wide
               sudo kubectl -n $NS describe deployment/public-web | tail -40
