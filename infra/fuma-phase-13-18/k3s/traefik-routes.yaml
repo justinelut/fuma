@@ -96,7 +96,7 @@ metadata: { name: tenant-wildcard, namespace: fuma }
 spec:
   entryPoints: [websecure]
   routes:
-    - match: HostRegexp(`[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.trimly\\.co\\.ke`)
+    - match: HostRegexp(`[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.trimly\\.co\\.ke`)
       kind: Rule
       priority: 10
       middlewares: [{ name: security-headers }]
