@@ -1,5 +1,31 @@
 # Fuma launch capability packs
 
+## Scope decision (2026-08-02): verticals ship as content, not engines
+
+**Owner decision: Events, Hospitality and Ecommerce are not built as separate engines.** The universal data model, Better Auth, Paystack and the existing AI tool surface already serve those businesses. Only behaviour those primitives genuinely cannot express is implemented.
+
+Evidence, verified against code rather than the tracker:
+
+- Site AI already exposes **48 site tools and 15 content tools**. It can list collections, read a collection schema, create/update/delete documents, set fields and status, search, list media, list loop sources and post types, and compose pages. Presentation and content authoring need no pack.
+- `data_tables`/`data_rows` already support `text`, `longText`, `richText`, `number` (with currency), `boolean`, `date`, `dateTime`, `select`, `multiSelect`, `url`, `email`, `media` and `relation`. Services, team, case studies, testimonials, FAQs, locations, events, rooms, tours and menu items are all ordinary collections.
+- Forms already validate and bound submissions into a target collection, so lead capture needs no new storage.
+- The one class of behaviour the data model cannot provide is **contention**: capacity, short-lived holds, availability across working hours and time zones, idempotent confirmation, and cancellation windows. A form row cannot prevent a double booking.
+
+### What was implemented instead
+
+1. **FUMA-093 bookings authority** — fenced holds, DST-correct availability, idempotent confirmation, append-only events, and additive migration `000081` (physical and unindexed behind the `000078` sentinel). Nine reviewed capabilities.
+2. **Bounded collection provisioning** — `describe`/`provision`/`extend`, so AI can *define* collections rather than only populate them. This was the single decisive gap. Owner-confirmed for schema mutation; additive only; drop, field removal, retype, slug rename and direct SQL are withheld with explicit diagnostics.
+3. **Thirteen content-only starter blueprints** covering business, agency, events and hospitality. Blogging uses the built-in `posts` collection.
+4. **Error reporting** — Sentry-compatible envelope over `fetch`, inert without `SENTRY_DSN`, redacting credentials and personal data.
+
+### Disposition of the pack tickets
+
+`FUMA-089`, `FUMA-090`, `FUMA-091` and `FUMA-092` are **closed as superseded**: their content surface ships as blueprints, their operations surface reuses the existing Data and Content workspaces, and their only irreplaceable primitive is the bookings authority. Directories and ecommerce remain deferred; ecommerce still requires separate catalog, inventory, tax, order, fulfilment, refund, merchant-risk and accounting design, and Paystack transport is not an ecommerce engine.
+
+Integration proof: `apps/studio/server/fuma/collectionProvisioning/__tests__/agencyJourney.test.ts` provisions a full agency model, captures and rejects leads through the existing form authority, serves the events and hospitality cases as content plus bookings capacity, and completes a visitor journey through reviewed capabilities. It asserts that no blueprint field encodes capacity, seats, stock, cart or checkout.
+
+The sections below record the original pack design and remain accurate about the shared contract, security rationale and Kenyan sequencing.
+
 ## Product decision
 
 **Scheduling hold (2026-07-30):** FUMA-089 through FUMA-093 remain future roadmap tasks and are not part of the current integration frontier. Current execution stays on FUMA-077, FUMA-073, WEB-014/015/016 and their acceptance dependencies. Events registration/live capacity, Hospitality live availability/reservations, Bookings holds/calendar synchronization, WebSockets, presence and other real-time behavior are deferred. No temporary polling, in-memory authority, fake availability or partial booking engine may be integrated to simulate them. Content-only schemas/templates may be designed later, but production capability and dashboard mounting wait for an explicit restart decision.
