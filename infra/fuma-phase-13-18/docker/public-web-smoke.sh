@@ -14,7 +14,7 @@ lock_hash_sha256=$4
 migration_high_water=$5
 output=$6
 : "${FUMA_DEPLOYMENT_ROOT_DOMAIN:?FUMA_DEPLOYMENT_ROOT_DOMAIN is required}"
-printf '%s' "$FUMA_DEPLOYMENT_ROOT_DOMAIN" | grep -Eq '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$' || { echo "invalid deployment root domain" >&2; exit 64; }
+printf '%s' "$FUMA_DEPLOYMENT_ROOT_DOMAIN" | grep -Eq '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$' || { echo "invalid deployment root domain" >&2; exit 64; }
 printf '%s' "$source_sha" | grep -Eq '^[a-f0-9]{40}([a-f0-9]{24})?$' || { echo "source SHA must be 40 or 64 lowercase hex characters" >&2; exit 64; }
 printf '%s' "$lock_hash_sha256" | grep -Eq '^[a-f0-9]{64}$' && ! printf '%s' "$lock_hash_sha256" | grep -Eq '^0{64}$' || { echo "lock hash must be a non-placeholder SHA-256" >&2; exit 64; }
 printf '%s' "$migration_high_water" | grep -Eq '^000[0-9]{3}_[a-z0-9_]+$' || { echo "invalid migration high-water mark" >&2; exit 64; }
