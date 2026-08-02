@@ -45,8 +45,10 @@ WORKDIR /workspace
 COPY --from=production-deps --chown=bun:bun /workspace/node_modules ./node_modules
 COPY --from=production-deps --chown=bun:bun /workspace/apps/studio/node_modules ./apps/studio/node_modules
 # Workspace package sources resolve external dependencies from /workspace/node_modules,
-# while Bun's filtered production install nests this namespace under the Studio app.
-COPY --from=production-deps --chown=bun:bun /workspace/apps/studio/node_modules/@sinclair ./node_modules/@sinclair
+# while Bun's filtered production install links TypeBox only below the Studio app.
+RUN test -d node_modules/.bun/@sinclair+typebox@0.34.49/node_modules/@sinclair/typebox \
+ && mkdir -p node_modules/@sinclair \
+ && ln -s ../.bun/@sinclair+typebox@0.34.49/node_modules/@sinclair/typebox node_modules/@sinclair/typebox
 COPY --chown=bun:bun package.json bun.lock tsconfig.base.json ./
 COPY --chown=bun:bun apps/studio/package.json apps/studio/tsconfig*.json ./apps/studio/
 COPY --chown=bun:bun apps/studio/server ./apps/studio/server
