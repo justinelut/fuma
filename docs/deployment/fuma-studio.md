@@ -30,44 +30,49 @@ The runtime image is built by `.github/workflows/fuma-studio-release.yml` native
 
 Create a single repository secret named **`FUMA_ENV_SECRET`** containing one `KEY=value` per line. The deploy stages it to disk, turns it into the `fuma-secrets` Kubernetes Secret with `--from-env-file`, then deletes the staged file. Every workload reads it through `envFrom`.
 
-The deploy **fails fast** if any of these are missing, rather than letting a pod crash-loop:
+### Already configured
+
+These are cluster-internal or policy values, generated and set during setup. Postgres, Redis and MinIO run beside Studio, so their addresses are in-cluster service names and their credentials are self-contained:
 
 ```text
-DATABASE_URL
-FUMA_REDIS_URL
-FUMA_ROLE
-FUMA_MINIO_ENDPOINT
-FUMA_MINIO_BUCKET
-FUMA_MINIO_ACCESS_KEY_ID
-FUMA_MINIO_SECRET_ACCESS_KEY
-FUMA_PROTECTED_OWNER_EMAIL
-FUMA_PUBLICATION_UNSUBSCRIBE_SIGNING_SECRET
-POSTGRES_USER
-POSTGRES_PASSWORD
-```
-
-In-cluster values, since Postgres, Redis and MinIO run beside Studio:
-
-```text
-DATABASE_URL=postgres://<POSTGRES_USER>:<POSTGRES_PASSWORD>@postgres.fuma.svc.cluster.local:5432/fuma
+FUMA_ROLE=web
+DATABASE_URL=postgres://fuma:<generated>@postgres.fuma.svc.cluster.local:5432/fuma
+POSTGRES_USER=fuma
+POSTGRES_PASSWORD=<generated>
 FUMA_REDIS_URL=redis://redis.fuma.svc.cluster.local:6379
 FUMA_MINIO_ENDPOINT=http://minio.fuma.svc.cluster.local:9000
 FUMA_MINIO_BUCKET=fuma
-FUMA_ROLE=web
+FUMA_MINIO_ACCESS_KEY_ID=<generated>
+FUMA_MINIO_SECRET_ACCESS_KEY=<generated>
+FUMA_PUBLICATION_UNSUBSCRIBE_SIGNING_SECRET=<generated>
+FUMA_PROTECTED_OWNER_EMAIL=justinequartz@gmail.com
+FUMA_CURRENCY=KES
+FUMA_LOCALE=en-KE
+FUMA_TIME_ZONE=Africa/Nairobi
+FUMA_COOKIE_SECURE=true
+FUMA_COOKIE_HTTP_ONLY=true
+FUMA_COOKIE_SAME_SITE=lax
+FUMA_PAYSTACK_PROVIDER_URL=https://api.paystack.co
 ```
+
+Change `FUMA_PROTECTED_OWNER_EMAIL` if the protected owner should be a different address.
 
 `FUMA_ENV=production`, `FUMA_HOSTED=true` and `FUMA_DEPLOYMENT_ROOT_DOMAIN` are injected by the workflow, so do not set them by hand. `FUMA_COOKIE_DOMAIN` and `FUMA_COOKIE_HOST_ONLY` must never be set — Fuma staff cookies are host-only and config rejects those keys outright.
 
-## Provider keys you add when ready
+### Still required before Studio can boot
 
-These are read from configuration, so add them to `FUMA_ENV_SECRET` (or as the separate repository secrets noted) whenever you have them:
+Fuma validates fourteen configuration classes **fail-closed** at startup, so the runtime refuses to start until every one is present. Fifteen values remain, and all are real provider credentials that cannot be generated:
 
-| Purpose | Keys |
+| Class | Keys |
 |---|---|
-| Payments | `FUMA_PAYSTACK_PLATFORM_SECRET_KEY`, `FUMA_PAYSTACK_PLATFORM_PUBLIC_KEY`, `FUMA_PAYSTACK_CUSTOMER_SECRET_KEY`, `FUMA_PAYSTACK_CUSTOMER_PUBLIC_KEY`, `FUMA_PAYSTACK_PROVIDER_URL` |
-| Email | `FUMA_OCI_EMAIL_*` (region, tenancy, user, fingerprint, private key PEM, compartment, approved sender) and `FUMA_OCI_EVENT_VERIFICATION_SECRET` |
-| Domains | `FUMA_CLOUDFLARE_ACCOUNT_ID`, `FUMA_CLOUDFLARE_ZONE_ID`, `FUMA_CLOUDFLARE_API_TOKEN` |
-| Locale | `FUMA_CURRENCY`, `FUMA_LOCALE`, `FUMA_TIME_ZONE` |
+| OCI Email Delivery | `FUMA_OCI_EMAIL_REGION`, `FUMA_OCI_EMAIL_TENANCY_ID`, `FUMA_OCI_EMAIL_USER_ID`, `FUMA_OCI_EMAIL_FINGERPRINT`, `FUMA_OCI_EMAIL_PRIVATE_KEY_PEM`, `FUMA_OCI_EMAIL_COMPARTMENT_ID`, `FUMA_OCI_EMAIL_APPROVED_SENDER`, `FUMA_OCI_EVENT_VERIFICATION_SECRET` |
+| Paystack platform billing | `FUMA_PAYSTACK_PLATFORM_PUBLIC_KEY`, `FUMA_PAYSTACK_PLATFORM_SECRET_KEY` |
+| Paystack customer merchant | `FUMA_PAYSTACK_CUSTOMER_PUBLIC_KEY`, `FUMA_PAYSTACK_CUSTOMER_SECRET_KEY` |
+| Fuma-owned Cloudflare | `FUMA_CLOUDFLARE_ACCOUNT_ID`, `FUMA_CLOUDFLARE_ZONE_ID`, `FUMA_CLOUDFLARE_API_TOKEN` |
+
+Add them to `FUMA_ENV_SECRET` alongside the existing lines. The deploy checks all fourteen classes **before** contacting the cluster and prints the exact missing keys grouped by class, so a missing credential never becomes a crash-looping pod.
+
+## Provider keys and optional integrations
 
 Separate repository secrets, injected only when present so they stay inert until set:
 
@@ -78,7 +83,7 @@ Separate repository secrets, injected only when present so they stay inert until
 
 Google sign-in activates automatically once both Google values exist: the hosted auth options add the provider only when both are non-blank, pin the callback to `https://auth.<root>/api/auth/callback/google`, and restrict account linking to matching verified emails.
 
-Paystack keys are read from configuration rather than an admin form, so they belong in `FUMA_ENV_SECRET`. AI provider keys are different — those are per-tenant BYOK through the existing AI credits authority and are entered in the app, not here.
+Paystack, OCI Email and Cloudflare are read from configuration rather than an admin form, so they belong in `FUMA_ENV_SECRET` as listed above. AI provider keys are different — those are per-tenant BYOK through the existing AI credits authority and are entered in the app, not here.
 
 ## Deploy order
 
