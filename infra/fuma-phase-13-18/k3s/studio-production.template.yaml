@@ -187,7 +187,9 @@ metadata:
   name: fuma-migrate
   namespace: fuma
 spec:
-  ttlSecondsAfterFinished: 300
+  # No ttlSecondsAfterFinished: the deploy deletes and recreates this Job each
+  # run, and a TTL shorter than the rollout wait would garbage-collect a
+  # finished Job mid-wait, making `kubectl wait` fail on a vanished object.
   backoffLimit: 3
   template:
     spec:
