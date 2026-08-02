@@ -222,7 +222,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for repository in ghcr.io/corebunch/fuma-runtime ghcr.io/corebunch/fuma-web ghcr.io/corebunch/fuma-site-runtime; do
+          for repository in ghcr.io/${{ github.repository_owner }}/fuma-runtime ghcr.io/${{ github.repository_owner }}/fuma-web ghcr.io/${{ github.repository_owner }}/fuma-site-runtime; do
             if docker buildx imagetools inspect "$repository:${{ needs.preflight.outputs.source_sha }}" >/dev/null 2>&1; then
               echo "refusing to overwrite existing image tag: $repository:${{ needs.preflight.outputs.source_sha }}" >&2
               exit 73
@@ -244,7 +244,7 @@ jobs:
           push: true
           provenance: mode=max
           sbom: true
-          tags: ghcr.io/corebunch/fuma-runtime:${{ needs.preflight.outputs.source_sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/fuma-runtime:${{ needs.preflight.outputs.source_sha }}
           build-args: |
             BUN_IMAGE=${{ vars.FUMA_BUN_IMAGE_DIGEST }}
             SOURCE_SHA=${{ needs.preflight.outputs.source_sha }}
@@ -260,7 +260,7 @@ jobs:
           push: true
           provenance: mode=max
           sbom: true
-          tags: ghcr.io/corebunch/fuma-web:${{ needs.preflight.outputs.source_sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/fuma-web:${{ needs.preflight.outputs.source_sha }}
           build-args: |
             BUN_IMAGE=${{ vars.FUMA_BUN_IMAGE_DIGEST }}
             NODE_IMAGE=${{ vars.FUMA_NODE_IMAGE_DIGEST }}
@@ -278,7 +278,7 @@ jobs:
           push: true
           provenance: mode=max
           sbom: true
-          tags: ghcr.io/corebunch/fuma-site-runtime:${{ needs.preflight.outputs.source_sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/fuma-site-runtime:${{ needs.preflight.outputs.source_sha }}
           build-args: |
             BUN_IMAGE=${{ vars.FUMA_BUN_IMAGE_DIGEST }}
             NODE_IMAGE=${{ vars.FUMA_NODE_IMAGE_DIGEST }}
@@ -289,9 +289,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          printf '%s\n' 'ghcr.io/corebunch/fuma-runtime@${{ steps.runtime.outputs.digest }}' > supply/runtime.digest
-          printf '%s\n' 'ghcr.io/corebunch/fuma-web@${{ steps.web.outputs.digest }}' > supply/web.digest
-          printf '%s\n' 'ghcr.io/corebunch/fuma-site-runtime@${{ steps.site_runtime.outputs.digest }}' > supply/site-runtime.digest
+          printf '%s\n' 'ghcr.io/${{ github.repository_owner }}/fuma-runtime@${{ steps.runtime.outputs.digest }}' > supply/runtime.digest
+          printf '%s\n' 'ghcr.io/${{ github.repository_owner }}/fuma-web@${{ steps.web.outputs.digest }}' > supply/web.digest
+          printf '%s\n' 'ghcr.io/${{ github.repository_owner }}/fuma-site-runtime@${{ steps.site_runtime.outputs.digest }}' > supply/site-runtime.digest
           for component in runtime web site-runtime; do
             printf '%s\n' '${{ needs.preflight.outputs.source_sha }}' > "supply/$component.source-sha"
             image=$(cat "supply/$component.digest")
@@ -333,7 +333,7 @@ jobs:
       - name: Scan published immutable ARM64 runtime digest
         uses: aquasecurity/trivy-action@0.33.1
         with:
-          image-ref: ghcr.io/corebunch/fuma-runtime@${{ steps.runtime.outputs.digest }}
+          image-ref: ghcr.io/${{ github.repository_owner }}/fuma-runtime@${{ steps.runtime.outputs.digest }}
           format: sarif
           output: supply/runtime.trivy.sarif
           severity: HIGH,CRITICAL
@@ -342,7 +342,7 @@ jobs:
       - name: Scan published immutable ARM64 public-web digest
         uses: aquasecurity/trivy-action@0.33.1
         with:
-          image-ref: ghcr.io/corebunch/fuma-web@${{ steps.web.outputs.digest }}
+          image-ref: ghcr.io/${{ github.repository_owner }}/fuma-web@${{ steps.web.outputs.digest }}
           format: sarif
           output: supply/web.trivy.sarif
           severity: HIGH,CRITICAL
@@ -351,7 +351,7 @@ jobs:
       - name: Scan published immutable ARM64 site-runtime digest
         uses: aquasecurity/trivy-action@0.33.1
         with:
-          image-ref: ghcr.io/corebunch/fuma-site-runtime@${{ steps.site_runtime.outputs.digest }}
+          image-ref: ghcr.io/${{ github.repository_owner }}/fuma-site-runtime@${{ steps.site_runtime.outputs.digest }}
           format: sarif
           output: supply/site-runtime.trivy.sarif
           severity: HIGH,CRITICAL
@@ -371,19 +371,19 @@ jobs:
       - name: Generate runtime SPDX from published immutable ARM64 digest
         uses: anchore/sbom-action@v0.21.0
         with:
-          image: ghcr.io/corebunch/fuma-runtime@${{ steps.runtime.outputs.digest }}
+          image: ghcr.io/${{ github.repository_owner }}/fuma-runtime@${{ steps.runtime.outputs.digest }}
           format: spdx-json
           output-file: supply/runtime.spdx.json
       - name: Generate public-web SPDX from published immutable ARM64 digest
         uses: anchore/sbom-action@v0.21.0
         with:
-          image: ghcr.io/corebunch/fuma-web@${{ steps.web.outputs.digest }}
+          image: ghcr.io/${{ github.repository_owner }}/fuma-web@${{ steps.web.outputs.digest }}
           format: spdx-json
           output-file: supply/web.spdx.json
       - name: Generate site-runtime SPDX from published immutable ARM64 digest
         uses: anchore/sbom-action@v0.21.0
         with:
-          image: ghcr.io/corebunch/fuma-site-runtime@${{ steps.site_runtime.outputs.digest }}
+          image: ghcr.io/${{ github.repository_owner }}/fuma-site-runtime@${{ steps.site_runtime.outputs.digest }}
           format: spdx-json
           output-file: supply/site-runtime.spdx.json
       - uses: sigstore/cosign-installer@v3.10.0
@@ -405,7 +405,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          identity='^https://github\.com/corebunch/instatic/\.github/workflows/fuma-paired-release\.yml@refs/(heads|tags)/.+'
+          identity='^https://github\.com/${{ github.repository }}/\.github/workflows/fuma-paired-release\.yml@refs/(heads|tags)/.+'
           for component in runtime web site-runtime; do
             cosign verify --certificate-identity-regexp "$identity" --certificate-oidc-issuer https://token.actions.githubusercontent.com \
               "$(cat "supply/$component.digest")" --output json > "supply/$component.signature-verification.json"
@@ -481,7 +481,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          identity='^https://github\.com/corebunch/instatic/\.github/workflows/fuma-paired-release\.yml@refs/(heads|tags)/.+'
+          identity='^https://github\.com/${{ github.repository }}/\.github/workflows/fuma-paired-release\.yml@refs/(heads|tags)/.+'
           cosign sign-blob --yes --bundle supply/paired-release.sigstore.json supply/paired-release.json
           cosign verify-blob --bundle supply/paired-release.sigstore.json --certificate-identity-regexp "$identity" --certificate-oidc-issuer https://token.actions.githubusercontent.com supply/paired-release.json
       - uses: actions/upload-artifact@v4.6.2

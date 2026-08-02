@@ -38,7 +38,7 @@ spec:
       securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: runtime
-          image: ghcr.io/corebunch/fuma-runtime@sha256:REQUIRED_DIGEST
+          image: ghcr.io/justinelut/fuma-runtime@sha256:REQUIRED_DIGEST
           args: ["fuma:web"]
           ports: [{ name: http, containerPort: 3001 }]
           envFrom: [{ configMapRef: { name: runtime-config } }, { secretRef: { name: fuma-runtime-secrets } }]
@@ -62,7 +62,7 @@ spec:
       securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: worker
-          image: ghcr.io/corebunch/fuma-runtime@sha256:REQUIRED_DIGEST
+          image: ghcr.io/justinelut/fuma-runtime@sha256:REQUIRED_DIGEST
           args: ["fuma:worker"]
           envFrom: [{ configMapRef: { name: runtime-config } }, { secretRef: { name: fuma-runtime-secrets } }]
           resources: { requests: { cpu: 250m, memory: 512Mi }, limits: { cpu: "2", memory: 2048Mi } }
@@ -84,7 +84,7 @@ spec:
       securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: scheduler
-          image: ghcr.io/corebunch/fuma-runtime@sha256:REQUIRED_DIGEST
+          image: ghcr.io/justinelut/fuma-runtime@sha256:REQUIRED_DIGEST
           args: ["fuma:scheduler"]
           envFrom: [{ configMapRef: { name: runtime-config } }, { secretRef: { name: fuma-runtime-secrets } }]
           resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { cpu: "1", memory: 768Mi } }
@@ -113,7 +113,7 @@ spec:
       securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: web
-          image: ghcr.io/corebunch/fuma-web@sha256:REQUIRED_DIGEST
+          image: ghcr.io/justinelut/fuma-web@sha256:REQUIRED_DIGEST
           ports: [{ name: http, containerPort: 3002 }]
           envFrom: [{ configMapRef: { name: public-web-config } }, { secretRef: { name: fuma-public-web-secrets } }]
           readinessProbe: { httpGet: { path: /, port: http, httpHeaders: [{ name: Host, value: trimly.co.ke }] }, initialDelaySeconds: 5, periodSeconds: 5 }
@@ -151,7 +151,7 @@ spec:
       securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: web
-          image: ghcr.io/corebunch/fuma-control-surfaces@sha256:REQUIRED_DIGEST
+          image: ghcr.io/justinelut/fuma-control-surfaces@sha256:REQUIRED_DIGEST
           ports: [{ name: http, containerPort: 3010 }]
           env:
             - { name: FUMA_DEPLOYMENT_ROOT_DOMAIN, value: "trimly.co.ke" }

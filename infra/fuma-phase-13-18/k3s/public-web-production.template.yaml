@@ -1,0 +1,148 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fuma
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: public-web
+  namespace: fuma
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: public-web-config
+  namespace: fuma
+data:
+  FUMA_DEPLOYMENT_ROOT_DOMAIN: "__FUMA_ROOT_DOMAIN__"
+  FUMA_PUBLIC_PROJECTION_INTERNAL_ORIGIN: "http://runtime-web.fuma.svc.cluster.local"
+  FUMA_PUBLIC_PROJECTION_TIMEOUT_MS: "3000"
+  FUMA_WEB_REVISION: "__FUMA_SOURCE_SHA__"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: public-web
+  namespace: fuma
+  labels:
+    app: public-web
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: public-web }
+  template:
+    metadata:
+      labels: { app: public-web, fuma-role: public }
+    spec:
+      serviceAccountName: public-web
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: web
+          image: __FUMA_PUBLIC_WEB_IMAGE__
+          imagePullPolicy: IfNotPresent
+          ports: [{ name: http, containerPort: 3002 }]
+          envFrom: [{ configMapRef: { name: public-web-config } }]
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+              httpHeaders: [{ name: Host, value: __FUMA_ROOT_DOMAIN__ }]
+            periodSeconds: 3
+            failureThreshold: 40
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+              httpHeaders: [{ name: Host, value: __FUMA_ROOT_DOMAIN__ }]
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+              httpHeaders: [{ name: Host, value: __FUMA_ROOT_DOMAIN__ }]
+            periodSeconds: 15
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 150m, memory: 256Mi }
+            limits: { cpu: "1", memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: { sizeLimit: 128Mi } }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: public-web
+  namespace: fuma
+spec:
+  selector: { app: public-web }
+  ports: [{ name: http, port: 80, targetPort: http }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: public-web-process-budget
+  namespace: fuma
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: { app: public-web }
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: public-security-headers
+  namespace: fuma
+spec:
+  headers:
+    stsSeconds: 31536000
+    stsIncludeSubdomains: true
+    contentTypeNosniff: true
+    frameDeny: true
+    referrerPolicy: strict-origin-when-cross-origin
+    customResponseHeaders: { Server: "" }
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: public-www-canonical
+  namespace: fuma
+spec:
+  redirectRegex:
+    regex: "^https://www\\.__FUMA_ESCAPED_ROOT_DOMAIN__/(.*)"
+    replacement: "https://__FUMA_ROOT_DOMAIN__/${1}"
+    permanent: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: public-web
+  namespace: fuma
+spec:
+  entryPoints: [websecure]
+  routes:
+    - match: Host(`__FUMA_ROOT_DOMAIN__`)
+      kind: Rule
+      priority: 100
+      middlewares: [{ name: public-security-headers }]
+      services: [{ name: public-web, port: 80 }]
+    - match: Host(`www.__FUMA_ROOT_DOMAIN__`)
+      kind: Rule
+      priority: 100
+      middlewares: [{ name: public-www-canonical }, { name: public-security-headers }]
+      services: [{ name: public-web, port: 80 }]
+  tls:
+    certResolver: le
