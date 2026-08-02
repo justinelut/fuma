@@ -108,12 +108,12 @@ export function MobileMenu() {
         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
           <Link
             className="control-primary inline-flex min-h-11 items-center justify-center rounded-control bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors"
-            href="/start?kind=sign_up&source=mobile_menu"
+            href="/start?kind=sign_up&source=direct"
             onClick={close}
           >Start building</Link>
           <Link
             className="control-secondary inline-flex min-h-11 items-center justify-center rounded-control px-4 text-sm font-medium transition-colors"
-            href="/start?kind=sign_in&source=mobile_menu"
+            href="/start?kind=sign_in&source=direct"
             onClick={close}
           >Log in</Link>
         </div>

@@ -45,6 +45,7 @@ ENV NODE_ENV=production PORT=3002 HOSTNAME=0.0.0.0 FUMA_DEPLOYMENT_ROOT_DOMAIN=$
 WORKDIR /app
 COPY --from=build --chown=10001:10001 /workspace/apps/web/.next/standalone ./
 COPY --from=build --chown=10001:10001 /workspace/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build --chown=10001:10001 /workspace/apps/web/public ./apps/web/public
 USER 10001:10001
 EXPOSE 3002
 CMD ["node", "apps/web/server.js"]
