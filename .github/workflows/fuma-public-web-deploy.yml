@@ -39,6 +39,7 @@ jobs:
             "$GITHUB_SHA"
           grep -Fq "Host(\`$FUMA_DEPLOYMENT_ROOT_DOMAIN\`)" k8s-public-web.yaml
           ! grep -q '__FUMA_' k8s-public-web.yaml
+          chmod 0644 k8s-public-web.yaml
 
       - name: Copy manifest to server
         uses: appleboy/scp-action@v0.1.7
