@@ -77,6 +77,7 @@ import {
   readMemberAuthSecret,
 } from './fuma/memberIdentity'
 import { FUMA_STAFF_FRESH_SESSION_SECONDS } from './auth/hosted/auth'
+import { createErrorReporter } from './fuma/observability/errorReporter'
 import {
   createHostedPublicationRuntime,
   type DynamicPublicationAudienceAuthority,
@@ -111,6 +112,18 @@ const { activateInstalledServerPlugins } = await import('./plugins/runtime')
 const { mediaStorageRegistry } = await import('@core/plugins/mediaStorageRegistry')
 
 const config = readServerConfig()
+
+/**
+ * Error reporting. Inert unless `SENTRY_DSN` is supplied, so development and
+ * tests emit nothing. Messages and stacks are redacted before leaving the
+ * process; delivery failures never propagate into request handling.
+ */
+const errorReporter = createErrorReporter({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.FUMA_ENV ?? process.env.NODE_ENV ?? 'development',
+  release: process.env.FUMA_WEB_REVISION ?? process.env.SOURCE_SHA ?? null,
+  serverName: process.env.FUMA_ROLE ?? 'studio',
+})
 const fumaHosted = process.env.FUMA_HOSTED === 'true'
 if (fumaHosted) assertFumaHostedDatabaseUrl(config.databaseUrl)
 configureTrustedProxyCidrs(config.trustedProxyCidrs)
@@ -694,6 +707,7 @@ const server = Bun.serve<PublicationSocketData>({
       // SQL fragments, absolute paths, spawn() arguments, etc. Log fully,
       // respond generically.
       console.error('[server] Unhandled request error:', err)
+      errorReporter.capture(err, { route: pathname, method: req.method, status: 500 })
       return applySecurityHeaders(
         new Response(JSON.stringify({ error: 'Internal server error' }), {
           status: 500,
@@ -706,6 +720,7 @@ const server = Bun.serve<PublicationSocketData>({
 
   error(err: Error) {
     console.error('[server] Unhandled error:', err)
+    errorReporter.capture(err, { tags: { scope: 'server' } })
     return new Response('Internal Server Error', { status: 500 })
   },
 })
@@ -728,9 +743,12 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
       publicationRuntime?.close(),
       edgeRuntime?.cache.close(),
     ])
+    await errorReporter.flush()
     process.exit(0)
   } catch (error) {
     console.error(`[server] ${signal} shutdown failed:`, error)
+    errorReporter.capture(error, { tags: { scope: 'shutdown', signal } })
+    await errorReporter.flush()
     process.exit(1)
   }
 }
