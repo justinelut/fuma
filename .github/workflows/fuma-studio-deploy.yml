@@ -56,22 +56,39 @@ jobs:
           inject GOOGLE_CLIENT_ID "${GOOGLE_CLIENT_ID:-}"
           inject GOOGLE_CLIENT_SECRET "${GOOGLE_CLIENT_SECRET:-}"
 
-          # Fail fast on the required production classes rather than crash-looping the pod.
+          # Validate every production class the runtime enforces, so a missing
+          # provider credential is reported here instead of crash-looping a pod
+          # whose logs the Job controller then garbage-collects.
           missing=""
-          for key in \
-            DATABASE_URL FUMA_REDIS_URL FUMA_ROLE \
-            FUMA_MINIO_ENDPOINT FUMA_MINIO_BUCKET FUMA_MINIO_ACCESS_KEY_ID FUMA_MINIO_SECRET_ACCESS_KEY \
-            FUMA_PROTECTED_OWNER_EMAIL FUMA_PUBLICATION_UNSUBSCRIBE_SIGNING_SECRET \
-            POSTGRES_USER POSTGRES_PASSWORD
-          do
-            grep -q "^${key}=" k8s/_staged/fuma.env || missing="$missing $key"
-          done
+          check_class() {
+            label="$1"; shift
+            for key in "$@"; do
+              grep -q "^${key}=." k8s/_staged/fuma.env || missing="$missing\n  - ${label}: ${key}"
+            done
+          }
+          check_class 'runtime role' FUMA_ROLE
+          check_class 'PostgreSQL' DATABASE_URL POSTGRES_USER POSTGRES_PASSWORD
+          check_class 'Redis' FUMA_REDIS_URL
+          check_class 'MinIO' FUMA_MINIO_ENDPOINT FUMA_MINIO_ACCESS_KEY_ID FUMA_MINIO_SECRET_ACCESS_KEY FUMA_MINIO_BUCKET
+          check_class 'OCI Email Delivery' FUMA_OCI_EMAIL_REGION FUMA_OCI_EMAIL_TENANCY_ID FUMA_OCI_EMAIL_USER_ID \
+            FUMA_OCI_EMAIL_FINGERPRINT FUMA_OCI_EMAIL_PRIVATE_KEY_PEM FUMA_OCI_EMAIL_COMPARTMENT_ID \
+            FUMA_OCI_EMAIL_APPROVED_SENDER FUMA_OCI_EVENT_VERIFICATION_SECRET
+          check_class 'Publication unsubscribe signing' FUMA_PUBLICATION_UNSUBSCRIBE_SIGNING_SECRET
+          check_class 'Paystack provider' FUMA_PAYSTACK_PROVIDER_URL
+          check_class 'Paystack platform billing' FUMA_PAYSTACK_PLATFORM_PUBLIC_KEY FUMA_PAYSTACK_PLATFORM_SECRET_KEY
+          check_class 'Paystack customer merchant' FUMA_PAYSTACK_CUSTOMER_PUBLIC_KEY FUMA_PAYSTACK_CUSTOMER_SECRET_KEY
+          check_class 'Fuma-owned Cloudflare' FUMA_CLOUDFLARE_ACCOUNT_ID FUMA_CLOUDFLARE_ZONE_ID FUMA_CLOUDFLARE_API_TOKEN
+          check_class 'Kenya locale' FUMA_LOCALE FUMA_CURRENCY FUMA_TIME_ZONE
+          check_class 'protected owner' FUMA_PROTECTED_OWNER_EMAIL
+          check_class 'staff cookie policy' FUMA_COOKIE_SECURE FUMA_COOKIE_HTTP_ONLY FUMA_COOKIE_SAME_SITE
           if [ -n "$missing" ]; then
-            echo "::error::FUMA_ENV_SECRET is missing required keys:$missing"
+            echo "::error::FUMA_ENV_SECRET is missing required production configuration:"
+            printf "$missing\n"
+            echo "::error::Fuma validates these classes fail-closed at boot. Add them to FUMA_ENV_SECRET and re-run. See docs/deployment/fuma-studio.md."
             exit 1
           fi
           chmod 644 k8s/_staged/fuma.env
-          echo "staged $(wc -l < k8s/_staged/fuma.env) environment lines"
+          echo "staged $(wc -l < k8s/_staged/fuma.env) environment lines; all production classes present"
 
       - name: Render Studio manifest
         env:
