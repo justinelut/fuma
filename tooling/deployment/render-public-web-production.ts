@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dirname, '../..')
 const TEMPLATE = resolve(ROOT, 'infra/fuma-phase-13-18/k3s/public-web-production.template.yaml')
-const IMAGE_PATTERN = /^ghcr\.io\/[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?\/[a-z0-9][a-z0-9._-]*@sha256:[a-f0-9]{64}$/
+const IMAGE_PATTERN = /^ghcr\.io\/[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?\/[a-z0-9][a-z0-9._-]*(?:@sha256:[a-f0-9]{64}|:[a-zA-Z0-9][a-zA-Z0-9._-]{0,127})$/
 const SHA_PATTERN = /^[a-f0-9]{40}$/
 
 const [outputPath, image, sourceSha] = process.argv.slice(2)
