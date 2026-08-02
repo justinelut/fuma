@@ -184,12 +184,33 @@ jobs:
             sudo kubectl -n $NS get pods,svc,ingressroute -o wide
             sudo kubectl -n $NS logs deployment/fuma-studio --tail=60 --all-containers=true || true
 
+            # In-cluster health is the authoritative check that Studio booted.
+            # Public HTTPS additionally depends on DNS and TLS issuance.
+            echo "════════════ in-cluster health ════════════"
+            sudo kubectl -n $NS run studio-health-$RANDOM --rm -i --restart=Never \
+              --image=curlimages/curl:latest --command -- \
+              curl -sS -o /dev/null -w 'in-cluster /healthz -> %{http_code}\n' \
+              --max-time 15 http://fuma-studio.fuma.svc.cluster.local/healthz
+
       - name: Public HTTPS smoke test
         env:
           FUMA_DEPLOYMENT_ROOT_DOMAIN: ${{ vars.FUMA_DEPLOYMENT_ROOT_DOMAIN }}
         run: |
           set -euo pipefail
-          for host in "app" "auth" "admin"; do
+          # DNS must exist before TLS can be issued. Report that precisely
+          # rather than spending five minutes timing out on every host.
+          missing=""
+          for host in app auth admin; do
+            fqdn="$host.$FUMA_DEPLOYMENT_ROOT_DOMAIN"
+            if ! getent hosts "$fqdn" >/dev/null 2>&1; then missing="$missing $fqdn"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Studio is deployed but these hosts have no DNS record:$missing"
+            echo "::error::Point them at the server (or the Cloudflare proxy) so Traefik can obtain certificates."
+            exit 1
+          fi
+
+          for host in app auth admin; do
             url="https://$host.$FUMA_DEPLOYMENT_ROOT_DOMAIN/healthz"
             code=000
             for attempt in $(seq 1 30); do
