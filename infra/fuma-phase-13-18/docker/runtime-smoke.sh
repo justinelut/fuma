@@ -93,7 +93,7 @@ if ! email=$(docker run --rm --platform "$platform" \
   echo 'email compatibility smoke command failed' >&2
   exit 1
 fi
-if ! printf '%s' "$email" | jq -e --arg arch "$expected_arch" '.passed == true and .arch == $arch' >/dev/null; then
+if ! printf '%s' "$email" | jq -e --arg arch "$expected_arch" '.passed == true and .execution == "native" and .target.platform == "linux" and .target.arch == $arch and .host == .target' >/dev/null; then
   printf 'email compatibility smoke output mismatch: %s\n' "$email" >&2
   exit 1
 fi
