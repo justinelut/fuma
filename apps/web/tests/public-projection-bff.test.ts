@@ -9,7 +9,7 @@ import {
 const config: PublicProjectionClientConfig = Object.freeze({
   internalOrigin: 'http://studio-internal.service:3001',
   serviceToken: 'projection-service-token-0000000001',
-  publicHosts: Object.freeze(['3002.blyss.co.ke', 'fuma.co.ke']),
+  publicHosts: Object.freeze(['3002.blyss.co.ke', 'trimly.co.ke']),
   timeoutMs: 100,
 })
 
@@ -76,17 +76,17 @@ describe('Next public projection BFF', () => {
     expect(unknown.status).toBe(404)
 
     expect(() => readPublicProjectionClientConfig({
-      FUMA_PUBLIC_PROJECTION_INTERNAL_ORIGIN: 'https://fuma.co.ke',
+      FUMA_PUBLIC_PROJECTION_INTERNAL_ORIGIN: 'https://trimly.co.ke',
       FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN: config.serviceToken,
     })).toThrow('private-cluster')
     expect(() => readPublicProjectionClientConfig({
-      FUMA_PUBLIC_PROJECTION_INTERNAL_ORIGIN: 'https://api' + '.fuma.co.ke',
+      FUMA_PUBLIC_PROJECTION_INTERNAL_ORIGIN: 'https://api' + '.trimly.co.ke',
       FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN: config.serviceToken,
     })).toThrow('private-cluster')
     expect(() => readPublicProjectionClientConfig({
       FUMA_PUBLIC_PROJECTION_INTERNAL_ORIGIN: 'http://studio-internal.service:3001',
       FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN: config.serviceToken,
-      FUMA_PUBLIC_WEB_HOSTS: 'fuma.co.ke,attacker.test',
+      FUMA_PUBLIC_WEB_HOSTS: 'trimly.co.ke,attacker.test',
     })).toThrow('host configuration')
   })
 
@@ -143,7 +143,7 @@ describe('Next public projection BFF', () => {
     })
     expect(response.status).toBe(304)
     expect(response.headers.get('etag')).toBe('"pricing-7"')
-    expect(response.headers.get('cache-control')).toContain('must-revalidate')
+    expect(response.headers.get('cache-control')).toBe('no-store')
     expect(response.headers.get('cache-control')).not.toContain('stale-while-revalidate')
     expect(response.headers.get('set-cookie')).toBeNull()
   })

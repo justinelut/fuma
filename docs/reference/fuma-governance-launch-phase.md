@@ -1,35 +1,48 @@
-# Fuma governance-to-launch phase (FUMA-063–085 + tracker 86)
+# Fuma governance-to-launch phase (FUMA-063–085 + tracker 86 + planned FUMA-SITE-001..008)
 
-This phase is isolated in `packages/fuma-governance-launch`, `apps/control-surfaces`, and `infra/fuma-phase-13-18`. It deliberately does not edit the hosted migration index, central router, transfer registry, shared public-contract barrel, root lockfile, or legacy Studio styling while those hotspots have concurrent owners. `handoff/central-integration.yaml` is the binding integration checklist. The code is authored but unvalidated because this coding-only phase prohibited all test, typecheck, build, lint, Playwright, Docker, cloud, and validation execution.
+This phase began as isolated work in `packages/fuma-governance-launch`, `apps/control-surfaces`, and `infra/fuma-phase-13-18`. The phase-local inventory below is retained as historical design evidence. Subsequent hosted conductor integrations supersede its original coding-only status only for tickets explicitly closed in `docs/handoffs/fuma-tracker-closure-audit.md`; central migration, runtime, and validation evidence is recorded there and in ticket references.
 
 ## Dependency-ordered inventory
 
 | Ticket | Production boundary | Main evidence files |
 |---|---|---|
-| FUMA-063 | strict provider/model catalog, exact micro pricing, refresh staleness, visibility and kill switches, secret-free projection | `src/contracts.ts`, `src/ai.ts`, `config/ai-catalog.example.json`, migration 000013 |
+| FUMA-063 | finalized strict provider/model catalog, exact micro pricing, refresh staleness, visibility and kill switches, secret-free projection | `apps/studio/server/fuma/aiCatalog/**`, hosted migration `000063_ai_catalog_authority`, focused/native PostgreSQL evidence |
 | FUMA-064 | version-fenced credit accounts, reserve/settle/refund/expiry, budget checks, encrypted BYOK metadata and transfer states | `src/ai.ts`, migration 000013, AI unit/fault tests |
-| FUMA-065 | exact actor/org/workspace/site/owner-generation/capability AI invocation boundary | `authorizeSiteAi`, unit/security tests |
-| FUMA-066 | hashed expiring/revocable MCP connectors, scoped capabilities, publish step-up and usage dimensions | `authorizeMcp`, migration 000013 |
-| FUMA-067 | immutable package artifacts, isolated installations, quota/state, generation-fenced secret rekey transfer | `src/plugins.ts`, migration 000014 |
-| FUMA-068 | hash-bound review, scanner state, reviewer separation, signature verification, reviewed marketplace UI/contribution | review service, migration 000014, `/marketplace` |
-| FUMA-069 | reviewed first-party payment plugin consuming shared merchant bindings only | `plugins/customer-payments` |
-| FUMA-070 | AI proposal disclosure and nonce confirmation; direct secure UI credential handoff | confirmation boundary, `/secure-payment`, secure route |
+| FUMA-065 | exact actor/org/workspace/site/owner-generation/capability boundary for the existing native AI agent later extended by SITE-008 | `authorizeSiteAi`, unit/security tests |
+| FUMA-066 | existing hashed expiring/revocable MCP connectors, scoped capabilities, publish step-up and usage dimensions later extended by SITE-008 | `authorizeMcp`, migration 000013 |
+| FUMA-067 | immutable plugin/component-pack artifacts, distinct execution policy, isolated installations, quota/state, generation-fenced transfer | `apps/studio/server/fuma/artifacts/**`, hosted migration `000070_artifact_installation_authority`, focused/native PostgreSQL evidence |
+| FUMA-068 | closed unified hash-bound plugin/component review, canonical package/SITE-007 scanners, reviewer separation, Ed25519 signatures, revocation and fail-closed marketplace UI/contribution | `apps/studio/server/fuma/artifactReviews/**`, hosted migration `000071_artifact_review_marketplace`, scoped `/marketplace/artifacts` routes |
+| FUMA-069 | closed reviewed `fuma.customer-payments@1.0.0`; strict create/receipt/refund SDK and host binding; three sandboxed paid blocks; shared FUMA-058 credential/transport/webhook/ledger authority; exact live review/install/site revalidation; durable obligation/receipt/refund records | `packages/fuma-governance-launch/plugins/customer-payments`, `apps/studio/server/fuma/customerPayments/plugin*.ts`, hosted migration `000073_customer_payment_plugin` |
+| FUMA-070 | closed fixed AI proposal over the reviewed payment plugin; exact grant/fee disclosure; browser nonce hash and fresh direct explicit confirmation; scoped HttpOnly one-time credential handoff; shared fixed KES 1.00 FUMA-069 preview | `apps/studio/server/fuma/aiPaymentSetup/**`, `apps/studio/server/ai/tools/site/paymentSetup*.ts`, `/secure-payment`, hosted migration `000074_ai_payment_setup` |
 | FUMA-071 | admin-host contribution registry and redacted console surface; domain services retain mutation authority | `src/operations.ts`, `/internal` |
-| FUMA-072 | stepped-up expiring non-nested support and isolated dual-approver break glass; immutable moderation evidence | operations policy, migration 000015 |
+| FUMA-072 | stepped-up expiring non-nested support and isolated dual-approver break glass; immutable moderation evidence | operations policy, migration 000076 |
 | FUMA-073 | opted-in approved expert profiles, PII-free bounded ranking, moderation invalidation and encrypted inquiry storage | operations policy, migration 000015 |
 | FUMA-074 | current paid-contract handoff authority, destination/quotas/legal revalidation, registered asset owners, `en-KE`/KES/Africa-Nairobi UX | operations policy, `/transfers` |
 | FUMA-075 | Ghost 5 structured mapping, provenance/count/relation/media manifests, secret rejection, idempotent rollback receipt | `src/imports.ts`, Ghost fixture, migration 000016 |
 | FUMA-076 | complete Lawyer inventory, custom excerpt quarantine, provider-verified payment reconciliation, staff/member reauth and OCI mail migration | import adapter, Lawyer fixture |
-| FUMA-077 | complete route bindings through reusable templates/loops/tokens/assets/access state, with zero flattened copies | design manifest fixture/assertion |
-| FUMA-078 | digest-required non-root amd64/ARM64 Dockerfiles, GHCR workflow, SBOM/provenance and paired release template | `infra/.../docker`, workflow, release template |
-| FUMA-079 | pinned Oracle k3s/Traefik inputs, exact-host routes, no default tenant, restricted pods, network policy and digest workloads | `infra/.../oracle`, `infra/.../k3s` |
+| FUMA-077 | generic bounded ZIP/folder/GitHub Next.js source portability; non-executing pinned-policy analysis; constrained existing-authority adaptation; complete replaceable Next.js export | `apps/studio/src/core/siteImport/nextSource*.ts`, Site Import compatibility UI, strict portability tests |
+| FUMA-078 | digest-required non-root ARM64 Studio/public-web/site-runtime images, GHCR workflow, SBOM/provenance and release template | `infra/.../docker`, workflow, release template |
+| FUMA-079 | pinned Oracle k3s/Traefik inputs, exact-host tenant site-runtime routes with legacy fallback, no default tenant, restricted pods and digest workloads | `infra/.../oracle`, `infra/.../k3s` |
 | FUMA-080 | suspended serialized migration, encrypted off-host backup, isolated restore verification and promotion evidence policy | `operations.yaml`, launch policy, backup runbook |
-| FUMA-081 | tenant-safe telemetry, RED/USE/provider/Web Vitals alerts, measured HPA/KEDA and explicit scheduler uniqueness | launch policy, autoscaling/observability manifests |
+| FUMA-081 | tenant-safe telemetry including RSC/client navigation/cache/component versions, RED/USE/provider/Web Vitals alerts and measured scaling | launch policy, autoscaling/observability manifests |
 | Tracker 86 | public-web deployment seam: same SHA/contract versions, private audience, canary cap, independent public rollback with product/tenant continuity | seam contract/config, routing, integration/fault tests |
 | FUMA-082 | IDOR/scope/host/secret/import adversarial controls, subject export/delete plan with legal exceptions and incident process | security tests, migration 000017, security runbook |
-| FUMA-083 | ARM64 performance/isolation budgets and complete cost model with ≤30% variable COGS and ≥70% customer gross margin | capacity config and policy/tests |
-| FUMA-084 | fail-closed SQLite/Ghost/Lawyer pilot evidence, immutable grandfathered contract, OCI mail, parity/provider reconciliation and rollback | pilot checklist and policy |
+| FUMA-083 | ARM64 static/cached-React/dynamic/member/application route performance/isolation budgets and complete cost model with ≤30% variable COGS and ≥70% customer gross margin | capacity config and policy/tests |
+| FUMA-084 | fail-closed legacy/Ghost/Lawyer pilot evidence, immutable grandfathered contract, OCI mail, parity/provider reconciliation and rollback | pilot checklist and policy |
 | FUMA-085 | paired signed gate, objective abort, host/session/public/security/accessibility/provider/economics approvals, canary and rollback | launch gate, policy/tests/runbook |
+| FUMA-SITE-001 | approved architecture, exact-host/cache/trust hostile gates and rollback contract | tenant-runtime ADR/reference and architecture fixtures |
+| FUMA-SITE-002 | immutable runtime-tree/route/component/style artifact beside legacy HTML/CSS | TypeBox release schema, renderer adapter, dual-release faults |
+| FUMA-SITE-003 | one exact-host multi-tenant Next App Router runtime | `apps/site-runtime`, private client, cache/link/ARM64 tests |
+| FUMA-SITE-004 | first-party React/Tailwind registry with semantic parity | tree walker, token bridge, module/VC/loop fixtures |
+| FUMA-SITE-005 | member/application state plus bounded legacy renderer compatibility | context/providers/API adapters, shadow/cutover/rollback tests |
+| FUMA-SITE-006 | re-prove the real Lawyer repository through the generic FUMA-077 importer; manual runtime remains parity/rollback fixture only | exact commit/destination receipts, zero blockers/interactions, complete estate parity, cutover/rollback |
+| FUMA-SITE-007 | TypeBox component-pack SDK and official/declarative/trusted/sandboxed trust tiers | manifests, lifecycle, hostile pack fixtures |
+| FUMA-SITE-008 | component catalog/editor plus extensions to existing AI and MCP systems | install/usage/upgrade authority, agent/MCP tools and security tests |
+
+## Hosted integration status
+
+FUMA-063 through FUMA-072, FUMA-SITE-008, and FUMA-WEB-013 remain conductor-finalized in the existing Studio AI, MCP, artifact, payment, platform-console, support, moderation, and recovery architectures. The latest canonical migration is `000077_public_handoff_authority`, centrally registered at `fb257b84c2e44b65212ef5227845c50524887248fb10732a6ec46a4b7dd53015`, with **77/77** hosted/runnable migrations and zero sentinels. FUMA-071 mounts 17 complete redacted console views and only bounded delegates to existing domain authorities. FUMA-072 reuses Better Auth identity/session authority, OCI Email Delivery, exact tenant object evidence, canonical audit, and a support-route-local site overlay without granting protected-owner or ordinary-route authority. SITE-008 extends the one current native AI/MCP runtime with distinct component read/create-source/install/mutate/confirm/publish capabilities, immutable exact-version catalog evidence, and owner-only executable-source confirmation. SITE-006's complete Lawyer route/content/member/access runtime, exact-host cutover, retained-release fallback, and rollback remain validated as a parity fixture, but formal migration acceptance is reopened until amended FUMA-077 imports the real repository through the generic Next.js source-portability path into an explicit organization/workspace/site. FUMA-077 permits only installed versioned Fuma/Next APIs, blocks unsupported dependencies/interactions, and uses existing constrained AI/MCP authorities rather than generating backends. FUMA-078's three-image native-ARM64 manifest/workflow/rejection policy is repository-complete, but the ticket remains formally open because no authorized protected publication, signing, scanning, or published-image runtime evidence was executed. FUMA-079 consequently remains blocked. FUMA-WEB-013 keeps the public Web anonymous, mounts only exact app/auth resume surfaces, reuses canonical Better Auth credentials/sessions without granting customer staff profiles, and binds app relying sessions to current exact Better Auth sessions. The formal tracker is **21/40 closed, 19 open**.
+
 
 ## Security and authority invariants
 
@@ -37,7 +50,7 @@ This phase is isolated in `packages/fuma-governance-launch`, `apps/control-surfa
 2. Tenant authority requires the full platform/organization/workspace/site/owner-key ancestry and, for mutable site resources, owner generation.
 3. Catalog credentials, BYOK ciphertext references, payment secrets, MCP token material, inquiry bodies, support evidence, provider webhook bodies and raw PII never appear in public responses or telemetry.
 4. Plugin review binds exact bytes and permissions. Submitters cannot approve themselves; revoked/unreviewed/unsigned packages cannot one-click install.
-5. AI can propose payment setup but cannot supply or read credentials and cannot write until explicit actor confirmation.
+5. The existing AI agent can propose payment setup or reviewed component installation but cannot supply/read credentials, bypass review, or write/install until explicit actor confirmation. Existing MCP connectors expose the same catalog operations only through exact scoped capabilities, metering, audit, revocation and publish step-up.
 6. Internal console host checks do not confer authority. Existing sessions, step-up, capability resolution, protected-owner policy, auditing and domain services remain central prerequisites.
 7. Public expert publication is explicit and reversible. Opt-out or moderation immediately removes read/search/inquiry eligibility.
 8. Launch defaults to abort. Template digests, false evidence booleans, empty approvals and pending checksums are intentionally non-promotable.
@@ -48,7 +61,7 @@ This phase is isolated in `packages/fuma-governance-launch`, `apps/control-surfa
 
 ## UI policy
 
-`apps/control-surfaces` is a bounded Next app with exact versions: Next 16.2.9, React 19.2.5, Tailwind 4.3.3, shadcn 4.14.1, and TypeBox 0.34.49. Its shadcn components and CSS are app-local. It creates no shared UI package and does not import or modify legacy Studio CSS. Production host policy is exact `app.fuma.co.ke` or `admin.fuma.co.ke`; the only development acceptance exception is the mandated `https://5174.blyss.co.ke` proxy.
+`apps/control-surfaces` is a bounded Next app with exact versions: Next 16.2.9, React 19.2.5, Tailwind 4.3.3, shadcn 4.14.1, and TypeBox 0.34.49. Its shadcn components and CSS are app-local. It creates no shared UI package and does not import or modify legacy Studio CSS. Production host policy is exact `app.trimly.co.ke` or `admin.trimly.co.ke`. The manifestless `apps/site-runtime` is an isolated Next app with app-local exact dependencies, strict private TypeBox authority, exact tenant/customer host routing, the closed first-party/private component registry, persistent member/application state, and bounded retained-release compatibility; production traffic cutover still waits on infrastructure, pilot, and launch gates. Blyss HTTPS remains mandatory for browser acceptance.
 
 ## Evidence status
 

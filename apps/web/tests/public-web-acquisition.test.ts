@@ -2,9 +2,14 @@ import { describe, expect, test } from 'bun:test'
 import { PublicAcquisitionEventSchema } from '@fuma/public-contracts'
 import { Value } from '@sinclair/typebox/value'
 import {
+  clearConsentPreference,
   consentStateFromSession,
   handoffStartedEvent,
+  persistConsentPreference,
+  readConsentPreference,
   routeClassForPath,
+  sendOptionalAcquisition,
+  shouldSendOptionalAcquisition,
 } from '../lib/acquisition-client'
 
 describe('privacy-minimized acquisition client', () => {
@@ -25,9 +30,45 @@ describe('privacy-minimized acquisition client', () => {
     expect(consentStateFromSession(JSON.stringify({ version: 1, choice: 'optional' }))).toBe('granted')
   })
 
+  test('does not permit optional acquisition requests before explicit consent', () => {
+    expect(shouldSendOptionalAcquisition('not_required')).toBe(false)
+    expect(shouldSendOptionalAcquisition('denied')).toBe(false)
+    expect(shouldSendOptionalAcquisition('granted')).toBe(true)
+  })
+
+  test('fails closed when host storage is blocked and never waits for optional collection', () => {
+    const blocked = {
+      getItem: () => { throw new Error('blocked') },
+      setItem: () => { throw new Error('blocked') },
+      removeItem: () => { throw new Error('blocked') },
+    }
+    expect(readConsentPreference(blocked)).toEqual({ available: false, choice: null })
+    expect(persistConsentPreference(blocked, 'optional', '2026-07-26T09:00:00Z')).toBe(false)
+    expect(clearConsentPreference(blocked)).toBe(false)
+
+    const event = handoffStartedEvent(
+      { kind: 'create_site', source: 'home', profile: 'website' },
+      'opaque_correlation_0002',
+      '2026-07-26T09:00:00Z',
+      'granted',
+    )
+    let requests = 0
+    const neverSettles = (() => {
+      requests += 1
+      return new Promise<Response>(() => undefined)
+    }) as typeof fetch
+    expect(sendOptionalAcquisition(event, 'denied', neverSettles)).toBe(false)
+    expect(requests).toBe(0)
+    expect(sendOptionalAcquisition(event, 'granted', neverSettles)).toBe(true)
+    expect(requests).toBe(1)
+  })
+
   test('builds a strict handoff event with only opaque correlation and approved target IDs', () => {
     const event = handoffStartedEvent(
-      { kind: 'choose_plan', source: 'pricing', planId: 'plan_launch' },
+      {
+        kind: 'choose_plan', source: 'pricing', planId: 'plan_launch',
+        priceBookVersion: 'ke-2026-07-v1', cadence: 'monthly',
+      },
       'opaque_correlation_0001',
       '2026-07-26T09:00:00Z',
       'granted',

@@ -6,7 +6,7 @@
     "runtimeProjectionVersion": 1,
     "webContractVersion": 1,
     "privateRuntimeAudience": "fuma-public-web",
-    "canonicalHost": "fuma.co.ke",
+    "canonicalHost": "trimly.co.ke",
     "canaryPercent": 10,
     "publicRollbackIndependent": true,
     "productTenantContinuityRequired": true

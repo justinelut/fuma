@@ -184,12 +184,10 @@ describe('media-asset column / insert integrity', () => {
   it('INSERT tuple stays in arity lockstep with its placeholders', () => {
     // The repository derives BOTH the column list and the positional
     // placeholders from MEDIA_ASSET_INSERT_COLUMNS, so a column add can't
-    // desync the tuple. Lock the count for each dialect.
+    // desync the tuple. Lock the PostgreSQL column count.
     expect(MEDIA_ASSET_INSERT_COLUMNS.length).toBeGreaterThan(0)
-    for (const dialect of ['postgres', 'sqlite'] as const) {
-      const placeholders = MEDIA_ASSET_INSERT_COLUMNS.map((_, i) => placeholder(dialect, i + 1))
-      expect(placeholders).toHaveLength(MEDIA_ASSET_INSERT_COLUMNS.length)
-    }
+    const placeholders = MEDIA_ASSET_INSERT_COLUMNS.map((_, index) => placeholder('postgres', index + 1))
+    expect(placeholders).toHaveLength(MEDIA_ASSET_INSERT_COLUMNS.length)
   })
 
   it('createMediaAsset returns a fully-hydrated row (no half-hydrated projection)', async () => {

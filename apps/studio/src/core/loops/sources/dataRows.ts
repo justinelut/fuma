@@ -4,15 +4,15 @@
  *
  * Reads from `data_row_versions` joined to `data_rows`, `data_tables`, and
  * user/role tables, scoped to rows with `status = 'published'`. Featured
- * media resolution is handled in app code (not SQL) so the query stays
- * dialect-naive: after fetching the page of rows, a single batch query
+ * media resolution is handled in application code after the PostgreSQL page
+ * query: a single batch query
  * resolves all unique media ids to their `public_path`.
  *
  * Order options:
  *   - publishedAt — most natural for post-type listings
  *   - createdAt   — first authored
  *   - updatedAt   — last modified
- *   - slug        — alphabetical by slug (closest dialect-neutral proxy for
+ *   - slug        — alphabetical by slug (closest indexed proxy for
  *                   title, which lives inside cells_json)
  *
  * Filters:
@@ -73,8 +73,7 @@ const ALLOWED_ORDER_BY: ReadonlySet<OrderColumn> = new Set([
 // ---------------------------------------------------------------------------
 
 /**
- * Dialect-appropriate positional placeholder for `db.unsafe`:
- * `$<index>` on Postgres, `?` on SQLite. `index` is 1-based.
+ * PostgreSQL positional placeholder for `db.unsafe`; `index` is 1-based.
  */
 function positionalParam(db: LoopSourceDb, index: number): string {
   return db.dialect === 'postgres' ? `$${index}` : '?'
@@ -91,8 +90,7 @@ function positionalParam(db: LoopSourceDb, index: number): string {
 
 /**
  * Resolve a set of media asset ids to their public_path values in one query.
- * Uses db.unsafe with dialect-appropriate positional placeholders so the
- * same code works on both Postgres ($1, $2, …) and SQLite (?, ?, …).
+ * Uses `db.unsafe` with PostgreSQL `$1`, `$2`, … positional placeholders.
  * Ids absent from the database are absent from the returned map.
  */
 export async function resolveMediaIdsToPaths(
@@ -199,7 +197,7 @@ function rowToLoopItem(
 // `orderBy` is whitelisted against ALLOWED_ORDER_BY and `direction` is
 // narrowed to 'asc' | 'desc' in `fetchPublishedDataRowItems` before either
 // value gets here. All runtime VALUES (tableId, limit, offset) ride as
-// positional parameters via `db.unsafe` — the same dialect-aware pattern as
+// PostgreSQL positional parameters via `db.unsafe`, matching
 // `resolveMediaIdsToPaths`.
 // ---------------------------------------------------------------------------
 

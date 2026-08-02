@@ -16,8 +16,7 @@ const PRODUCTION_ENV: Record<string, string> = {
   NODE_ENV: 'production',
   FUMA_ENV: 'production',
   FUMA_ROLE: 'web',
-  FUMA_PRODUCT_HOST: 'app.fuma.co.ke',
-  FUMA_MARKETING_HOST: 'fuma.co.ke',
+  FUMA_DEPLOYMENT_ROOT_DOMAIN: 'trimly.co.ke',
   DATABASE_URL: 'postgres://fuma:test-password@postgres:5432/fuma',
   FUMA_REDIS_URL: 'rediss://redis.internal:6379/0',
   FUMA_MINIO_ENDPOINT: 'https://objects.internal',
@@ -30,7 +29,7 @@ const PRODUCTION_ENV: Record<string, string> = {
   FUMA_OCI_EMAIL_FINGERPRINT: 'test-fingerprint',
   FUMA_OCI_EMAIL_PRIVATE_KEY_PEM: 'test-private-key',
   FUMA_OCI_EMAIL_COMPARTMENT_ID: 'ocid1.compartment.oc1..test',
-  FUMA_OCI_EMAIL_APPROVED_SENDER: 'mail@fuma.co.ke',
+  FUMA_OCI_EMAIL_APPROVED_SENDER: 'mail@trimly.co.ke',
   FUMA_OCI_EVENT_VERIFICATION_SECRET: 'test-event-verification-secret-000000000000',
   FUMA_PUBLICATION_UNSUBSCRIBE_SIGNING_SECRET: 'test-unsubscribe-signing-secret-000000000',
   FUMA_PAYSTACK_PROVIDER_URL: 'https://api.paystack.test',
@@ -44,14 +43,14 @@ const PRODUCTION_ENV: Record<string, string> = {
   FUMA_LOCALE: 'en-KE',
   FUMA_CURRENCY: 'KES',
   FUMA_TIME_ZONE: 'Africa/Nairobi',
-  FUMA_PROTECTED_OWNER_EMAIL: 'owner@fuma.co.ke',
+  FUMA_PROTECTED_OWNER_EMAIL: 'owner@trimly.co.ke',
   FUMA_COOKIE_SECURE: 'true',
   FUMA_COOKIE_HTTP_ONLY: 'true',
   FUMA_COOKIE_SAME_SITE: 'lax',
 }
 
 const REQUIRED_CLASSES: ReadonlyArray<readonly [string, readonly string[]]> = [
-  ['reserved hosts', ['FUMA_PRODUCT_HOST', 'FUMA_MARKETING_HOST']],
+  ['deployment root', ['FUMA_DEPLOYMENT_ROOT_DOMAIN']],
   ['runtime role', ['FUMA_ROLE']],
   ['PostgreSQL', ['DATABASE_URL']],
   ['Redis', ['FUMA_REDIS_URL']],
@@ -104,8 +103,8 @@ describe('FUMA-003 product metadata', () => {
   it('encodes the product host, deferred marketing host, and Kenya launch defaults', () => {
     expect(Value.Check(FumaProductMetadataSchema, FUMA_PRODUCT_METADATA)).toBe(true)
     expect(FUMA_PRODUCT_METADATA).toEqual({
-      product: { name: 'Fuma', host: 'app.fuma.co.ke' },
-      marketing: { host: 'fuma.co.ke', status: 'deferred' },
+      product: { name: 'Fuma', host: 'app.trimly.co.ke' },
+      marketing: { host: 'trimly.co.ke', status: 'deferred' },
       launchDefaults: { locale: 'en-KE', currency: 'KES', timeZone: 'Africa/Nairobi' },
     })
   })
@@ -119,8 +118,15 @@ describe('FUMA-003 local configuration', () => {
     expect(config.environment).toBe('local')
     expect(config.role).toBe('web')
     expect(config.hosts).toEqual({
-      product: 'app.localhost',
+      rootDomain: 'localhost',
       marketing: 'marketing.localhost',
+      redirect: 'www.localhost',
+      auth: 'auth.localhost',
+      product: 'app.localhost',
+      console: 'admin.localhost',
+      status: 'status.localhost',
+      templatePreview: 'templates.preview.localhost',
+      customerRouting: 'customers.localhost',
       marketingStatus: 'deferred',
     })
     expect(config.database.engine).toBe('postgresql')
@@ -146,8 +152,8 @@ describe('FUMA-003 local configuration', () => {
 
   it('rejects production reserved hosts in local mode', () => {
     for (const override of [
-      { FUMA_PRODUCT_HOST: 'app.fuma.co.ke' },
-      { FUMA_MARKETING_HOST: 'fuma.co.ke' },
+      { FUMA_PRODUCT_HOST: 'app.trimly.co.ke' },
+      { FUMA_MARKETING_HOST: 'trimly.co.ke' },
     ]) {
       const error = configurationError(() => readFumaConfig(override))
       expect(error.path).toBe('FUMA_ENV')
@@ -247,8 +253,18 @@ describe('FUMA-003 production configuration', () => {
 
     expect(Value.Check(FumaConfigSchema, config)).toBe(true)
     expect(config.environment).toBe('production')
-    expect(config.hosts.product).toBe('app.fuma.co.ke')
-    expect(config.hosts.marketing).toBe('fuma.co.ke')
+    expect(config.hosts).toEqual({
+      rootDomain: 'trimly.co.ke',
+      marketing: 'trimly.co.ke',
+      redirect: 'www.trimly.co.ke',
+      auth: 'auth.trimly.co.ke',
+      product: 'app.trimly.co.ke',
+      console: 'admin.trimly.co.ke',
+      status: 'status.trimly.co.ke',
+      templatePreview: 'templates.preview.trimly.co.ke',
+      customerRouting: 'customers.trimly.co.ke',
+      marketingStatus: 'deferred',
+    })
     expect(config.paystack.platformBilling.scope).toBe('platform_billing')
     expect(config.paystack.customerMerchant.scope).toBe('customer_merchant')
     expect(config.staffCookie).toEqual({
@@ -283,7 +299,7 @@ describe('FUMA-003 production configuration', () => {
 
   it('models host-only cookies by rejecting Domain and host-only assertion variables', () => {
     for (const [name, value] of [
-      ['FUMA_COOKIE_DOMAIN', '.fuma.co.ke'],
+      ['FUMA_COOKIE_DOMAIN', '.trimly.co.ke'],
       ['FUMA_COOKIE_HOST_ONLY', 'true'],
     ] as const) {
       const error = configurationError(() => readFumaConfig({ ...PRODUCTION_ENV, [name]: value }))
@@ -297,7 +313,7 @@ describe('FUMA-003 production configuration', () => {
     const config = readFumaConfig(PRODUCTION_ENV)
     const domainCookieConfig = {
       ...config,
-      staffCookie: { ...config.staffCookie, domain: '.fuma.co.ke' },
+      staffCookie: { ...config.staffCookie, domain: '.trimly.co.ke' },
     }
 
     expect(Value.Check(FumaConfigSchema, domainCookieConfig)).toBe(false)
@@ -326,18 +342,40 @@ describe('FUMA-003 production configuration', () => {
     }
   })
 
-  it('rejects product/marketing swaps, aliases, collisions, and malformed hosts', () => {
-    for (const hosts of [
-      { FUMA_PRODUCT_HOST: 'fuma.co.ke', FUMA_MARKETING_HOST: 'app.fuma.co.ke' },
-      { FUMA_PRODUCT_HOST: 'product.fuma.co.ke' },
-      { FUMA_MARKETING_HOST: 'www.fuma.co.ke' },
-      { FUMA_PRODUCT_HOST: 'app.fuma.co.ke', FUMA_MARKETING_HOST: 'app.fuma.co.ke' },
-      { FUMA_PRODUCT_HOST: 'https://app.fuma.co.ke' },
-      { FUMA_PRODUCT_HOST: 'app.fuma.co.ke:443' },
-      { FUMA_PRODUCT_HOST: 'APP.FUMA.CO.KE' },
-      { FUMA_PRODUCT_HOST: 'app.fuma.co.ke.' },
+  it('derives every exact production host from an alternate deployment root', () => {
+    const config = readFumaConfig({
+      ...PRODUCTION_ENV,
+      FUMA_DEPLOYMENT_ROOT_DOMAIN: 'example.co.ke',
+    })
+    expect(config.hosts).toMatchObject({
+      rootDomain: 'example.co.ke',
+      marketing: 'example.co.ke',
+      redirect: 'www.example.co.ke',
+      auth: 'auth.example.co.ke',
+      product: 'app.example.co.ke',
+      console: 'admin.example.co.ke',
+      status: 'status.example.co.ke',
+      templatePreview: 'templates.preview.example.co.ke',
+      customerRouting: 'customers.example.co.ke',
+    })
+  })
+
+  it('rejects malformed, ambiguous, and noncanonical deployment roots', () => {
+    for (const rootDomain of [
+      'https://trimly.co.ke',
+      'trimly.co.ke:443',
+      'TRIMLY.CO.KE',
+      'trimly.co.ke.',
+      '*.trimly.co.ke',
+      'xn--trimly-9za.co.ke',
+      'localhost',
     ]) {
-      const error = configurationError(() => readFumaConfig({ ...PRODUCTION_ENV, ...hosts }))
+      const error = configurationError(() => readFumaConfig({
+        ...PRODUCTION_ENV,
+        FUMA_DEPLOYMENT_ROOT_DOMAIN: rootDomain,
+      }))
+      expect(error.path).toBe('FUMA_DEPLOYMENT_ROOT_DOMAIN')
+      expect(error.message).not.toContain(rootDomain)
       expectSecretSafe(error)
     }
   })

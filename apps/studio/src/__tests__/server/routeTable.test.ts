@@ -8,7 +8,7 @@ import type { DbClient } from '../../../server/db/client'
 
 // runRouteTable never touches the db — it only forwards it to handlers. A bare
 // sentinel is enough to assert the forwarding without standing up a real client.
-const FAKE_DB = { dialect: 'sqlite' } as unknown as DbClient
+const FAKE_DB = { dialect: 'postgres' } as unknown as DbClient
 
 function req(method: string, path: string): Request {
   return new Request(`http://localhost${path}`, { method })

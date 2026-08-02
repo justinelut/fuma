@@ -1,7 +1,7 @@
 /**
  * Database benchmark.
  *
- * Exercises the SQLite client against an isolated DB seeded with the
+ * Exercises PostgreSQL against an isolated schema seeded with the
  * baseline migrations. Measures the storage layer with realistic row
  * counts so we know whether the data layer can keep up at "real CMS"
  * scale (hundreds to tens of thousands of rows).
@@ -15,49 +15,34 @@
  *     auto-parse layer doesn't dominate cost.
  *   - Indexed lookup vs sequential scan
  */
-import { resolve } from 'node:path'
-import { mkdirSync, existsSync, unlinkSync } from 'node:fs'
 import { performance } from 'node:perf_hooks'
 import type { BenchModule, BenchResult, BenchRow, BenchContext } from '../lib/types'
 import { summarize, fmtMs, fmtNum } from '../lib/stats'
 import { log } from '../lib/log'
 
-const REPO_ROOT = resolve(import.meta.dir, '../../..')
 
-async function loadDb() {
-  const { createSqliteClient } = await import('../../../server/db/sqlite')
-  const { runMigrations } = await import('../../../server/db/runMigrations')
-  const { sqliteMigrations } = await import('../../../server/db/migrations-sqlite')
-  return { createSqliteClient, runMigrations, sqliteMigrations }
-}
-
-async function freshDb(label: string): Promise<{ db: ReturnType<Awaited<ReturnType<typeof loadDb>>['createSqliteClient']>; path: string; migrateMs: number }> {
-  const benchDir = resolve(REPO_ROOT, '.tmp/benchmarks')
-  mkdirSync(benchDir, { recursive: true })
-  const path = resolve(benchDir, `db-bench-${label}-${Date.now()}.db`)
-  if (existsSync(path)) unlinkSync(path)
-  const { createSqliteClient, runMigrations, sqliteMigrations } = await loadDb()
-  const db = createSqliteClient(path)
-  const t0 = performance.now()
-  await runMigrations(db, sqliteMigrations)
-  return { db, path, migrateMs: performance.now() - t0 }
+async function freshDb(label: string) {
+  const { createTestDatabase } = await import('../../../server/db/testDatabase')
+  const startedAt = performance.now()
+  const database = await createTestDatabase(`bench_${label}`)
+  return { ...database, migrateMs: performance.now() - startedAt }
 }
 
 export const dbBench: BenchModule = {
   name: 'db',
-  title: 'Database (SQLite) performance',
+  title: 'Database (PostgreSQL) performance',
   description: 'Migrations, single-row inserts, batched writes, JSON columns, and scan vs index lookup.',
 
   async run(ctx: BenchContext): Promise<BenchResult> {
     log.step('Spinning up an isolated DB with full migrations')
-    const { db: _db, path, migrateMs } = await freshDb('warm')
+    const { db: _db, cleanup, migrateMs } = await freshDb('warm')
 
     try {
       const migrationsRow: BenchRow[] = [
         {
           label: 'Cold migrations',
           metrics: { wall: fmtMs(migrateMs) },
-          notes: 'Drops + recreates the schema from migrations-sqlite.ts.',
+          notes: 'Creates an isolated schema from the canonical PostgreSQL migrations.',
         },
       ]
 
@@ -90,7 +75,7 @@ export const dbBench: BenchModule = {
             },
           })
         } finally {
-          unlinkSync(fresh.path)
+          await fresh.cleanup()
         }
       }
 
@@ -133,7 +118,7 @@ export const dbBench: BenchModule = {
             {
               label: 'select * where cells_json LIKE %k% (sequential scan)',
               run: async () => {
-                const { rows } = await fresh.db<{ id: string }>`select id from data_rows where cells_json like ${'%page-9%'} limit 50`
+                const { rows } = await fresh.db<{ id: string }>`select id from data_rows where cells_json::text like ${'%page-9%'} limit 50`
                 return { rowCount: rows.length }
               },
             },
@@ -160,7 +145,7 @@ export const dbBench: BenchModule = {
             })
           }
         } finally {
-          unlinkSync(fresh.path)
+          await fresh.cleanup()
         }
       }
 
@@ -217,7 +202,7 @@ export const dbBench: BenchModule = {
               },
             })
           } finally {
-            unlinkSync(fresh.path)
+            await fresh.cleanup()
           }
         }
       }
@@ -237,15 +222,11 @@ export const dbBench: BenchModule = {
           { title: 'Migrations', rows: migrationsRow },
           { title: 'Single-row inserts', intro: 'No transaction wrapper — each insert is its own commit. This is the "naïve write path" floor.', rows: insertRows },
           { title: 'Query shapes on a populated table', intro: 'Indexed lookups vs. sequential JSON scans on a `data_rows` table with realistic row counts.', rows: listRows },
-          { title: 'JSON column round-trip', intro: 'Insert + readback of a `cells_json` payload. Tests the SQLite adapter\'s auto-stringify / auto-parse layer.', rows: jsonRows },
+          { title: 'JSON column round-trip', intro: 'Insert + readback of a `cells_json` payload through the PostgreSQL adapter.', rows: jsonRows },
         ],
       }
     } finally {
-      try {
-        unlinkSync(path)
-      } catch {
-        // best-effort cleanup
-      }
+      await cleanup()
     }
   },
 }

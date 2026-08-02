@@ -206,7 +206,7 @@ function makeFakeDb() {
     plugins,
     records,
     unsafe: handleUnsafe,
-    dialect: 'sqlite' as const,
+    dialect: 'postgres' as const,
   })
 }
 

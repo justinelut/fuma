@@ -155,7 +155,7 @@ These exclusions do not mean the rows are unscoped. They mean site content/objec
 ## Related
 
 - `docs/reference/fuma-platform-architecture.md` — hierarchy, PostgreSQL hosted policy, and immutable historical migration boundary.
-- `docs/reference/fuma-hosted-migrations-transition.md` — hosted migration runner and SQLite transition receipts.
+- `docs/reference/fuma-hosted-migrations-transition.md` — hosted PostgreSQL migration runner and receipts.
 - `docs/reference/fuma-transfer-saga.md` — base ownership transfer, fences, resume, and compensation.
 - `docs/reference/fuma-object-storage.md` — tenant-prefixed immutable objects and integrity sidecars.
 - Source of truth: `server/fuma/tenancy/`.

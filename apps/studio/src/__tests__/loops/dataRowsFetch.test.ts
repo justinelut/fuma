@@ -1,6 +1,6 @@
 /**
  * Behavior tests for `fetchPublishedDataRowItems` — the `data.rows` loop
- * source's page-slice query — against a real migrated SQLite database.
+ * source's page-slice query against migrated PostgreSQL.
  *
  * Locks in, for BOTH table kinds (post-type published-version join and
  * data-kind direct read):

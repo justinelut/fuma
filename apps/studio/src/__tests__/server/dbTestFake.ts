@@ -30,5 +30,5 @@ export function createFakeDb(
   }) as DbClient
   fn.unsafe = async (sql: string, params: unknown[] = []) => handler(sql, params)
   fn.transaction = async <T>(cb: (tx: DbClient) => Promise<T>): Promise<T> => cb(fn)
-  return Object.assign(fn, { dialect: 'sqlite' as const })
+  return Object.assign(fn, { dialect: 'postgres' as const })
 }

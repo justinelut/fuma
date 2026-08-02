@@ -1,8 +1,22 @@
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { requireControlRealm } from '@/lib/host'
+import { MarketplaceCatalog } from './catalog'
 
-export default async function MarketplacePage() {
+const idPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,254}$/
+function one(value: string | string[] | undefined): string | null {
+  return typeof value === 'string' && idPattern.test(value) ? value : null
+}
+
+export default async function MarketplacePage({ searchParams }: Readonly<{ searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
   await requireControlRealm('app')
-  return <main className="mx-auto max-w-5xl p-6"><p className="text-sm text-muted-foreground">Hash-bound, scanned and signed releases only</p><h1 className="mb-6 text-3xl font-semibold">Reviewed plugins</h1><Card><CardHeader><CardTitle>Fuma Customer Payments</CardTitle><CardDescription>Deposits, donations and checkout through the shared customer merchant ledger.</CardDescription></CardHeader><CardContent className="space-y-4"><ul className="list-disc pl-5 text-sm"><li>KES settlement and provider verification</li><li>Site-scoped settings, secrets and refunds</li><li>No direct provider network or credential access</li></ul><Button disabled aria-describedby="install-state">Install after signed review</Button><p id="install-state" className="text-xs text-muted-foreground">Installation remains disabled until a current review signature and explicit permission grant are returned by the product API.</p></CardContent></Card></main>
+  const query = await searchParams
+  const organizationId = one(query.organizationId)
+  const workspaceId = one(query.workspaceId)
+  const siteId = one(query.siteId)
+  const scope = organizationId && workspaceId && siteId ? { organizationId, workspaceId, siteId } : null
+  return <main className="mx-auto max-w-5xl p-6">
+    <p className="text-sm text-muted-foreground">Hash-bound, artifact-specific scanned, Ed25519-signed and unrevoked releases only</p>
+    <h1 className="mb-6 text-3xl font-semibold">Plugin &amp; component marketplace</h1>
+    {scope ? <MarketplaceCatalog scope={scope} /> : <Card><CardHeader><CardTitle>Select a site first</CardTitle><CardDescription>Marketplace reads and installs require an authenticated active site scope.</CardDescription></CardHeader><CardContent><p className="text-sm text-muted-foreground" role="status">Catalog and install actions are disabled because organizationId, workspaceId and siteId were not supplied by the product navigation context.</p></CardContent></Card>}
+  </main>
 }

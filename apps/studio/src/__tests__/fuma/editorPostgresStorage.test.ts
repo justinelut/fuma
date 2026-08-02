@@ -69,7 +69,7 @@ class RecordingEditorDb {
   rollbacks = 0
   readonly client: DbClient
 
-  constructor(dialect: 'postgres' | 'sqlite' = 'postgres') {
+  constructor() {
     const query = (async <Row = Record<string, unknown>>(
       strings: TemplateStringsArray,
       ...values: unknown[]
@@ -121,7 +121,7 @@ class RecordingEditorDb {
         throw error
       }
     }
-    this.client = Object.assign(query, { dialect })
+    this.client = Object.assign(query, { dialect: 'postgres' as const })
   }
 }
 
@@ -143,9 +143,7 @@ function query(capture: RecordingEditorDb, prefix: string): CapturedCall {
 }
 
 describe('FUMA-027 PostgreSQL editor scoped storage', () => {
-  it('requires PostgreSQL and exposes one atomic transaction boundary', async () => {
-    expect(() => new PostgresEditorScopedStorage(new RecordingEditorDb('sqlite').client))
-      .toThrow('Fuma editor storage requires PostgreSQL authority.')
+  it('exposes one atomic transaction boundary', async () => {
     expect(Object.getOwnPropertyNames(PostgresEditorScopedStorage.prototype).sort()).toEqual([
       'constructor',
       'transaction',
@@ -275,7 +273,8 @@ describe('FUMA-027 editor resource hosted migration', () => {
     expect(HOSTED_MIGRATION_CHECKSUMS[editorResourcesMigration.id])
       .toBe(MIGRATION_CHECKSUM)
     expect(hostedMigrationChecksum(editorResourcesMigration.sql)).toBe(MIGRATION_CHECKSUM)
-    expect(runnableHostedMigrations).toEqual(hostedMigrations)
+    expect(runnableHostedMigrations).toEqual(hostedMigrations.slice(0, 77))
+    expect(runnableHostedMigrations.at(-1)?.id).toBe('000077_public_handoff_authority')
     expect(() => assertHostedMigrationIsAdditive(editorResourcesMigration)).not.toThrow()
   })
 

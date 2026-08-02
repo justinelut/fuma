@@ -20,6 +20,7 @@ import type {
 import type { ServerPluginHooksApi } from './hooks'
 import type { LoopEntitySource } from './loops'
 import type { ServerPluginMediaApi } from './media'
+import type { ServerPluginCustomerPaymentsApi } from './payments'
 import type { PluginMigrationContext } from './lifecycle'
 import type { PluginPermission } from './permissions'
 import type { ServerPluginRouteHandler } from './routes'
@@ -53,6 +54,9 @@ export interface ServerPluginApi {
      *   // → "/uploads/plugins/acme.template/1.0.0/icon.svg"
      */
     assetUrl: (path: string) => string
+  }
+  payments: {
+    customer: ServerPluginCustomerPaymentsApi
   }
   cms: {
     /**

@@ -2,7 +2,7 @@
 title: Public web foundation
 slug: public-web-foundation
 collection: changelog
-description: The independent Fuma public site foundation and safe projection boundary.
+description: A clearer Fuma public site with product journeys, documentation, pricing, and privacy controls.
 author: Fuma Team
 category: Web
 publishedAt: 2026-07-26T00:00:00Z
@@ -15,12 +15,12 @@ components: []
 owner: Release Engineering
 audience: public
 ---
-The Fuma public site now has an independent application boundary, Kenya-first acquisition journeys and validated public projections.
+The Fuma website now makes it easier to choose what you want to build, learn how Fuma works, and get started.
 
 ## Included
 
 - Website and Publication journeys
-- Validated documentation collections
-- Authority-backed pricing and discovery states
-- Secure opaque transitions into the application
-- Technical SEO and privacy controls
+- Searchable documentation and guides
+- Current pricing and marketplace listings
+- Clear login and account actions
+- Search, sharing, and privacy controls

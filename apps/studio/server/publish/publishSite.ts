@@ -93,9 +93,8 @@ async function publishDraftSiteLocked(
 ): Promise<PublishResult> {
   // ── Phase 1: read inputs + run every expensive non-DB build ──────────────
   // Dependency installs (`bun install` on a cold cache) and per-page esbuild
-  // runs take seconds; the SQLite adapter serializes ALL transactions through
-  // one chain, so doing this inside the transaction stalled every concurrent
-  // write (autosaves, row publishes) behind it. `withPublishLock` already
+  // runs take seconds, so doing this inside a PostgreSQL transaction would hold
+  // locks and delay concurrent writes. `withPublishLock` already
   // serializes publishes, and version numbers are only allocated by publish
   // paths under that same lock, so reading outside the transaction is stable.
   const site = await getDraftSiteDocument(db)

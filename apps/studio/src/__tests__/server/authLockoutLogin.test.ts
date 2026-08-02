@@ -1,7 +1,7 @@
 /**
  * Integration tests — login handler × lockout policy.
  *
- * Exercises the full flow against a real SQLite test DB: rate limits, per-account
+ * Exercises the full flow against an isolated PostgreSQL test schema: rate limits, per-account
  * lockout, audit-event emission, login_attempts row creation, and reset on a
  * subsequent successful login.
  */

@@ -6,8 +6,10 @@ import { PostgresFreeHostRepository } from './repository'
 import { FreeHostService } from './service'
 
 const HOSTED_RELEASE_MIME_TYPES = Object.freeze([
-  'text/html', 'text/css',
-  'image/avif', 'image/jpeg', 'image/png', 'image/webp',
+  'text/html', 'text/css', 'text/javascript', 'application/javascript', 'application/json',
+  'application/vnd.fuma.runtime+json', 'application/vnd.fuma.runtime-route+json',
+  'image/avif', 'image/jpeg', 'image/png', 'image/webp', 'image/svg+xml',
+  'font/woff2',
 ])
 
 export type HostedFreeHostRuntime = Readonly<{
@@ -55,7 +57,7 @@ export function createHostedFreeHostRuntime(input: Readonly<{
 }>): HostedFreeHostRuntime {
   const storage = input.storage ?? createHostedReleaseObjectStorage(input)
   const repository = new PostgresFreeHostRepository(input.db)
-  const service = new FreeHostService(repository, repository, input.now)
+  const service = new FreeHostService(repository, repository, input.now, `.${input.config.hosts.rootDomain}`)
   return Object.freeze({
     repository,
     boundary: new FreeHostPublicRouter({

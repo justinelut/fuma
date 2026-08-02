@@ -74,12 +74,10 @@ const CEILING = 700
 const RATCHET_SLACK = 30
 
 /**
- * Append-only ledgers — grow by design, exempt from the cap entirely.
- * (CLAUDE.md: every schema change appends a migration to BOTH files.)
+ * Append-only migration source exempt from the cap.
  */
 const EXEMPT = new Set<string>([
   'server/db/migrations-pg.ts',
-  'server/db/migrations-sqlite.ts',
 ])
 
 /**

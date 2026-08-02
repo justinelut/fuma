@@ -10,9 +10,11 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "bun test tests",
     "release:manifest": "bun run tooling/pairedRelease.ts",
+    "release:demo": "bun run tooling/pairedReleaseDemo.ts",
     "evidence:dry-run": "bun run tooling/evidence.ts --dry-run"
   },
   "dependencies": {
+    "@fuma/brand": "workspace:*",
     "@sinclair/typebox": "0.34.49"
   },
   "devDependencies": {

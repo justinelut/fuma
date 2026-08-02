@@ -68,7 +68,7 @@ function storage(): TenantObjectStorage {
       maxTenantBytes: 10_000_000,
     },
     signingSecret: 'fuma-free-host-fixture-signing-secret',
-    accessUrlBase: 'https://app.fuma.co.ke/_fuma/objects',
+    accessUrlBase: 'https://app.trimly.co.ke/_fuma/objects',
     nowMs: () => Date.parse(NOW),
   })
 }
@@ -102,14 +102,14 @@ describe('FUMA-050 free-host normalization and authority properties', () => {
       label += 'z'
       const expected = label.toLowerCase()
       expect(normalizeFreeHostLabel(label)).toBe(expected)
-      expect(normalizePublicHost(`${label}.FuMa.Co.Ke:443.`)).toBe(`${expected}.fuma.co.ke`)
-      expect(normalizePublicHost(`${label}.FuMa.Co.Ke.:8443`)).toBe(`${expected}.fuma.co.ke`)
+      expect(normalizePublicHost(`${label}.Trimly.Co.Ke:443.`)).toBe(`${expected}.trimly.co.ke`)
+      expect(normalizePublicHost(`${label}.Trimly.Co.Ke.:8443`)).toBe(`${expected}.trimly.co.ke`)
     }
     for (const value of [
-      'ténant.fuma.co.ke', 'xn--tnant-bsa.fuma.co.ke', '.tenant.fuma.co.ke',
-      'tenant..fuma.co.ke', 'tenant.fuma.co.ke..', 'tenant.fuma.co.ke.:443.',
-      'tenant.fuma.co.ke:0', 'tenant.fuma.co.ke:65536',
-      'tenant.fuma.co.ke/path', 'tenant.fuma.co.ke,evil.example',
+      'ténant.trimly.co.ke', 'xn--tnant-bsa.trimly.co.ke', '.tenant.trimly.co.ke',
+      'tenant..trimly.co.ke', 'tenant.trimly.co.ke..', 'tenant.trimly.co.ke.:443.',
+      'tenant.trimly.co.ke:0', 'tenant.trimly.co.ke:65536',
+      'tenant.trimly.co.ke/path', 'tenant.trimly.co.ke,evil.example',
     ]) expect(() => normalizePublicHost(value)).toThrow(FreeHostError)
   })
 
@@ -172,10 +172,10 @@ describe('FUMA-050 free-host normalization and authority properties', () => {
       const record = await service.allocate({ ...scope, label: `tenant-${id}` })
       scopes.set(record.host, { authority: scope, releaseId: `release-${id}` })
     }
-    await expect(service.resolve('tenant-a.fuma.co.ke')).resolves.toMatchObject({ releaseId: 'release-a' })
-    await expect(service.resolve('tenant-b.fuma.co.ke')).resolves.toMatchObject({ releaseId: 'release-b' })
-    await expect(service.resolve('unknown.fuma.co.ke')).rejects.toMatchObject({ code: 'unknown' })
-    await expect(service.resolve('fuma.co.ke')).rejects.toThrow('No default host is configured.')
+    await expect(service.resolve('tenant-a.trimly.co.ke')).resolves.toMatchObject({ releaseId: 'release-a' })
+    await expect(service.resolve('tenant-b.trimly.co.ke')).resolves.toMatchObject({ releaseId: 'release-b' })
+    await expect(service.resolve('unknown.trimly.co.ke')).rejects.toMatchObject({ code: 'unknown' })
+    await expect(service.resolve('trimly.co.ke')).rejects.toThrow('No default host is configured.')
   })
 })
 
@@ -208,39 +208,39 @@ describe('FUMA-050 public Host router', () => {
     const router = new FreeHostPublicRouter({
       service,
       storage: objectStorage,
-      controlHosts: ['app.fuma.co.ke'],
+      controlHosts: ['app.trimly.co.ke'],
       extensions: [{
         handles(request) { return new URL(request.url).pathname === '/dynamic' },
         async handle() { return new Response('dynamic publication', { headers: { 'cache-control': 'no-store' } }) },
       }],
     })
     for (const id of ['alpha', 'bravo']) {
-      const response = await router.route(hostRequest(`tenant-${id}.fuma.co.ke`))
+      const response = await router.route(hostRequest(`tenant-${id}.trimly.co.ke`))
       expect(response?.status).toBe(200)
       expect(response?.headers.get('x-fuma-release-id')).toBe(`release-${id}`)
       expect(await response?.text()).toBe(`<!doctype html><h1>${id}</h1>`)
     }
-    const dynamic = await router.route(hostRequest('tenant-alpha.fuma.co.ke', '/dynamic'))
+    const dynamic = await router.route(hostRequest('tenant-alpha.trimly.co.ke', '/dynamic'))
 
     expect(dynamic?.status).toBe(200)
     expect(await dynamic?.text()).toBe('dynamic publication')
-    expect((await router.route(hostRequest('unknown.fuma.co.ke', '/dynamic')))?.status).toBe(404)
-    const canonical = await router.route(hostRequest('TENANT-ALPHA.FUMA.CO.KE:443.', '/about?x=1'))
+    expect((await router.route(hostRequest('unknown.trimly.co.ke', '/dynamic')))?.status).toBe(404)
+    const canonical = await router.route(hostRequest('TENANT-ALPHA.TRIMLY.CO.KE:443.', '/about?x=1'))
     expect(canonical?.status).toBe(308)
-    expect(canonical?.headers.get('location')).toBe('https://tenant-alpha.fuma.co.ke/about?x=1')
-    const unknown = await router.route(hostRequest('unknown.fuma.co.ke'))
+    expect(canonical?.headers.get('location')).toBe('https://tenant-alpha.trimly.co.ke/about?x=1')
+    const unknown = await router.route(hostRequest('unknown.trimly.co.ke'))
     expect(unknown?.status).toBe(404)
     expect(unknown?.headers.get('x-fuma-release-id')).toBeNull()
-    expect((await router.route(hostRequest('tenant..fuma.co.ke')))?.status).toBe(421)
-    expect((await router.route(hostRequest('admin.fuma.co.ke')))?.status).toBe(404)
-    expect(await router.route(hostRequest('app.fuma.co.ke', '/admin'))).toBeNull()
+    expect((await router.route(hostRequest('tenant..trimly.co.ke')))?.status).toBe(421)
+    expect((await router.route(hostRequest('admin.trimly.co.ke')))?.status).toBe(404)
+    expect(await router.route(hostRequest('app.trimly.co.ke', '/admin'))).toBeNull()
     await service.setState({
-      host: 'tenant-bravo.fuma.co.ke',
+      host: 'tenant-bravo.trimly.co.ke',
       state: 'suspended',
       authority: authority('bravo'),
       expectedVersion: 1,
     })
-    const suspended = await router.route(hostRequest('tenant-bravo.fuma.co.ke'))
+    const suspended = await router.route(hostRequest('tenant-bravo.trimly.co.ke'))
     expect(suspended?.status).toBe(404)
     expect(suspended?.headers.get('x-fuma-release-id')).toBeNull()
     process.stdout.write('[FUMA-050 Host demo] tenant-alpha=release-alpha tenant-bravo=release-bravo unknown=404 fallback=none\n')
@@ -264,11 +264,11 @@ describe('FUMA-050 public Host router', () => {
         },
       },
     })
-    const response = await router.route(hostRequest('tenant-edge.fuma.co.ke'))
+    const response = await router.route(hostRequest('tenant-edge.trimly.co.ke'))
     expect(response?.status).toBe(200)
     expect(await response?.text()).toBe('edge-owned')
-    expect(seen).toEqual(['tenant-edge.fuma.co.ke:release-edge'])
-    expect((await router.route(hostRequest('unknown.fuma.co.ke')))?.status).toBe(404)
+    expect(seen).toEqual(['tenant-edge.trimly.co.ke:release-edge'])
+    expect((await router.route(hostRequest('unknown.trimly.co.ke')))?.status).toBe(404)
     expect(seen).toHaveLength(1)
   })
 
@@ -279,7 +279,7 @@ describe('FUMA-050 public Host router', () => {
     const service = new FreeHostService(repository, { async exactSite() { return { releaseId: 'unused' } } }, () => new Date(NOW))
     await service.allocate({ ...scope, label: 'tenant-canonical', canonicalHost: 'www.example.co.ke' })
     const router = new FreeHostPublicRouter({ service, storage: objectStorage, controlHosts: [] })
-    const canonical = await router.route(hostRequest('TENANT-CANONICAL.FUMA.CO.KE:443.', '/about?ref=demo'))
+    const canonical = await router.route(hostRequest('TENANT-CANONICAL.TRIMLY.CO.KE:443.', '/about?ref=demo'))
     expect(canonical?.status).toBe(308)
     expect(canonical?.headers.get('location')).toBe('https://www.example.co.ke/about?ref=demo')
   })

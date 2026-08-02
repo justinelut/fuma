@@ -222,8 +222,8 @@ export async function getDraftPublishStatus(db: DbClient): Promise<DraftPublishS
  * `data_row_versions` row (and its runtime asset files) per page, flipping
  * each page row to `published`. DB writes only — every expensive non-DB
  * build (runtime bundling, rendering) happens in the orchestrator BEFORE
- * this is called, so the SQLite adapter's serialized transaction chain is
- * held for milliseconds, not seconds.
+ * this is called, so the PostgreSQL transaction is held for milliseconds,
+ * not seconds.
  */
 export async function persistSitePublish(
   db: DbClient,

@@ -73,8 +73,7 @@ export async function listElectedAdapters(db: DbClient): Promise<ElectedAdapter[
  * Idempotent: re-electing the same adapter for the same role refreshes
  * `elected_at` / `elected_by_user_id`.
  *
- * Cross-dialect upsert via `on conflict (role)` — works on both Postgres
- * and SQLite (the `db-postgres-isms.test.ts` gate confirms this is ANSI).
+ * PostgreSQL upsert uses the unique `role` key as its conflict target.
  */
 export async function electAdapter(
   db: DbClient,

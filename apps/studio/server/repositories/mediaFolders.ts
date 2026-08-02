@@ -105,9 +105,8 @@ export async function updateMediaFolder(
   id: string,
   input: UpdateMediaFolderInput,
 ): Promise<MediaFolder | null> {
-  // COALESCE pattern — `undefined` → NULL → keep-existing — same trick used in
-  // the assets repo. One query shape regardless of how many fields changed,
-  // dialect-portable.
+  // COALESCE maps `undefined` to NULL and preserves the existing value. This
+  // keeps one PostgreSQL query shape regardless of how many fields changed.
   const name = input.name ?? null
   const slug = input.slug ?? null
   // Distinguish "don't touch parent_id" from "set parent_id to NULL" by using

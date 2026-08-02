@@ -1,6 +1,8 @@
 import {
   PublicExpertsEnvelopeSchema,
   PublicExpertsQuerySchema,
+  PublicComponentsEnvelopeSchema,
+  PublicComponentsQuerySchema,
   PublicPluginsEnvelopeSchema,
   PublicPluginsQuerySchema,
   PublicPricingCatalogEnvelopeSchema,
@@ -19,20 +21,21 @@ import {
 import type { TSchema } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 import { effectivePublicHost } from './public-host'
+import { readFumaDeploymentProfile } from '@fuma/brand'
 import { recordProjectionResult } from './metrics'
 
 const PRIVATE_PATH_PREFIX = '/_fuma/private/public/v1'
 const PUBLIC_BFF_PATH_PREFIX = '/api/public/v1'
 const DEFAULT_TIMEOUT_MS = 3_000
 const MAX_RESPONSE_BYTES = 524_288
-const DEFAULT_PUBLIC_HOSTS = ['fuma.co.ke', 'www.fuma.co.ke', '3002.blyss.co.ke'] as const
 const CACHE_CONTROL: Readonly<Record<PublicProjectionResource, string>> = Object.freeze({
   'product-facts': 'public, max-age=0, s-maxage=30, must-revalidate',
-  pricing: 'public, max-age=0, s-maxage=30, must-revalidate',
+  pricing: 'no-store',
   templates: 'no-store',
   showcases: 'no-store',
   experts: 'no-store',
   plugins: 'no-store',
+  components: 'no-store',
 })
 
 const SPECS: Readonly<Record<PublicProjectionResource, Readonly<{
@@ -45,6 +48,7 @@ const SPECS: Readonly<Record<PublicProjectionResource, Readonly<{
   showcases: { query: PublicShowcasesQuerySchema, envelope: PublicShowcasesEnvelopeSchema },
   experts: { query: PublicExpertsQuerySchema, envelope: PublicExpertsEnvelopeSchema },
   plugins: { query: PublicPluginsQuerySchema, envelope: PublicPluginsEnvelopeSchema },
+  components: { query: PublicComponentsQuerySchema, envelope: PublicComponentsEnvelopeSchema },
 })
 
 export type PublicProjectionClientConfig = Readonly<{
@@ -107,14 +111,20 @@ export function readPublicProjectionClientConfig(env: Readonly<Record<string, st
     throw new Error('Private public-projection configuration is invalid.')
   }
 
+  const deployment = readFumaDeploymentProfile(env, {
+    required: env.NODE_ENV === 'production' || env.FUMA_ENV === 'production',
+  })
+  const defaultPublicHosts = [deployment.hosts.public, deployment.hosts.redirect, '3002.blyss.co.ke'] as const
   const configuredHosts = env.FUMA_PUBLIC_WEB_HOSTS?.split(',').map(normalizedHost).filter(Boolean)
-  const publicHosts = [...new Set(configuredHosts?.length ? configuredHosts : DEFAULT_PUBLIC_HOSTS)]
-  const allowedPublicHosts = new Set<string>(DEFAULT_PUBLIC_HOSTS)
+  const publicHosts = [...new Set(configuredHosts?.length ? configuredHosts : defaultPublicHosts)]
+  const allowedPublicHosts = new Set<string>(defaultPublicHosts)
   if (publicHosts.some((host) => !allowedPublicHosts.has(host))) {
     throw new Error('Public Web host configuration is invalid.')
   }
   const internalHost = normalizedHost(origin.hostname)
-  if (publicHosts.includes(internalHost) || internalHost.endsWith('.fuma.co.ke')) {
+  if (publicHosts.includes(internalHost)
+    || internalHost === deployment.rootDomain
+    || internalHost.endsWith(deployment.tenantSuffix)) {
     throw new Error('Public projection origin must be private-cluster only.')
   }
 
@@ -219,6 +229,7 @@ async function fetchPublicProjectionUninstrumented(
     upstream = await (options.fetchImpl ?? fetch)(target, {
       method: 'GET',
       headers,
+      cache: 'no-store',
       redirect: 'error',
       signal: controller.signal,
     })

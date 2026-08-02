@@ -99,20 +99,9 @@ describe('self-host docker config', () => {
     expect(ci).not.toContain('working-directory: apps/studio')
   })
 
-  it('lets compose.prod.yml load without an .env (so SQLite mode is zero-config) while making the Postgres password placeholder loudly unsafe', () => {
-    // Why this rule exists:
-    // SQLite mode (compose.sqlite.yml override) disables the postgres service
-    // and replaces the app's DATABASE_URL — Postgres credentials are unused.
-    // But compose's `${VAR:?error}` interpolation runs at FILE LOAD TIME,
-    // before profiles or overrides are applied. A `:?` guard on POSTGRES_PASSWORD
-    // forces SQLite users to invent a `.env` for a service they aren't running.
-    //
-    // Contract instead:
-    //   1. No `:?` guard on POSTGRES_PASSWORD — file loads with empty env.
-    //   2. The placeholder default value MUST be obviously unsafe (must contain
-    //      the literal string CHANGEME) so a Postgres operator who forgets to
-    //      override it sees the placeholder in their running container's
-    //      env / logs and rotates it.
+  it('loads compose.prod.yml without an .env while making the PostgreSQL password placeholder loudly unsafe', () => {
+    // Compose must be inspectable before operators create an environment file,
+    // while the placeholder remains visibly unsafe in any accidentally started stack.
     const compose = readWorkspaceFile('compose.prod.yml')
 
     expect(compose).not.toContain('${POSTGRES_PASSWORD:?')

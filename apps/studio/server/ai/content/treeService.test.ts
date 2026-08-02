@@ -1,7 +1,5 @@
 import { describe, expect, it, beforeEach } from 'bun:test'
-import { createSqliteClient } from '../../db/sqlite'
-import { sqliteMigrations } from '../../db/migrations-sqlite'
-import { runMigrations } from '../../db/runMigrations'
+import { createTestDatabase } from '../../db/testDatabase'
 import type { DbClient } from '../../db/client'
 import { readPageTree, mutatePageTree } from './treeService'
 
@@ -15,8 +13,7 @@ const INITIAL_TREE = {
 }
 
 async function freshDb(): Promise<DbClient> {
-  const db = createSqliteClient(':memory:')
-  await runMigrations(db, sqliteMigrations)
+  const { db: db } = await createTestDatabase('treeService')
   await db`
     insert into users (id, email, email_normalized, display_name, password_hash, role_id)
     values ('u1', 'u1@example.com', 'u1@example.com', 'User One', 'x', 'owner')

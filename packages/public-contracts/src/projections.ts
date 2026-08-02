@@ -54,7 +54,7 @@ export type PublicProductFact = Static<typeof PublicProductFactSchema>
 export const PublicPricingQuotaSchema = Type.Object({
   key: PublicTagSchema,
   label: PublicTextSchema,
-  limit: Type.Integer({ minimum: 0, maximum: 1_000_000_000 }),
+  limit: Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER }),
   unit: Type.Union([
     Type.Literal('count'),
     Type.Literal('bytes'),
@@ -88,6 +88,20 @@ export const PublicPricingPlanSchema = Type.Object({
   expiresAt: Type.Union([PublicTimestampSchema, Type.Null()]),
 }, { additionalProperties: false })
 export type PublicPricingPlan = Static<typeof PublicPricingPlanSchema>
+
+export const PublicPriceBookVersionSchema = Type.String({
+  minLength: 1,
+  maxLength: 100,
+  pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$',
+})
+export type PublicPriceBookVersion = Static<typeof PublicPriceBookVersionSchema>
+
+/** Display-only identity added by the pricing authority after validating FUMA-054 evidence. */
+export const PublicPricingDisplayPlanSchema = Type.Object({
+  ...PublicPricingPlanSchema.properties,
+  planId: PublicIdSchema,
+}, { additionalProperties: false })
+export type PublicPricingDisplayPlan = Static<typeof PublicPricingDisplayPlanSchema>
 
 export const PublicTemplateImageSchema = Type.Object({
   url: PublicAssetUrlSchema,
@@ -168,7 +182,22 @@ export const PublicExpertSchema = Type.Object({
 }, { additionalProperties: false })
 export type PublicExpert = Static<typeof PublicExpertSchema>
 
-export const PublicPluginSchema = Type.Object({
+export const PublicReviewEvidenceSchema = Type.Object({
+  contentHashSha256: Type.String({ pattern: '^[a-f0-9]{64}$' }),
+  signatureKeyId: PublicIdSchema,
+  signaturePayloadHashSha256: Type.String({ pattern: '^[a-f0-9]{64}$' }),
+  provenanceHashSha256: Type.String({ pattern: '^[a-f0-9]{64}$' }),
+  licenseSpdx: Type.String({ minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9.+-]+$' }),
+  accessibilityStandard: Type.Union([
+    Type.Literal('WCAG2.2-A'),
+    Type.Literal('WCAG2.2-AA'),
+    Type.Literal('not-applicable'),
+  ]),
+  minimumRuntimeVersion: Type.String({ minLength: 5, maxLength: 64, pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$' }),
+}, { additionalProperties: false })
+export type PublicReviewEvidence = Static<typeof PublicReviewEvidenceSchema>
+
+const PublicReviewedArtifactProperties = {
   id: PublicIdSchema,
   slug: PublicSlugSchema,
   name: PublicTextSchema,
@@ -179,10 +208,21 @@ export const PublicPluginSchema = Type.Object({
   version: Type.String({ minLength: 1, maxLength: 64, pattern: '^[0-9A-Za-z][0-9A-Za-z.+_-]*$' }),
   permissionLabels: Type.Array(PublicTextSchema, { maxItems: 32 }),
   imageUrl: Type.Union([PublicAssetUrlSchema, Type.Null()]),
+  reviewEvidence: PublicReviewEvidenceSchema,
   reviewedAt: PublicTimestampSchema,
+} as const
+
+export const PublicPluginSchema = Type.Object({
+  ...PublicReviewedArtifactProperties,
+  artifactKind: Type.Literal('plugin'),
 }, { additionalProperties: false })
 export type PublicPlugin = Static<typeof PublicPluginSchema>
 
+export const PublicComponentSchema = Type.Object({
+  ...PublicReviewedArtifactProperties,
+  artifactKind: Type.Literal('component-pack'),
+}, { additionalProperties: false })
+export type PublicComponent = Static<typeof PublicComponentSchema>
 function querySchema(properties: Readonly<Record<string, TSchema>>) {
   return Type.Object({
     cursor: Type.Optional(PublicCursorSchema),
@@ -208,8 +248,11 @@ export const PublicTemplatesQuerySchema = querySchema({
 export const PublicShowcasesQuerySchema = querySchema({
   profile: Type.Optional(PublicProfileSchema),
   industry: Type.Optional(PublicTagSchema),
+  slug: Type.Optional(PublicSlugSchema),
+  query: Type.Optional(Type.String({ minLength: 1, maxLength: 80, pattern: '^[A-Za-z0-9][A-Za-z0-9 ._-]*$' })),
 })
 export const PublicExpertsQuerySchema = querySchema({
+  profile: Type.Optional(PublicProfileSchema),
   expertType: Type.Optional(Type.Union([
     Type.Literal('designer'),
     Type.Literal('developer'),
@@ -218,9 +261,18 @@ export const PublicExpertsQuerySchema = querySchema({
   ])),
   skill: Type.Optional(PublicTagSchema),
   location: Type.Optional(PublicSlugSchema),
+  slug: Type.Optional(PublicSlugSchema),
+  query: Type.Optional(Type.String({ minLength: 1, maxLength: 80, pattern: '^[A-Za-z0-9][A-Za-z0-9 ._-]*$' })),
 })
 export const PublicPluginsQuerySchema = querySchema({
   category: Type.Optional(PublicTagSchema),
+  slug: Type.Optional(PublicSlugSchema),
+  query: Type.Optional(Type.String({ minLength: 1, maxLength: 80, pattern: '^[A-Za-z0-9][A-Za-z0-9 ._-]*$' })),
+})
+export const PublicComponentsQuerySchema = querySchema({
+  category: Type.Optional(PublicTagSchema),
+  slug: Type.Optional(PublicSlugSchema),
+  query: Type.Optional(Type.String({ minLength: 1, maxLength: 80, pattern: '^[A-Za-z0-9][A-Za-z0-9 ._-]*$' })),
 })
 
 export type PublicProductFactsQuery = Static<typeof PublicProductFactsQuerySchema>
@@ -229,17 +281,58 @@ export type PublicTemplatesQuery = Static<typeof PublicTemplatesQuerySchema>
 export type PublicShowcasesQuery = Static<typeof PublicShowcasesQuerySchema>
 export type PublicExpertsQuery = Static<typeof PublicExpertsQuerySchema>
 export type PublicPluginsQuery = Static<typeof PublicPluginsQuerySchema>
+export type PublicComponentsQuery = Static<typeof PublicComponentsQuerySchema>
 
 export const PublicProductFactsPageSchema = createCursorPageSchema(PublicProductFactSchema)
-export const PublicPricingCatalogPageSchema = createCursorPageSchema(PublicPricingPlanSchema)
+const PublicPricingPageCursorSchema = createCursorPageSchema(PublicPricingDisplayPlanSchema).properties.page
+export const PublicPricingCatalogPageSchema = Type.Union([
+  Type.Object({
+    effectiveVersion: PublicPriceBookVersionSchema,
+    items: Type.Array(PublicPricingDisplayPlanSchema, { maxItems: PUBLIC_PAGE_SIZE_MAX }),
+    page: PublicPricingPageCursorSchema,
+  }, { additionalProperties: false }),
+  Type.Object({
+    effectiveVersion: Type.Null(),
+    items: Type.Array(PublicPricingDisplayPlanSchema, { maxItems: 0 }),
+    page: PublicPricingPageCursorSchema,
+  }, { additionalProperties: false }),
+])
 export const PublicTemplatesPageSchema = Type.Object({
   items: Type.Array(PublicTemplateSchema, { maxItems: PUBLIC_PAGE_SIZE_MAX }),
   tombstones: Type.Array(PublicTemplateTombstoneSchema, { maxItems: PUBLIC_PAGE_SIZE_MAX }),
   page: createCursorPageSchema(PublicTemplateSchema).properties.page,
 }, { additionalProperties: false })
-export const PublicShowcasesPageSchema = createCursorPageSchema(PublicShowcaseSchema)
-export const PublicExpertsPageSchema = createCursorPageSchema(PublicExpertSchema)
-export const PublicPluginsPageSchema = createCursorPageSchema(PublicPluginSchema)
+const PublicPagePositionSchema = createCursorPageSchema(PublicExpertSchema).properties.page
+const PublicExpertFacetsSchema = Type.Object({
+  expertTypes: Type.Array(PublicExpertSchema.properties.expertType, { maxItems: 4, uniqueItems: true }),
+  skills: PublicTagListSchema,
+  locations: Type.Array(PublicTextSchema, { maxItems: 100, uniqueItems: true }),
+}, { additionalProperties: false })
+const PublicShowcaseFacetsSchema = Type.Object({
+  profiles: Type.Array(PublicProfileSchema, { maxItems: 2, uniqueItems: true }),
+  industries: PublicTagListSchema,
+}, { additionalProperties: false })
+const PublicArtifactFacetsSchema = Type.Object({ categories: PublicTagListSchema }, { additionalProperties: false })
+export const PublicShowcasesPageSchema = Type.Object({
+  items: Type.Array(PublicShowcaseSchema, { maxItems: PUBLIC_PAGE_SIZE_MAX }),
+  facets: PublicShowcaseFacetsSchema,
+  page: PublicPagePositionSchema,
+}, { additionalProperties: false })
+export const PublicExpertsPageSchema = Type.Object({
+  items: Type.Array(PublicExpertSchema, { maxItems: PUBLIC_PAGE_SIZE_MAX }),
+  facets: PublicExpertFacetsSchema,
+  page: PublicPagePositionSchema,
+}, { additionalProperties: false })
+export const PublicPluginsPageSchema = Type.Object({
+  items: Type.Array(PublicPluginSchema, { maxItems: PUBLIC_PAGE_SIZE_MAX }),
+  facets: PublicArtifactFacetsSchema,
+  page: PublicPagePositionSchema,
+}, { additionalProperties: false })
+export const PublicComponentsPageSchema = Type.Object({
+  items: Type.Array(PublicComponentSchema, { maxItems: PUBLIC_PAGE_SIZE_MAX }),
+  facets: PublicArtifactFacetsSchema,
+  page: PublicPagePositionSchema,
+}, { additionalProperties: false })
 
 export const PublicProductFactsEnvelopeSchema = createPublicReadEnvelopeSchema(PublicProductFactsPageSchema)
 export const PublicPricingCatalogEnvelopeSchema = createPublicReadEnvelopeSchema(PublicPricingCatalogPageSchema)
@@ -247,6 +340,7 @@ export const PublicTemplatesEnvelopeSchema = createPublicReadEnvelopeSchema(Publ
 export const PublicShowcasesEnvelopeSchema = createPublicReadEnvelopeSchema(PublicShowcasesPageSchema)
 export const PublicExpertsEnvelopeSchema = createPublicReadEnvelopeSchema(PublicExpertsPageSchema)
 export const PublicPluginsEnvelopeSchema = createPublicReadEnvelopeSchema(PublicPluginsPageSchema)
+export const PublicComponentsEnvelopeSchema = createPublicReadEnvelopeSchema(PublicComponentsPageSchema)
 
 export type PublicProductFactsEnvelope = Static<typeof PublicProductFactsEnvelopeSchema>
 export type PublicPricingCatalogEnvelope = Static<typeof PublicPricingCatalogEnvelopeSchema>
@@ -254,6 +348,7 @@ export type PublicTemplatesEnvelope = Static<typeof PublicTemplatesEnvelopeSchem
 export type PublicShowcasesEnvelope = Static<typeof PublicShowcasesEnvelopeSchema>
 export type PublicExpertsEnvelope = Static<typeof PublicExpertsEnvelopeSchema>
 export type PublicPluginsEnvelope = Static<typeof PublicPluginsEnvelopeSchema>
+export type PublicComponentsEnvelope = Static<typeof PublicComponentsEnvelopeSchema>
 
 export const PUBLIC_PROJECTION_RESOURCES = [
   'product-facts',
@@ -262,6 +357,7 @@ export const PUBLIC_PROJECTION_RESOURCES = [
   'showcases',
   'experts',
   'plugins',
+  'components',
 ] as const
 
 export const PublicProjectionResourceSchema = Type.Union(

@@ -45,6 +45,17 @@ export async function runChat(args: RunChatArgs): Promise<void> {
   // persisted history.
   let pendingAssistantText = ''
   const pendingToolCallsByCallId = new Map<string, { name: string; input: unknown }>()
+  const authority = request.toolContextBase.authority
+  let authorityFinished = false
+
+  async function finishAuthority(
+    outcome: 'succeeded' | 'failed' | 'cancelled',
+    failureCode?: string,
+  ): Promise<void> {
+    if (!authority || authorityFinished) return
+    authorityFinished = true
+    await authority.finish(outcome, failureCode)
+  }
 
   async function flushPendingAssistantText(): Promise<void> {
     if (!pendingAssistantText) return
@@ -82,6 +93,8 @@ export async function runChat(args: RunChatArgs): Promise<void> {
   }
 
   try {
+    await authority?.verifySnapshot(request.toolContextBase.snapshot)
+    await authority?.revalidate({ phase: 'provider' })
     for await (const event of driver.stream(request)) {
       // Forward live events immediately. Usage is the one exception: its USD
       // value may need cache-aware server pricing, so that terminal event is
@@ -151,6 +164,10 @@ export async function runChat(args: RunChatArgs): Promise<void> {
             cacheReadTokens: event.cacheReadTokens,
             cacheCreationTokens: event.cacheCreationTokens,
           })
+          await authority?.recordUsage({
+            promptTokens: event.promptTokens,
+            completionTokens: event.completionTokens,
+          })
           emit({ ...event, costUsd })
           break
         }
@@ -161,6 +178,7 @@ export async function runChat(args: RunChatArgs): Promise<void> {
           // terminal wire error so the client can finalize its status rows.
           await flushPendingAssistantText()
           await finalizePendingToolCalls()
+          await finishAuthority('failed', 'driver-error')
           emit(event)
           return
         }
@@ -173,6 +191,7 @@ export async function runChat(args: RunChatArgs): Promise<void> {
     // Stream ended without explicit error or done — flush trailing text.
     await flushPendingAssistantText()
     await finalizePendingToolCalls()
+    await finishAuthority(request.signal.aborted ? 'cancelled' : 'succeeded')
     emit({ type: 'done' })
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)
@@ -185,6 +204,10 @@ export async function runChat(args: RunChatArgs): Promise<void> {
     await finalizePendingToolCalls().catch((finalizeErr) => {
       console.error('[ai/runner] pending tool finalization failed:', finalizeErr)
     })
+    await finishAuthority(request.signal.aborted ? 'cancelled' : 'failed', 'runtime-error')
+      .catch((finishErr) => {
+        console.error('[ai/runner] authority finalization failed:', finishErr)
+      })
     emit({ type: 'error', message: `AI runtime error: ${detail}` })
   }
 }

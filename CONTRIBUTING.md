@@ -18,7 +18,7 @@ bun install
 bun run dev
 ```
 
-The default local database is SQLite at `.tmp/dev.db`. Postgres mode is selected by setting `DATABASE_URL`.
+Local development requires PostgreSQL. Use `DATABASE_URL=postgres://instatic:instatic@127.0.0.1:5433/instatic`; tests must use a dedicated database or isolated schemas and must never target production.
 
 Useful checks:
 
@@ -32,7 +32,7 @@ For Docker changes:
 
 ```sh
 docker build -t instatic:local .
-docker compose -f compose.prod.yml -f compose.sqlite.yml -f compose.build.yml config
+docker compose -f compose.prod.yml -f compose.build.yml config
 ```
 
 ## Pull Requests

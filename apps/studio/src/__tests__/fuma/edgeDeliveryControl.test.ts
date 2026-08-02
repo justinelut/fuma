@@ -15,7 +15,7 @@ const encoder = new TextEncoder()
 const hash = (value: Uint8Array | string) => new Bun.CryptoHasher('sha256').update(value).digest('hex')
 const site = { platformId: 'platform', organizationId: 'organization', workspaceId: 'workspace', siteId: 'site', ownerKey: 'owner', ownerGeneration: 1 }
 function context(releaseId: string, path = '/index.html', memberId: string | null = null, audience = 'anonymous'): EdgeRequestContext {
-  return Object.freeze({ ...site, host: 'tenant.fuma.co.ke', releaseId, path, memberId, accessFingerprint: hash(audience), requestClaims: Object.freeze({ audience }) })
+  return Object.freeze({ ...site, host: 'tenant.trimly.co.ke', releaseId, path, memberId, accessFingerprint: hash(audience), requestClaims: Object.freeze({ audience }) })
 }
 function marker(id: string, input: Readonly<Record<string, string | number | boolean | null>> = {}) {
   return `<!--hole:${id}:${Buffer.from(JSON.stringify(input)).toString('base64url')}-->`
@@ -105,10 +105,10 @@ describe('FUMA-051 edge delivery control', () => {
   test('purges idempotently by exact host/site/release without crossing hosts', async () => {
     const h = harness()
     await h.service.serve(context('release-1', '/index.html', 'member-a', 'paid'))
-    await h.cache.put('edge:other.fuma.co.ke:site:release-1:x:y', { body: new Uint8Array(), etag: `"${'a'.repeat(64)}"`, contentType: 'text/html', releaseId: 'release-1', expiresAt: 1, staleUntil: 1, cacheControl: 'public, max-age=30', vary: null })
-    expect(await h.service.purge('TENANT.FUMA.CO.KE:443.', 'site', 'release-1')).toBe(1)
-    expect(await h.service.purge('tenant.fuma.co.ke', 'site', 'release-1')).toBe(0)
-    expect([...h.cache.entries.keys()]).toEqual(['edge:other.fuma.co.ke:site:release-1:x:y'])
+    await h.cache.put('edge:other.trimly.co.ke:site:release-1:x:y', { body: new Uint8Array(), etag: `"${'a'.repeat(64)}"`, contentType: 'text/html', releaseId: 'release-1', expiresAt: 1, staleUntil: 1, cacheControl: 'public, max-age=30', vary: null })
+    expect(await h.service.purge('TENANT.TRIMLY.CO.KE:443.', 'site', 'release-1')).toBe(1)
+    expect(await h.service.purge('tenant.trimly.co.ke', 'site', 'release-1')).toBe(0)
+    expect([...h.cache.entries.keys()]).toEqual(['edge:other.trimly.co.ke:site:release-1:x:y'])
   })
 
   test('rolls back the exact pointer under load, purges old HTML, and preserves immutable assets', async () => {
@@ -132,8 +132,8 @@ describe('FUMA-051 edge delivery control', () => {
   test('serves a trusted free-host response with release, ETag, Vary and HEAD controls', async () => {
     const h = harness()
     const boundary = new FreeHostEdgeBoundary(h.service, { async resolve() { return { memberId: 'member-a', claims: { audience: 'paid' } } } })
-    const resolution = { kind: 'release' as const, host: { host: 'tenant.fuma.co.ke', label: 'tenant', ...site, state: 'active' as const, canonicalHost: null, version: 1, createdAt: '2040-01-01T00:00:00.000Z' }, releaseId: 'release-1' }
-    const response = await boundary.serve(new Request('https://tenant.fuma.co.ke/index.html', { method: 'HEAD' }), resolution)
+    const resolution = { kind: 'release' as const, host: { host: 'tenant.trimly.co.ke', label: 'tenant', ...site, state: 'active' as const, canonicalHost: null, version: 1, createdAt: '2040-01-01T00:00:00.000Z' }, releaseId: 'release-1' }
+    const response = await boundary.serve(new Request('https://tenant.trimly.co.ke/index.html', { method: 'HEAD' }), resolution)
     expect(response.status).toBe(200)
     expect(response.headers.get('x-fuma-release-id')).toBe('release-1')
     expect(response.headers.get('vary')).toBe('Cookie, Authorization')
@@ -143,7 +143,7 @@ describe('FUMA-051 edge delivery control', () => {
   test('registers purge, warm and rollback as trusted durable jobs with replay receipts', async () => {
     const h = harness()
     const effects = new Map<string, FumaJobJsonValue>()
-    const handlers = edgeDeliveryJobRegistration({ service: h.service, hosts: { async exact() { return 'tenant.fuma.co.ke' } } })
+    const handlers = edgeDeliveryJobRegistration({ service: h.service, hosts: { async exact() { return 'tenant.trimly.co.ke' } } })
     const base = {
       jobContext: { kind: 'site', profile: { id: 'website' } },
       repositoryScope: { ...site, generation: 1, state: 'active', transferFence: null },
@@ -173,7 +173,7 @@ describe('FUMA-051 edge delivery control', () => {
       scope: { platformId: 'platform', organizationId: 'organization', workspaceId: 'workspace', siteId: 'site', ownerKey: 'owner', generation: 1, state: 'active', transferFence: null, profileId: 'website' },
       request: { contentId: 'post-a', previewToken: null, requestedPath: '/paid.html' },
       identity: 'identity-a',
-      origin: 'https://tenant.fuma.co.ke',
+      origin: 'https://tenant.trimly.co.ke',
     }])
   })
 

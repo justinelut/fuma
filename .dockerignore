@@ -7,8 +7,6 @@ dist
 uploads
 data
 backups
-*.sqlite
-*.sqlite-*
 .env
 .env.*
 !.env.example

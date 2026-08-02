@@ -1,13 +1,15 @@
 import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 
+import { FUMA_WEB_DEPLOYMENT } from './deployment-profile'
+
 const OpaqueValueSchema = Type.String({
   minLength: 16,
   maxLength: 512,
   pattern: '^[A-Za-z0-9_-]+$',
 })
 
-const APP_ORIGIN = 'https://app.fuma.co.ke'
+const APP_ORIGIN = FUMA_WEB_DEPLOYMENT.origins.product
 
 export function safeAppResumeUrl(value: unknown): URL | null {
   if (typeof value !== 'string' || value.length > 1_200) return null

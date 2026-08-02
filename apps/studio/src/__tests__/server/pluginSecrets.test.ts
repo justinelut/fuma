@@ -1,6 +1,6 @@
 /**
- * Plugin secret settings — repository-level tests against a real SQLite DB
- * (migrations applied), covering the encrypt-at-rest split:
+ * Plugin secret settings — repository-level tests against migrated PostgreSQL,
+ * covering the encrypt-at-rest split:
  *
  *   - secret values land encrypted in `plugin_secrets`, never `settings_json`
  *   - the runtime resolution returns decrypted plaintext

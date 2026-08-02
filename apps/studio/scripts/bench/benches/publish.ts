@@ -1,7 +1,7 @@
 /**
  * Publish pipeline & public serving benchmark.
  *
- * Exercises the FULL publish path against an isolated SQLite DB seeded
+ * Exercises the full publish path against an isolated PostgreSQL schema seeded
  * through the real repositories — `saveDraftSite` + `createDataRow` for the
  * draft, `publishDraftSite` for the snapshot bake — and then the public
  * serving path through `renderPublicResolution` exactly as the visitor
@@ -10,7 +10,7 @@
  *
  * Scenarios:
  *   - Full publish wall time at N draft pages (~150 nodes each), plus the
- *     SQLite file growth per publish — the snapshot storage amplification.
+ *     PostgreSQL relation growth per publish — the snapshot storage amplification.
  *   - `getDraftPublishStatus` cost on a published site (draft-vs-published
  *     comparison the admin UI polls).
  *   - Warm dynamic-route serving: `renderPublicResolution` WITHOUT an
@@ -26,7 +26,7 @@
  * `unavailable` row instead of crashing the suite.
  */
 import { resolve } from 'node:path'
-import { mkdirSync, existsSync, unlinkSync, rmSync, statSync } from 'node:fs'
+import { rmSync } from 'node:fs'
 import { performance } from 'node:perf_hooks'
 import type { Page, SiteShell } from '../../../src/core/page-tree'
 import type { BenchModule, BenchResult, BenchRow, BenchContext } from '../lib/types'
@@ -43,9 +43,7 @@ const NODES_PER_PAGE = 150
 async function loadServer() {
   // Side effect — registers base modules so the publish renderer finds them.
   await import('../../../src/modules/base')
-  const { createSqliteClient } = await import('../../../server/db/sqlite')
-  const { runMigrations } = await import('../../../server/db/runMigrations')
-  const { sqliteMigrations } = await import('../../../server/db/migrations-sqlite')
+  const { createTestDatabase } = await import('../../../server/db/testDatabase')
   const { saveDraftSite } = await import('../../../server/repositories/site')
   const { getDraftPublishStatus } = await import('../../../server/repositories/publish')
   const { publishDraftSite } = await import('../../../server/publish/publishSite')
@@ -57,9 +55,7 @@ async function loadServer() {
   const { validatePagesForPartialSave } = await import('../../../src/core/persistence/validate')
   const { normalizeSiteRuntimeConfig } = await import('../../../src/core/site-runtime')
   return {
-    createSqliteClient,
-    runMigrations,
-    sqliteMigrations,
+    createTestDatabase,
     saveDraftSite,
     publishDraftSite,
     getDraftPublishStatus,
@@ -78,38 +74,23 @@ async function loadServer() {
 }
 
 type ServerApi = Awaited<ReturnType<typeof loadServer>>
-type Db = ReturnType<ServerApi['createSqliteClient']>
+type Db = Awaited<ReturnType<ServerApi['createTestDatabase']>>['db']
 
 // ---------------------------------------------------------------------------
 // DB lifecycle helpers (mirrors benches/db.ts)
 // ---------------------------------------------------------------------------
 
-async function freshDb(api: ServerApi, label: string): Promise<{ db: Db; path: string }> {
-  mkdirSync(BENCH_DIR, { recursive: true })
-  const path = resolve(BENCH_DIR, `publish-bench-${label}-${Date.now()}.db`)
-  cleanupDbFiles(path)
-  const db = api.createSqliteClient(path)
-  await api.runMigrations(db, api.sqliteMigrations)
-  return { db, path }
+async function freshDb(api: ServerApi, label: string) {
+  return await api.createTestDatabase(`publish_bench_${label}`)
 }
 
-/** Total on-disk bytes of the SQLite database (main file + WAL + SHM). */
-function dbBytes(path: string): number {
-  let total = 0
-  for (const file of [path, `${path}-wal`, `${path}-shm`]) {
-    if (existsSync(file)) total += statSync(file).size
-  }
-  return total
-}
-
-function cleanupDbFiles(path: string): void {
-  for (const file of [path, `${path}-wal`, `${path}-shm`]) {
-    try {
-      if (existsSync(file)) unlinkSync(file)
-    } catch {
-      // best-effort cleanup
-    }
-  }
+async function dbBytes(db: Db): Promise<number> {
+  const result = await db<{ size: number | string }>`
+    select coalesce(sum(pg_total_relation_size(format('%I.%I', schemaname, tablename)::regclass)), 0) as size
+    from pg_tables
+    where schemaname = current_schema()
+  `
+  return Number(result.rows[0]?.size ?? 0)
 }
 
 function unavailableRow(label: string, err: unknown): BenchRow {
@@ -218,21 +199,21 @@ export const publishBench: BenchModule = {
     const publishRows: BenchRow[] = []
     // The largest-N DB is kept alive for the status / warm-serving / 404
     // scenarios below (they must run against a real published site).
-    let published: { db: Db; path: string; uploadsDir: string; pageCount: number } | null = null
+    let published: { db: Db; cleanup: () => Promise<void>; uploadsDir: string; pageCount: number } | null = null
     const pageCounts = ctx.quick ? [5, 15] : [10, 40]
     for (const n of pageCounts) {
       const isLast = n === pageCounts[pageCounts.length - 1]
       const uploadsDir = resolve(BENCH_DIR, `publish-bench-uploads-${n}-${Date.now()}`)
-      let fresh: { db: Db; path: string } | null = null
+      let fresh: Awaited<ReturnType<typeof freshDb>> | null = null
       try {
         fresh = await freshDb(api, `pages-${n}`)
         await seedDraftSite(api, fresh.db, n)
-        const bytesBefore = dbBytes(fresh.path)
+        const bytesBefore = await dbBytes(fresh.db)
         log.step(`  publishing ${fmtNum(n)} pages × ~${NODES_PER_PAGE} nodes…`)
         const t0 = performance.now()
         const result = await api.publishDraftSite(fresh.db, ADMIN_USER_ID, uploadsDir)
         const wallMs = performance.now() - t0
-        const growth = dbBytes(fresh.path) - bytesBefore
+        const growth = await dbBytes(fresh.db) - bytesBefore
         if (result.publishedPages !== n) {
           throw new Error(`expected ${n} published pages, got ${result.publishedPages}`)
         }
@@ -248,14 +229,14 @@ export const publishBench: BenchModule = {
         })
         log.detail(`    wall=${fmtMs(wallMs)} db_growth=${fmtBytes(Math.max(0, growth))}`)
         if (isLast) {
-          published = { db: fresh.db, path: fresh.path, uploadsDir, pageCount: n }
+          published = { db: fresh.db, cleanup: fresh.cleanup, uploadsDir, pageCount: n }
         } else {
-          cleanupDbFiles(fresh.path)
+          await fresh.cleanup()
           rmSync(uploadsDir, { recursive: true, force: true })
         }
       } catch (err) {
         publishRows.push(unavailableRow(`${fmtNum(n)} pages × ~${NODES_PER_PAGE} nodes`, err))
-        if (fresh) cleanupDbFiles(fresh.path)
+        if (fresh) await fresh.cleanup()
         rmSync(uploadsDir, { recursive: true, force: true })
       }
     }
@@ -368,7 +349,7 @@ export const publishBench: BenchModule = {
       const rowRouteRows: BenchRow[] = []
       {
         const ROWS = ctx.quick ? 2_000 : 10_000
-        let fresh: { db: Db; path: string } | null = null
+        let fresh: Awaited<ReturnType<typeof freshDb>> | null = null
         try {
           fresh = await freshDb(api, 'row-route')
           await fresh.db`
@@ -421,7 +402,7 @@ export const publishBench: BenchModule = {
         } catch (err) {
           rowRouteRows.push(unavailableRow(`row-route lookup @ ${fmtNum(ROWS)} rows`, err))
         } finally {
-          if (fresh) cleanupDbFiles(fresh.path)
+          if (fresh) await fresh.cleanup()
         }
       }
 
@@ -431,7 +412,7 @@ export const publishBench: BenchModule = {
       {
         const SAVE_PAGES = ctx.quick ? 15 : 60
         const SAVE_NODES = ctx.quick ? 100 : 300
-        let fresh: { db: Db; path: string } | null = null
+        let fresh: Awaited<ReturnType<typeof freshDb>> | null = null
         try {
           fresh = await freshDb(api, 'save-roundtrip')
           await fresh.db`
@@ -510,7 +491,7 @@ export const publishBench: BenchModule = {
         } catch (err) {
           saveRows.push(unavailableRow('site save round-trip', err))
         } finally {
-          if (fresh) cleanupDbFiles(fresh.path)
+          if (fresh) await fresh.cleanup()
         }
       }
 
@@ -534,7 +515,7 @@ export const publishBench: BenchModule = {
           {
             title: 'Full publish wall time scaling',
             intro:
-              'End-to-end `publishDraftSite` against an isolated SQLite DB seeded through the real repositories — N draft pages of ~150 nodes each, full snapshot bake + Layer A artefact write. `db_growth` is the on-disk SQLite growth (main + WAL) from one publish: the snapshot storage amplification.',
+              'End-to-end `publishDraftSite` against an isolated PostgreSQL schema seeded through the real repositories — N draft pages of ~150 nodes each, full snapshot bake + Layer A artefact write. `db_growth` is PostgreSQL relation growth from one publish: the snapshot storage amplification.',
             rows: publishRows,
           },
           {
@@ -571,7 +552,7 @@ export const publishBench: BenchModule = {
       }
     } finally {
       if (published) {
-        cleanupDbFiles(published.path)
+        await published.cleanup()
         rmSync(published.uploadsDir, { recursive: true, force: true })
       }
     }

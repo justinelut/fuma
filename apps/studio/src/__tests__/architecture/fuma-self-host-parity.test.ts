@@ -3,7 +3,6 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Type, type Static } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
-import { isSqliteUrl } from '../../../server/db'
 import { readServerConfig } from '../../../server/config'
 import { HISTORICAL_MIGRATION_SOURCE_HASHES } from '../../../../../tooling/workspaceMigrationBaseline'
 
@@ -83,7 +82,7 @@ describe('FUMA-WEB-003 self-host parity after the apps/studio move', () => {
 
 
     expect(root.scripts.build).toBe(
-      'bun --cwd=packages/brand run typecheck && bun --cwd=packages/design-tokens run typecheck && bun --cwd=packages/public-contracts run typecheck && bun run typecheck:governance && bun run build:studio && bun run build:web && bun run build:control',
+      'bun --cwd=packages/brand run typecheck && bun --cwd=packages/design-tokens run typecheck && bun --cwd=packages/public-contracts run typecheck && bun run typecheck:governance && bun run build:studio && bun run build:web && bun run build:site-runtime && bun run build:control',
     )
     expect(studio.scripts).toMatchObject({
       dev: 'bun run scripts/dev.ts',
@@ -137,34 +136,28 @@ describe('FUMA-WEB-003 self-host parity after the apps/studio move', () => {
     expect(dockerfile).not.toContain('COPY --chown=bun:bun server ./server')
   })
 
-  test('retains SQLite/PostgreSQL selection and root environment examples', () => {
+  test('requires PostgreSQL configuration and root environment examples', () => {
     expect(readServerConfig({})).toMatchObject({
       port: 3001,
-      databaseUrl: 'sqlite:./.tmp/dev.db',
+      databaseUrl: 'postgres://instatic:instatic@127.0.0.1:5433/instatic',
       uploadsDir: './uploads',
       staticDir: './dist',
     })
-    expect(isSqliteUrl('sqlite:/srv/instatic/cms.db')).toBe(true)
-    expect(isSqliteUrl('file:/srv/instatic/cms.db')).toBe(true)
-    expect(isSqliteUrl('/srv/instatic/cms.db')).toBe(true)
-    expect(isSqliteUrl('postgres://instatic:secret@postgres:5432/instatic')).toBe(false)
-    expect(isSqliteUrl('postgresql://instatic:secret@postgres:5432/instatic')).toBe(false)
 
     const dbFactory = readStudioFile('server/db/index.ts')
     expectFragments(dbFactory, [
+      "import { createPostgresClient } from './postgres'",
       "import { pgMigrations } from './migrations-pg'",
-      "import { sqliteMigrations } from './migrations-sqlite'",
-      "databaseUrl.startsWith('postgres:') || databaseUrl.startsWith('postgresql:')",
-      'migrations: sqliteMigrations',
       'migrations: pgMigrations',
+      'PostgreSQL is required',
     ])
+    expect(dbFactory).not.toMatch(/createSqliteClient|sqliteMigrations/)
 
     const localEnv = readWorkspaceFile('.env.example')
     expectFragments(localEnv, [
-      'DATABASE_URL=sqlite:./.tmp/dev.db',
       'DATABASE_URL=postgres://instatic:instatic@127.0.0.1:5433/instatic',
       'UPLOADS_DIR=./uploads',
-      'STATIC_DIR=./dist',
+      'STATIC_DIR=./apps/studio/dist',
     ])
 
     const productionEnv = readWorkspaceFile('.env.production.example')
@@ -211,17 +204,16 @@ describe('FUMA-WEB-003 self-host parity after the apps/studio move', () => {
     ])
   })
 
-  test('keeps SQLite data, uploads, TLS state, and published artefacts on durable volumes', () => {
-    const sqlite = readWorkspaceFile('compose.sqlite.yml')
+  test('keeps PostgreSQL data, uploads, TLS state, and published artefacts durable', () => {
+    const production = readWorkspaceFile('compose.prod.yml')
     const tls = readWorkspaceFile('compose.tls.yml')
     const staticArtefact = readStudioFile('server/publish/staticArtefact.ts')
 
-    expectFragments(sqlite, [
-      "profiles: ['_disabled']",
-      'DATABASE_URL: sqlite:/app/data/cms.db',
-      '- data:/app/data',
-      'depends_on: !reset {}',
-      'data:',
+    expectFragments(production, [
+      '- postgres_data:/var/lib/postgresql/data',
+      '- uploads:/app/uploads',
+      'postgres_data:',
+      'uploads:',
     ])
     expectFragments(tls, [
       'image: caddy:2-alpine',
@@ -264,7 +256,6 @@ describe('FUMA-WEB-003 self-host parity after the apps/studio move', () => {
     expect(bundleFiles).toEqual(expect.arrayContaining([
       'Caddyfile',
       'compose.prod.yml',
-      'compose.sqlite.yml',
       'compose.tls.yml',
       '.env.production.example',
       'docs/deployment/README.md',
@@ -274,7 +265,6 @@ describe('FUMA-WEB-003 self-host parity after the apps/studio move', () => {
       'docs/deployment/backup-restore.md',
       'docs/deployment/railway.md',
       'docs/deployment/render.md',
-      'docs/deployment/render/sqlite/render.yaml',
       'docs/deployment/render/postgres/render.yaml',
     ]))
     expectFragments(builder, [

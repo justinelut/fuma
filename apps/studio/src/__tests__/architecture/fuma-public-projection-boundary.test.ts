@@ -33,7 +33,7 @@ function violations(input: BoundarySources): string[] {
   if (/from ['"](?:@fuma\/studio|.*apps\/studio|.*server\/|.*repositories\/|.*auth\/)/.test(input.web)) findings.push('app-authority-import')
   if (/from ['"]zod/.test(`${input.contracts}\n${input.web}`)) findings.push('zod')
   if (/headers\s*:\s*(?:request|req)\.headers|cookie['"]?\s*:\s*(?:request|req)\.headers/i.test(input.web)) findings.push('credential-forwarding')
-  if (/https?:\/\/api\.fuma\.co\.ke/.test(`${input.web}\n${input.route}`)) findings.push('public-api-host')
+  if (/https?:\/\/api\.trimly\.co\.ke/.test(`${input.web}\n${input.route}`)) findings.push('public-api-host')
   if (!input.web.includes("authorization: `Bearer ${config.serviceToken}`")) findings.push('missing-service-credential')
   if (!input.web.includes("request.headers.get('if-none-match')")) findings.push('missing-etag')
   if (!input.web.includes('Value.Check(SPECS[resource].query')) findings.push('unbounded-filter')
@@ -52,7 +52,7 @@ describe('FUMA-WEB-006 public projection architecture', () => {
     { expected: 'app-authority-import', mutate: (value) => ({ ...value, web: `import x from '@fuma/studio/server/auth'\n${value.web}` }) },
     { expected: 'zod', mutate: (value) => ({ ...value, web: `import { z } from 'zod'\n${value.web}` }) },
     { expected: 'credential-forwarding', mutate: (value) => ({ ...value, web: `${value.web}\nfetch(url, { headers: request.headers })` }) },
-    { expected: 'public-api-host', mutate: (value) => ({ ...value, route: `${value.route}\nconst bad = 'https://api.fuma.co.ke'` }) },
+    { expected: 'public-api-host', mutate: (value) => ({ ...value, route: `${value.route}\nconst bad = 'https://api.trimly.co.ke'` }) },
     { expected: 'missing-service-credential', mutate: (value) => ({ ...value, web: value.web.replace("authorization: `Bearer ${config.serviceToken}`", "accept: 'application/json'") }) },
     { expected: 'missing-etag', mutate: (value) => ({ ...value, web: value.web.replace("request.headers.get('if-none-match')", 'null') }) },
     { expected: 'unbounded-filter', mutate: (value) => ({ ...value, web: value.web.replace('Value.Check(SPECS[resource].query', 'Boolean(') }) },

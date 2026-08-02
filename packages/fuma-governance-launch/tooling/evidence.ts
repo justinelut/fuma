@@ -63,11 +63,12 @@ const report = {
     migrationHighWaterMark: '000039_launch_evidence_privacy',
     runtimeImage: digests.runtime ?? 'ghcr.io/corebunch/fuma-runtime@sha256:' + zeroSha256,
     webImage: digests.web ?? 'ghcr.io/corebunch/fuma-web@sha256:' + zeroSha256,
+    siteRuntimeImage: digests['site-runtime'] ?? 'ghcr.io/corebunch/fuma-site-runtime@sha256:' + zeroSha256,
     deploymentArtifacts: {
       controlSurfacesImage: digests['control-surfaces'] ?? 'ghcr.io/corebunch/fuma-control-surfaces@sha256:' + zeroSha256,
       opsImage: digests.ops ?? 'ghcr.io/corebunch/fuma-ops@sha256:' + zeroSha256,
     },
-    architectures: ['linux/amd64', 'linux/arm64'],
+    architectures: ['linux/arm64'],
     sbomHashSha256: zeroSha256,
     provenanceHashSha256: zeroSha256,
     smokeEvidenceHashSha256: zeroSha256,

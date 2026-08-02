@@ -2,7 +2,7 @@
  * Integration tests — Account → Security endpoints.
  *
  * Covers self-service password changes, TOTP MFA enrollment, MFA-gated
- * login, and one-time recovery-code login against a real migrated SQLite DB.
+ * login, and one-time recovery-code login against migrated PostgreSQL.
  */
 import { createHmac } from 'node:crypto'
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -551,11 +551,9 @@ describe('Account security endpoints', () => {
     const { cookie } = await login(db)
     const { secret } = await enableMfa(db, cookie)
 
-    const schemaRows = db.dialect === 'sqlite'
-      ? await db.unsafe<{ name: string }>("select name from pragma_table_info('users')")
-      : await db.unsafe<{ name: string }>(
-        "select column_name as name from information_schema.columns where table_name = 'users'",
-      )
+    const schemaRows = await db.unsafe<{ name: string }>(
+      "select column_name as name from information_schema.columns where table_name = 'users'",
+    )
     const userColumns = schemaRows.rows.map((row) => row.name)
     expect(userColumns).not.toContain('mfa_totp_secret')
 

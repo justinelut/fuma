@@ -1,72 +1,17 @@
 import { Type, Value, type Static } from '@core/utils/typeboxHelpers'
-import { normalizePublicHost } from '../freeHosts/service'
+import { normalizeDomainHostname } from '../domains/contracts'
+import {
+  RegistrarPurchaseSchema,
+  RegistrarQuoteSchema,
+  RegistrarRenewSchema,
+  type DomainRegistration,
+  type RegistrarQuote,
+  type RegistrarRenew,
+  type RegistrarRenewalReceipt,
+  type RegistrationContact,
+} from './contracts'
 
-export const RegistrarQuoteSchema = Type.Object({
-  quoteId: Type.String({ minLength: 1, maxLength: 255 }),
-  provider: Type.String({ minLength: 1, maxLength: 255 }),
-  hostname: Type.String({ minLength: 1, maxLength: 253 }),
-  available: Type.Literal(true),
-  currency: Type.Literal('KES'),
-  registrationAmountMinor: Type.Integer({ minimum: 1 }),
-  renewalAmountMinor: Type.Integer({ minimum: 1 }),
-  periodYears: Type.Integer({ minimum: 1, maximum: 10 }),
-  expiresAt: Type.String({ format: 'date-time' }),
-  providerQuoteReference: Type.String({ minLength: 1, maxLength: 255 }),
-  termsHash: Type.String({ pattern: '^[a-f0-9]{64}$' }),
-}, { additionalProperties: false })
-export type RegistrarQuote = Static<typeof RegistrarQuoteSchema>
-
-export const RegistrationContactSchema = Type.Object({
-  name: Type.String({ minLength: 1, maxLength: 200 }),
-  email: Type.String({ format: 'email' }),
-  phoneE164: Type.String({ pattern: '^\\+254[0-9]{9}$' }),
-  address: Type.String({ minLength: 1, maxLength: 500 }),
-  country: Type.Literal('KE'),
-}, { additionalProperties: false })
-export type RegistrationContact = Static<typeof RegistrationContactSchema>
-
-export const RegistrarPurchaseSchema = Type.Object({
-  organizationId: Type.String({ minLength: 1, maxLength: 255 }),
-  quoteId: Type.String({ minLength: 1, maxLength: 255 }),
-  expectedAmountMinor: Type.Integer({ minimum: 1 }),
-  currency: Type.Literal('KES'),
-  contact: RegistrationContactSchema,
-  stepUpProof: Type.String({ minLength: 1, maxLength: 2048 }),
-}, { additionalProperties: false })
-
-export const RegistrarRenewSchema = Type.Object({
-  organizationId: Type.String({ minLength: 1, maxLength: 255 }),
-  registrationId: Type.String({ minLength: 1, maxLength: 255 }),
-  quoteId: Type.String({ minLength: 1, maxLength: 255 }),
-  expectedAmountMinor: Type.Integer({ minimum: 1 }),
-  currency: Type.Literal('KES'),
-  periodYears: Type.Integer({ minimum: 1, maximum: 10 }),
-  stepUpProof: Type.String({ minLength: 1, maxLength: 2048 }),
-}, { additionalProperties: false })
-export type RegistrarRenew = Static<typeof RegistrarRenewSchema>
-
-export type DomainRegistration = Readonly<{
-  registrationId: string
-  quoteId: string
-  hostname: string
-  providerReference: string
-  registeredAt: string
-  expiresAt: string
-  state: 'active' | 'ambiguous' | 'renewal-due'
-  receiptId: string
-}>
-export type RegistrarRenewalReceipt = Readonly<{
-  receiptId: string
-  registrationId: string
-  quoteId: string
-  idempotencyKey: string
-  providerReference: string
-  previousExpiresAt: string
-  expiresAt: string
-  amountMinor: number
-  currency: 'KES'
-  periodYears: number
-}>
+export * from './contracts'
 
 const PurchaseResultSchema = Type.Object({
   providerReference: Type.String({ minLength: 1, maxLength: 255 }),
@@ -98,6 +43,8 @@ export interface RegistrarRepository {
   saveRenewal(receipt: RegistrarRenewalReceipt): Promise<RegistrarRenewalReceipt>
 }
 export interface StepUpAuthority { consume(proof: string, purpose: string): Promise<boolean> }
+
+function normalizeRegistrarHost(input: string): string { return normalizeDomainHostname(input).hostname }
 
 export class RegistrarError extends Error {
   readonly code: 'invalid' | 'stale-quote' | 'changed-quote' | 'step-up' | 'entitlement' | 'ambiguous';
@@ -133,12 +80,12 @@ export class RegistrarService {
 
   async searchAndQuote(hostnameInput: string, years: number): Promise<RegistrarQuote> {
     if (!Number.isSafeInteger(years) || years < 1 || years > 10) throw new RegistrarError('invalid', 'Registration period must be between one and ten years.')
-    const hostname = normalizePublicHost(hostnameInput)
+    const hostname = normalizeRegistrarHost(hostnameInput)
     const found = await this.adapter.search(hostname)
     if (!found.available) throw new RegistrarError('invalid', 'Domain is unavailable.')
     const quote = await this.adapter.quote(hostname, years)
     if (!Value.Check(RegistrarQuoteSchema, quote)
-      || normalizePublicHost(quote.hostname) !== hostname
+      || normalizeRegistrarHost(quote.hostname) !== hostname
       || quote.periodYears !== years
       || Date.parse(quote.expiresAt) <= this.now().getTime()) {
       throw new RegistrarError('changed-quote', 'Registrar quote does not match the exact search request.')
@@ -174,7 +121,7 @@ export class RegistrarService {
     const registration = await this.repository.saveRegistration(Object.freeze({
       registrationId: `registration:${quote.quoteId}`,
       quoteId: quote.quoteId,
-      hostname: normalizePublicHost(quote.hostname),
+      hostname: normalizeRegistrarHost(quote.hostname),
       providerReference: purchased.providerReference,
       registeredAt: purchased.registeredAt,
       expiresAt: purchased.expiresAt,
@@ -193,7 +140,7 @@ export class RegistrarService {
     const registration = await this.repository.registration(input.registrationId)
     if (!registration || registration.state === 'ambiguous') throw new RegistrarError('invalid', 'Exact active registration is unavailable.')
     const quote = currentQuote(await this.repository.quote(input.quoteId), this.now())
-    if (normalizePublicHost(quote.hostname) !== normalizePublicHost(registration.hostname)
+    if (normalizeRegistrarHost(quote.hostname) !== normalizeRegistrarHost(registration.hostname)
       || quote.renewalAmountMinor !== input.expectedAmountMinor
       || quote.currency !== input.currency
       || quote.periodYears !== input.periodYears) {

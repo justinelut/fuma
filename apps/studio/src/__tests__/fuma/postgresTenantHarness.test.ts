@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import type { DbClient, DbResult } from '../../../server/db/client'
 import { createPostgresClient } from '../../../server/db/postgres'
-import { createSqliteClient } from '../../../server/db/sqlite'
 import {
-  PostgresTenantFixtureRequiredError,
   SecretShapedFixtureDataError,
   createPostgresTenantFixtureHarness,
 } from '../helpers/fuma/postgresTenantHarness'
@@ -32,12 +30,6 @@ function createCallCountingPostgresDb(): { db: DbClient; calls: () => number } {
 }
 
 describe('FUMA-002 PostgreSQL tenant fixture harness unit boundary', () => {
-  it('fails closed before issuing SQL for a non-PostgreSQL client', () => {
-    const sqlite = createSqliteClient(':memory:')
-    expect(() => createPostgresTenantFixtureHarness(sqlite, 'fail-closed'))
-      .toThrow(PostgresTenantFixtureRequiredError)
-  })
-
   it('rejects secret-shaped fixture keys and values before creating a schema', async () => {
     const secretKeys = [
       'password',

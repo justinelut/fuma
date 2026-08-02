@@ -253,7 +253,7 @@ implements EditorScopedStorageTransaction {
         value_json
       ) values (
         ${key.platformId}, ${key.ownerKey}, ${key.generation},
-        ${key.resourceKind}, ${key.logicalId}, ${valueJson}
+        ${key.resourceKind}, ${key.logicalId}, ${valueJson}::text::jsonb
       )
       on conflict (
         platform_id, owner_key, owner_generation, resource_kind, logical_id
@@ -377,7 +377,7 @@ implements EditorScopedStorageTransaction {
         ${key.platformId}, ${key.ownerKey}, ${key.generation}, ${key.profileId},
         ${key.resourceKind}, ${key.logicalId}, ${mutationId},
         ${receipt.requestHash}, ${receipt.expectedSequence},
-        ${receipt.acceptedSequence}, ${documentJson}
+        ${receipt.acceptedSequence}, ${documentJson}::text::jsonb
       )
     `
   }

@@ -1,3 +1,4 @@
+import { FUMA_GOVERNANCE_DEPLOYMENT } from './deployment'
 import {
   LaunchGateSchema,
   PairedReleaseManifestSchema,
@@ -25,32 +26,39 @@ export function verifyPairedRelease(value: unknown): PairedReleaseManifest {
     manifest.lockHashSha256,
     manifest.runtimeIndexHashSha256,
     manifest.webIndexHashSha256,
+    manifest.siteRuntimeIndexHashSha256,
     manifest.runtimeScanReportHashSha256,
     manifest.webScanReportHashSha256,
+    manifest.siteRuntimeScanReportHashSha256,
     manifest.runtimeSbomHashSha256,
     manifest.webSbomHashSha256,
+    manifest.siteRuntimeSbomHashSha256,
     manifest.runtimeProvenanceHashSha256,
     manifest.webProvenanceHashSha256,
+    manifest.siteRuntimeProvenanceHashSha256,
     manifest.runtimeSignatureVerificationHashSha256,
     manifest.webSignatureVerificationHashSha256,
+    manifest.siteRuntimeSignatureVerificationHashSha256,
     manifest.runtimeSmokeEvidenceHashSha256,
     manifest.webSmokeEvidenceHashSha256,
+    manifest.siteRuntimeSmokeEvidenceHashSha256,
     manifest.publicationPlanHashSha256,
     manifestHashSha256,
   ]
-  const runtimeDigest = manifest.runtimeImage.slice(-64)
-  const webDigest = manifest.webImage.slice(-64)
+  const imageDigests = [manifest.runtimeImage, manifest.webImage, manifest.siteRuntimeImage].map((image) => image.slice(-64))
   if (/^0{40}(?:0{24})?$/.test(manifest.sourceSha)
     || evidenceHashes.some((hash) => /^0{64}$/.test(hash))
-    || /^0{64}$/.test(runtimeDigest)
-    || /^0{64}$/.test(webDigest)) {
+    || imageDigests.some((digest) => /^0{64}$/.test(digest))) {
     throw new LaunchPolicyError('mixed-release', 'Placeholder release evidence is not promotable.')
   }
-  if (runtimeDigest === webDigest || manifest.runtimeImage.includes('REQUIRED_') || manifest.webImage.includes('REQUIRED_')) {
-    throw new LaunchPolicyError('mixed-release', 'Runtime and public web require separate immutable images.')
+  if (new Set(imageDigests).size !== imageDigests.length
+    || [manifest.runtimeImage, manifest.webImage, manifest.siteRuntimeImage].some((image) => image.includes('REQUIRED_'))) {
+    throw new LaunchPolicyError('mixed-release', 'Runtime, public web, and site runtime require separate immutable images.')
   }
-  if (manifest.runtimeImageSourceSha !== manifest.sourceSha || manifest.webImageSourceSha !== manifest.sourceSha) {
-    throw new LaunchPolicyError('mixed-release', 'Runtime and public web image source revisions must match the paired release source revision.')
+  if (manifest.runtimeImageSourceSha !== manifest.sourceSha
+    || manifest.webImageSourceSha !== manifest.sourceSha
+    || manifest.siteRuntimeImageSourceSha !== manifest.sourceSha) {
+    throw new LaunchPolicyError('mixed-release', 'All image source revisions must match the paired release source revision.')
   }
   if (pairedReleaseManifestHash(hashInput) !== manifestHashSha256) {
     throw new LaunchPolicyError('mixed-release', 'Paired release manifest hash does not match its canonical immutable content.')
@@ -74,7 +82,13 @@ export type DeploySmokeEvidence = Readonly<{
 
 export function authorizePromotion(releaseValue: unknown, evidence: DeploySmokeEvidence): PairedReleaseManifest {
   const release = verifyPairedRelease(releaseValue)
-  const requiredHosts = ['fuma.co.ke', 'auth.fuma.co.ke', 'app.fuma.co.ke', 'admin.fuma.co.ke', '*.fuma.co.ke']
+  const requiredHosts = [
+    FUMA_GOVERNANCE_DEPLOYMENT.hosts.public,
+    FUMA_GOVERNANCE_DEPLOYMENT.hosts.auth,
+    FUMA_GOVERNANCE_DEPLOYMENT.hosts.product,
+    FUMA_GOVERNANCE_DEPLOYMENT.hosts.console,
+    FUMA_GOVERNANCE_DEPLOYMENT.tenantWildcard,
+  ]
   const timings = [evidence.backupAgeSeconds, evidence.rpoSeconds, evidence.rtoSeconds, evidence.observedRestoreSeconds]
   if (evidence.releaseSourceSha !== release.sourceSha || evidence.migrationHighWaterMark !== release.migrationHighWaterMark || requiredHosts.some((host) => !evidence.exactHosts.includes(host)) || !evidence.unknownHostDenied || !evidence.parentDomainCookieAbsent || !timings.every((value) => Number.isSafeInteger(value) && value >= 0) || evidence.rpoSeconds <= 0 || evidence.rtoSeconds <= 0 || evidence.backupAgeSeconds > evidence.rpoSeconds || evidence.observedRestoreSeconds > evidence.rtoSeconds || !/^[a-f0-9]{64}$/.test(evidence.restoreCountsHashSha256) || !/^[a-f0-9]{64}$/.test(evidence.restoreObjectsHashSha256)) throw new LaunchPolicyError('promotion-blocked', 'Migration, host, backup, or restore evidence blocks promotion.')
   return release
@@ -137,7 +151,7 @@ export function validateCapacityEconomics(evidence: CapacityEvidence): { grossMa
 }
 
 export type PilotEvidence = Readonly<{
-  sqliteTransitionHashMatched: boolean
+  postgresMigrationHashMatched: boolean
   ghostManifestHashMatched: boolean
   lawyerInventoryComplete: boolean
   immutableGrandfatheredContract: boolean
@@ -150,7 +164,7 @@ export type PilotEvidence = Readonly<{
 }>
 
 export function acceptPilot(evidence: PilotEvidence): PilotEvidence {
-  if (!evidence.sqliteTransitionHashMatched || !evidence.ghostManifestHashMatched || !evidence.lawyerInventoryComplete || !evidence.immutableGrandfatheredContract || !evidence.ociEmailActive || !evidence.routeMemberAccessParity || !evidence.providerPaymentsReconciled || !evidence.rollbackRestoredHash || evidence.severityOneOpen !== 0 || new Set(evidence.signedBy).size < 2) throw new LaunchPolicyError('pilot-denied', 'Migration, Lawyer pilot, or rollback evidence is incomplete.')
+  if (!evidence.postgresMigrationHashMatched || !evidence.ghostManifestHashMatched || !evidence.lawyerInventoryComplete || !evidence.immutableGrandfatheredContract || !evidence.ociEmailActive || !evidence.routeMemberAccessParity || !evidence.providerPaymentsReconciled || !evidence.rollbackRestoredHash || evidence.severityOneOpen !== 0 || new Set(evidence.signedBy).size < 2) throw new LaunchPolicyError('pilot-denied', 'Migration, Lawyer pilot, or rollback evidence is incomplete.')
   return Object.freeze(structuredClone(evidence))
 }
 

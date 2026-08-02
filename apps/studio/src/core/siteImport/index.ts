@@ -63,6 +63,133 @@ export type { SiteImportAdapter, SiteImportTransaction } from './adapter'
 export { buildImportPlan } from './buildPlan'
 export { commitImportPlan } from './commitPlan'
 
+// ── FUMA-077 — non-executing Next.js source analysis ─────────────────────────
+
+export { analyzeNextSource } from './analyzeNextSource'
+export {
+  NEXT_SOURCE_INSTALLED_VERSIONS,
+  NEXT_SOURCE_POLICY_VERSION,
+  classifyNextSourceImport,
+} from './nextSourcePolicy'
+export {
+  NextSourceAnalysisReportSchema,
+  NextSourceAnalysisRequestSchema,
+  NextSourceAssetEvidenceSchema,
+  NextSourceConfigurationEvidenceSchema,
+  NextSourceDependencyEvidenceSchema,
+  NextSourceDestinationSchema,
+  NextSourceDiagnosticCategorySchema,
+  NextSourceDiagnosticSchema,
+  NextSourceFileEvidenceSchema,
+  NextSourceImportSchema,
+  NextSourceInteractionAuthoritySchema,
+  NextSourceInteractionBindingSchema,
+  NextSourceInteractionEvidenceSchema,
+  NextSourceInteractionKindSchema,
+  NextSourceModuleSchema,
+  NextSourcePackageEvidenceSchema,
+  NextSourceProvenanceSchema,
+  NextSourceRouteSchema,
+  NextSourceSpanSchema,
+  NextSourceStyleEvidenceSchema,
+} from './nextSourceContracts'
+export {
+  isNextSourceInteractionAuthorityAvailable,
+  isReviewedNextSourceInteractionBinding,
+  nextSourceAuthoritiesForInteraction,
+} from './nextSourceInteractionBindings'
+export type {
+  NextSourceAnalysisReport,
+  NextSourceAnalysisRequest,
+  NextSourceAssetEvidence,
+  NextSourceConfigurationEvidence,
+  NextSourceDependencyEvidence,
+  NextSourceDestination,
+  NextSourceDiagnostic,
+  NextSourceDiagnosticCategory,
+  NextSourceFileEvidence,
+  NextSourceImport,
+  NextSourceInteractionAuthority,
+  NextSourceInteractionBinding,
+  NextSourceInteractionEvidence,
+  NextSourceInteractionKind,
+  NextSourceModule,
+  NextSourcePackageEvidence,
+  NextSourceProvenance,
+  NextSourceRoute,
+  NextSourceSpan,
+  NextSourceStyleEvidence,
+} from './nextSourceContracts'
+
+// ── FUMA-077 — portability workflow ─────────────────────────────────────────
+
+export {
+  GitHubAppNextSourceIngestor,
+  ingestLocalNextSource,
+  normalizeNextSourceFolderRoot,
+} from './nextSourceIngestion'
+export type {
+  NextSourceGitHubAppTokenPort,
+  NextSourceGitHubTokenRequest,
+  NextSourceGitHubFetchPort,
+  NextSourceIngestResult,
+  NextSourceLocalInput,
+  NextSourceTokenLease,
+} from './nextSourceIngestion'
+export {
+  buildNextSourceGoogleFontSystemFix,
+} from './nextSourceFontAdaptation'
+export {
+  MemoryNextSourceDraftRepository,
+  NextSourceAdaptationService,
+  nextSourceCanPublish,
+} from './nextSourceAdaptation'
+export type {
+  NextSourceAdaptationAuthorityPort,
+  NextSourceDraftRepository,
+  NextSourceOwnerConfirmationPort,
+} from './nextSourceAdaptation'
+export {
+  buildNextSourceExport,
+  exportNextSourceToGitHub,
+} from './nextSourceExport'
+export type {
+  NextSourceExportArtifact,
+  NextSourceGitHubExportPort,
+} from './nextSourceExport'
+export {
+  NextSourceDraftRevisionSchema,
+  NextSourceExportAdapterSchema,
+  NextSourceExportManifestSchema,
+  NextSourceExportRequestSchema,
+  NextSourceFixAuthoritySchema,
+  NextSourceFixReceiptSchema,
+  NextSourceGoogleFontSystemFixPlanSchema,
+  NextSourceGoogleFontSystemMappingSchema,
+  NextSourceGitHubExportReceiptSchema,
+  NextSourceGitHubExportRequestSchema,
+  NextSourceGitHubSelectionSchema,
+  NextSourceIngestReceiptSchema,
+  NextSourcePatchSchema,
+  NextSourceRollbackReceiptSchema,
+} from './nextSourcePortabilityContracts'
+export type {
+  NextSourceDraftRevision,
+  NextSourceExportAdapter,
+  NextSourceExportManifest,
+  NextSourceExportRequest,
+  NextSourceFixAuthority,
+  NextSourceFixReceipt,
+  NextSourceGoogleFontSystemFixPlan,
+  NextSourceGoogleFontSystemMapping,
+  NextSourceGitHubExportReceipt,
+  NextSourceGitHubExportRequest,
+  NextSourceGitHubSelection,
+  NextSourceIngestReceipt,
+  NextSourcePatch,
+  NextSourceRollbackReceipt,
+} from './nextSourcePortabilityContracts'
+
 // ── Shared types ──────────────────────────────────────────────────────────────
 
 export type {

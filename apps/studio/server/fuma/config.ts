@@ -1,4 +1,8 @@
-import { FUMA_PUBLIC_IDENTITY } from '@fuma/brand'
+import {
+  createFumaDeploymentProfile,
+  FUMA_PUBLIC_IDENTITY,
+  readFumaDeploymentProfile,
+} from '@fuma/brand'
 import {
   Type,
   safeParseValue,
@@ -70,8 +74,15 @@ export const FumaConfigSchema = Type.Object({
   environment: EnvironmentSchema,
   role: RoleSchema,
   hosts: Type.Object({
-    product: HostSchema,
+    rootDomain: HostSchema,
     marketing: HostSchema,
+    redirect: HostSchema,
+    auth: HostSchema,
+    product: HostSchema,
+    console: HostSchema,
+    status: HostSchema,
+    templatePreview: HostSchema,
+    customerRouting: HostSchema,
     marketingStatus: Type.Literal('deferred'),
   }, { additionalProperties: false }),
   database: Type.Object({
@@ -156,7 +167,7 @@ type RequiredClass = Readonly<{
 }>
 
 const PRODUCTION_REQUIRED_CLASSES: readonly RequiredClass[] = [
-  { name: 'reserved hosts', variables: ['FUMA_PRODUCT_HOST', 'FUMA_MARKETING_HOST'] },
+  { name: 'deployment root', variables: ['FUMA_DEPLOYMENT_ROOT_DOMAIN'] },
   { name: 'runtime role', variables: ['FUMA_ROLE'] },
   { name: 'PostgreSQL', variables: ['DATABASE_URL'] },
   { name: 'Redis', variables: ['FUMA_REDIS_URL'] },
@@ -389,11 +400,29 @@ function assertConfigInvariants(config: FumaConfig): void {
   }
 
   if (config.environment === 'production') {
-    if (config.hosts.product !== FUMA_PRODUCT_METADATA.product.host
-      || config.hosts.marketing !== FUMA_PRODUCT_METADATA.marketing.host) {
+    let expected
+    try {
+      expected = createFumaDeploymentProfile(config.hosts.rootDomain)
+    } catch {
       throw new FumaConfigurationError(
-        'Fuma production reserved hosts must match the product metadata.',
-        'FUMA_PRODUCT_HOST',
+        'Fuma production deployment root is invalid.',
+        'FUMA_DEPLOYMENT_ROOT_DOMAIN',
+      )
+    }
+    const hostPairs = [
+      [config.hosts.marketing, expected.hosts.public],
+      [config.hosts.redirect, expected.hosts.redirect],
+      [config.hosts.auth, expected.hosts.auth],
+      [config.hosts.product, expected.hosts.product],
+      [config.hosts.console, expected.hosts.console],
+      [config.hosts.status, expected.hosts.status],
+      [config.hosts.templatePreview, expected.hosts.templatePreview],
+      [config.hosts.customerRouting, expected.hosts.customerRouting],
+    ] as const
+    if (hostPairs.some(([actual, derived]) => actual !== derived)) {
+      throw new FumaConfigurationError(
+        'Fuma production hosts must be derived from the deployment root.',
+        'FUMA_DEPLOYMENT_ROOT_DOMAIN',
       )
     }
     if (!config.staffCookie.secure
@@ -422,12 +451,28 @@ export function readFumaConfig(env: Env = process.env): FumaConfig {
     ? { ...LOCAL_DEFAULTS, ...localOverrides }
     : env
 
+  let deployment
+  if (environment === 'production') {
+    try {
+      deployment = readFumaDeploymentProfile(source, { required: true })
+    } catch {
+      throw invalidConfiguration('FUMA_DEPLOYMENT_ROOT_DOMAIN')
+    }
+  }
+
   const candidate = {
     environment,
     role: enumValue(requiredValue(source, 'FUMA_ROLE'), ['web', 'worker', 'scheduler'], 'FUMA_ROLE'),
     hosts: {
-      product: validateValue(HostSchema, requiredValue(source, 'FUMA_PRODUCT_HOST'), 'FUMA_PRODUCT_HOST'),
-      marketing: validateValue(HostSchema, requiredValue(source, 'FUMA_MARKETING_HOST'), 'FUMA_MARKETING_HOST'),
+      rootDomain: deployment?.rootDomain ?? 'localhost',
+      marketing: deployment?.hosts.public ?? validateValue(HostSchema, requiredValue(source, 'FUMA_MARKETING_HOST'), 'FUMA_MARKETING_HOST'),
+      redirect: deployment?.hosts.redirect ?? 'www.localhost',
+      auth: deployment?.hosts.auth ?? 'auth.localhost',
+      product: deployment?.hosts.product ?? validateValue(HostSchema, requiredValue(source, 'FUMA_PRODUCT_HOST'), 'FUMA_PRODUCT_HOST'),
+      console: deployment?.hosts.console ?? 'admin.localhost',
+      status: deployment?.hosts.status ?? 'status.localhost',
+      templatePreview: deployment?.hosts.templatePreview ?? 'templates.preview.localhost',
+      customerRouting: deployment?.hosts.customerRouting ?? 'customers.localhost',
       marketingStatus: 'deferred',
     },
     database: {

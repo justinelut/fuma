@@ -12,9 +12,8 @@
  *     changed — including soft-deleted rows, which are stamped too;
  *   - event ordering: site-events carry the save's seq.
  *
- * The counter lives in the single-row `site_sync_state` table (id = 1),
- * bumped with a plain `update … returning` so the same code runs on Postgres
- * and SQLite (which has no sequence objects). Allocation MUST happen inside
+ * The counter lives in the single-row `site_sync_state` table (id = 1) and is
+ * bumped with PostgreSQL `update … returning`. Allocation MUST happen inside
  * the save transaction so two concurrent saves serialize on the counter row
  * and their seqs mirror commit order.
  */

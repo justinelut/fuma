@@ -10,7 +10,12 @@ const E2E_PREVIEW_BUILD = process.env.E2E_PREVIEW_BUILD === '1'
 const E2E_BUILD_INPUT = E2E_PREVIEW_BUILD
   ? [
       path.resolve(__dirname, 'index.html'),
+      path.resolve(__dirname, 'tests/e2e/fixtures/fuma-ai-capability-dashboard-harness.html'),
       path.resolve(__dirname, 'tests/e2e/fixtures/fuma-context-harness.html'),
+      path.resolve(__dirname, 'tests/e2e/fixtures/fuma-component-catalog-harness.html'),
+      path.resolve(__dirname, 'tests/e2e/fixtures/fuma-expert-discovery-harness.html'),
+      path.resolve(__dirname, 'tests/e2e/fixtures/fuma-paid-handoff-harness.html'),
+      path.resolve(__dirname, 'tests/e2e/fixtures/fuma-next-source-portability-harness.html'),
     ]
   : undefined
 
@@ -232,9 +237,9 @@ export default defineConfig({
   },
   server: {
     watch: {
-      // Runtime-written paths: the publish pipeline bakes HTML into the uploads
-      // dir, the SQLite DB and E2E artefacts live under .tmp, and dist holds the
-      // built bundle. None are part of the client module graph, so watching them
+      // Runtime-written paths: the publish pipeline bakes HTML into uploads,
+      // E2E artifacts live under .tmp, and dist holds the built bundle. None are
+      // part of the client module graph, so watching them
       // only triggers spurious full reloads — which, during E2E, would reload the
       // admin app mid-test. Ignore them.
       ignored: ['**/.tmp/**', '**/uploads/**', '**/dist/**'],

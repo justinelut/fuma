@@ -345,11 +345,7 @@ class TransactionalDbFake {
 }
 
 describe('PostgresBaseOwnershipAdapter', () => {
-  it('requires PostgreSQL and exposes no independent content or object API', () => {
-    const fake = new TransactionalDbFake()
-    const sqlite = Object.assign(fake.client, { dialect: 'sqlite' as const })
-
-    expect(() => new PostgresBaseOwnershipAdapter(sqlite)).toThrow('PostgreSQL authority')
+  it('exposes no independent content or object API', () => {
     expect(Object.getOwnPropertyNames(PostgresBaseOwnershipAdapter.prototype)).toEqual([
       'constructor',
       'inspectBaseOwnership',

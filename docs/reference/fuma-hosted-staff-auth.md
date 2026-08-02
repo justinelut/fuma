@@ -4,7 +4,7 @@ Same-origin staff identity routes and pre-authentication UI for the Fuma product
 
 ## TL;DR
 
-Fuma mounts an allowlisted Better Auth surface only on `https://app.fuma.co.ke`. Staff sessions use the host-only `__Host-fuma_staff` cookie with `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/`, and no `Domain`. The existing self-hosted Instatic authentication path remains selected unless hosted mode is enabled.
+Fuma mounts an allowlisted Better Auth surface only on `https://app.trimly.co.ke`. Staff sessions use the host-only `__Host-fuma_staff` cookie with `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/`, and no `Domain`. The existing self-hosted Instatic authentication path remains selected unless hosted mode is enabled.
 
 ## Boundaries
 
@@ -18,7 +18,7 @@ The browser contract lives in `src/core/fuma/auth/`. `src/admin/preauth/HostedSt
 
 The session cookie is named `__Host-fuma_staff` in production. Better Auth's automatic secure-name prefix is disabled because Fuma supplies the complete `__Host-` name; the required security attributes are still explicit on every session-cookie write and deletion. Responses are rejected if Better Auth emits a staff cookie with a `Domain`, a missing required attribute, or an unexpected policy.
 
-The boundary returns `404` for customer hosts, `fuma.co.ke`, mismatched `Host` values, and deferred Better Auth endpoints. Mutating requests without the exact product `Origin` return `403`. Session and login response bodies remove bearer-token fields; the cookie remains the only browser credential.
+The boundary returns `404` for customer hosts, `trimly.co.ke`, mismatched `Host` values, and deferred Better Auth endpoints. Mutating requests without the exact product `Origin` return `403`. Session and login response bodies remove bearer-token fields; the cookie remains the only browser credential.
 
 ## Identity safety
 

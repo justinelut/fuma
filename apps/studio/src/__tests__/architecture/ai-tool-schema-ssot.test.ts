@@ -61,6 +61,7 @@ import {
   SetTypeScaleInputSchema,
   SetSpacingScaleInputSchema,
   RenderSnapshotInputSchema,
+  SiteProposePaymentSetupInputSchema,
 } from '@core/ai'
 
 const PROJECT_ROOT = join(import.meta.dir, '../../../')
@@ -96,6 +97,7 @@ const EXPECTED_SCHEMA_BY_TOOL = {
   site_set_type_scale: SetTypeScaleInputSchema,
   site_set_spacing_scale: SetSpacingScaleInputSchema,
   site_render_snapshot: RenderSnapshotInputSchema,
+  site_propose_payment_setup: SiteProposePaymentSetupInputSchema,
 } as const
 
 describe('ai-tool-schema SSOT gate', () => {

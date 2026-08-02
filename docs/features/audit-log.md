@@ -167,7 +167,7 @@ The Dashboard widget is display-only and curated for operational changes; the Us
 
 ## Schema migration
 
-`audit_events` schema (one table, two migrations IDs identical across PG / SQLite per `migration-parity.test.ts`):
+`audit_events` uses one PostgreSQL schema migration:
 
 ```sql
 create table audit_events (
@@ -176,7 +176,7 @@ create table audit_events (
   actor_user_id   text references users(id) on delete set null,
   target_id       text,
   target_type     text,
-  metadata_json   jsonb not null default '{}',          -- text in SQLite
+  metadata_json   jsonb not null default '{}',
   ip_address      text,
   user_agent      text,
   created_at      timestamptz not null default current_timestamp,

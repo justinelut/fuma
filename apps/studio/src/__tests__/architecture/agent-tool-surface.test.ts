@@ -90,7 +90,8 @@ describe('agent-tool-surface gate', () => {
     expect(toolNames).toContain('site_clear_page_template')
   })
 
-  it('total tool count is 29 (document, HTML, node, CSS, code asset, page, template, token, and snapshot tools)', () => {
-    expect(toolNames).toHaveLength(29)
+  it('total tool count is 30 (document, HTML, node, CSS, code asset, page, template, token, snapshot, and payment proposal tools)', () => {
+    expect(toolNames).toContain('site_propose_payment_setup')
+    expect(toolNames).toHaveLength(30)
   })
 })

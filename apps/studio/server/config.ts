@@ -85,7 +85,7 @@ export function readServerConfig(
   return {
     hostname: env.HOST ?? '127.0.0.1',
     port: Number(env.PORT ?? 3001),
-    databaseUrl: env.DATABASE_URL ?? 'sqlite:./.tmp/dev.db',
+    databaseUrl: env.DATABASE_URL ?? 'postgres://instatic:instatic@127.0.0.1:5433/instatic',
     uploadsDir: env.UPLOADS_DIR ?? './uploads',
     staticDir: env.STATIC_DIR ?? './dist',
     trustedProxyCidrs: readCsvList(env.TRUSTED_PROXY_CIDRS),

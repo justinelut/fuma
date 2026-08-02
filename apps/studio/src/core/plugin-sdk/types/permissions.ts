@@ -92,6 +92,11 @@ export const PLUGIN_PERMISSION_VALUES = [
   // `hourly`, `every: { minutes }`, …) by the host's scheduler tick.
   // The handler runs inside the same QuickJS sandbox as everything else.
   'cms.schedule',
+  // Customer-merchant payments. These grant only the host-owned reviewed
+  // binding; provider credentials, webhooks, transport, and ledger remain
+  // unavailable to plugin code.
+  'payments.customer.create',
+  'payments.customer.refund',
   // Reserved
   'unstable.internals',
 ] as const

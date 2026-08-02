@@ -1,19 +1,15 @@
 import {
-  AiPaymentProposalSchema,
-  CustomerPaymentRequestSchema,
   PluginArtifactSchema,
   PluginInstallationSchema,
   PluginReviewSchema,
   parseStrict,
-  type AiPaymentProposal,
-  type CustomerPaymentRequest,
   type PluginArtifact,
   type PluginInstallation,
   type PluginReview,
 } from './contracts'
 
 export class PluginGovernanceError extends Error {
-  constructor(readonly code: 'artifact-mutated' | 'scope-denied' | 'review-denied' | 'signature-denied' | 'payment-denied' | 'confirmation-required', message: string) {
+  constructor(readonly code: 'artifact-mutated' | 'scope-denied' | 'review-denied' | 'signature-denied', message: string) {
     super(message)
     this.name = 'PluginGovernanceError'
   }
@@ -91,57 +87,6 @@ export class PluginReviewService {
     if (review.decision !== 'approved' || !review.signature || review.packageHashSha256 !== artifact.packageHashSha256 || !await this.signer.verify(review.packageHashSha256, review.submissionId, review.signature)) throw new PluginGovernanceError('signature-denied', 'Plugin review signature is invalid or revoked.')
     return review
   }
-}
-
-export interface CustomerMerchantPort {
-  createCheckout(input: CustomerPaymentRequest): Promise<{ checkoutId: string; redirectUrl: string }>
-  verifyEvent(input: { siteId: string; providerEventId: string; signature: string; rawBody: Uint8Array }): Promise<{ ledgerId: string; duplicate: boolean }>
-  refund(input: { siteId: string; ledgerId: string; reason: string }): Promise<{ refundId: string }>
-}
-
-export const CUSTOMER_PAYMENT_PLUGIN_PERMISSIONS = Object.freeze(['payments.customer.create', 'payments.customer.verify', 'payments.customer.refund'] as const)
-
-export class ReviewedCustomerPaymentBinding {
-  constructor(private readonly merchant: CustomerMerchantPort) {}
-
-  checkout(value: unknown, grant: Readonly<{ siteId: string; permissions: readonly string[]; allowedReturnOrigin: string }>) {
-    const request = parseStrict(CustomerPaymentRequestSchema, value, 'customer-payment.checkout')
-    if (request.siteId !== grant.siteId || !grant.permissions.includes('payments.customer.create')) throw new PluginGovernanceError('payment-denied', 'Customer merchant scope denied.')
-    let allowed: URL
-    try { allowed = new URL(grant.allowedReturnOrigin) } catch { throw new PluginGovernanceError('payment-denied', 'Payment return origin is invalid.') }
-    if (allowed.protocol !== 'https:' || allowed.pathname !== '/' || allowed.search || allowed.hash) throw new PluginGovernanceError('payment-denied', 'Payment return origin must be an HTTPS origin only.')
-    const absolute = new URL(request.returnPath, allowed)
-    if (absolute.origin !== allowed.origin) throw new PluginGovernanceError('payment-denied', 'Payment return origin escaped the site.')
-    return this.merchant.createCheckout(request)
-  }
-
-  verifyEvent(input: Parameters<CustomerMerchantPort['verifyEvent']>[0], grant: Readonly<{ siteId: string; permissions: readonly string[] }>) {
-    if (input.siteId !== grant.siteId || !grant.permissions.includes('payments.customer.verify')) throw new PluginGovernanceError('payment-denied', 'Payment verification scope denied.')
-    return this.merchant.verifyEvent(input)
-  }
-
-  refund(input: Parameters<CustomerMerchantPort['refund']>[0], grant: Readonly<{ siteId: string; permissions: readonly string[] }>) {
-    if (input.siteId !== grant.siteId || !grant.permissions.includes('payments.customer.refund')) throw new PluginGovernanceError('payment-denied', 'Payment refund scope denied.')
-    return this.merchant.refund(input)
-  }
-}
-
-export type AiPaymentConfirmation = Readonly<{ proposalId: string; actorId: string; nonceHashSha256: string; confirmedAt: string; stepUpAt: string }>
-
-export function confirmAiPaymentProposal(value: unknown, input: { confirmation: AiPaymentConfirmation; actorMayInstall: boolean; expectedActorId: string; nonceUnused: boolean; now: Date; review: PluginReview; artifact: PluginArtifact }): AiPaymentProposal {
-  const proposal = parseStrict(AiPaymentProposalSchema, value, 'ai.payment.proposal')
-  const confirmation = input.confirmation
-  const steppedUpAt = Date.parse(confirmation.stepUpAt)
-  const confirmedAt = Date.parse(confirmation.confirmedAt)
-  const liveStepUp = Number.isFinite(steppedUpAt) && input.now.getTime() - steppedUpAt >= 0 && input.now.getTime() - steppedUpAt <= 5 * 60_000
-  if (!input.actorMayInstall || !input.nonceUnused || proposal.createdByActorId !== input.expectedActorId || confirmation.actorId !== input.expectedActorId || proposal.proposalId !== confirmation.proposalId || proposal.confirmationNonceHashSha256 !== confirmation.nonceHashSha256 || proposal.confirmedAt !== null || Date.parse(proposal.expiresAt) <= input.now.getTime() || !liveStepUp || confirmedAt < steppedUpAt || confirmedAt > input.now.getTime() || input.review.decision !== 'approved' || input.review.scanState !== 'clean' || input.review.reviewerId === null || input.review.reviewerId === input.review.submitterId || input.review.artifactId !== proposal.reviewedArtifactId || input.artifact.artifactId !== proposal.reviewedArtifactId || input.review.packageHashSha256 !== input.artifact.packageHashSha256 || input.review.signature === null) throw new PluginGovernanceError('confirmation-required', 'Explicit live actor confirmation of the reviewed payment plugin is required.')
-  return parseStrict(AiPaymentProposalSchema, { ...proposal, confirmedAt: confirmation.confirmedAt }, 'ai.payment.confirmed')
-}
-
-export type SecureSecretEntryHandoff = Readonly<{ proposalId: string; handoffId: string; audience: 'secure-payment-settings'; expiresAt: string }>
-
-export function paymentToolResult(proposal: AiPaymentProposal, handoff: SecureSecretEntryHandoff): Readonly<Record<string, unknown>> {
-  return Object.freeze({ proposalId: proposal.proposalId, permissions: proposal.permissions, feeDisclosure: proposal.feeDisclosure, configuration: proposal.configuration, secureEntry: { audience: handoff.audience, handoffId: handoff.handoffId, path: '/secure-payment', expiresAt: handoff.expiresAt } })
 }
 
 function reviewMessage(packageHashSha256: string, submissionId: string): ArrayBuffer {

@@ -414,7 +414,7 @@ describe('FUMA-053 centrally mounted bounded webhook authority', () => {
     }))
     const runtime = { db: {} as never, paystackWebhooks: boundary }
     const valid = await handleServerRequest(new Request(
-      `https://app.fuma.co.ke${PAYSTACK_WEBHOOK_PATHS.platform_billing}`,
+      `https://app.trimly.co.ke${PAYSTACK_WEBHOOK_PATHS.platform_billing}`,
       {
         method: 'POST',
         headers: { 'x-paystack-signature': signPaystackWebhook(PLATFORM_SECRET, raw) },
@@ -422,7 +422,7 @@ describe('FUMA-053 centrally mounted bounded webhook authority', () => {
       },
     ), runtime)
     const wrongScope = await handleServerRequest(new Request(
-      `https://app.fuma.co.ke${PAYSTACK_WEBHOOK_PATHS.customer_merchant}`,
+      `https://app.trimly.co.ke${PAYSTACK_WEBHOOK_PATHS.customer_merchant}`,
       {
         method: 'POST',
         headers: { 'x-paystack-signature': signPaystackWebhook(PLATFORM_SECRET, raw) },

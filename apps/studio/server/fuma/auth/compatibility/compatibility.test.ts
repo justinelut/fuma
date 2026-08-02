@@ -25,7 +25,7 @@ import {
 
 type MemoryDatabase = Record<string, Record<string, unknown>[]>
 
-const BASE_URL = 'https://app.fuma.co.ke'
+const BASE_URL = 'https://app.trimly.co.ke'
 const SECRET = 'fuma-010-compatibility-secret-is-not-used-outside-tests'
 const PASSWORD = 'Fuma-compatibility-password-123!'
 

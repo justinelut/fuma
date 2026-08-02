@@ -104,9 +104,11 @@ export interface GhostImportExecutionPort {
 }
 
 export class GhostImportBoundaryError extends Error {
-  constructor(readonly code: 'invalid-source' | 'secret-detected' | 'relation-invalid' | 'csv-invalid' | 'receipt-invalid', message: string) {
+  readonly code: 'invalid-source' | 'secret-detected' | 'relation-invalid' | 'csv-invalid' | 'receipt-invalid'
+  constructor(code: GhostImportBoundaryError['code'], message: string) {
     super(message)
     this.name = 'GhostImportBoundaryError'
+    this.code = code
   }
 }
 

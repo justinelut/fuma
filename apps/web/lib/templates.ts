@@ -5,8 +5,9 @@ import {
 } from '@fuma/public-contracts'
 import { Value } from '@sinclair/typebox/value'
 import { readPublicData } from './public-data'
+import { FUMA_WEB_DEPLOYMENT } from './deployment-profile'
 
-export const TEMPLATE_PREVIEW_HOST = 'templates.preview.fuma.co.ke' as const
+export const TEMPLATE_PREVIEW_HOST = FUMA_WEB_DEPLOYMENT.hosts.templatePreview
 export const TEMPLATE_IMAGE_BUDGET_BYTES = 300_000 as const
 
 export type CanonicalTemplateFilters = Readonly<{

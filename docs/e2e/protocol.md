@@ -12,7 +12,7 @@ The goal is not only "does it pass?" The goal is to find product problems before
    The agent uses the UI as the source of truth. Code, database, API, and localStorage inspection are allowed only for reset, unblock, or post-finding triage.
 
 2. Use disposable data.
-   Prefer a dedicated SQLite database and uploads directory per run. Never wipe production-looking data.
+   Use a dedicated PostgreSQL test database or isolated schemas plus a run-owned uploads directory. Never target or wipe production-looking data.
 
 3. Test goals, not implementation details.
    Scenario rows describe what a user is trying to accomplish. They should not depend on component names, store actions, internal IDs, or implementation structure.
@@ -31,7 +31,7 @@ The goal is not only "does it pass?" The goal is to find product problems before
 Use the local development stack unless the user names another target:
 
 ```sh
-DATABASE_URL=sqlite:./.tmp/e2e-agent.db \
+DATABASE_URL=postgres://instatic:instatic@127.0.0.1:5433/instatic_test \
 UPLOADS_DIR=./.tmp/e2e-uploads \
 bun run dev
 ```
@@ -46,11 +46,10 @@ Before destructive reset, confirm the target is disposable:
 
 | Target | Reset Allowed By Default |
 |---|---:|
-| `.tmp/e2e-*` | Yes |
-| `.tmp/dev.db` | Yes |
+| Run-owned PostgreSQL schema/database | Yes, only when explicitly provisioned for the run |
 | `.tmp/e2e-uploads` | Yes |
 | `uploads/` | No, unless the run explicitly owns it |
-| Postgres URL | No, unless explicitly provided for this run |
+| Any other PostgreSQL URL | No |
 | Any non-local URL | No |
 
 ## Run Lifecycle
@@ -62,7 +61,7 @@ Before destructive reset, confirm the target is disposable:
    Capture branch, HEAD SHA, dirty worktree note, app URL, browser, viewport, database URL, and uploads directory.
 
 3. **Reset data**
-   Remove only the run-owned SQLite database and upload directory. Do not reset the git worktree.
+   Drop only the run-owned PostgreSQL schema/database and remove the run-owned upload directory. Do not reset the git worktree.
 
 4. **Start app**
    Start `bun run dev` with the run-owned environment, or document the existing server being used.

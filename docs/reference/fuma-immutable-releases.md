@@ -136,7 +136,7 @@ Foreign keys use `ON DELETE RESTRICT`. The service additionally rejects active d
 
 ## Self-host and migration boundary
 
-`000011_releases` belongs only to the hosted PostgreSQL stream. It creates new `fuma_*` tables, indexes, function, and trigger. It does not alter `apps/studio/server/db/migrations-pg.ts`, `apps/studio/server/db/migrations-sqlite.ts`, historical rows, or the self-host publisher in `apps/studio/server/publish/`.
+`000011_releases` belongs only to the hosted PostgreSQL stream. It creates new `fuma_*` tables, indexes, function, and trigger. It does not alter `apps/studio/server/db/migrations-pg.ts`, historical rows, or the self-host publisher in `apps/studio/server/publish/`.
 
 The finalized checksum is recorded in `apps/studio/server/fuma/db/migrations/index.ts`. Any schema change uses a new additive hosted migration.
 
@@ -170,7 +170,7 @@ The deterministic demo fixture validates a complete release, corrupts an immutab
 - Activating without re-verification or updating the pointer outside the release transaction.
 - Removing the active root directly, deleting active/retained releases, or deleting release objects from the lifecycle service.
 - Importing the semantic renderer, self-host publisher, or FUMA-009 worker service into `apps/studio/server/fuma/releases/service.ts`.
-- Rewriting historical migrations or adding a SQLite mirror for hosted releases.
+- Rewriting historical migrations or adding a non-PostgreSQL mirror for hosted releases.
 
 ## Related
 

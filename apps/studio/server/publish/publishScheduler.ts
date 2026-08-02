@@ -16,10 +16,9 @@
  *     log captures the publish event itself via the existing
  *     `auditEvent('row.publish.scheduled')` we record next to the call.
  *
- * HA-safety: leader election via the shared `withSchedulerLeaderLock`
- * (`server/db/advisoryLock.ts`), same as the plugin scheduler. Only ONE host
- * instance ticks at a time; SQLite is single-process so the lock is a no-op
- * sentinel.
+ * HA-safety: PostgreSQL advisory-lock election via the shared
+ * `withSchedulerLeaderLock` (`server/db/advisoryLock.ts`), same as the plugin
+ * scheduler. Only one host instance ticks at a time.
  *
  * Failure policy: when `publishDataRow` throws (e.g. validation fails,
  * the row got deleted between selection and publish), the row is

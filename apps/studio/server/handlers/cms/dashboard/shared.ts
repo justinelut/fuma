@@ -14,11 +14,9 @@
 import type { DbClient } from '../../../db/client'
 
 /**
- * Coerce a SQL `count(*)` result into a plain JS number. Postgres returns
- * BIGINT counts as strings; SQLite returns them as numbers; both can be
- * `null` when the query had no rows. This helper collapses all three
- * shapes to `number` with a 0 default so callers don't need to repeat the
- * triple-typeof dance.
+ * Coerce a PostgreSQL `count(*)` result into a plain JavaScript number.
+ * BIGINT counts normally arrive as strings and may be null in synthetic rows;
+ * this helper normalizes those shapes with a zero default.
  */
 export function coerceCount(raw: number | string | null | undefined): number {
   if (raw === null || raw === undefined) return 0
@@ -27,10 +25,9 @@ export function coerceCount(raw: number | string | null | undefined): number {
 }
 
 /**
- * Coerce a SQL `sum(...)` byte total into a plain JS number. Same shape
- * as {@link coerceCount} — Postgres BIGINT sums come back as strings,
- * SQLite returns numbers, both can be `null` for an empty set. Aliased
- * separately so call sites read as "this is a byte count" at a glance.
+ * Coerce a PostgreSQL `sum(...)` byte total into a plain JavaScript number.
+ * BIGINT sums arrive as strings and can be null for an empty set. This alias
+ * keeps byte-count call sites self-explanatory.
  */
 export const coerceBytes = coerceCount
 

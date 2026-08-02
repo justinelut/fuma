@@ -171,7 +171,7 @@ This is the single source of truth for slug derivation used by all admin write p
 | `server/repositories/data/shared.ts`             | Shared helpers: `userRefAt` (typed accessor per prefix — unknown prefix is a compile error), `userRefColumns` / `userRefJoin` (SQL fragment builders — the single source for the four `<prefix>_*` user-ref join columns and LEFT JOIN clauses, spliced verbatim by both `rows/mapper.ts` and `publish.ts`), `UserJoinColumns` (interface for all four `<prefix>_*` column groups — always present via LEFT JOIN, `null` when no user matched) |
 | `server/repositories/data/index.ts`              | Barrel for the whole `data/` directory                               |
 
-All repository functions are dialect-naive ANSI SQL. JSON columns end in `_json`; the SQLite adapter auto-parses on read. See [docs/reference/database-dialects.md](../reference/database-dialects.md).
+Repository functions target PostgreSQL through `DbClient`. JSON columns use `jsonb` and end in `_json`. See [docs/reference/database-dialects.md](../reference/database-dialects.md).
 
 ### Handlers
 

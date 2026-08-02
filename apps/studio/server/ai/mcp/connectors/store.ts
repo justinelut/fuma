@@ -1,8 +1,6 @@
 /**
- * MCP connector repository. Dialect-naive (ANSI SQL only): no `now()` in DML,
- * no `::` casts, no Postgres-isms. The `capabilities_json` column is written
- * as a JSON string (parsed back automatically on read — SQLite by the adapter,
- * Postgres by jsonb), matching the `writeJson` convention in other repos.
+ * MCP connector repository. `capabilities_json` is stored as PostgreSQL jsonb
+ * and returned as a hydrated JavaScript value.
  *
  * `toConnectorView` is the ONLY projection the HTTP layer may serialise: it
  * drops `tokenHash` entirely. Gated by `ai-mcp-connectors-never-leak.test.ts`.
@@ -22,7 +20,7 @@ interface ConnectorRow {
   type: string
   auth_mode: string
   token_hash: string | null
-  // `_json` column → auto-parsed to an array on read (both dialects).
+  // PostgreSQL jsonb is hydrated to an array on read.
   capabilities_json: CoreCapability[]
   created_at: string
   last_used_at: string | null

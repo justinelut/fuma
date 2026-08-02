@@ -16,12 +16,10 @@ import { ConversationDetailViewSchema } from '../../admin/ai/api'
 /**
  * Regression guard for the conversation-reopen bug: the conversation detail
  * payload must validate against the client's `ConversationDetailViewSchema`
- * after a full DB round-trip. The original bug stored an editor snapshot in a
- * `context_json` column — on SQLite the `*_json` adapter auto-parsed it back to
- * an object, which the client schema (declaring it `string | null`) rejected
- * with "Expected union value", so reopening any conversation with a context
- * failed. The column is gone; this test ensures the detail view stays
- * wire-valid on the SQLite path that exhibited the bug.
+ * after a full PostgreSQL round trip. The original bug stored an editor
+ * snapshot in `context_json` with a wire shape that disagreed with the client
+ * schema, so reopening a conversation with context failed. The column is gone;
+ * this test keeps the PostgreSQL detail view wire-valid.
  */
 describe('conversation detail round-trip', () => {
   let testDb: TestDb
@@ -68,7 +66,7 @@ describe('conversation detail round-trip', () => {
     expect('contextJson' in detail).toBe(false)
   })
 
-  it('preserves mixed and image-only user content through SQLite and the wire schema', async () => {
+  it('preserves mixed and image-only user content through PostgreSQL and the wire schema', async () => {
     const conv = await createConversationForUser(testDb.db, 'user_1', {
       scope: 'site',
       credentialId: 'cred_1',

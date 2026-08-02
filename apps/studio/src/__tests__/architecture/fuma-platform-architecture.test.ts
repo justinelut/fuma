@@ -13,7 +13,6 @@ const ROOT_CONFIG_FILES = [
   'Dockerfile',
   'compose.build.yml',
   'compose.prod.yml',
-  'compose.sqlite.yml',
   'compose.tls.yml',
 ] as const
 
@@ -200,7 +199,7 @@ function isFumaHostedPath(path: string): boolean {
 
 function isHostedMigrationPath(path: string): boolean {
   const normalized = path.replaceAll('\\', '/').toLowerCase()
-  if (normalized === 'server/db/migrations-pg.ts' || normalized === 'server/db/migrations-sqlite.ts') return false
+  if (normalized === 'server/db/migrations-pg.ts') return false
   return /(?:^|\/)server\/fuma\/(?:db\/)?(?:migrations?|schema)(?:\/|[-_.]|$)/.test(normalized)
     || /(?:^|\/)server\/db\/(?:migrations?|schema)[-_.](?:fuma|hosted)(?:\/|[-_.]|$)/.test(normalized)
     || /(?:^|\/)server\/db\/(?:fuma|hosted)[-_./](?:migrations?|schema)(?:\/|[-_.]|$)/.test(normalized)
@@ -269,53 +268,6 @@ function callUsesBinding(call: ts.CallExpression, bindings: ReadonlySet<string>)
   return ts.isIdentifier(expression) && bindings.has(expression.text)
 }
 
-function transitionSourceExpression(sourceFile: ts.SourceFile, expression: ts.Expression): boolean {
-  const current = unwrapExpression(expression)
-  if (!ts.isIdentifier(current)) return false
-  const bindings = collectStaticBindings(sourceFile).get(current.text) ?? []
-  return bindings.some((binding) => {
-    const value = unwrapExpression(binding)
-    return ts.isCallExpression(value)
-      && calleeName(value.expression) === 'flagValue'
-      && staticString(value.arguments[0]) === 'source'
-  })
-}
-
-function allowedLegacySourceOpen(path: string, sourceFile: ts.SourceFile, call: ts.CallExpression): boolean {
-  if (path.replaceAll('\\', '/') !== 'scripts/fuma-transition.ts') return false
-  const sqliteFactories = identifierAliases(sourceFile, importedBindingNames(
-    path,
-    sourceFile,
-    'createSqliteClient',
-    new Set(['server/db/sqlite']),
-  ))
-  if (!callUsesBinding(call, sqliteFactories) || call.arguments.length !== 1) return false
-
-  const pathParsers = identifierAliases(sourceFile, importedBindingNames(
-    path,
-    sourceFile,
-    'parseSqlitePath',
-    new Set(['server/db', 'server/db/index']),
-  ))
-  const sourceArgument = unwrapExpression(call.arguments[0]!)
-  if (
-    !ts.isCallExpression(sourceArgument)
-    || !callUsesBinding(sourceArgument, pathParsers)
-    || sourceArgument.arguments.length !== 1
-    || !transitionSourceExpression(sourceFile, sourceArgument.arguments[0]!)
-  ) return false
-
-  const exporters = identifierAliases(sourceFile, importedBindingNames(
-    path,
-    sourceFile,
-    'exportLegacySqlite',
-    new Set(['server/fuma/transition/exportLegacySqlite']),
-  ))
-  return ts.isCallExpression(call.parent)
-    && call.parent.arguments.some((argument) => unwrapExpression(argument) === call)
-    && callUsesBinding(call.parent, exporters)
-}
-
 function sqliteAllocationCalls(sourceFile: ts.SourceFile): ts.CallExpression[] {
   const importedFactories = new Set<string>()
   for (const statement of sourceFile.statements) {
@@ -343,31 +295,15 @@ function sqliteAllocationCalls(sourceFile: ts.SourceFile): ts.CallExpression[] {
 
 function perSiteSqliteFindings(path: string, source: string, sourceFile: ts.SourceFile | undefined): Finding[] {
   if (!isFumaHostedPath(path) || !sourceFile) return []
-  const sqliteModules = staticModuleReferences(sourceFile).filter(({ specifier }) => /(?:^|[/.:_-])sqlite(?:[/.:_-]|$)/i.test(specifier))
+  const sqliteModules = staticModuleReferences(sourceFile)
+    .filter(({ specifier }) => /(?:^|[/.:_-])sqlite(?:[/.:_-]|$)/i.test(specifier))
   const allocationCalls = sqliteAllocationCalls(sourceFile)
-  const invalidAllocations = allocationCalls.filter((call) => !allowedLegacySourceOpen(path, sourceFile, call))
-  const hasAllowedTransitionModule = sqliteModules.length > 0
-    && sqliteModules.every(({ node, specifier }) => {
-      if (
-        path.replaceAll('\\', '/') !== 'scripts/fuma-transition.ts'
-        || resolveModulePath(path, specifier) !== 'server/db/sqlite'
-        || !ts.isImportDeclaration(node)
-        || !node.importClause?.namedBindings
-        || !ts.isNamedImports(node.importClause.namedBindings)
-      ) return false
-      const imports = node.importClause.namedBindings.elements
-      return imports.length > 0 && imports.every((element) => (element.propertyName?.text ?? element.name.text) === 'createSqliteClient')
-    })
-    && allocationCalls.length > 0
-    && invalidAllocations.length === 0
   const selectsSqlite = /['"`]sqlite(?:3)?:/i.test(source)
-  if (invalidAllocations.length === 0 && !selectsSqlite && (sqliteModules.length === 0 || hasAllowedTransitionModule)) return []
+  if (sqliteModules.length === 0 && allocationCalls.length === 0 && !selectsSqlite) return []
   return [{
     path,
     rule: 'per-site-sqlite',
-    detail: invalidAllocations.length > 0
-      ? 'Fuma hosted code allocates SQLite/database files outside the validated legacy export boundary'
-      : 'Fuma hosted acceptance selects SQLite instead of PostgreSQL',
+    detail: 'Fuma hosted code references SQLite instead of the sole PostgreSQL runtime',
   }]
 }
 
@@ -826,60 +762,25 @@ describe('Fuma platform architecture policy', () => {
     expect(Object.keys(INHERITED_SINGLETON_SQL)).toEqual([])
   })
 
-  it('permits only the explicit FUMA-006 SQLite transition and cutover boundaries', () => {
-    const transitionExport = `
-      import { parseSqlitePath } from '../server/db'
-      import { createSqliteClient as openLegacyDatabase } from '../server/db/sqlite'
-      import { exportLegacySqlite as exportSource } from '../server/fuma/transition/exportLegacySqlite'
-      function flagValue(name: string) { return name }
-      const sourcePath = flagValue('source')
-      exportSource(openLegacyDatabase(parseSqlitePath(sourcePath)))
-    `
-    expectAccepted('scripts/fuma-transition.ts', transitionExport, 'per-site-sqlite')
-    expectAccepted(
-      'server/fuma/startupGuard.ts',
-      "if (isSqliteUrl(databaseUrl)) throw new Error('Hosted startup refuses SQLite after cutover')",
-      'per-site-sqlite',
-    )
-    expectAccepted(
-      'server/fuma/db/hostedMigrationRunner.ts',
-      "if (db.dialect !== 'postgres') throw new Error('SQLite is transition input only')",
-      'per-site-sqlite',
-    )
-    expectAccepted(
-      'server/fuma/transition/artifact.ts',
-      "export const format = 'fuma-legacy-sqlite-v1'",
-      'per-site-sqlite',
-    )
-
+  it('rejects every hosted SQLite module, URL, and allocation path', () => {
     expectRejected(
       'scripts/fuma-transition.ts',
-      `${transitionExport}\nopenLegacyDatabase(join(siteId, 'site.db'))`,
-      'per-site-sqlite',
-    )
-    expectRejected(
-      'scripts/fuma-transition.ts',
-      `${transitionExport}\nimport { Database } from 'bun:sqlite'`,
-      'per-site-sqlite',
-    )
-    expectRejected(
-      'server/fuma/startupGuard.ts',
-      "if (isSqliteUrl(databaseUrl)) throw new Error('refuse'); createSqliteClient(join(siteId, 'site.db'))",
-      'per-site-sqlite',
-    )
-    expectRejected(
-      'server/fuma/transition/exportLegacySqlite.ts',
-      "import { createSqliteClient as openSource } from '../../db/sqlite'; const openDatabase = openSource; openDatabase(join(customerId, 'legacy.db'))",
+      "import { Database } from 'bun:sqlite'",
       'per-site-sqlite',
     )
     expectRejected(
       'server/fuma/persistence/siteStore.ts',
-      "import { createSqliteClient as connectLegacy } from '../../db/sqlite'; const openStore = connectLegacy; openStore(siteDatabasePath)",
+      "import { createSqliteClient } from '../../db/sqlite'; createSqliteClient(siteDatabasePath)",
       'per-site-sqlite',
     )
     expectRejected(
       'server/fuma/config.ts',
-      "const inheritedDatabase = 'sqlite:./fuma.db'; export const DATABASE_URL = inheritedDatabase",
+      "export const DATABASE_URL = 'sqlite:./fuma.db'",
+      'per-site-sqlite',
+    )
+    expectRejected(
+      'server/fuma/persistence/siteStore.ts',
+      "openDatabase(join(siteId, 'site.db'))",
       'per-site-sqlite',
     )
   })

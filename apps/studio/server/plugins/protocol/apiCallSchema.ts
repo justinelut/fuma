@@ -30,6 +30,11 @@ import {
 } from './schemas/media'
 import { CryptoDigestArgSchema, CryptoSignHmacArgSchema } from './schemas/crypto'
 import {
+  CustomerPaymentCreateArgsSchema,
+  CustomerPaymentReceiptArgsSchema,
+  CustomerPaymentRefundArgsSchema,
+} from './schemas/payments'
+import {
   ContentEntriesCreateArgsSchema,
   ContentEntriesCreateManyArgsSchema,
   ContentEntriesDeleteArgsSchema,
@@ -140,6 +145,9 @@ export const ApiCallSchemas = {
   'cms.content.search': apiCallSchema('cms.content.search', ContentSearchArgsSchema),
   'cms.content.snapshot': apiCallSchema('cms.content.snapshot', ContentSnapshotArgsSchema),
   'cms.content.republishAll': apiCallSchema('cms.content.republishAll', ContentRepublishAllArgsSchema),
+  'payments.customer.create': apiCallSchema('payments.customer.create', CustomerPaymentCreateArgsSchema),
+  'payments.customer.receipt': apiCallSchema('payments.customer.receipt', CustomerPaymentReceiptArgsSchema),
+  'payments.customer.refund': apiCallSchema('payments.customer.refund', CustomerPaymentRefundArgsSchema),
   'crypto.digest': apiCallSchema('crypto.digest', Type.Tuple([CryptoDigestArgSchema])),
   'crypto.signHmac': apiCallSchema('crypto.signHmac', Type.Tuple([CryptoSignHmacArgSchema])),
 } satisfies Record<string, TSchema>

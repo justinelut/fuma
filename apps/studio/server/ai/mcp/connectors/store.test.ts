@@ -1,7 +1,5 @@
 import { describe, expect, it, beforeEach } from 'bun:test'
-import { createSqliteClient } from '../../../db/sqlite'
-import { sqliteMigrations } from '../../../db/migrations-sqlite'
-import { runMigrations } from '../../../db/runMigrations'
+import { createTestDatabase } from '../../../db/testDatabase'
 import type { DbClient } from '../../../db/client'
 import {
   createConnector,
@@ -14,8 +12,7 @@ import {
 import { hashConnectorToken } from './token'
 
 async function freshDb(): Promise<DbClient> {
-  const db = createSqliteClient(':memory:')
-  await runMigrations(db, sqliteMigrations)
+  const { db: db } = await createTestDatabase('store')
   // The FK to users(id) requires a user row to exist.
   await db`
     insert into users (id, email, email_normalized, display_name, password_hash, role_id)

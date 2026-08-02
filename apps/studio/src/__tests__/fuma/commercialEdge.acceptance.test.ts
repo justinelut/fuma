@@ -14,7 +14,7 @@ const cases=[
 ['FUMA-056','server/fuma/billing/reconciler.ts',['paid-transfer-pending','handoffCommandId','this.#transport.verify']],
 ['FUMA-057','server/fuma/quotas/service.ts',['exhausted','shadowCost: undefined','reserved']],
 ['FUMA-058','server/fuma/customerPayments/service.ts',['customer_merchant','manual-mobile-money','Daraja is not implemented.']],
-['FUMA-059','server/fuma/domains/service.ts',['AES-256-GCM','customer-automation','redacted']],
+['FUMA-059','server/fuma/domains/contracts.ts',['AES-256-GCM','customer-automation','RedactedDomainCredentialSchema']],
 ['FUMA-060','server/fuma/cloudflare/reconciler.ts',['actualQuoteApproved','paygMaximum: 50_000','marginGatePassed']],
 ['FUMA-061','server/fuma/registrar/service.ts',['stale-quote','lookupByIdempotency','stepUp.consume']],
 ['FUMA-062','server/fuma/domainOperations/service.ts',['expired-auth-code','rolled-back','siteTransferChoice']],

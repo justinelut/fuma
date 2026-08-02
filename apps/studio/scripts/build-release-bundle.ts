@@ -18,7 +18,6 @@ const archivePath = join(OUT_DIR, `${bundleName}-release-bundle.tar.gz`)
 const bundleFiles = [
   'Caddyfile',
   'compose.prod.yml',
-  'compose.sqlite.yml',
   'compose.tls.yml',
   '.env.production.example',
   'docs/deployment/README.md',
@@ -30,12 +29,10 @@ const bundleFiles = [
   'docs/deployment/render.md',
   'docs/deployment/release-workflow.md',
   'docs/deployment/self-host-smoke-harness.md',
-  'docs/deployment/render/sqlite/render.yaml',
   'docs/deployment/render/postgres/render.yaml',
 ]
 
 const renderBlueprintFiles = [
-  'docs/deployment/render/sqlite/render.yaml',
   'docs/deployment/render/postgres/render.yaml',
 ]
 
@@ -78,13 +75,7 @@ await writeFile(
 
 This bundle contains the production Compose files and deployment docs for Instatic ${version}.
 
-## SQLite, single-container install
-
-\`\`\`sh
-INSTATIC_IMAGE=ghcr.io/corebunch/instatic:${version} docker compose -f compose.prod.yml -f compose.sqlite.yml up -d
-\`\`\`
-
-## Postgres install
+## PostgreSQL install
 
 \`\`\`sh
 cp .env.production.example .env
@@ -94,12 +85,12 @@ INSTATIC_IMAGE=ghcr.io/corebunch/instatic:${version} docker compose -f compose.p
 
 ## Railway image-source install
 
-Use \`ghcr.io/corebunch/instatic:${version}\` as the Railway service source. Attach a volume at \`/app/storage\` and set:
+Use \`ghcr.io/corebunch/instatic:${version}\` as the Railway service source. Attach PostgreSQL, attach a volume at \`/app/uploads\`, and set:
 
 \`\`\`txt
 PORT=8080
-DATABASE_URL=sqlite:/app/storage/data/cms.db
-UPLOADS_DIR=/app/storage/uploads
+DATABASE_URL=<managed PostgreSQL connection URL>
+UPLOADS_DIR=/app/uploads
 STATIC_DIR=/app/dist
 RAILWAY_RUN_UID=0
 INSTATIC_SECRET_KEY=<output of openssl rand -base64 32>
@@ -110,12 +101,9 @@ Read \`docs/deployment/railway.md\`, \`docs/deployment/vps.md\`, and \`docs/depl
 
 ## Render Blueprint install
 
-Copy one of these files to a template repository as its root \`render.yaml\`:
+Copy \`docs/deployment/render/postgres/render.yaml\` to a template repository as its root \`render.yaml\`.
 
-- \`docs/deployment/render/sqlite/render.yaml\`
-- \`docs/deployment/render/postgres/render.yaml\`
-
-These release-bundle copies are already pinned to \`ghcr.io/corebunch/instatic:${version}\`.
+The release-bundle copy is already pinned to \`ghcr.io/corebunch/instatic:${version}\`.
 Read \`docs/deployment/render.md\` before publishing a Deploy to Render button.
 `,
   'utf-8',

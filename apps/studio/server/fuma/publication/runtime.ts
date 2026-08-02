@@ -18,6 +18,7 @@ import { PublicationEngagementTokenSigner } from './engagementTokens'
 export type HostedPublicationRuntime=Readonly<{
   graph:ReturnType<typeof createFumaPublicationServiceGraph>
   publicBoundary:PublicationPublicBoundary
+  jobs:FumaJobService
   jobHandlers:Readonly<Record<string,FumaScopedJobHandler>>
   close:()=>Promise<void>
 }>
@@ -43,5 +44,5 @@ export async function createHostedPublicationRuntime(input:Readonly<{db:DbClient
   })})
   await graph.scheduling.recoverAll()
   const publicBoundary=new PublicationPublicBoundary({signer:tokenSigner,deliverability:graph.deliverability,authority:new PostgresPublicationPublicAuthority(input.db),verifier:new HmacPublicationProviderEventVerifier(input.config.ociEmail.eventVerificationSecret),engagement:{signer:engagementSigner,control:graph.deliverabilityControls},redis,now})
-  return Object.freeze({graph,publicBoundary,jobHandlers:createPublicationJobHandlers(graph,now),close:async()=>{await Promise.all([readyQueue.close(),redis.close()])}})
+  return Object.freeze({graph,publicBoundary,jobs,jobHandlers:createPublicationJobHandlers(graph,now),close:async()=>{await Promise.all([readyQueue.close(),redis.close()])}})
 }

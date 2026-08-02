@@ -10,9 +10,8 @@
  *   Verifies that N path lookups collapse into ONE query, and that paths
  *   absent from the database are absent from the returned map.
  *
- * Both sets of tests run against an in-memory bun:sqlite DbClient (via
- * createTestDb) OR against a query-counting createFakeDb for the zero-query
- * case where we can't inspect SQLite internals.
+ * Both sets run against an isolated PostgreSQL test schema via `createTestDb`,
+ * or against a query-counting fake for zero-query cases.
  */
 
 import { describe, expect, it } from 'bun:test'
@@ -105,7 +104,7 @@ describe('resolveMediaIdsToPaths (Finding 1)', () => {
     expect(map.get('id-1')).toBe('/uploads/a.png')
   })
 
-  it('ids absent from the DB are absent from the map (real SQLite)', async () => {
+  it('ids absent from the PostgreSQL database are absent from the map', async () => {
     const { db, cleanup } = await createTestDb()
     try {
       const map = await resolveMediaIdsToPaths(db, ['nonexistent-1', 'nonexistent-2'])
@@ -117,7 +116,7 @@ describe('resolveMediaIdsToPaths (Finding 1)', () => {
     }
   })
 
-  it('returns correct paths for existing assets, omits missing ones (real SQLite)', async () => {
+  it('returns correct paths for existing PostgreSQL assets and omits missing ones', async () => {
     const { db, cleanup } = await createTestDb()
     try {
       await insertMediaAsset(db, 'm1', '/uploads/hero.png')
@@ -233,7 +232,7 @@ describe('prefetchMediaAssets (Finding 2)', () => {
     expect(map.size).toBe(0)
   })
 
-  it('paths absent from the DB are absent from the returned map (real SQLite)', async () => {
+  it('paths absent from PostgreSQL are absent from the returned map', async () => {
     const { db, cleanup } = await createTestDb()
     try {
       const page = makePageWithImageProp('n1', 'src', '/uploads/nonexistent.png')
@@ -246,7 +245,7 @@ describe('prefetchMediaAssets (Finding 2)', () => {
     }
   })
 
-  it('returns resolved assets for existing paths (real SQLite)', async () => {
+  it('returns resolved PostgreSQL assets for existing paths', async () => {
     const { db, cleanup } = await createTestDb()
     try {
       await insertMediaAsset(db, 'asset-1', '/uploads/hero.png')

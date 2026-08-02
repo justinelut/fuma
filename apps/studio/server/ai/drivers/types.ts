@@ -13,6 +13,7 @@ import type {
   AiBrowserBridge,
   AiMessage,
   AiProviderId,
+  AiRuntimeExecutionAuthority,
   AiStreamEvent,
   AiTool,
 } from '../runtime/types'
@@ -149,6 +150,8 @@ export interface ToolContextBase {
   readonly capabilities: readonly CoreCapability[]
   readonly scope: import('../runtime/types').ToolScope
   readonly conversationId: string
+  /** Hosted site-AI guard; omitted by the native self-hosted path. */
+  readonly authority?: AiRuntimeExecutionAuthority
   /**
    * The scope snapshot for read tools. Mutable across a turn: the browser
    * bridge refreshes it after each mutating tool (via createBridge's

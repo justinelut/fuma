@@ -4,9 +4,6 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join, posix, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
-const DialectSchema = Type.Union([Type.Literal('sqlite'), Type.Literal('postgres')])
-type Dialect = Static<typeof DialectSchema>
-
 const CliOptionsSchema = Type.Object({
   dryRun: Type.Boolean(),
   image: Type.String({ minLength: 1 }),
@@ -19,7 +16,6 @@ export type SelfHostSmokeOptions = Static<typeof CliOptionsSchema>
 
 const PlanStepSchema = Type.Object({
   id: Type.String({ minLength: 1 }),
-  dialect: Type.Optional(DialectSchema),
   command: Type.Array(Type.String(), { minItems: 1 }),
   environment: Type.Optional(Type.Record(Type.String(), Type.String())),
 }, { additionalProperties: false })
@@ -48,7 +44,7 @@ const ImageInspectSchema = Type.Array(Type.Object({
 }), { minItems: 1, maxItems: 1 })
 
 const PersistenceStateSchema = Type.Object({
-  dialect: DialectSchema,
+  dialect: Type.Literal('postgres'),
   migrationIds: Type.Array(Type.String({ minLength: 1 }), { minItems: 1 }),
   databaseMarker: Type.Union([Type.Literal('fuma-web-003-persistent-marker'), Type.Null()]),
   uploadMarker: Type.Union([Type.Literal('fuma-web-003-upload-marker'), Type.Null()]),
@@ -61,7 +57,6 @@ const DockerResourceIdsSchema = Type.Array(Type.String({ minLength: 1 }))
 const PortOutputSchema = Type.String({ pattern: '^(127\\.0\\.0\\.1|0\\.0\\.0\\.0|\\[::\\]):[0-9]+$' })
 const PortSchema = Type.Integer({ minimum: 1, maximum: 65_535 })
 
-const DIALECTS: readonly Dialect[] = ['sqlite', 'postgres']
 const DEFAULT_IMAGE = 'instatic:fuma-web-003'
 const SMOKE_PASSWORD = 'fuma-web-003-disposable-only'
 const BUNDLE_ROOT = '<temporary-release-bundle-root>'
@@ -71,7 +66,6 @@ const REQUIRED_BUNDLE_PATHS = [
   'Caddyfile',
   'INSTALL.md',
   'compose.prod.yml',
-  'compose.sqlite.yml',
   'docs/deployment/README.md',
   'docs/deployment/docker-image.md',
 ] as const
@@ -164,30 +158,25 @@ export function parseSelfHostSmokeArgs(args: readonly string[]): SelfHostSmokeOp
   return options
 }
 
-function projectName(runId: string, dialect: Dialect): string {
-  return `instatic-fuma-web-003-${runId}-${dialect}`
+function projectName(runId: string): string {
+  return `instatic-fuma-web-003-${runId}-postgres`
 }
 
-function composeFiles(dialect: Dialect, bundleRoot: string, overridePath: string): string[] {
-  const files = ['-f', join(bundleRoot, 'compose.prod.yml')]
-  if (dialect === 'sqlite') files.push('-f', join(bundleRoot, 'compose.sqlite.yml'))
-  files.push('-f', overridePath)
-  return files
+function composeFiles(bundleRoot: string, overridePath: string): string[] {
+  return ['-f', join(bundleRoot, 'compose.prod.yml'), '-f', overridePath]
 }
 
 function composeStep(
   id: string,
-  dialect: Dialect,
   options: SelfHostSmokeOptions,
   composeArgs: readonly string[],
   image = options.image,
 ): PlanStep {
   return {
     id,
-    dialect,
     command: [
-      'docker', 'compose', '-p', projectName(options.runId, dialect),
-      ...composeFiles(dialect, BUNDLE_ROOT, OVERRIDE_PATH),
+      'docker', 'compose', '-p', projectName(options.runId),
+      ...composeFiles(BUNDLE_ROOT, OVERRIDE_PATH),
       ...composeArgs,
     ],
     environment: {
@@ -203,44 +192,32 @@ export function buildSelfHostSmokePlan(options: SelfHostSmokeOptions): SelfHostS
     { id: 'initial-image-inspect', command: ['docker', 'image', 'inspect', options.image] },
     { id: 'replacement-image-inspect', command: ['docker', 'image', 'inspect', options.replacementImage] },
   ]
-  const resources: string[] = []
-
-  for (const dialect of DIALECTS) {
-    const project = projectName(options.runId, dialect)
-    resources.push(
-      project,
-      `${project}_uploads`,
-      dialect === 'sqlite' ? `${project}_data` : `${project}_postgres_data`,
-    )
-    const projectLabel = `label=com.docker.compose.project=${project}`
-    steps.push(
-      {
-        id: `${dialect}-preflight-containers`,
-        dialect,
-        command: ['docker', 'ps', '-aq', '--filter', projectLabel],
-      },
-      {
-        id: `${dialect}-preflight-volumes`,
-        dialect,
-        command: ['docker', 'volume', 'ls', '-q', '--filter', projectLabel],
-      },
-      {
-        id: `${dialect}-preflight-networks`,
-        dialect,
-        command: ['docker', 'network', 'ls', '-q', '--filter', projectLabel],
-      },
-      composeStep(`${dialect}-start`, dialect, options, ['up', '-d', '--wait']),
-      composeStep(`${dialect}-restart`, dialect, options, ['restart', 'app']),
-      composeStep(
-        `${dialect}-replace`,
-        dialect,
-        options,
-        ['up', '-d', '--no-deps', '--force-recreate', 'app'],
-        options.replacementImage,
-      ),
-      composeStep(`${dialect}-cleanup`, dialect, options, ['down', '--volumes', '--remove-orphans']),
-    )
-  }
+  const project = projectName(options.runId)
+  const resources = [project, `${project}_uploads`, `${project}_postgres_data`]
+  const projectLabel = `label=com.docker.compose.project=${project}`
+  steps.push(
+    {
+      id: 'postgres-preflight-containers',
+      command: ['docker', 'ps', '-aq', '--filter', projectLabel],
+    },
+    {
+      id: 'postgres-preflight-volumes',
+      command: ['docker', 'volume', 'ls', '-q', '--filter', projectLabel],
+    },
+    {
+      id: 'postgres-preflight-networks',
+      command: ['docker', 'network', 'ls', '-q', '--filter', projectLabel],
+    },
+    composeStep('postgres-start', options, ['up', '-d', '--wait']),
+    composeStep('postgres-restart', options, ['restart', 'app']),
+    composeStep(
+      'postgres-replace',
+      options,
+      ['up', '-d', '--no-deps', '--force-recreate', 'app'],
+      options.replacementImage,
+    ),
+    composeStep('postgres-cleanup', options, ['down', '--volumes', '--remove-orphans']),
+  )
 
   return Value.Decode(SelfHostSmokePlanSchema, {
     version: 1,
@@ -250,10 +227,10 @@ export function buildSelfHostSmokePlan(options: SelfHostSmokeOptions): SelfHostS
     checks: [
       'release bundle has one safe root and all required Compose/install files',
       'image workdir is /app/apps/studio and command is bun run server/index.ts',
-      'SQLite and PostgreSQL containers become healthy on an ephemeral loopback port',
+      'PostgreSQL containers become healthy on an ephemeral loopback port',
       'admin HTML and favicon are served from /app/dist',
       'database, upload, and published-path markers survive restart and image replacement',
-      'schema_migrations is non-empty, unique, additive across replacement, and equal across dialects',
+      'schema_migrations is non-empty, unique, and additive across replacement',
       'every project and named volume is removed in finally on success or failure',
     ],
   })
@@ -349,9 +326,6 @@ async function extractAndValidateBundle(bundlePath: string, tempRoot: string): P
     throw new Error('Release bundle compose.prod.yml does not use the moved Studio static path')
   }
   const install = await readFile(join(bundleRoot, 'INSTALL.md'), 'utf8')
-  if (!install.includes('-f compose.prod.yml -f compose.sqlite.yml up -d')) {
-    throw new Error('Release bundle INSTALL.md is missing the SQLite startup command')
-  }
   if (!install.includes('-f compose.prod.yml up -d')) {
     throw new Error('Release bundle INSTALL.md is missing the PostgreSQL startup command')
   }
@@ -359,15 +333,14 @@ async function extractAndValidateBundle(bundlePath: string, tempRoot: string): P
 }
 
 function actualComposeCommand(
-  dialect: Dialect,
   runId: string,
   bundleRoot: string,
   overridePath: string,
   args: readonly string[],
 ): string[] {
   return [
-    'docker', 'compose', '-p', projectName(runId, dialect),
-    ...composeFiles(dialect, bundleRoot, overridePath),
+    'docker', 'compose', '-p', projectName(runId),
+    ...composeFiles(bundleRoot, overridePath),
     ...args,
   ]
 }
@@ -410,8 +383,8 @@ function decodeResourceList(raw: string): string[] {
   )
 }
 
-async function assertProjectUnused(runId: string, dialect: Dialect): Promise<void> {
-  const project = projectName(runId, dialect)
+async function assertProjectUnused(runId: string): Promise<void> {
+  const project = projectName(runId)
   const filter = `label=com.docker.compose.project=${project}`
   const commands = [
     ['docker', 'ps', '-aq', '--filter', filter],
@@ -457,40 +430,38 @@ async function readPersistenceState(
 
 function assertPersistedState(
   state: PersistenceState,
-  dialect: Dialect,
   previousMigrationIds?: readonly string[],
 ): void {
-  if (state.dialect !== dialect) throw new Error(`Expected ${dialect}, received ${state.dialect}`)
+  if (state.dialect !== 'postgres') throw new Error(`Expected postgres, received ${state.dialect}`)
   if (state.databaseMarker !== 'fuma-web-003-persistent-marker') {
-    throw new Error(`${dialect} database marker was not preserved`)
+    throw new Error('PostgreSQL database marker was not preserved')
   }
   if (state.uploadMarker !== 'fuma-web-003-upload-marker') {
-    throw new Error(`${dialect} upload marker was not preserved`)
+    throw new Error('PostgreSQL upload marker was not preserved')
   }
   if (state.publishedMarker !== 'fuma-web-003-published-marker') {
-    throw new Error(`${dialect} published-path marker was not preserved`)
+    throw new Error('PostgreSQL published-path marker was not preserved')
   }
   if (new Set(state.migrationIds).size !== state.migrationIds.length) {
-    throw new Error(`${dialect} schema_migrations contains duplicate IDs`)
+    throw new Error('PostgreSQL schema_migrations contains duplicate IDs')
   }
   for (const id of previousMigrationIds ?? []) {
     if (!state.migrationIds.includes(id)) {
-      throw new Error(`${dialect} replacement image lost applied migration ${id}`)
+      throw new Error(`PostgreSQL replacement image lost applied migration ${id}`)
     }
   }
 }
 
-async function runDialect(
-  dialect: Dialect,
+async function runPostgres(
   options: SelfHostSmokeOptions,
   bundleRoot: string,
   overridePath: string,
 ): Promise<PersistenceState> {
-  const commandPrefix = actualComposeCommand(dialect, options.runId, bundleRoot, overridePath, [])
+  const commandPrefix = actualComposeCommand(options.runId, bundleRoot, overridePath, [])
   const initialEnvironment = composeEnvironment(options.image)
   const replacementEnvironment = composeEnvironment(options.replacementImage)
 
-  await assertProjectUnused(options.runId, dialect)
+  await assertProjectUnused(options.runId)
   try {
     await runCommand([...commandPrefix, 'up', '-d', '--wait', '--wait-timeout', String(Math.ceil(options.timeoutMs / 1_000))], {
       environment: initialEnvironment,
@@ -500,14 +471,14 @@ async function runDialect(
 
     const initial = await readPersistenceState(commandPrefix, initialEnvironment, false)
     const seeded = await readPersistenceState(commandPrefix, initialEnvironment, true)
-    assertPersistedState(seeded, dialect, initial.migrationIds)
+    assertPersistedState(seeded, initial.migrationIds)
     await assertHttpPaths(port)
 
     await runCommand([...commandPrefix, 'restart', 'app'], { environment: initialEnvironment })
     port = await resolveAppPort(commandPrefix, initialEnvironment)
     await waitForHealth(port, options.timeoutMs)
     const restarted = await readPersistenceState(commandPrefix, initialEnvironment, false)
-    assertPersistedState(restarted, dialect, seeded.migrationIds)
+    assertPersistedState(restarted, seeded.migrationIds)
     await assertHttpPaths(port)
 
     await runCommand([...commandPrefix, 'up', '-d', '--no-deps', '--force-recreate', 'app'], {
@@ -516,7 +487,7 @@ async function runDialect(
     port = await resolveAppPort(commandPrefix, replacementEnvironment)
     await waitForHealth(port, options.timeoutMs)
     const replaced = await readPersistenceState(commandPrefix, replacementEnvironment, false)
-    assertPersistedState(replaced, dialect, restarted.migrationIds)
+    assertPersistedState(replaced, restarted.migrationIds)
     await assertHttpPaths(port)
     return replaced
   } catch (error) {
@@ -525,7 +496,7 @@ async function runDialect(
       allowFailure: true,
     })
     if (logs.stdout.trim() || logs.stderr.trim()) {
-      console.error(`[self-host-smoke:${dialect}] Docker logs:\n${logs.stdout}${logs.stderr}`)
+      console.error(`[self-host-smoke:postgres] Docker logs:\n${logs.stdout}${logs.stderr}`)
     }
     throw error
   } finally {
@@ -551,12 +522,8 @@ export async function runSelfHostSmoke(options: SelfHostSmokeOptions): Promise<v
     await inspectImage(options.image)
     if (options.replacementImage !== options.image) await inspectImage(options.replacementImage)
 
-    const sqlite = await runDialect('sqlite', options, bundleRoot, overridePath)
-    const postgres = await runDialect('postgres', options, bundleRoot, overridePath)
-    if (sqlite.migrationIds.join('\n') !== postgres.migrationIds.join('\n')) {
-      throw new Error('SQLite and PostgreSQL applied migration IDs differ')
-    }
-    console.log(`FUMA-WEB-003 self-host smoke passed (${sqlite.migrationIds.length} migrations per dialect).`)
+    const postgres = await runPostgres(options, bundleRoot, overridePath)
+    console.log(`FUMA-WEB-003 self-host smoke passed (${postgres.migrationIds.length} PostgreSQL migrations).`)
   } finally {
     await rm(tempRoot, { recursive: true, force: true })
   }

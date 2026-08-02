@@ -29,10 +29,8 @@ type LineupRow = {
  *
  * Joined to `data_tables` so we can render the row's public path
  * (`route_base + slug`) — matches what the user sees in the editor.
- * Three separate queries (not one UNION) because:
- *   1. ANSI SQL UNION with mixed ORDER BY is dialect-painful, and
- *   2. The three slices have different sort keys, which a UNION would
- *      force into a single composite key.
+ * Three separate PostgreSQL queries avoid forcing the slices' distinct sort
+ * keys into one UNION and composite ordering key.
  *
  * Combined and ordered client-side: scheduled rows (chronological,
  * soonest first) → published rows (newest first) → drafts. Same order

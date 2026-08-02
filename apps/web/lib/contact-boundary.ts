@@ -10,6 +10,7 @@ const CONTACT_REPLAY_MS = 24 * 60 * 60 * 1_000
 const MINIMUM_FORM_AGE_MS = 1_000
 const MAXIMUM_FORM_AGE_MS = 2 * 60 * 60 * 1_000
 const CONTACT_LIMIT = 5
+const MAXIMUM_RETENTION_MS = 400 * 24 * 60 * 60 * 1_000
 
 export const CONTACT_NOTICE_VERSION = '2026-07-26' as const
 
@@ -64,7 +65,33 @@ export const ContactFormRequestSchema = Type.Union([
 
 export type ContactFormRequest = Static<typeof ContactFormRequestSchema>
 
-type ContactForwarder = (submission: ContactRequest) => Promise<boolean>
+export const ContactRoutingReceiptSchema = Type.Object({
+  schemaVersion: Type.Literal(1),
+  disposition: Type.Union([Type.Literal('accepted'), Type.Literal('replayed')]),
+  receiptId: Type.String({ minLength: 16, maxLength: 160, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]+$' }),
+  replayToken: Type.String({ minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9_-]+$' }),
+  requestSha256: Type.String({ pattern: '^[a-f0-9]{64}$' }),
+  routedAs: Type.Union([
+    Type.Literal('general'),
+    Type.Literal('security'),
+    Type.Literal('privacy'),
+    Type.Literal('abuse'),
+    Type.Literal('expert_inquiry'),
+  ]),
+  acceptedAt: Timestamp,
+  deleteAfter: Timestamp,
+  retentionPolicyVersion: Type.String({ minLength: 1, maxLength: 80, pattern: '^[0-9A-Za-z._-]+$' }),
+  auditProjection: Type.Literal('metadata-only'),
+}, { additionalProperties: false })
+
+export type ContactRoutingReceipt = Readonly<Static<typeof ContactRoutingReceiptSchema>>
+export type ContactRoutingResult =
+  | Readonly<{ outcome: 'accepted'; receipt: ContactRoutingReceipt }>
+  | Readonly<{ outcome: 'conflict' }>
+  | Readonly<{ outcome: 'rate_limited'; retryAfterSeconds: number }>
+  | Readonly<{ outcome: 'unavailable' }>
+
+type ContactForwarder = (submission: ContactRequest, requestSha256: string) => Promise<ContactRoutingResult | boolean>
 type ContactClock = () => number
 
 type ReplayEntry = Readonly<{ fingerprint: string; expiresAt: number }>
@@ -113,8 +140,8 @@ function toForwardedRequest(value: ContactFormRequest): ContactRequest {
     : { kind: value.kind, ...base }
 }
 
-async function digest(value: string): Promise<string> {
-  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+export async function contactRequestSha256(value: unknown): Promise<string> {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(value)))
   return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
@@ -133,6 +160,26 @@ function cleanState(state: BoundaryState, now: number, windowMs: number): void {
   for (const [token, entry] of state.replay) {
     if (entry.expiresAt <= now) state.replay.delete(token)
   }
+}
+
+export function validContactRoutingReceipt(
+  receipt: unknown,
+  submission: ContactRequest,
+  requestSha256: string,
+  now: number,
+): receipt is ContactRoutingReceipt {
+  if (!Value.Check(ContactRoutingReceiptSchema, receipt)) return false
+  const value = receipt as ContactRoutingReceipt
+  const acceptedAt = Date.parse(value.acceptedAt)
+  const deleteAfter = Date.parse(value.deleteAfter)
+  return canonicalTimestamp(acceptedAt) === value.acceptedAt
+    && canonicalTimestamp(deleteAfter) === value.deleteAfter
+    && value.replayToken === submission.replayToken
+    && value.requestSha256 === requestSha256
+    && value.routedAs === submission.kind
+    && acceptedAt <= now + 60_000
+    && deleteAfter > acceptedAt
+    && deleteAfter - acceptedAt <= MAXIMUM_RETENTION_MS
 }
 
 export function createContactPost(options: ContactBoundaryOptions) {
@@ -162,20 +209,30 @@ export function createContactPost(options: ContactBoundaryOptions) {
 
     cleanState(state, current, windowMs)
     const forwarded = toForwardedRequest(value)
-    const fingerprint = await digest(JSON.stringify(forwarded))
+    const fingerprint = await contactRequestSha256(forwarded)
     const replay = state.replay.get(value.replayToken)
     if (replay) return replay.fingerprint === fingerprint
       ? response(202)
       : response(409, 'invalid_request')
 
-    const rateKey = await digest(`${processSalt}\n${edgeAddress(request)}\n${forwarded.email}`)
+    const rateKey = await contactRequestSha256({ processSalt, edgeAddress: edgeAddress(request) })
     const attempts = state.rates.get(rateKey) ?? []
     if (attempts.length >= limit) return response(429, 'rate_limited', Math.ceil(windowMs / 1_000))
     attempts.push(current)
     state.rates.set(rateKey, attempts)
 
-    const accepted = await options.forward(forwarded)
-    if (!accepted) return response(503, 'temporarily_unavailable', 30)
+    const result = await options.forward(forwarded, fingerprint)
+    if (result === false) return response(503, 'temporarily_unavailable', 30)
+    if (result !== true) {
+      if (result.outcome === 'conflict') return response(409, 'invalid_request')
+      if (result.outcome === 'rate_limited') {
+        return response(429, 'rate_limited', Math.max(1, Math.min(3_600, result.retryAfterSeconds)))
+      }
+      if (result.outcome !== 'accepted'
+        || !validContactRoutingReceipt(result.receipt, forwarded, fingerprint, current)) {
+        return response(503, 'temporarily_unavailable', 30)
+      }
+    }
 
     state.replay.set(value.replayToken, { fingerprint, expiresAt: current + replayMs })
     return response(202)

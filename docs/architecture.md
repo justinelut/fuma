@@ -2,19 +2,19 @@
 
 System-level overview of Instatic — what runs, what depends on what, and where to look first.
 
-Instatic is a self-hosted CMS with a built-in visual editor. One Bun process serves the public website, the admin editor, the CMS API, published pages, and uploaded media, backed by either Postgres or SQLite. The visual editor's output is plain semantic HTML and hand-clean CSS — no framework runtime is injected into published pages.
+Instatic is a self-hosted CMS with a built-in visual editor. One Bun process serves the public website, the admin editor, the CMS API, published pages, and uploaded media, backed by PostgreSQL. The visual editor's output is plain semantic HTML and hand-clean CSS — no framework runtime is injected into published pages.
 
 ---
 
 ## TL;DR
 
 - **One process, two worker families**: `bun server/index.ts`. `Bun.serve` + a hand-written router (`server/router.ts`) routes every request. Plugin server code runs in one `Bun.Worker` per active plugin, each wrapping a QuickJS-WASM sandbox; image-variant generation (`sharp` + BlurHash) runs in a separate `Bun.Worker` pool. Everything else — HTTP, the admin API, the streaming agent endpoint, the publisher — runs on the main thread.
-- **One database, two engines**: Postgres (via `Bun.sql`) or SQLite (`bun:sqlite`), selected by `DATABASE_URL`. Repositories are dialect-naive; migrations are split per dialect with identical IDs.
+- **One PostgreSQL database**: `Bun.sql` is exposed through the shared `DbClient`; `DATABASE_URL` must use a PostgreSQL scheme and migrations are forward-only PostgreSQL migrations.
 - **One content model**: posts, pages, and visual components all live in `data_tables` + `data_rows`. No separate `pages` table. Page trees and VC trees both use the `NodeTree<TNode>` primitive.
 - **Two frontends, one bundle**: the admin app (`src/admin/`) shells the visual editor (`src/admin/pages/site/`). Both run in the same Vite-built SPA, mounted under `/admin/*`.
 - **Plugins are permissioned; server code is sandboxed**: server entrypoints execute inside QuickJS-WASM with no host access. Canvas module packs run as ESM in the browser editor and through a QuickJS VM on the server. Editor entrypoints and app-kind admin pages are explicit `editor.code` surfaces that run in the admin window.
 - **One public-route surface, three publishing layers**: every visitor request for HTML — stand-alone pages and content rows alike — flows through `server/publish/publicRouter.ts:renderPublicResolution`. **Layer A** bakes fully-static pages and static shells to `uploads/published/current/<route>.html` at publish time via a two-slot symlink swap (atomic). **Layer B** is an in-memory LRU keyed by `(urlPath, canonicalQuery)` for live-render fallback routes — per-entry version tracking; bumps evict lazily on every publish, and version is captured at render start so mid-flight publishes discard results rather than caching stale HTML. **Layer C** auto-detects dynamic nodes (modules flagged `dynamic: true`, request-dependent/per-visitor bindings or loop sources, VC refs containing dynamic content) and emits `<instatic-hole>` placeholders that lazy-fetch their content via `/_instatic/hole/<nodeId>?v=<publishVersion>&u=<page-url>` using a ~1.1 KB `IntersectionObserver` runtime. Authors don't toggle — `findDynamicNodeIds` in `src/core/publisher/dynamicDetection.ts` classifies automatically. The published `SiteDocument` is stored once per publish in `site_snapshots`; page versions reference it via `data_row_versions.site_snapshot_id`, and the reassembled `PublishedPageSnapshot` remains the canonical audit record. Output is plain semantic HTML plus hashed CSS bundles (`reset`, `framework`, `style`, and page-specific `userStyles` when needed), no framework runtime on the page.
-- **Multi-instance HA on Postgres**: both schedulers (plugin tick + scheduled publish) share a leader-election primitive in `server/db/advisoryLock.ts` (`withSchedulerLeaderLock`) that wraps `pg_try_advisory_lock`, so running multiple containers behind a load balancer doesn't double-fire scheduled work. Each scheduler passes its own distinct lock key; on SQLite (single-instance by definition) the module returns a no-op sentinel.
+- **Multi-instance HA on Postgres**: both schedulers (plugin tick + scheduled publish) share a leader-election primitive in `server/db/advisoryLock.ts` (`withSchedulerLeaderLock`) that wraps `pg_try_advisory_lock`, so running multiple containers behind a load balancer doesn't double-fire scheduled work. Each scheduler passes its own distinct lock key.
 - **Every untyped boundary uses TypeBox.** HTTP responses, request bodies, persisted JSON, plugin manifests, settings. `zod` is banned repo-wide — drivers talk directly to each provider's REST API and pass TypeBox schemas through as JSON Schema; `zod` has been removed from `package.json`. Gated by `ai-driver-isolation.test.ts`.
 
 ---
@@ -36,7 +36,7 @@ Instatic is a self-hosted CMS with a built-in visual editor. One Bun process ser
 │   │ → db client  │              │              │            │
 │   └──────────────┴──────────────┴──────────────┘            │
 │      ↓                                                      │
-│   server/db/client.ts      ← Postgres OR SQLite             │
+│   server/db/client.ts      ← PostgreSQL             │
 │                                                             │
 │  ┌─── Bun.Worker pool ──────────────────────────────────┐   │
 │  │ image-variant worker (sharp + blurhash; CPU off the │   │
@@ -56,7 +56,7 @@ The same process serves visitors, admins, the API, the streaming agent endpoint,
 - **Plugin server entrypoints** run inside a per-plugin `Bun.Worker` that hosts a QuickJS-WASM sandbox. The host process never imports plugin server code. A crash in one plugin worker only affects that plugin; the host respawns it with a crash budget (`server/plugins/host/crashRecovery.ts`). Canvas module packs are evaluated through `server/plugins/modulePackVm.ts` on the server and as ESM in the browser editor.
 - **Image-variant generation** (`sharp` resize + WebP encode + BlurHash) runs in a small pool of `Bun.Worker`s. A 4 MP JPEG is ~200–500 ms of CPU per upload; offloading it keeps visitor requests and the admin API responsive when an admin (or a future first-party feature) uploads images in bulk.
 
-There is no message queue, no managed service surface. Scaling out is a horizontal-Postgres play: both schedulers (plugin tick + scheduled-publish tick) share a leader-election primitive at `server/db/advisoryLock.ts` (`withSchedulerLeaderLock`) that wraps `pg_try_advisory_lock` so multiple instances behind a load balancer don't double-fire scheduled work. SQLite mode is single-instance by definition; the module falls through to a no-op sentinel there.
+There is no message queue, no managed service surface. Scaling out is a horizontal-Postgres play: both schedulers (plugin tick + scheduled-publish tick) share a leader-election primitive at `server/db/advisoryLock.ts` (`withSchedulerLeaderLock`) that wraps `pg_try_advisory_lock` so multiple instances behind a load balancer don't double-fire scheduled work. All supported environments use the same PostgreSQL advisory-lock behavior.
 
 ---
 
@@ -90,8 +90,8 @@ The repo is organized by responsibility, not by feature. Every file has one reas
 | CMS endpoints                | `server/handlers/cms/*.ts`            | Per-resource handlers (pages, posts, components, media, plugins, …)  |
 | Auth & sessions              | `server/auth/*`                       | Session validation, capability checks, login flow                    |
 | Repositories                 | `server/repositories/*.ts`            | Database access; dialect-naive ANSI SQL only                         |
-| Database adapters            | `server/db/postgres.ts`, `sqlite.ts`  | Engine-specific `DbClient` implementation                            |
-| Migrations                   | `server/db/migrations-*.ts`           | Schema in both dialects, parity-gated                                |
+| Database adapters            | `server/db/postgres.ts`  | Engine-specific `DbClient` implementation                            |
+| Migrations                   | `server/db/migrations-*.ts`           | Forward-only PostgreSQL schema                                |
 | Publisher                    | `src/core/publisher/*`                | Page tree → clean HTML/CSS (`publishPage`, deterministic, no host I/O). Includes `dynamicDetection.ts`, the single walker for the auto-detection rules that power Layer A shell-vs-complete bakes and Layer C holes. |
 | Public-route surface         | `server/publish/publicRouter.ts`      | Resolve URL → page snapshot or data row + template. Layer A disk fast-path + Layer B in-memory LRU live here. |
 | Static artefact IO           | `server/publish/staticArtefact.ts`    | Layer A: two-slot symlink swap, atomic per-file rename, slot-aware read/write/purge. |
@@ -133,7 +133,7 @@ server/router.ts         ← match path
     │       │
     │       ├─→ server/auth         (session + capability checks)
     │       ├─→ server/repositories (DB access)
-    │       └─→ server/db/client    (Postgres or SQLite)
+    │       └─→ server/db/client    (PostgreSQL)
     │
     ├─→ /admin/api/cms/plugins/<id>/runtime/* → plugin worker (QuickJS)
     │
@@ -179,9 +179,9 @@ The shape and cell types are defined by the `data_tables` schema. There is no se
 
 ### Storage conventions
 
-- JSON columns end in `_json`. The SQLite adapter auto-parses any `*_json` string on read and auto-stringifies any plain object on write. Gated by `db-json-column-naming.test.ts`.
-- Migrations are split per dialect with identical IDs. PG uses `jsonb`, `timestamptz`, `bigint`, `distinct on`; SQLite uses `text`, `text`, `integer`, window-function rewrites. Parity gated by `migration-parity.test.ts`.
-- Repositories use only ANSI-standard SQL. The five Postgres-isms — `now()` in DML, `::int`, `::jsonb`, `any($N::...)`, `distinct on` — are banned in any `DbClient`-importing file. Gated by `db-postgres-isms.test.ts`.
+- JSON columns end in `_json` and use PostgreSQL `jsonb`. Gated by `db-json-column-naming.test.ts`.
+- Migrations are forward-only PostgreSQL migrations in `server/db/migrations-pg.ts`. Applied migration text is immutable.
+- Repositories bind values through `DbClient` tagged templates and use transactions for atomic multi-row writes.
 
 See [docs/reference/database-dialects.md](reference/database-dialects.md) for the full rules.
 
@@ -352,7 +352,7 @@ When making a change, this table answers "where does it go?"
 | You're adding…                                         | Put it in                                                  |
 |--------------------------------------------------------|------------------------------------------------------------|
 | A new HTTP endpoint                                    | `server/handlers/cms/<resource>.ts` + route in `router.ts` |
-| A new database table                                   | Both `server/db/migrations-pg.ts` and `migrations-sqlite.ts` (same ID) |
+| A new database table                                   | `server/db/migrations-pg.ts` with a new forward-only ID |
 | A new repository function                              | `server/repositories/<resource>.ts`                        |
 | A new editor mutation                                  | `src/core/page-tree/mutations.ts` (tree-agnostic, takes `NodeTree`) |
 | A new tree-mutation store action                       | `src/admin/pages/site/store/slices/site/nodeActions.ts` (one-liner calling `mutateActiveTree`) |
@@ -372,7 +372,6 @@ Architectural rules live as tests in `src/__tests__/architecture/*.test.ts` and 
 
 | Rule                                                                                                  | Gate                                                            |
 |-------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------|
-| Migrations parity between PG and SQLite                                                               | `migration-parity.test.ts`                                      |
 | JSON columns end in `_json`                                                                           | `db-json-column-naming.test.ts`                                 |
 | No Postgres-isms in repositories                                                                      | `db-postgres-isms.test.ts`                                      |
 | Page tree uses the flat `NodeTree<TNode>` shape                                                       | `src/__tests__/persistence/treeSchemaShape.test.ts`             |
@@ -398,8 +397,7 @@ See [docs/reference/architecture-tests.md](reference/architecture-tests.md) for 
 bun install
 
 # develop
-bun run dev              # SQLite at .tmp/dev.db, no Docker
-DATABASE_URL=postgres://… bun run dev   # Postgres mode
+DATABASE_URL=postgres://instatic:instatic@127.0.0.1:5433/instatic bun run dev
 
 # verify
 bun run build            # tsc -b && vite build (typecheck + bundle)
@@ -424,7 +422,7 @@ bun run test:e2e          # run specs in tests/e2e/*.e2e.ts
 - [docs/editor.md](editor.md) — admin + canvas editor deep dive
 - [docs/features/plugin-system.md](features/plugin-system.md) — the plugin system
 - [docs/reference/page-tree.md](reference/page-tree.md) — the tree primitive
-- [docs/reference/database-dialects.md](reference/database-dialects.md) — PG vs. SQLite rules
+- [docs/reference/database-dialects.md](reference/database-dialects.md) — PostgreSQL architecture rules
 - Source-of-truth files:
   - `server/router.ts` — request dispatch
   - `server/publish/publicRouter.ts` — single entry for visitor HTML; orchestrates Layer A disk + Layer B cache

@@ -6,7 +6,7 @@ Mutable product, billing, template, marketplace, identity, contact-routing, and 
 
 ## Boundaries
 
-- Browser reads and writes stay same-origin on `fuma.co.ke` or the required acceptance endpoint `https://3002.blyss.co.ke`.
+- Browser reads and writes stay same-origin on `trimly.co.ke` or the required acceptance endpoint `https://3002.blyss.co.ke`.
 - Private Studio calls are reconstructed server-side with only the Web service credential, audience, and request correlation. Browser credentials are never forwarded.
 - Pricing, templates, experts, showcases, and plugins fail closed. Immediate-withdrawal discovery responses are `no-store`; pricing and templates require revalidation and never use stale-while-revalidate.
 - Handoffs contain a closed intent plus an opaque short-lived app resume token/correlation. The app and identity owners consume it and establish their own host-only sessions.
@@ -31,7 +31,7 @@ Use `bun run editorial:generate` after content changes and `bun run editorial:ch
 
 The production acquisition shell and `/`, `/website`, `/publication`, `/features`, `/solutions`, and `/about` routes are validated as one coherent surface. The claim inventory is evidence-backed and review-bounded; the Kenya context states only configured `en-KE`, `Africa/Nairobi`, and KES defaults and explicitly gates prices on approved authority. Website and Publication are outcome choices over one ownership model, not routing, permission, persistence, or navigation forks.
 
-The public handoff layer accepts only the closed TypeBox intent union, forwards it privately without visitor credentials, validates the strict issuer envelope, and constructs only `https://app.fuma.co.ke/resume` with opaque intent and correlation values. App intent consumption, authentication, app-host session issuance, replay prevention, cancellation, and authority re-resolution remain FUMA-WEB-013-owned. Browser acceptance uses a contract fixture only to prove WEB-007 reaches the app-host boundary; it does not claim an issuer, identity exchange, or session.
+The public handoff layer accepts only the closed TypeBox intent union, forwards it privately without visitor credentials, validates the strict issuer envelope, and constructs only `https://app.trimly.co.ke/resume` with opaque intent and correlation values. FUMA-WEB-013 now owns the composed Studio-side issuer, centralized auth resume, single-use code exchange, cancellation, fresh authority re-resolution, and host-only app session; the Web app remains isolated and imports none of that product implementation. Browser acceptance here proves the public boundary only.
 
 Executed app-local evidence:
 
@@ -42,3 +42,11 @@ Executed app-local evidence:
 - scoped visual Playwright at `https://3002.blyss.co.ke` — **12 passed** without snapshot updates against committed Linux baselines for all six routes at 320 px and 1280 px.
 
 The app-local production start command now launches the emitted standalone server and copies generated static assets into the traced runtime layout. No Studio, editorial, pricing, template, central issuer/session, tracker, root package, lockfile, or production infrastructure authority was changed.
+
+## FUMA-WEB-014 trust and legal acceptance
+
+`/trust`, `/legal`, `/legal/[slug]`, `/legal/history`, `/security`, `/contact`, `/privacy-request`, and `/status` are app-local public presentation surfaces. `/.well-known/security.txt` points automated disclosure tooling to the bounded human security route; it exposes no private recipient. The shared shell links the canonical legal index without changing `/start` or creating another sign-in, sign-up, onboarding, or session flow.
+
+`content/public/legal/approval-manifest.json` binds the four current policy versions to their exact source-byte SHA-256 receipts and one aggregate policy-set digest. `lib/legal-policy-approval.ts` fails closed on missing, reordered, modified, duplicate, partial, or wrong-policy approvals. The checked-in state remains `pending` with no named approver; the manifest is review material, not legal approval or a compliance claim. The four validated legal slugs are statically generated for standalone production delivery, and unknown policy paths fail closed.
+
+Contact requests remain same-origin, no-store, replay-tokened, strictly bounded, and explicitly “accepted for routing” rather than delivered. Status presentation remains dynamic and claim-free unless a fresh strict server-owned authority response is available. Repository/browser checks do not establish external delivery, production monitoring/on-call, legal approval, provider configuration, deployment, or launch acceptance.

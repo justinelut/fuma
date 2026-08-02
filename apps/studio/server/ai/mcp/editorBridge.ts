@@ -29,19 +29,26 @@ interface EditorBridgeEntry {
 
 export type EditorBridgeScope = 'site' | 'content'
 const STREAM_LEASE_MS = 120_000
+const LEGACY_SITE_KEY = 'legacy-default-site'
 
-const byUser = new Map<string, Map<EditorBridgeScope, EditorBridgeEntry>>()
+const byUser = new Map<string, Map<string, EditorBridgeEntry>>()
+const bridgeKey = (scope: EditorBridgeScope, siteKey: string): string => `${siteKey}:${scope}`
 
-/** The live workspace bridge for a user and scope, or null when disconnected. */
+/** The live workspace bridge for an exact user, site, and scope. */
 export function getEditorBridgeForUser(
   userId: string,
   scope: EditorBridgeScope,
+  siteKey: string = LEGACY_SITE_KEY,
 ): AiBrowserBridge | null {
-  return byUser.get(userId)?.get(scope)?.bridge ?? null
+  return byUser.get(userId)?.get(bridgeKey(scope, siteKey))?.bridge ?? null
 }
 
-export function hasEditorBridge(userId: string, scope: EditorBridgeScope): boolean {
-  return byUser.get(userId)?.has(scope) ?? false
+export function hasEditorBridge(
+  userId: string,
+  scope: EditorBridgeScope,
+  siteKey: string = LEGACY_SITE_KEY,
+): boolean {
+  return byUser.get(userId)?.has(bridgeKey(scope, siteKey)) ?? false
 }
 
 /**
@@ -53,8 +60,10 @@ export function createEditorBridgeStream(
   userId: string,
   scope: EditorBridgeScope,
   signal: AbortSignal,
+  siteKey: string = LEGACY_SITE_KEY,
 ): ReadableStream<Uint8Array> {
   let closeStream: (() => void) | null = null
+  const exactBridgeKey = bridgeKey(scope, siteKey)
 
   return new ReadableStream<Uint8Array>({
     start(controller) {
@@ -77,8 +86,8 @@ export function createEditorBridgeStream(
         // Only evict if we're still the current bridge for this scope. Keep
         // the user's other workspace registered until its own stream closes.
         const liveUserBridges = byUser.get(userId)
-        if (liveUserBridges?.get(scope)?.bridgeId === bridgeId) {
-          liveUserBridges.delete(scope)
+        if (liveUserBridges?.get(exactBridgeKey)?.bridgeId === bridgeId) {
+          liveUserBridges.delete(exactBridgeKey)
           if (liveUserBridges.size === 0) byUser.delete(userId)
         }
         try {
@@ -104,10 +113,10 @@ export function createEditorBridgeStream(
 
       // Newest instance of this workspace wins. The user's other workspace
       // remains connected, so Site and Content may serve MCP simultaneously.
-      const userBridges = byUser.get(userId) ?? new Map<EditorBridgeScope, EditorBridgeEntry>()
-      const previous = userBridges.get(scope)
+      const userBridges = byUser.get(userId) ?? new Map<string, EditorBridgeEntry>()
+      const previous = userBridges.get(exactBridgeKey)
       if (previous) previous.destroy()
-      userBridges.set(scope, { bridgeId, bridge: created.bridge, destroy: destroyBridge })
+      userBridges.set(exactBridgeKey, { bridgeId, bridge: created.bridge, destroy: destroyBridge })
       byUser.set(userId, userBridges)
 
       emit({ type: 'bridgeReady', bridgeId })

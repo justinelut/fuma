@@ -6,6 +6,7 @@ const ROOT = path.resolve(import.meta.dir, '..')
 const OWNED = [
   'app/trust',
   'app/legal',
+  'app/.well-known/security.txt',
   'app/security',
   'app/contact',
   'app/privacy-request',
@@ -15,6 +16,7 @@ const OWNED = [
   'components/legal-policy-page.tsx',
   'components/status-summary.tsx',
   'lib/contact-boundary.ts',
+  'lib/legal-policy-approval.ts',
   'lib/legal-policy-history.ts',
   'lib/status-boundary.ts',
   'content/public/legal',
@@ -28,7 +30,7 @@ async function files(value: string): Promise<string[]> {
   for (const item of await fs.readdir(target, { withFileTypes: true })) {
     const full = path.join(target, item.name)
     if (item.isDirectory()) output.push(...await files(path.relative(ROOT, full)))
-    else if (/\.(?:ts|tsx|md)$/.test(item.name)) output.push(full)
+    else if (/\.(?:ts|tsx|md|json)$/.test(item.name)) output.push(full)
   }
   return output
 }
@@ -57,7 +59,7 @@ describe('FUMA-WEB-014 architecture boundaries', () => {
     expect(statusBoundary).toContain('FUMA_STATUS_SUMMARY_URL')
     expect(statusBoundary).toContain("cache: 'no-store'")
     expect(statusBoundary).toContain("redirect: 'error'")
-    expect(statusBoundary).not.toContain('https://status.fuma.co.ke')
+    expect(statusBoundary).not.toContain('https://status.trimly.co.ke')
     expect(statusPage).toContain("dynamic = 'force-dynamic'")
     expect(statusPage).toContain('revalidate = 0')
   })

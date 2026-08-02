@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { publicContactRequestSha256 } from './contact'
 import type { PublicProjectionAuthority } from './authority'
 import { createPublicProjectionBoundary, type PublicProjectionCoordination } from './boundary'
 
@@ -29,7 +30,7 @@ function fixture(options: Readonly<{
   authority?: PublicProjectionAuthority
   allowed?: boolean
   limitFailure?: boolean
-  contact?: Readonly<{ accept(value: import('@fuma/public-contracts').ContactRequest): Promise<boolean> }>
+  contact?: import('./contact').PublicContactRoutingAuthority
 }> = {}) {
   const cache = new Map<string, string>()
   const authority = options.authority ?? {
@@ -178,7 +179,24 @@ describe('Studio public projection boundary', () => {
       message: 'A bounded security contact report.', consentVersion: '2026-07-26', replayToken: 'contact_replay_1234',
     } as const
     const accepted: unknown[] = []
-    const available = fixture({ contact: { accept: async (request) => { accepted.push(request); return true } } })
+    const available = fixture({ contact: { route: async (request) => {
+      accepted.push(request)
+      return {
+        outcome: 'accepted',
+        receipt: {
+          schemaVersion: 1,
+          disposition: 'accepted',
+          receiptId: 'contact:boundary-receipt',
+          replayToken: request.replayToken,
+          requestSha256: publicContactRequestSha256(request),
+          routedAs: request.kind,
+          acceptedAt: '2026-07-31T06:00:00Z',
+          deleteAfter: '2026-08-30T06:00:00Z',
+          retentionPolicyVersion: 'privacy-2026-07',
+          auditProjection: 'metadata-only',
+        },
+      }
+    } } })
     const response = await available.boundary.handle(contactRequest(value))
     expect(response?.status).toBe(202)
     expect(response?.headers.get('cache-control')).toBe('no-store')
@@ -188,6 +206,6 @@ describe('Studio public projection boundary', () => {
     expect(invalid?.status).toBe(400)
     expect(await invalid?.text()).not.toContain('reporter@example.test')
     expect((await fixture().boundary.handle(contactRequest(value)))?.status).toBe(503)
-    expect((await fixture({ allowed: false, contact: { accept: async () => true } }).boundary.handle(contactRequest(value)))?.status).toBe(429)
+    expect((await fixture({ allowed: false, contact: { route: async () => ({ outcome: 'unavailable' }) } }).boundary.handle(contactRequest(value)))?.status).toBe(429)
   })
 })

@@ -1,3 +1,4 @@
+import { FUMA_DEFAULT_DEPLOYMENT_PROFILE } from '@fuma/brand'
 import type { PublicProfile, PublicTemplate, PublicTemplateTombstone } from '@fuma/public-contracts'
 import {
   ApprovableTemplateReleaseSchema,
@@ -17,7 +18,7 @@ import {
   type WithdrawTemplateCommand,
 } from './contracts'
 
-export const TEMPLATE_PREVIEW_HOST = 'templates.preview.fuma.co.ke' as const
+export const TEMPLATE_PREVIEW_HOST = FUMA_DEFAULT_DEPLOYMENT_PROFILE.hosts.templatePreview
 export const TEMPLATE_IMAGE_BYTE_BUDGET = 300_000 as const
 const ALLOWED_IMAGE_MIME = new Set(['image/avif', 'image/jpeg', 'image/png', 'image/webp'])
 
@@ -51,19 +52,19 @@ function canonicalTimestamp(value: string, label: string): void {
   }
 }
 
-function previewRoot(releaseId: string): string {
-  return `https://${TEMPLATE_PREVIEW_HOST}/releases/${releaseId}/`
+function previewRoot(previewHost: string, releaseId: string): string {
+  return `https://${previewHost}/releases/${releaseId}/`
 }
 
-function previewAsset(releaseId: string, path: string): string {
-  return new URL(path.slice(1), previewRoot(releaseId)).toString()
+function previewAsset(previewHost: string, releaseId: string, path: string): string {
+  return new URL(path.slice(1), previewRoot(previewHost, releaseId)).toString()
 }
 
 function artifactAt(release: ApprovableTemplateRelease, logicalPath: string) {
   return release.artifacts.find((artifact) => artifact.logicalPath === logicalPath) ?? null
 }
 
-function assertApprovableRelease(command: ApproveTemplateCommand, release: ApprovableTemplateRelease): void {
+function assertApprovableRelease(command: ApproveTemplateCommand, release: ApprovableTemplateRelease, previewHost: string): void {
   if (release.releaseId !== command.releaseAuthority.releaseId || release.manifestHashSha256 !== command.expectedManifestHashSha256) {
     throw new TemplateCatalogError('release-stale', 'The exact immutable release changed before approval.')
   }
@@ -78,7 +79,7 @@ function assertApprovableRelease(command: ApproveTemplateCommand, release: Appro
   if (image.sizeBytes > TEMPLATE_IMAGE_BYTE_BUDGET) {
     throw new TemplateCatalogError('invalid-contract', 'The template discovery image exceeds its byte budget.')
   }
-  const expectedImageUrl = previewAsset(release.releaseId, image.logicalPath)
+  const expectedImageUrl = previewAsset(previewHost, release.releaseId, image.logicalPath)
   if (command.metadata.image.url !== expectedImageUrl) {
     throw new TemplateCatalogError('invalid-contract', 'The template image URL must target the exact isolated release artifact.')
   }
@@ -111,10 +112,16 @@ async function currentApprovedRecords(
 export class PublicTemplateCatalogService {
   private readonly repository: PublicTemplateCatalogRepository
   private readonly releases: TemplateReleaseInspector
+  private readonly previewHost: string
 
-  constructor(repository: PublicTemplateCatalogRepository, releases: TemplateReleaseInspector) {
+  constructor(
+    repository: PublicTemplateCatalogRepository,
+    releases: TemplateReleaseInspector,
+    previewHost: string = TEMPLATE_PREVIEW_HOST,
+  ) {
     this.repository = repository
     this.releases = releases
+    this.previewHost = previewHost
   }
 
   async approve(input: ApproveTemplateCommand): Promise<StoredPublicTemplateRelease> {
@@ -123,7 +130,7 @@ export class PublicTemplateCatalogService {
     const releaseValue = await this.releases.inspect(command.releaseAuthority)
     if (!releaseValue) throw new TemplateCatalogError('release-unavailable', 'The exact immutable release is unavailable.')
     const release = strictTemplateValue(ApprovableTemplateReleaseSchema, releaseValue, 'Template release')
-    assertApprovableRelease(command, release)
+    assertApprovableRelease(command, release, this.previewHost)
 
     const current = await this.repository.get(command.metadata.id)
     if ((command.expectedVersion === null && current !== null)
@@ -147,7 +154,7 @@ export class PublicTemplateCatalogService {
         byteSize: command.metadata.image.byteSize,
       },
       releaseId: release.releaseId,
-      previewUrl: previewRoot(release.releaseId),
+      previewUrl: previewRoot(this.previewHost, release.releaseId),
       sitemapEligible: true,
       approvedAt: current?.template.approvedAt ?? command.approvedAt,
       updatedAt: command.approvedAt,

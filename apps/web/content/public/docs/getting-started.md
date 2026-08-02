@@ -19,7 +19,7 @@ Start by deciding what you want to publish. Choose **Website** for flexible page
 
 ## Create your project
 
-Use the start link from the matching product page. Fuma passes only an opaque intent to the application. Sign in there, confirm the current choices, and create your project.
+Use the start link from the matching product page. Sign in or create an account, review your choices, and create your project.
 
 ## Build the first page
 

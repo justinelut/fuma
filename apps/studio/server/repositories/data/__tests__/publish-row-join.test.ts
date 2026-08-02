@@ -1,15 +1,12 @@
 import { describe, expect, it, beforeEach } from 'bun:test'
 import { nanoid } from 'nanoid'
-import { createSqliteClient } from '../../../db/sqlite'
-import { sqliteMigrations } from '../../../db/migrations-sqlite'
-import { runMigrations } from '../../../db/runMigrations'
+import { createTestDatabase } from '../../../db/testDatabase'
 import type { DbClient } from '../../../db/client'
 import { createUser } from '../../users'
 import { getPublishedDataRowByRoute } from '../publish'
 
 async function freshDb(): Promise<DbClient> {
-  const db = createSqliteClient(':memory:')
-  await runMigrations(db, sqliteMigrations)
+  const { db: db } = await createTestDatabase('publish-row-join')
   return db
 }
 

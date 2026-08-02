@@ -46,7 +46,7 @@ async function ready(service: ReturnType<typeof createPostgresReleaseComposition
   return manifest
 }
 function edgeContext(releaseId: string): EdgeRequestContext {
-  return Object.freeze({ platformId: scope.platformId, organizationId: scope.organizationId, workspaceId: scope.workspaceId, siteId: scope.siteId, ownerKey: scope.ownerKey, ownerGeneration: scope.generation, host: 'tenant.fuma.co.ke', releaseId, path: '/index.html', memberId: null, accessFingerprint: 'b'.repeat(64), requestClaims: Object.freeze({ audience: 'anonymous' }) })
+  return Object.freeze({ platformId: scope.platformId, organizationId: scope.organizationId, workspaceId: scope.workspaceId, siteId: scope.siteId, ownerKey: scope.ownerKey, ownerGeneration: scope.generation, host: 'tenant.trimly.co.ke', releaseId, path: '/index.html', memberId: null, accessFingerprint: 'b'.repeat(64), requestClaims: Object.freeze({ audience: 'anonymous' }) })
 }
 
 describe('FUMA-051 live PostgreSQL edge acceptance', () => {

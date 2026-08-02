@@ -245,10 +245,6 @@ describe('FUMA-027 production editor live request authority', () => {
     expect(malformed.loadExactSiteAuthorization({ actor: ACTOR, routeScope: ROUTE }))
       .rejects.toThrow('malformed row')
 
-    const sqlite = postgresDb([]).db
-    Object.defineProperty(sqlite, 'dialect', { value: 'sqlite' })
-    expect(() => new PostgresFumaSiteAuthorizationAuthority(sqlite))
-      .toThrow('requires PostgreSQL')
   })
 
   it('composes the production ports and preserves derivation ancestry and active checks', async () => {

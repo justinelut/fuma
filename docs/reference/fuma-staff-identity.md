@@ -34,11 +34,11 @@ Identity uniqueness is enforced at PostgreSQL boundaries:
 
 A duplicate normalized email, credential identity, or link aborts the enclosing migration/backfill transaction rather than selecting an arbitrary winner.
 
-## Upgrade and transition lifecycle
+## PostgreSQL upgrade lifecycle
 
 The migration backfills legacy staff already present when `000003` runs. The same idempotent SQL is exposed by `backfillLegacyStaffIdentities` in `server/auth/hosted/legacyIdentity.ts`.
 
-The SQLite transition applies hosted migrations before copying inherited rows because import receipts live in migration `000001`. Therefore `importLegacySqliteToPostgres` invokes the transaction-aware identity reconciler after restoring and validating all imported tables but before marking the import complete. Resume also revalidates identity reconciliation. A completed import cannot omit a legacy staff link.
+In-place PostgreSQL upgrades run the transaction-aware identity reconciler before the migration commits. A completed migration cannot omit an eligible legacy staff link.
 
 Backfill validates all eligible rows after insertion. Each must resolve to:
 
@@ -82,7 +82,7 @@ The live gate executes distinct fresh and legacy-upgrade schemas, verifies all s
 
 ## Related
 
-- `docs/reference/fuma-hosted-migrations-transition.md` — hosted stream and SQLite import sequencing.
+- `docs/reference/fuma-hosted-migrations-transition.md` — hosted PostgreSQL stream and identity sequencing.
 - `server/auth/hosted/auth.ts` — unmounted Better Auth configuration and lifecycle hook.
 - `server/auth/hosted/schema.ts` — adopted Drizzle schema.
 - `server/auth/hosted/legacyIdentity.ts` — idempotent backfill and validation.

@@ -1,2 +1,20 @@
+import type { Route } from 'next'
 import { jsonLd } from '@/lib/seo'
-export function Breadcrumbs({items}:{items:readonly Readonly<{label:string;href:string}>[]}){const list=[{label:'Home',href:'/'},...items];return <><script type="application/ld+json" dangerouslySetInnerHTML={jsonLd({'@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:list.map((item,index)=>({'@type':'ListItem',position:index+1,name:item.label,item:`https://fuma.co.ke${item.href}`}))})}/><nav aria-label="Breadcrumb" className="mb-8 text-sm text-muted-foreground"><ol className="flex flex-wrap gap-2">{list.map((item,index)=><li key={item.href}>{index<list.length-1?<><a className="underline" href={item.href}>{item.label}</a><span aria-hidden="true"> / </span></>:<span aria-current="page">{item.label}</span>}</li>)}</ol></nav></>}
+import { breadcrumbStructuredData } from '@/lib/structured-data'
+import Link from 'next/link'
+
+export function Breadcrumbs({ items }: { items: readonly Readonly<{ label: string; href: string }>[] }) {
+  const list = [{ label: 'Home', href: '/' }, ...items]
+  return <>
+    <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(breadcrumbStructuredData(list))} />
+    <nav aria-label="Breadcrumb" className="mb-8 text-sm text-muted-foreground">
+      <ol className="flex flex-wrap gap-2">
+        {list.map((item, index) => <li key={item.href as Route}>
+          {index < list.length - 1
+            ? <><Link className="underline" href={item.href as Route}>{item.label}</Link><span aria-hidden="true"> / </span></>
+            : <span aria-current="page">{item.label}</span>}
+        </li>)}
+      </ol>
+    </nav>
+  </>
+}

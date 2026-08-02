@@ -36,7 +36,7 @@ browser GET /api/public/v1/product-facts?profile=website
 
 ## Contracts and stability
 
-`packages/public-contracts/src/projections.ts` owns record, filter, page, and envelope schemas. `packages/public-contracts/src/reads.ts` fixes `schemaVersion: 1`, bounded dataset-version syntax, and quoted ETags. `packages/public-contracts/src/handoff.ts` owns only closed, opaque public-to-product intent shapes; issuing and consuming handoffs remains FUMA-WEB-013 work.
+`packages/public-contracts/src/projections.ts` owns record, filter, page, and envelope schemas. `packages/public-contracts/src/reads.ts` fixes `schemaVersion: 1`, bounded dataset-version syntax, and quoted ETags. `packages/public-contracts/src/handoff.ts` owns only closed, opaque public-to-product intent shapes; FUMA-WEB-013 composes issuing and consuming them through the private projection boundary and exact app/auth hosts without importing Web UI.
 
 A domain authority returns:
 
@@ -81,10 +81,10 @@ The independent Web service requires:
 FUMA_PUBLIC_PROJECTION_INTERNAL_ORIGIN=http://studio-internal.service:3001
 FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN=<same shared secret>
 FUMA_PUBLIC_PROJECTION_TIMEOUT_MS=3000
-FUMA_PUBLIC_WEB_HOSTS=fuma.co.ke,www.fuma.co.ke,3002.blyss.co.ke
+FUMA_PUBLIC_WEB_HOSTS=trimly.co.ke,www.trimly.co.ke,3002.blyss.co.ke
 ```
 
-The internal origin must be a bare HTTP(S) origin outside every `*.fuma.co.ke` public host. There is no public API hostname. Production orchestration injects the token separately into Studio and Web; it is never emitted to a browser.
+The internal origin must be a bare HTTP(S) origin outside every `*.trimly.co.ke` public host. There is no public API hostname. Production orchestration injects the token separately into Studio and Web; it is never emitted to a browser.
 
 ## Adding an authority
 

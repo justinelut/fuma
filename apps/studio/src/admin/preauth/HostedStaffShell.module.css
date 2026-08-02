@@ -48,3 +48,13 @@
     flex-direction: column;
   }
 }
+
+.supportBanner {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem;
+  border: 2px solid #9a6700;
+  border-radius: 0.5rem;
+  background: #fff8c5;
+  color: #4d2d00;
+}

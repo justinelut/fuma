@@ -7,7 +7,7 @@ const INVALID_REQUEST = Object.freeze({
   error: { code: 'invalid_request', message: 'Invalid handoff request.' },
 })
 const UNAVAILABLE = Object.freeze({
-  error: { code: 'temporarily_unavailable', message: 'A secure transition is temporarily unavailable.' },
+  error: { code: 'temporarily_unavailable', message: 'Fuma is temporarily unavailable.' },
 })
 
 export async function POST(request: Request): Promise<Response> {

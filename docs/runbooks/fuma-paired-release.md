@@ -1,119 +1,118 @@
-# FUMA paired multi-architecture release runbook
+# FUMA native ARM64 paired release runbook
 
-This runbook covers the repository-owned FUMA-078 workflow that builds and gates paired hosted runtime/public-web images. It does not deploy either image, mutate DNS/TLS or Kubernetes, run migrations, purchase infrastructure, or alter the preserved self-host `ghcr.io/corebunch/instatic` release path.
+This runbook covers the repository-owned FUMA-078 supply-chain policy for the hosted runtime, public-Web, and site-runtime images. “Paired release” remains the downstream release-envelope name: one immutable manifest binds the product runtime/public-Web pair together with the independently deployable tenant site-runtime from the same source identity. This workflow does not deploy, run migrations, mutate DNS/TLS or Kubernetes, purchase infrastructure, or alter the preserved legacy self-host image.
 
-## Release contract
+## Repository contract
 
-- Workflow: `.github/workflows/fuma-paired-release.yml` (`workflow_dispatch` only).
-- Runtime image: `infra/fuma-phase-13-18/docker/runtime.Dockerfile`, non-root `bun`, explicit `web`, `worker`, `scheduler`, and `migration` commands.
-- Email compatibility target: the same source/lock identity with the exact development graph needed by the architecture probe; it runs non-root and is never published.
-- Public web image: `infra/fuma-phase-13-18/docker/public-web.Dockerfile`, non-root numeric UID/GID `10001:10001`, Next standalone server only.
-- Manifest tool: `packages/fuma-governance-launch/tooling/pairedRelease.ts`; schema version 3 binds the exact OCI indexes, published-digest Trivy SARIF, published-image SPDX documents, BuildKit SLSA provenance, cosign verification JSON, paired smoke receipts, and a non-promoting publication plan.
-- Published identities are accepted only as `ghcr.io/corebunch/fuma-runtime@sha256:<digest>` and `ghcr.io/corebunch/fuma-web@sha256:<digest>`. Mutable tags never enter the paired manifest.
-- Both images, both architecture evidence sets, the root `bun.lock`, and the finalized hosted migration high-water mark must bind the same source SHA.
+- Workflow: `.github/workflows/fuma-paired-release.yml`, manual dispatch only.
+- Native policy: every job uses `ubuntu-24.04-arm`, verifies `RUNNER_ARCH=ARM64` and `uname -m=aarch64`, and accepts only `linux/arm64`. There is no amd64 matrix, QEMU, or emulation policy.
+- Legacy self-host source: root `Dockerfile`, unchanged and independently released as `ghcr.io/corebunch/instatic`.
+- Hosted runtime: `infra/fuma-phase-13-18/docker/runtime.Dockerfile`, non-root `bun`, explicit `web`, `worker`, `scheduler`, `migration`, and CI-only `email-compatibility` commands.
+- Public Web: `infra/fuma-phase-13-18/docker/public-web.Dockerfile`, non-root `10001:10001`, standalone Next server on port 3002.
+- Site runtime: `infra/fuma-phase-13-18/docker/site-runtime.Dockerfile`, non-root `10002:10002`, standalone Next server on port 3003.
+- Exact dependency identity: every source copies root `package.json`, root `bun.lock`, and every workspace package manifest before `bun install --frozen-lockfile`. App/package-local lockfiles are forbidden.
+- Manifest: schema v4 in `packages/fuma-governance-launch/src/contracts.ts` and `infra/fuma-phase-13-18/release/paired-release.template.json`.
+- Tooling: `packages/fuma-governance-launch/tooling/pairedRelease.ts` creates exact bytes and a checksum sidecar with create-only hard links and verifies the complete retained evidence set.
 
-The root package contract is exactly Bun `1.3.14`, workspaces `apps/*` and `packages/*`, one root `bun.lock`, and no app/package-local lockfiles. Every workspace manifest is copied before each frozen container install.
+Accepted image identities are digest-only:
 
-## Required GitHub policy
+```text
+ghcr.io/corebunch/fuma-runtime@sha256:<64 lowercase hex>
+ghcr.io/corebunch/fuma-web@sha256:<64 lowercase hex>
+ghcr.io/corebunch/fuma-site-runtime@sha256:<64 lowercase hex>
+```
 
-Do not dispatch until all of these repository settings exist:
+The three digest values must be pairwise distinct. Each image source claim must equal the manifest source SHA. The manifest binds the exact root-lock hash, finalized hosted migration tail, one ARM64 OCI index per image, one create-only ARM64 smoke receipt per image, published-digest Trivy SARIF, published-image SPDX, SLSA provenance, Cosign verification JSON, and a non-promoting publication plan. Placeholders, mutable tags, mixed SHA, wrong lock/migration identity, unrelated/duplicate OCI descriptors, non-ARM64 architecture, digest reuse, evidence tampering, and manifest tampering fail closed.
 
-1. The selected branch or tag is protected. Both preflight and publication fail closed when `github.ref_protected` is false.
-2. Environment `fuma-release-supply-chain` is protected with required reviewers and prevents unreviewed publication. The workflow receives `packages: write` and `id-token: write` only in that environment-bound publish job.
-3. Repository variables `FUMA_BUN_IMAGE_DIGEST` and `FUMA_NODE_IMAGE_DIGEST` are complete immutable image references ending in `@sha256:<64 lowercase hex>`; tags without digests are rejected.
-4. The dispatcher can name the exact 40-character commit checked out by the protected ref. `release_ref` must equal `github.sha`; branch names, tags, prefixes, uppercase hashes, placeholders, and a different commit are rejected.
+## Runtime and smoke commands
 
-Environment protection is a GitHub repository setting and cannot be proven by this YAML alone. Treat a missing reviewer rule as a publication blocker.
+The runtime entrypoint accepts:
 
-## Dispatch and gate order
+```text
+fuma-runtime web
+fuma-runtime worker
+fuma-runtime scheduler
+fuma-runtime migration [arguments]
+fuma-runtime email-compatibility
+```
 
-Dispatch **Fuma paired multi-architecture release** from the protected ref and enter its exact commit SHA as `release_ref`. The workflow then:
+`runtime-smoke.sh` boots all three service roles, verifies their role-specific readiness ownership, executes the migration probe, and checks the ARM64 email renderer. `public-web-smoke.sh` requires a 200 response. `site-runtime-smoke.sh` requires the standalone process to answer and deny a direct-origin request with 404. All scripts inspect source/lock/migration labels, architecture, and non-root user before booting. They refuse existing output paths and clean up only containers created by that invocation. These HTTP probes are container liveness checks, not browser, TLS, proxy, routing, or public-host acceptance.
 
-1. checks out that exact SHA without persisted credentials;
-2. verifies root Bun/workspace/lock identity and computes the lock hash and finalized hosted migration high-water mark;
-3. runs only the governance typecheck/tests and shell syntax gate;
-4. independently builds and boots `linux/amd64` and `linux/arm64` runtime roles, migration command, email renderer, and Next standalone server;
-5. records architecture-specific, create-only smoke JSON binding source SHA, lock hash, migration high-water mark, image identity, platform, non-root state, and response/log hashes;
-6. blocks on HIGH/CRITICAL Trivy findings and emits per-architecture SPDX JSON;
-7. only after both architecture jobs pass and after refusing pre-existing source-SHA tags, publishes SHA-tagged manifest lists and immediately records their immutable digest references;
-8. records raw OCI indexes, allows only the exact two runnable platforms plus BuildKit attestation descriptors, boots both published digest architectures, scans both published digests, and validates both SARIF reports;
-9. generates fresh SPDX JSON from each published immutable digest and extracts BuildKit SLSA provenance whose subjects cover both runnable platform-manifest digests and whose source is the release SHA;
-10. keyless-signs and verifies only those scanned immutable image digests, retaining exact cosign verification JSON;
-11. records a hash-bound plan that is explicitly unpromoted, performs no deployment or registry deletion, treats a partial pair as a non-promotable orphan, and retains last-known-good digests for later rollback authority;
-12. assembles a staged, fsynced, create-only paired manifest and checksum sidecar, performs full retained-evidence verification, and proves tamper and mixed-SHA rejection; and
-13. keyless-signs and verifies the exact paired-manifest bytes before uploading the retained workflow artifact.
+## Required protected GitHub policy
 
-A SHA tag is a registry discovery handle, not promotion authority. Only the digest references inside a verified paired manifest are admissible downstream.
+Before dispatch, a repository owner must verify all of the following outside this repository:
 
-## Evidence and offline verification
+1. The selected ref is protected. The workflow rejects an unprotected ref or a `release_ref` different from `github.sha`.
+2. Environment `fuma-release-supply-chain` has required reviewers and prevents unreviewed publication.
+3. Repository variables `FUMA_BUN_IMAGE_DIGEST` and `FUMA_NODE_IMAGE_DIGEST` are non-placeholder immutable digest references with native ARM64 support.
+4. The protected environment grants package write and OIDC only to the publish job.
+5. GitHub-hosted `ubuntu-24.04-arm` capacity is available; changing the runner or introducing emulation is not an equivalent acceptance path.
 
-The artifact `paired-release-<source-sha>` contains the manifest, checksum sidecar, immutable digest files, source claims, both architecture smoke directories, scan reports, SBOM/provenance records, signature bundle, and prepublication architecture evidence. Smoke directories must contain exactly `amd64.json` and `arm64.json`; extra files, wrong platform names, repeated/missing roles, different image identities, mixed source/lock/migration values, or placeholder hashes fail verification.
+Repository YAML cannot prove these settings. Missing reviewer, runner, variable, registry, or OIDC evidence blocks publication and closure.
 
-After downloading an artifact into a clean checkout of the same source, run full evidence verification (paths below are relative to the downloaded artifact root):
+## Protected gate order
+
+A successful protected run must:
+
+1. Check out the exact SHA without persisted credentials, hash the unchanged root lock, and derive the finalized hosted migration tail from the registered migration index.
+2. Run bounded governance typecheck/tests, the deterministic repository demo, and shell syntax checks.
+3. Natively build and boot all three ARM64 images plus the unpublished compatibility target.
+4. Block on HIGH/CRITICAL prepublication findings and retain prepublication SPDX receipts.
+5. Enter the protected environment only after preflight and architecture gate success.
+6. Refuse existing source-SHA tags, then publish all three SHA-tagged ARM64 images with BuildKit SBOM/provenance enabled.
+7. Resolve immutable digest references, retain raw OCI indexes, and reject any runnable platform other than exactly one `linux/arm64` descriptor (attestation descriptors may be `unknown/unknown`).
+8. Pull and boot all three published digests natively, producing exactly `arm64.json` in each smoke directory.
+9. Scan each published digest with blocking Trivy policy and bind each SARIF receipt to source SHA, image digest, and `linux/arm64`.
+10. Generate fresh SPDX from each published digest and retain SLSA provenance covering each runnable ARM64 manifest digest and source SHA.
+11. Sign and verify only the scanned immutable image digests.
+12. Record a plan with state `registry-published-unpromoted`, orphan any partial publication, retain last-known-good digests, and perform no deletion or deployment mutation.
+13. Assemble and fully verify the create-only paired manifest/checksum, prove byte tamper and mixed-SHA rejection, then sign and verify the exact manifest bytes.
+14. Upload the retained artifact. Upload is evidence retention, not promotion or deployment.
+
+Any partial image publication is a non-promotable orphan. Registry deletion is a separate high-risk administrative action and is not encoded here.
+
+## Offline retained-evidence verification
+
+From a clean checkout of the same source SHA, with the protected artifact under `supply/`:
 
 ```sh
 bun packages/fuma-governance-launch/tooling/pairedRelease.ts \
   --verify=supply/paired-release.json --evidence=full \
-  --runtime-index=supply/runtime.index.json --web-index=supply/web.index.json \
-  --runtime-scan=supply/runtime.trivy.sarif --web-scan=supply/web.trivy.sarif \
-  --runtime-sbom=supply/runtime.spdx.json --web-sbom=supply/web.spdx.json \
-  --runtime-provenance=supply/runtime.provenance.json --web-provenance=supply/web.provenance.json \
+  --runtime-index=supply/runtime.index.json \
+  --web-index=supply/web.index.json \
+  --site-runtime-index=supply/site-runtime.index.json \
+  --runtime-scan=supply/runtime.trivy.sarif \
+  --web-scan=supply/web.trivy.sarif \
+  --site-runtime-scan=supply/site-runtime.trivy.sarif \
+  --runtime-sbom=supply/runtime.spdx.json \
+  --web-sbom=supply/web.spdx.json \
+  --site-runtime-sbom=supply/site-runtime.spdx.json \
+  --runtime-provenance=supply/runtime.provenance.json \
+  --web-provenance=supply/web.provenance.json \
+  --site-runtime-provenance=supply/site-runtime.provenance.json \
   --runtime-signature-verification=supply/runtime.signature-verification.json \
   --web-signature-verification=supply/web.signature-verification.json \
-  --runtime-smoke-dir=supply/runtime-smoke --web-smoke-dir=supply/web-smoke \
+  --site-runtime-signature-verification=supply/site-runtime.signature-verification.json \
+  --runtime-smoke-dir=supply/runtime-smoke \
+  --web-smoke-dir=supply/web-smoke \
+  --site-runtime-smoke-dir=supply/site-runtime-smoke \
   --publication-plan=supply/publication-plan.json
 ```
 
-The result must report both `verified: true` and `evidenceVerified: true`. A bare `--verify` checks only strict manifest shape, canonical manifest hash, and its checksum sidecar; it deliberately reports `evidenceVerified: false` and is not full acceptance. Full mode reparses every gate schema, cross-binds provenance to both runnable OCI platform descriptors, checks exact source/image/platform/smoke identity, and compares every retained file hash. Sigstore verification remains independently required using the retained bundle and expected GitHub Actions OIDC workflow identity.
+The result must contain `verified:true` and `evidenceVerified:true`. A bare `--verify` checks strict shape, canonical manifest hash, and checksum sidecar only; it is not protected acceptance. Independently verify the retained Sigstore bundle and all three image signatures against the exact workflow OIDC identity.
 
-## Failure and cleanup
+## Deterministic repository demo
 
-- Smoke scripts refuse to overwrite an existing evidence path before invoking a container engine.
-- They remove only container IDs successfully created by that invocation. A name collision is never adopted or deleted.
-- Evidence is written to a same-directory exclusive temporary file and hard-linked to the final absent path; failure or a final-path race removes only the temporary file.
-- Manifest and checksum creation stage bytes in same-directory private temporary directories, fsync each staged file, and hard-link create-only into the final path. If checksum publication fails after a new manifest link, only that newly-owned manifest is removed; an existing checksum is preserved. Temporary staging directories are always removed.
-- Architecture failure prevents the publish job. Scan, attestation, signature, manifest, or signature-verification failure prevents a promotable paired artifact.
-- If one immutable image digest was pushed before a later publish-stage failure, it is an unpaired orphan, not a release. Do not deploy it and do not synthesize evidence. Registry deletion, if desired, is a separate explicitly approved administrative action.
-- Re-run only after diagnosing the failed gate. Existing evidence/output paths must be moved to a new review location or removed deliberately; tooling never overwrites them.
-
-## Static validation versus external acceptance
-
-Repository validation can prove workflow syntax, policy ordering, strict contracts, non-overwrite behavior, cleanup ownership, and rejection paths. It cannot prove that GitHub environment protection is configured or that real images boot, publish, scan, attest, sign, or verify. Those claims require a successful protected workflow and retained external evidence. The workflow performs no deployment; FUMA-079/FUMA-080 own infrastructure and promotion.
-
-## Related
-
-- `packages/fuma-governance-launch/tests/architecture/supply-chain.architecture.test.ts`
-- `packages/fuma-governance-launch/tests/integration/supply-chain.integration.test.ts`
-- `packages/fuma-governance-launch/tests/integration/paired-release-tooling.integration.test.ts`
-- `docs/reference/fuma-governance-launch-phase.md`
-- `docs/deployment/self-host-smoke-harness.md` — separate preserved Instatic self-host parity harness
-
-## Externally approved acceptance sequence — not executed in this bounded phase
-
-A repository owner must first verify the protected environment/reviewer rule and set non-placeholder immutable `FUMA_BUN_IMAGE_DIGEST` and `FUMA_NODE_IMAGE_DIGEST` repository variables. With renewed approval for Docker/buildx/QEMU, GHCR writes, network vulnerability scans, keyless signing, and GitHub secret use, execute from a clean checkout:
+The repository-only demo performs no network request, container action, signing, publication, deployment, or external mutation:
 
 ```sh
-SOURCE_SHA=$(git rev-parse HEAD)
-printf '%s\n' "$SOURCE_SHA" | grep -Eq '^[a-f0-9]{40}$'
-gh workflow run fuma-paired-release.yml --ref <protected-branch> -f release_ref="$SOURCE_SHA"
-gh run list --workflow fuma-paired-release.yml --branch <protected-branch> --limit 1
-gh run watch <run-id> --exit-status
-gh run download <run-id> --name "paired-release-$SOURCE_SHA" --dir .tmp/fuma-078-acceptance
+bun --cwd=packages/fuma-governance-launch run release:demo
 ```
 
-Then, from the same source checkout, place the downloaded `supply/` directory at `.tmp/fuma-078-acceptance/supply` (the artifact normally already has that shape) and run the full verification command from the preceding section with each `supply/` prefix replaced by `.tmp/fuma-078-acceptance/supply/`. Independently verify the manifest bundle and both image signatures:
+It creates one deterministic in-memory schema-v4 manifest and proves mixed-SHA, reused digest, wrong architecture, and field-tamper rejection. Its `externalEvidence:false` result is intentionally not protected acceptance.
 
-```sh
-IDENTITY='^https://github\.com/corebunch/instatic/\.github/workflows/fuma-paired-release\.yml@refs/(heads|tags)/.+'
-cosign verify-blob \
-  --bundle .tmp/fuma-078-acceptance/supply/paired-release.sigstore.json \
-  --certificate-identity-regexp "$IDENTITY" \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  .tmp/fuma-078-acceptance/supply/paired-release.json
-for image in "$(cat .tmp/fuma-078-acceptance/supply/runtime.digest)" "$(cat .tmp/fuma-078-acceptance/supply/web.digest)"; do
-  cosign verify --certificate-identity-regexp "$IDENTITY" \
-    --certificate-oidc-issuer https://token.actions.githubusercontent.com "$image"
-done
-```
+## Repository evidence versus protected evidence
 
-Retain: the protected workflow URL/run ID and conclusion; exact source SHA and root-lock hash; both immutable index digests; raw OCI indexes; amd64 and ARM64 runtime/public-web smoke JSON; published-digest Trivy SARIF; published-image SPDX; BuildKit SLSA provenance; image signature verification JSON; the non-promoting publication plan; paired manifest/checksum/signature bundle; and logs showing every gate succeeded. The ARM64 smoke records must show `linux/arm64`, non-root runtime identities, all runtime roles, migration probe, email renderer `arm64`, and public-web HTTP liveness. Do not close FUMA-078 from repository tests, a partial workflow, mutable tags, prepublication evidence, or a bare manifest verification; closure requires this real retained evidence and reviewer confirmation.
+Repository validation can prove source structure, strict contracts, canonical hashing, exact-lock policy, create-only output behavior, cleanup ownership, native-runner policy text, workflow gate ordering, and deterministic rejection paths. It cannot prove that images built or booted, that GHCR accepted immutable bytes, that scans/SBOM/provenance/signatures exist for published digests, that GitHub environment protection is configured, or that any release deployed.
+
+FUMA-078 protected acceptance therefore still requires a successful reviewed workflow run and retained real evidence: run URL/ID/conclusion; exact source SHA/root-lock hash/migration tail; three immutable image digests and OCI indexes; three ARM64 smoke receipts; three blocking scan receipts; three SPDX documents; three SLSA provenance records; three image signature verification records; non-promoting publication plan; paired manifest/checksum/signature bundle; and reviewer confirmation. Do not close the ticket from repository tests or this runbook alone.

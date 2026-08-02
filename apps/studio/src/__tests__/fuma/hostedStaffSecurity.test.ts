@@ -79,7 +79,7 @@ describe('FUMA-013 hosted staff security and cutover', () => {
   })
 
   it('enforces hosted policy before CMS call paths while leaving hosted-off routing untouched', async () => {
-    const origin = 'https://app.fuma.co.ke'
+    const origin = 'https://app.trimly.co.ke'
     const hostedStaffAuth = createHostedStaffAuthBoundary({
       auth: {
         handler: async () => new Response(JSON.stringify({
@@ -110,7 +110,7 @@ describe('FUMA-013 hosted staff security and cutover', () => {
           origin: 'https://evil.example',
         },
       },
-      'app.fuma.co.ke',
+      'app.trimly.co.ke',
     ), { db, hostedStaffAuth })
     expect(hostileOrigin.status).toBe(403)
     expect(hostileOrigin.headers.getSetCookie()[0]).toContain('Max-Age=0')
@@ -123,7 +123,7 @@ describe('FUMA-013 hosted staff security and cutover', () => {
           cookie: `${LEGACY_STAFF_SESSION_COOKIE}=old-bearer`,
         },
       },
-      'app.fuma.co.ke',
+      'app.trimly.co.ke',
     ), { db, hostedStaffAuth })
     expect(legacy.status).toBe(401)
     expect(legacy.headers.getSetCookie()).toHaveLength(1)
@@ -136,7 +136,7 @@ describe('FUMA-013 hosted staff security and cutover', () => {
           cookie: `${LEGACY_STAFF_SESSION_COOKIE}=old-bearer`,
         },
       },
-      'app.fuma.co.ke',
+      'app.trimly.co.ke',
     ), { db, hostedStaffAuth })
     expect(session.status).toBe(200)
     expect(await session.text()).not.toContain('raw-session-bearer')

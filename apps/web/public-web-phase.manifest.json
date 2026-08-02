@@ -8,14 +8,14 @@
     { "id": "FUMA-WEB-008", "registrations": ["content/public", "/docs", "/guides", "/blog", "/changelog", "/search", "/feeds"] },
     { "id": "FUMA-WEB-009", "registrations": ["/pricing"] },
     { "id": "FUMA-WEB-010", "registrations": ["/templates", "/templates/[slug]"] },
-    { "id": "FUMA-WEB-011", "registrations": ["experts", "showcases", "plugins projection consumers", "no-store discovery"] },
-    { "id": "FUMA-WEB-012", "registrations": ["/experts", "/showcase", "/plugins", "mediated expert inquiry"] },
+    { "id": "FUMA-WEB-011", "registrations": ["experts", "showcases", "plugins", "components projection consumers", "no-store exact-detail discovery"] },
+    { "id": "FUMA-WEB-012", "registrations": ["shared original hero-to-footer visual system", "motion/react product-canvas island", "/", "/website", "/publication", "/features", "/solutions", "/about", "/pricing", "/templates", "/experts", "/showcase", "/plugins", "/components", "/component-packs", "mediated expert inquiry"] },
     { "id": "FUMA-WEB-013", "registrations": ["/start", "/api/handoff", "opaque handoff telemetry"] },
     { "id": "FUMA-WEB-014", "registrations": ["/trust", "/security", "/contact", "/privacy-request", "/status", "/legal/[slug]"] },
     { "id": "FUMA-WEB-015", "registrations": ["robots.ts", "sitemap.ts", "opengraph-image.tsx", "manifest.ts"] },
     { "id": "FUMA-WEB-016", "registrations": ["/api/events", "/api/vitals", "ConsentBanner", "AnalyticsBeacon", "lib/metrics.ts"] },
     { "id": "FUMA-WEB-017", "registrations": ["infra/public-web", "infra/docker/web.Dockerfile", "proxy.ts", "/api/health", "/api/internal/metrics"] },
-    { "id": "FUMA-WEB-018", "registrations": ["docs/runbooks/fuma-public-web-launch-gate.md", "public-web-budgets.json", "e2e/public-web-launch.e2e.ts"] }
+    { "id": "FUMA-WEB-018", "registrations": ["docs/runbooks/fuma-public-web-launch-gate.md", "e2e/public-web-launch.e2e.ts"] }
   ],
   "focusedTests": [
     "tests/public-projection-bff.test.ts",
@@ -25,6 +25,7 @@
     "tests/public-request.test.ts",
     "tests/public-submission-routes.test.ts",
     "tests/public-web-acquisition.test.ts",
+    "tests/public-marketing-analytics.test.ts",
     "tests/public-web-acquisition-pages.test.tsx",
     "tests/public-web-accessibility-contracts.test.ts",
     "tests/public-web-handoff-layer.test.ts",

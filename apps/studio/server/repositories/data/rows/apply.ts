@@ -34,10 +34,9 @@
  * `seq` (see repositories/syncSequence.ts) so delta queries surface both
  * kinds of change to reconnecting editors.
  *
- * `applyDataRowChangesInTx` assumes an OPEN transaction — the site-document
- * handler runs shell + components + layouts + pages through one transaction,
- * and nesting `db.transaction` wedges the SQLite adapter's serialized chain
- * (the 2026-06-12 audit's critical finding; do not reintroduce).
+ * `applyDataRowChangesInTx` assumes an open PostgreSQL transaction. The
+ * site-document handler runs shell + components + layouts + pages through that
+ * one transaction; do not introduce a nested `db.transaction`.
  * `applyDataRowChanges` is the standalone wrapper that opens one.
  */
 import type { DbClient } from '../../../db/client'

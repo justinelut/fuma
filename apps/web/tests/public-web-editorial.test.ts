@@ -18,7 +18,7 @@ import {
 } from '../lib/editorial'
 
 const CLOCK = new Date('2026-07-26T12:00:00Z')
-const ORIGIN = 'https://fuma.co.ke'
+const ORIGIN = 'https://trimly.co.ke'
 
 type SourceOptions = Readonly<{
   title?: string

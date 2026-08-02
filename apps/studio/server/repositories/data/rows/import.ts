@@ -58,8 +58,7 @@ export async function upsertDataRow(
  * row in the same table already owns the imported slug). Used by the
  * `merge-add` import strategy.
  *
- * RETURNING id is supported by both Postgres and SQLite, making this dialect-
- * neutral while still reporting whether an insert actually happened.
+ * PostgreSQL `returning id` reports whether the insert actually happened.
  */
 export async function insertDataRowIfAbsent(
   db: DbClient,

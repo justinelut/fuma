@@ -68,12 +68,6 @@ function recordingDb(
   return { db, tagged, unsafe }
 }
 
-function sqliteDb(): DbClient {
-  const { db } = recordingDb()
-  Object.defineProperty(db, 'dialect', { value: 'sqlite' })
-  return db
-}
-
 const SITE_EVENT: CreatedAuditEvent = {
   id: 'audit-01',
   action: 'site.created',
@@ -130,14 +124,12 @@ function normalized(sql: string): string {
 }
 
 describe('FUMA-022 PostgreSQL audit repository', () => {
-  it('has an append/list-only API and rejects non-PostgreSQL authority', () => {
+  it('has an append/list-only API', () => {
     expect(Object.getOwnPropertyNames(PostgresAuditRepository.prototype).sort()).toEqual([
       'append',
       'constructor',
       'list',
     ])
-    expect(() => new PostgresAuditRepository(sqliteDb()))
-      .toThrow('Fuma audit history requires PostgreSQL authority.')
   })
 
   it('appends every trusted field and exposes no mutation SQL', async () => {

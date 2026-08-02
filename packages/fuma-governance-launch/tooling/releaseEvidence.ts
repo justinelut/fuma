@@ -8,13 +8,15 @@ const SourceRevisionSchema = Type.String({ pattern: '^[a-f0-9]{40}(?:[a-f0-9]{24
 const Sha256Schema = Type.String({ pattern: '^[a-f0-9]{64}$' })
 const RuntimeImageSchema = Type.String({ pattern: '^ghcr\\.io/corebunch/fuma-runtime@sha256:[a-f0-9]{64}$' })
 const WebImageSchema = Type.String({ pattern: '^ghcr\\.io/corebunch/fuma-web@sha256:[a-f0-9]{64}$' })
+const SiteRuntimeImageSchema = Type.String({ pattern: '^ghcr\\.io/corebunch/fuma-site-runtime@sha256:[a-f0-9]{64}$' })
 
 export const PublicationPlanSchema = Type.Object({
-  schemaVersion: Type.Literal(1),
+  schemaVersion: Type.Literal(2),
   sourceSha: SourceRevisionSchema,
   runtimeImage: RuntimeImageSchema,
   webImage: WebImageSchema,
-  architectures: Type.Tuple([Type.Literal('linux/amd64'), Type.Literal('linux/arm64')]),
+  siteRuntimeImage: SiteRuntimeImageSchema,
+  architectures: Type.Tuple([Type.Literal('linux/arm64')]),
   state: Type.Literal('registry-published-unpromoted'),
   promotionAuthority: Type.Literal('external-fuma-079-or-later'),
   partialPublicationPolicy: Type.Literal('orphan-non-promotable'),
@@ -49,7 +51,7 @@ function assertOciIndex(value: unknown): readonly string[] {
     && index.mediaType !== 'application/vnd.docker.distribution.manifest.list.v2+json') {
     throw new Error('OCI index has an unsupported media type')
   }
-  if (!Array.isArray(index.manifests) || index.manifests.length < 2) throw new Error('OCI index must contain its runnable manifests')
+  if (!Array.isArray(index.manifests) || index.manifests.length < 1) throw new Error('OCI index must contain its runnable manifest')
   const runnablePlatforms: string[] = []
   const runnableDigests: string[] = []
   for (const [position, entry] of index.manifests.entries()) {
@@ -58,8 +60,8 @@ function assertOciIndex(value: unknown): readonly string[] {
     if (typeof descriptor.digest !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(descriptor.digest) || /^sha256:0{64}$/.test(descriptor.digest)) {
       throw new Error('OCI descriptor digest must be a non-placeholder SHA-256')
     }
-    if (platform.os === 'linux' && (platform.architecture === 'amd64' || platform.architecture === 'arm64')) {
-      runnablePlatforms.push(`${platform.os}/${platform.architecture}`)
+    if (platform.os === 'linux' && platform.architecture === 'arm64') {
+      runnablePlatforms.push('linux/arm64')
       runnableDigests.push(descriptor.digest.slice('sha256:'.length))
       continue
     }
@@ -68,12 +70,11 @@ function assertOciIndex(value: unknown): readonly string[] {
       : {}
     if (platform.os !== 'unknown' || platform.architecture !== 'unknown'
       || annotations['vnd.docker.reference.type'] !== 'attestation-manifest') {
-      throw new Error('OCI index contains an unrelated non-runnable descriptor')
+      throw new Error('OCI index contains an unrelated or non-ARM64 runnable descriptor')
     }
   }
-  runnablePlatforms.sort()
-  if (runnablePlatforms.join(',') !== 'linux/amd64,linux/arm64') throw new Error('OCI index must contain each required runnable architecture exactly once')
-  return runnableDigests.sort()
+  if (runnablePlatforms.join(',') !== 'linux/arm64') throw new Error('OCI index must contain exactly one linux/arm64 runnable architecture')
+  return runnableDigests
 }
 
 function assertSarif(value: unknown, image: string, sourceSha: string): void {
@@ -81,16 +82,14 @@ function assertSarif(value: unknown, image: string, sourceSha: string): void {
   if (report.version !== '2.1.0' || !Array.isArray(report.runs) || report.runs.length < 1) {
     throw new Error('Published scan must be a non-empty SARIF 2.1.0 report')
   }
-  const properties = object(report.properties, 'Trivy SARIF receipt properties')
-  const receipt = object(properties.fuma, 'Trivy SARIF Fuma receipt')
+  const receipt = object(object(report.properties, 'Trivy SARIF receipt properties').fuma, 'Trivy SARIF Fuma receipt')
   if (receipt.schemaVersion !== 1 || receipt.image !== image || receipt.sourceSha !== sourceSha
-    || receipt.scanner !== 'trivy' || receipt.passed !== true || receipt.ignoreUnfixed !== false
+    || receipt.platform !== 'linux/arm64' || receipt.scanner !== 'trivy' || receipt.passed !== true || receipt.ignoreUnfixed !== false
     || !Array.isArray(receipt.severity) || receipt.severity.join(',') !== 'HIGH,CRITICAL') {
-    throw new Error('Published scan receipt does not bind the exact image, source, and blocking policy')
+    throw new Error('Published scan receipt does not bind the exact ARM64 image, source, and blocking policy')
   }
   for (const [position, runValue] of report.runs.entries()) {
-    const run = object(runValue, `SARIF run ${position}`)
-    const driver = object(object(run.tool, `SARIF run ${position} tool`).driver, `SARIF run ${position} driver`)
+    const driver = object(object(object(runValue, `SARIF run ${position}`).tool, `SARIF run ${position} tool`).driver, `SARIF run ${position} driver`)
     if (typeof driver.name !== 'string' || !/trivy/i.test(driver.name)) throw new Error('Published scan must be produced by Trivy')
   }
 }
@@ -119,7 +118,7 @@ function assertProvenance(value: unknown, sourceSha: string, expectedSubjectDige
     return typeof digests.sha256 === 'string' ? [digests.sha256] : []
   }) : []))
   if (!expectedSubjectDigests.every((digest) => actualSubjectDigests.has(digest))) {
-    throw new Error('Verified provenance must bind both runnable OCI platform digests with SLSA v1')
+    throw new Error('Verified provenance must bind the runnable ARM64 OCI platform digest with SLSA v1')
   }
   if (!JSON.stringify(value).includes(sourceSha)) throw new Error('Verified provenance must bind the release source SHA')
 }
@@ -149,14 +148,14 @@ export async function validatedEvidenceHash(path: string, kind: EvidenceKind, im
   return hashPairedReleaseFile(bytes)
 }
 
-export async function validatedPublicationPlanHash(path: string, sourceSha: string, runtimeImage: string, webImage: string): Promise<string> {
+export async function validatedPublicationPlanHash(path: string, sourceSha: string, runtimeImage: string, webImage: string, siteRuntimeImage: string): Promise<string> {
   const { bytes, value } = await json(path, 'Publication plan')
   if (!Value.Check(PublicationPlanSchema, value)) {
     const detail = Value.Errors(PublicationPlanSchema, value).First()
     throw new Error(`Invalid publication plan: ${detail?.path || '/'} ${detail?.message || 'invalid'}`)
   }
   const plan = value as PublicationPlan
-  if (plan.sourceSha !== sourceSha || plan.runtimeImage !== runtimeImage || plan.webImage !== webImage) {
+  if (plan.sourceSha !== sourceSha || plan.runtimeImage !== runtimeImage || plan.webImage !== webImage || plan.siteRuntimeImage !== siteRuntimeImage) {
     throw new Error('Publication plan identity does not match the paired release')
   }
   if (plan.previousPairedReleaseManifestHashSha256 !== null && /^0{64}$/.test(plan.previousPairedReleaseManifestHashSha256)) {

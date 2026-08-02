@@ -5,8 +5,8 @@
  * `includeMedia`, and `includeSite` filter options for both GET (query string)
  * and POST (JSON body) requests.
  *
- * Uses a real in-memory SQLite database with all migrations applied. Auth is
- * seeded directly via repositories (no HTTP round-trip to /setup).
+ * Uses an isolated PostgreSQL schema with all migrations applied. Auth is
+ * seeded directly via repositories (no HTTP round trip to `/setup`).
  *
  * @see server/handlers/cms/export.ts
  * @see src/core/data/bundleSchema.ts
@@ -18,9 +18,7 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { strFromU8, unzipSync } from 'fflate'
-import { createSqliteClient } from '../../../server/db/sqlite'
-import { runMigrations } from '../../../server/db/runMigrations'
-import { sqliteMigrations } from '../../../server/db/migrations-sqlite'
+import { createTestDatabase } from '../../../server/db/testDatabase'
 import { saveDraftSite } from '../../../server/repositories/site'
 import { SELF_HOST_SITE_ID } from '../../../server/selfHost'
 import { createUser } from '../../../server/repositories/users'
@@ -155,8 +153,7 @@ let customRowId: string
 const CUSTOM_TABLE_ID = 'my-data-test'
 
 beforeAll(async () => {
-  db = createSqliteClient(':memory:')
-  await runMigrations(db, sqliteMigrations)
+  db = (await createTestDatabase('cmsTransferExport')).db
   cookie = await seedAuth(db)
 
   // Create 1 custom table ("My Data")
@@ -341,8 +338,7 @@ describe('handleExportRoute — GET ?includeMedia=1', () => {
   })
 
   test('returns a zip archive with media metadata in the Instatic manifest and bytes under media/', async () => {
-    const mediaDb = createSqliteClient(':memory:')
-    await runMigrations(mediaDb, sqliteMigrations)
+    const { db: mediaDb } = await createTestDatabase('cmsTransferExport')
     const mediaCookie = await seedAuth(mediaDb)
     const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-export-media-'))
     try {
@@ -509,8 +505,7 @@ describe('handleExportRoute — POST /export/estimate', () => {
 
 describe('handleExportRoute — POST /export/estimate with embedded media', () => {
   test('estimate equals the real zip byte length exactly, including media file entries', async () => {
-    const mediaDb = createSqliteClient(':memory:')
-    await runMigrations(mediaDb, sqliteMigrations)
+    const { db: mediaDb } = await createTestDatabase('cmsTransferExport')
     const mediaCookie = await seedAuth(mediaDb)
 
     const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-export-estimate-'))

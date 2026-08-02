@@ -1,6 +1,6 @@
 # Fuma free-host authority and public routing
 
-FUMA-050 owns allocation and public serving for free `<tenant>.fuma.co.ke` hosts. Production code is isolated under `apps/studio/server/fuma/freeHosts/`; the central server only constructs the production graph and invokes its boundary before legacy self-host routes.
+FUMA-050 owns allocation and public serving for free `<tenant>.trimly.co.ke` hosts. Production code is isolated under `apps/studio/server/fuma/freeHosts/`; the central server only constructs the production graph and invokes its boundary before legacy self-host routes.
 
 ## Host policy
 
@@ -48,4 +48,4 @@ bun test src/__tests__/fuma/releaseManifest.test.ts \
   src/__tests__/fuma/releaseRepository.test.ts
 ```
 
-The deterministic Host-header demo serves `tenant-alpha.fuma.co.ke` from `release-alpha`, `tenant-bravo.fuma.co.ke` from `release-bravo`, and proves an unknown Host returns 404 with no fallback. The PostgreSQL acceptance additionally proves suspension, transfer-fence denial, and stale-generation denial against the production repository and real migration SQL.
+The deterministic Host-header demo serves `tenant-alpha.trimly.co.ke` from `release-alpha`, `tenant-bravo.trimly.co.ke` from `release-bravo`, and proves an unknown Host returns 404 with no fallback. The PostgreSQL acceptance additionally proves suspension, transfer-fence denial, and stale-generation denial against the production repository and real migration SQL.

@@ -2,18 +2,18 @@
 http:
   routers:
     fuma-public-web:
-      rule: Host(`fuma.co.ke`)
+      rule: Host(`trimly.co.ke`)
       service: fuma-public-web
       middlewares: [fuma-public-security]
       tls: true
     fuma-public-www:
-      rule: Host(`www.fuma.co.ke`)
+      rule: Host(`www.trimly.co.ke`)
       service: noop@internal
       middlewares: [fuma-public-www-redirect]
       tls: true
   middlewares:
     fuma-public-www-redirect:
-      redirectRegex: { regex: "^https://www\\.fuma\\.co\\.ke/(.*)", replacement: "https://fuma.co.ke/$1", permanent: true }
+      redirectRegex: { regex: "^https://www\\.trimly\\.co\\.ke/(.*)", replacement: "https://trimly.co.ke/$1", permanent: true }
     fuma-public-security:
       headers: { customResponseHeaders: { X-Robots-Tag: "all" } }
   services:

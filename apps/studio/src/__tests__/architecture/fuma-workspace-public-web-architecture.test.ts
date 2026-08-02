@@ -33,28 +33,28 @@ function validWorkspace(): string {
   }, null, 2))
   write(root, 'bun.lock', 'lockfileVersion = 1\n')
   write(root, 'tsconfig.base.json', '{"compilerOptions":{"strict":true}}\n')
-  write(root, 'infra/cloudflare/hosts.yaml', 'canonicalPublicHost: fuma.co.ke\n')
-  write(root, 'tooling/README.md', 'The auditor rejects api.fuma.co.ke and FUMA_COOKIE_DOMAIN declarations.\n')
+  write(root, 'infra/cloudflare/hosts.yaml', 'canonicalPublicHost: trimly.co.ke\n')
+  write(root, 'tooling/README.md', 'The auditor rejects api.trimly.co.ke and FUMA_COOKIE_DOMAIN declarations.\n')
   write(root, 'vendor/README.md', 'Vendored source remains outside workspace packages.\n')
-  write(root, 'docs/adr.md', 'There is no public api.fuma.co.ke and parent-domain cookies are forbidden.\n')
+  write(root, 'docs/adr.md', 'There is no public api.trimly.co.ke and parent-domain cookies are forbidden.\n')
 
   write(root, 'apps/studio/package.json', manifest('@fuma/studio', { 'better-auth': '1.6.25', react: '19.2.5' }))
   write(root, 'apps/studio/src/index.ts', "export const studio = 'product'\n")
   write(root, 'apps/studio/server/auth/routes.ts', [
     "import { betterAuth } from 'better-auth'",
-    "export const authRoute = { host: 'auth.fuma.co.ke', path: '/sign-in', mount: 'better-auth', betterAuth }",
+    "export const authRoute = { host: 'auth.trimly.co.ke', path: '/sign-in', mount: 'better-auth', betterAuth }",
     '',
   ].join('\n'))
   write(root, 'apps/studio/server/routing/hosts.ts', [
-    "export const productRoute = { host: 'app.fuma.co.ke', path: '/organizations/:organizationId/workspaces/:workspaceId/sites/:siteId' }",
-    "export const consoleRoute = { host: 'admin.fuma.co.ke', path: '/console/organizations' }",
+    "export const productRoute = { host: 'app.trimly.co.ke', path: '/organizations/:organizationId/workspaces/:workspaceId/sites/:siteId' }",
+    "export const consoleRoute = { host: 'admin.trimly.co.ke', path: '/console/organizations' }",
     'export const hostPolicy = { unknownHostFallback: null }',
     '',
   ].join('\n'))
   write(root, 'apps/studio/server/auth/cookies.ts', [
-    "export const authCookie = { host: 'auth.fuma.co.ke', name: '__Host-fuma_auth', secure: true, httpOnly: true, sameSite: 'lax', path: '/' }",
-    "export const appCookie = { host: 'app.fuma.co.ke', name: '__Host-fuma_app', secure: true, httpOnly: true, sameSite: 'lax', path: '/' }",
-    "export const adminCookie = { host: 'admin.fuma.co.ke', name: '__Host-fuma_admin', secure: true, httpOnly: true, sameSite: 'lax', path: '/' }",
+    "export const authCookie = { host: 'auth.trimly.co.ke', name: '__Host-fuma_auth', secure: true, httpOnly: true, sameSite: 'lax', path: '/' }",
+    "export const appCookie = { host: 'app.trimly.co.ke', name: '__Host-fuma_app', secure: true, httpOnly: true, sameSite: 'lax', path: '/' }",
+    "export const adminCookie = { host: 'admin.trimly.co.ke', name: '__Host-fuma_admin', secure: true, httpOnly: true, sameSite: 'lax', path: '/' }",
     '',
   ].join('\n'))
   write(root, 'apps/studio/server/tenancy/reserved.ts', [
@@ -116,17 +116,17 @@ describe('FUMA-WEB-001 workspace/public-web architecture gate', () => {
     { ruleId: 'web-authority-import', mutate: (root) => write(root, 'apps/web/lib/content.ts', "import { renderRelease } from '@platform/publisher'\nexport { renderRelease }\n") },
     { ruleId: 'public-contracts-runtime-import', mutate: (root) => write(root, 'packages/public-contracts/src/react.ts', "import React from 'react'\nexport { React }\n") },
     { ruleId: 'zod', mutate: (root) => write(root, 'packages/public-contracts/src/invalid.ts', "import { z } from 'zod'\nexport const Invalid = z.string()\n") },
-    { ruleId: 'shared-cookie', mutate: (root) => write(root, 'apps/studio/server/auth/domain.ts', "export const cookie = 'session=x; Domain=.fuma.co.ke; Secure; HttpOnly'\n") },
-    { ruleId: 'unsafe-cookie', mutate: (root) => write(root, 'apps/studio/server/auth/unsafe.ts', "export const cookie = { host: 'app.fuma.co.ke', name: '__Host-fuma_app', secure: false, httpOnly: true, sameSite: 'lax', path: '/' }\n") },
-    { ruleId: 'session-cookie-reuse', mutate: (root) => write(root, 'apps/studio/server/auth/reuse.ts', "export const cookie = { host: 'admin.fuma.co.ke', name: '__Host-fuma_app', secure: true, httpOnly: true, sameSite: 'lax', path: '/' }\n") },
-    { ruleId: 'better-auth-host', mutate: (root) => write(root, 'apps/studio/server/routes/login.ts', "import { betterAuth } from 'better-auth'\nexport const login = { host: 'app.fuma.co.ke', mount: 'better-auth', betterAuth }\n") },
-    { ruleId: 'product-route-on-admin', mutate: (root) => write(root, 'apps/studio/server/routing/invalid-product.ts', "export const route = { host: 'admin.fuma.co.ke', path: '/organizations/o/workspaces/w/sites/s' }\n") },
-    { ruleId: 'console-route-on-app', mutate: (root) => write(root, 'apps/studio/server/routing/invalid-console.ts', "export const route = { host: 'app.fuma.co.ke', path: '/console/support' }\n") },
-    { ruleId: 'staff-surface-on-public-host', mutate: (root) => write(root, 'apps/studio/server/routing/public-auth.ts', "export const route = { host: 'fuma.co.ke', path: '/sign-in' }\n") },
+    { ruleId: 'shared-cookie', mutate: (root) => write(root, 'apps/studio/server/auth/domain.ts', "export const cookie = 'session=x; Domain=.trimly.co.ke; Secure; HttpOnly'\n") },
+    { ruleId: 'unsafe-cookie', mutate: (root) => write(root, 'apps/studio/server/auth/unsafe.ts', "export const cookie = { host: 'app.trimly.co.ke', name: '__Host-fuma_app', secure: false, httpOnly: true, sameSite: 'lax', path: '/' }\n") },
+    { ruleId: 'session-cookie-reuse', mutate: (root) => write(root, 'apps/studio/server/auth/reuse.ts', "export const cookie = { host: 'admin.trimly.co.ke', name: '__Host-fuma_app', secure: true, httpOnly: true, sameSite: 'lax', path: '/' }\n") },
+    { ruleId: 'better-auth-host', mutate: (root) => write(root, 'apps/studio/server/routes/login.ts', "import { betterAuth } from 'better-auth'\nexport const login = { host: 'app.trimly.co.ke', mount: 'better-auth', betterAuth }\n") },
+    { ruleId: 'product-route-on-admin', mutate: (root) => write(root, 'apps/studio/server/routing/invalid-product.ts', "export const route = { host: 'admin.trimly.co.ke', path: '/organizations/o/workspaces/w/sites/s' }\n") },
+    { ruleId: 'console-route-on-app', mutate: (root) => write(root, 'apps/studio/server/routing/invalid-console.ts', "export const route = { host: 'app.trimly.co.ke', path: '/console/support' }\n") },
+    { ruleId: 'staff-surface-on-public-host', mutate: (root) => write(root, 'apps/studio/server/routing/public-auth.ts', "export const route = { host: 'trimly.co.ke', path: '/sign-in' }\n") },
     { ruleId: 'reserved-tenant-name', mutate: (root) => write(root, 'apps/studio/server/tenancy/invalid.ts', "allocateTenantHost('api')\n") },
     { ruleId: 'reserved-set-incomplete', mutate: (root) => write(root, 'apps/studio/server/tenancy/reserved.ts', "export const reservedTenantNames = ['auth', 'app']\n") },
     { ruleId: 'unknown-host-fallback', mutate: (root) => write(root, 'apps/studio/server/routing/fallback.ts', "export const hostPolicy = { unknownHostFallback: 'default-site' }\n") },
-    { ruleId: 'public-api-host', mutate: (root) => write(root, 'apps/web/lib/api.ts', "export const publicApi = 'https://api.fuma.co.ke/v1/pricing'\n") },
+    { ruleId: 'public-api-host', mutate: (root) => write(root, 'apps/web/lib/api.ts', "export const publicApi = 'https://api.trimly.co.ke/v1/pricing'\n") },
     { ruleId: 'visitor-credential-forwarding', mutate: (root) => write(root, 'apps/web/app/api/private/route.ts', "export function GET(request: Request) { return fetch('http://studio.internal', { headers: request.headers }) }\n") },
     { ruleId: 'hardcoded-price', mutate: (root) => write(root, 'apps/web/app/pricing/page.tsx', "export const headline = 'Website plans from KES 2,500/month'\n") },
     { ruleId: 'private-commercial-field', mutate: (root) => write(root, 'packages/public-contracts/src/private.ts', "import { Type } from '@sinclair/typebox'\nexport const Bad = Type.Object({ providerCost: Type.Integer() })\n") },
@@ -207,7 +207,7 @@ describe('FUMA-WEB-001 workspace/public-web architecture gate', () => {
 
   it('returns byte-stable ordered findings for the same hostile workspace', () => {
     const root = validWorkspace()
-    write(root, 'apps/web/app/pricing/page.tsx', "export const endpoint = 'https://api.fuma.co.ke'\nexport const amount = 'KES 2,500'\n")
+    write(root, 'apps/web/app/pricing/page.tsx', "export const endpoint = 'https://api.trimly.co.ke'\nexport const amount = 'KES 2,500'\n")
     const first = auditFutureWorkspace(root)
     const second = auditFutureWorkspace(root)
     expect(second).toEqual(first)
@@ -218,7 +218,7 @@ describe('FUMA-WEB-001 workspace/public-web architecture gate', () => {
     const root = validWorkspace()
     const outside = mkdtempSync(join(tmpdir(), 'fuma-workspace-outside-'))
     temporaryDirectories.push(outside)
-    write(outside, 'leak.ts', "export const endpoint = 'https://api.fuma.co.ke'\n")
+    write(outside, 'leak.ts', "export const endpoint = 'https://api.trimly.co.ke'\n")
     symlinkSync(outside, join(root, 'apps/web/external'))
     expect(auditFutureWorkspace(root)).toEqual([])
   })

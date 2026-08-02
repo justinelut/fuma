@@ -2,17 +2,16 @@ import { describe, test, expect } from 'bun:test'
 import { createTestDb } from '../helpers/createTestDb'
 
 /**
- * Cross-dialect contract: `rowCount` must report the number of *affected*
- * rows for non-RETURNING writes (UPDATE / DELETE / INSERT) and the number of
- * *returned* rows for SELECT / RETURNING — identically on SQLite and Postgres.
+ * PostgreSQL contract: `rowCount` reports the number of affected rows for
+ * non-RETURNING writes and returned rows for SELECT / RETURNING statements.
  *
  * Regression guard for ISS-023: the Postgres adapter previously returned
  * `rows.length` (always 0 for a non-RETURNING write), so every repository that
  * branches on `result.rowCount` (session revocation, schedule claiming, user
  * mutations, deletes) silently reported failure on a Postgres install.
  *
- * Runs against SQLite by default; set `DB=postgres TEST_POSTGRES_URL=…` to
- * exercise the Postgres adapter (where this test fails without the fix).
+ * Runs against an isolated PostgreSQL test schema, where the original adapter
+ * bug was observable.
  */
 describe('DB adapter rowCount', () => {
   test('reports affected-row count for non-RETURNING writes', async () => {

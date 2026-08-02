@@ -1,15 +1,4 @@
 import { describe, expect, it } from 'bun:test'
-import { readdir } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { sqliteMigrations } from '../../../server/db/migrations-sqlite'
-import {
-  PostgresTenantFixtureRequiredError,
-  createPostgresTenantFixtureHarness,
-} from '../helpers/fuma/postgresTenantHarness'
-import {
-  acceptLegacySqliteTransitionSource,
-  createLegacySqliteTransitionSource,
-} from '../helpers/fuma/legacySqliteTransitionSource'
 import { FumaFakeClock } from '../helpers/fuma/fakeClock'
 import {
   createFumaTwoTenantMatrix,
@@ -94,41 +83,5 @@ describe('FUMA-002 fake clock', () => {
 
   it('rejects an unrepresentable constructor instant', () => {
     expect(() => new FumaFakeClock(1e308)).toThrow('valid Date range')
-  })
-})
-
-describe('FUMA-002 legacy SQLite transition source', () => {
-  it('uses the complete inherited migration stream and is accepted only at its transition boundary', async () => {
-    const source = await createLegacySqliteTransitionSource('legacy-transition')
-    try {
-      expect(source.kind).toBe('legacy-sqlite-transition-source')
-      expect(source.db.dialect).toBe('sqlite')
-      expect(acceptLegacySqliteTransitionSource(source)).toBe(source)
-
-      const migrations = await source.db<{ id: string }>`select id from schema_migrations order by id`
-      const rows = await source.db<{ id: string; table_id: string }>`
-        select id, table_id from data_rows order by table_id, id
-      `
-      expect(migrations.rows).toHaveLength(sqliteMigrations.length)
-      expect(rows.rows).toEqual([
-        { id: source.stableIds.pageRowId, table_id: 'pages' },
-        { id: source.stableIds.postRowId, table_id: 'posts' },
-      ])
-      expect(() => createPostgresTenantFixtureHarness(source.db, 'legacy-rejection'))
-        .toThrow(PostgresTenantFixtureRequiredError)
-    } finally {
-      await source.cleanup()
-      await source.cleanup()
-    }
-  })
-
-  it('rejects invalid seeds before allocating a transition-source directory', async () => {
-    const prefix = 'fuma-legacy-transition-'
-    const before = new Set((await readdir(tmpdir())).filter((name) => name.startsWith(prefix)))
-
-    await expect(createLegacySqliteTransitionSource('   ')).rejects.toThrow('seed must not be empty')
-
-    const after = new Set((await readdir(tmpdir())).filter((name) => name.startsWith(prefix)))
-    expect(after).toEqual(before)
   })
 })

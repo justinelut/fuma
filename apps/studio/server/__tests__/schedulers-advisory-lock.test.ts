@@ -1,9 +1,7 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { createSqliteClient } from '../db/sqlite'
-import { sqliteMigrations } from '../db/migrations-sqlite'
-import { runMigrations } from '../db/runMigrations'
+import { createTestDatabase } from '../db/testDatabase'
 import type { DbClient } from '../db/client'
 import { tickPublishScheduler } from '../publish/publishScheduler'
 import { tickPluginScheduler } from '../plugins/scheduler'
@@ -13,9 +11,8 @@ import { tickPluginScheduler } from '../plugins/scheduler'
  * `server/db/advisoryLock.ts` module — the HA-correctness primitive that stops
  * two instances double-firing. Two things are verified:
  *
- *   1. Behaviorally — each tick runs end-to-end against a real (migrated)
- *      SQLite client. SQLite has no `pg_try_advisory_lock`, so the shared
- *      module's fallthrough must return a usable token and let the body run.
+ *   1. Behaviorally — each tick runs end-to-end against an isolated migrated
+ *      PostgreSQL schema and acquires the shared advisory lock.
  *
  *   2. At the source level — neither scheduler may re-implement the lock dance
  *      (that's the duplication we removed), and each must keep its own
@@ -26,18 +23,17 @@ const SERVER_DIR = join(import.meta.dir, '..')
 let db: DbClient
 
 beforeAll(async () => {
-  db = createSqliteClient(':memory:')
-  await runMigrations(db, sqliteMigrations)
+  db = (await createTestDatabase('schedulers-advisory-')).db
 })
 
-describe('schedulers run their tick body through the shared SQLite fallthrough', () => {
-  it('publish scheduler tick completes (leadership won via fallthrough)', async () => {
+describe('schedulers run their tick body through the shared PostgreSQL advisory lock', () => {
+  it('publish scheduler tick completes after winning PostgreSQL leadership', async () => {
     // No due rows seeded → the body runs over empty tables and returns cleanly.
-    // A throw here would mean the shared lock failed to grant leadership.
+    // A throw here would mean the shared advisory lock failed to grant leadership.
     await expect(tickPublishScheduler(db)).resolves.toBeUndefined()
   })
 
-  it('plugin scheduler tick completes (leadership won via fallthrough)', async () => {
+  it('plugin scheduler tick completes after winning PostgreSQL leadership', async () => {
     await expect(tickPluginScheduler(db)).resolves.toBeUndefined()
   })
 })

@@ -95,7 +95,7 @@ describe('readServerConfig', () => {
     expect(readServerConfig({})).toEqual({
       hostname: '127.0.0.1',
       port: 3001,
-      databaseUrl: 'sqlite:./.tmp/dev.db',
+      databaseUrl: 'postgres://instatic:instatic@127.0.0.1:5433/instatic',
       uploadsDir: './uploads',
       staticDir: './dist',
       trustedProxyCidrs: [],

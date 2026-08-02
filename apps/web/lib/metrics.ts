@@ -1,6 +1,6 @@
 import type { PublicProjectionResource } from '@fuma/public-contracts'
 
-const RESOURCES = ['product-facts', 'pricing', 'templates', 'showcases', 'experts', 'plugins'] as const
+const RESOURCES = ['product-facts', 'pricing', 'templates', 'showcases', 'experts', 'plugins', 'components'] as const
 
 type WebVitalMetric = Readonly<{
   name: 'CLS' | 'FCP' | 'INP' | 'LCP' | 'TTFB'

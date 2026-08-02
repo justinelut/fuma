@@ -118,11 +118,50 @@ export interface AiTool {
    * at selection time and re-checked in `executeAiTool`.
    */
   readonly requiredCapabilities?: readonly CoreCapability[]
+  /** Exact hosted MCP connector grant; omitted tools retain site read/mutate/publish mapping. */
+  readonly mcpCapability?:
+    | 'component.read' | 'component.create-source' | 'component.install'
+    | 'component.mutate' | 'component.confirm' | 'component.publish'
   /**
    * Server-side handler. Required when `execution === 'server'`; ignored when
    * `execution === 'browser'` (the browser bridge runs the tool instead).
    */
   handler?: (input: unknown, ctx: ToolContext) => Promise<unknown>
+}
+
+export type AiRuntimeAuthorityPhase =
+  | 'provider'
+  | 'persistence'
+  | 'tool-dispatch'
+  | 'tool-result'
+  | 'usage'
+
+export interface AiRuntimeExecutionAuthority {
+  verifySnapshot(snapshot: unknown): Promise<void>
+  revalidate(input: Readonly<{
+    phase: AiRuntimeAuthorityPhase
+    toolCallId?: string
+    toolName?: string
+    mutates?: boolean
+  }>): Promise<void>
+  authorizeTool(input: Readonly<{
+    toolCallId: string
+    toolName: string
+    mutates: boolean
+    input: unknown
+  }>): Promise<Readonly<{ replay: AiToolOutput | null }>>
+  recordToolResult(input: Readonly<{
+    toolCallId: string
+    toolName: string
+    mutates: boolean
+    input: unknown
+    output: AiToolOutput
+  }>): Promise<void>
+  recordUsage(input: Readonly<{
+    promptTokens: number
+    completionTokens: number
+  }>): Promise<void>
+  finish(outcome: 'succeeded' | 'failed' | 'cancelled', failureCode?: string): Promise<void>
 }
 
 /**
@@ -140,6 +179,10 @@ export interface ToolContext {
   readonly capabilities: readonly CoreCapability[]
   readonly scope: ToolScope
   readonly conversationId: string
+  /** Exact provider call identity; supplied during dispatch for durable mutating server tools. */
+  readonly toolCallId?: string
+  /** Optional hosted scope guard; absent for legacy/self-hosted native turns. */
+  readonly authority?: AiRuntimeExecutionAuthority
   readonly snapshot: unknown
   readonly signal: AbortSignal
 }

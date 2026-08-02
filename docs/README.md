@@ -45,7 +45,7 @@ docs/
 │
 ├── reference/                  ← short cookbook pages for primitives + patterns
 │   ├── page-tree.md                ← NodeTree<TNode> primitive
-│   ├── database-dialects.md        ← PG vs SQLite rules
+│   ├── database-dialects.md        ← PostgreSQL architecture rules
 │   ├── typebox-patterns.md         ← boundary validation patterns
 │   ├── ui-primitives.md            ← Button/Input/etc. usage cookbook
 │   ├── design-tokens.md            ← complete CSS token catalog
@@ -75,9 +75,11 @@ docs/
 │   ├── fuma-publication-scheduling-access.md ← Durable publish/unpublish, preview tokens, recovery, and public audience gates
 │   ├── fuma-public-web-scaffold.md     ← independent Next app and standalone runtime foundation
 │   ├── fuma-public-projections.md      ← private Studio projections, strict contracts, and same-origin Next BFF
+│   ├── fuma-public-handoff.md          ← opaque public intent, Better Auth resume, and app relying session
+│   ├── fuma-public-marketing-analytics.md ← cookieless public acquisition, opaque funnels, and isolated retention authority
 │   ├── fuma-audit-history.md          ← append-only hosted audit contracts, scoped listings, and read-only UI
 │   ├── fuma-runtime-roles.md          ← web/worker/scheduler lifecycle and health contracts
-│   ├── fuma-hosted-migrations-transition.md ← hosted PG stream and SQLite transition tooling
+│   ├── fuma-hosted-migrations-transition.md ← hosted PostgreSQL migration stream
 │   ├── fuma-redis-coordination.md     ← namespaced Redis cache, limits, pub/sub, presence, leases
 │   ├── fuma-object-storage.md         ← tenant-prefixed immutable MinIO object contracts
 │   ├── fuma-durable-jobs.md           ← PostgreSQL job authority and Redis ready coordination
@@ -85,6 +87,18 @@ docs/
 │   ├── fuma-tenant-keys.md            ← stable owner keys, resource inventory, and resumable evidence
 │   ├── fuma-object-ownership-transfer.md ← manifest-gated object authorization policy transfer
 │   ├── fuma-immutable-releases.md       ← immutable manifests, lifecycle, active pointer, retention roots
+│   ├── fuma-artifact-installations.md   ← immutable plugin/component-pack releases and scoped installations
+│   ├── fuma-artifact-reviews.md         ← scans, signed review, revocation, marketplace and install gate
+│   ├── fuma-customer-payments.md        ← customer-merchant credentials, transport, ledger, webhooks, and transfer
+│   ├── fuma-reviewed-customer-payment-plugin.md ← reviewed QuickJS payment blocks over shared merchant authority
+│   ├── fuma-ai-confirmed-payment-setup.md ← fixed AI proposal, explicit confirmation, secure credential handoff, and preview
+│   ├── fuma-tenant-runtime-architecture.md ← exact-host Next runtime and semantic component registry
+│   ├── fuma-site-application-state.md ← member/application state, mutation fencing, rollout, and legacy compatibility
+│   ├── fuma-component-catalog.md     ← private/reviewed component authoring, AI/MCP tools, installs, usage, and upgrades
+│   ├── fuma-support-moderation-break-glass.md ← bounded impersonation, immutable moderation, owner recovery
+│   ├── fuma-nextjs-source-import.md  ← GitHub/Next.js import, AI adaptation, full source export, and exit contract
+│   ├── fuma-ai-backend-capability-boundary.md ← no-direct-DB AI rule, reviewed functions, dashboard, Ghost/agency scope
+│   ├── fuma-launch-capability-packs.md ← Publishing, general, Events, Hospitality, Bookings, AI/design boundaries
 │   ├── fuma-publish-release.md          ← durable semantic publishing, exact retries, atomic activation
 │   ├── fuma-free-hosts.md               ← exact free-host allocation, active-release Host routing, fail-closed serving
 │   ├── fuma-staff-identity.md         ← additive hosted auth links and preserved staff credentials
@@ -200,7 +214,7 @@ Three categories, three voices:
 | Doc                                                              | What it answers                                                  |
 |------------------------------------------------------------------|------------------------------------------------------------------|
 | [reference/page-tree.md](reference/page-tree.md)                 | The `NodeTree<TNode>` primitive — mutations, store routing      |
-| [reference/database-dialects.md](reference/database-dialects.md) | Postgres vs. SQLite — three rules + cookbook                    |
+| [reference/database-dialects.md](reference/database-dialects.md) | PostgreSQL architecture, migrations, and repository cookbook                    |
 | [reference/typebox-patterns.md](reference/typebox-patterns.md)   | Validating every untyped boundary with TypeBox                  |
 | [reference/ui-primitives.md](reference/ui-primitives.md)         | Full UI primitive catalog with "when to use"                    |
 | [reference/design-tokens.md](reference/design-tokens.md)         | Complete CSS custom property catalog                            |
@@ -230,6 +244,9 @@ Three categories, three voices:
 | [reference/fuma-publication-shell.md](reference/fuma-publication-shell.md) | Publication subtitle/navigation, collapsed Design disclosure, direct-route permission guards, and editor/viewer behavior |
 | [reference/fuma-public-web-scaffold.md](reference/fuma-public-web-scaffold.md) | Independent Next App Router scaffold, app-local Tailwind/shadcn, generated tokens, and standalone ARM64 runtime |
 | [reference/fuma-public-projections.md](reference/fuma-public-projections.md) | Studio-owned anonymous projections, strict envelopes, private-cluster Next client, and same-origin BFF |
+| [reference/fuma-public-handoff.md](reference/fuma-public-handoff.md) | Opaque public intent issuance, centralized Better Auth resume, single-use exchange, and app-host relying sessions |
+| [reference/fuma-public-marketing-analytics.md](reference/fuma-public-marketing-analytics.md) | Cookieless baseline collection, consent-gated optional events, opaque conversion funnels, retention, and isolated `000079` persistence |
+| [reference/fuma-public-web-seo.md](reference/fuma-public-web-seo.md) | Canonical metadata, strict JSON-LD, segmented sitemaps, eligible feeds, and immutable social cards |
 | [reference/fuma-metering-cogs.md](reference/fuma-metering-cogs.md) | Immutable logical/physical usage, complete cost inputs, reservations, settlement, and provider reconciliation |
 | [reference/fuma-platform-entitlements.md](reference/fuma-platform-entitlements.md) | Finite KES plans, complete economics gates, private-offer lifecycle, internal grant, and immutable entitlement snapshots |
 | [reference/fuma-public-templates.md](reference/fuma-public-templates.md) | Approved immutable template releases, isolated previews, withdrawal tombstones, filters, and install handoff |
@@ -239,10 +256,12 @@ Three categories, three voices:
 | [reference/fuma-tenant-keys.md](reference/fuma-tenant-keys.md) | Stable owner keys, complete table/object inventory, and resumable count/hash/FK evidence |
 | [reference/fuma-object-ownership-transfer.md](reference/fuma-object-ownership-transfer.md) | Manifest-gated exact-prefix object authorization transfer and composed job registrations |
 | [reference/fuma-immutable-releases.md](reference/fuma-immutable-releases.md) | Immutable release manifests, exact object verification, active pointer, and retention roots |
+| [reference/fuma-expert-discovery.md](reference/fuma-expert-discovery.md) | Opt-in approved expert discovery, mediated encrypted inquiries, reviewed plugins, transfer fencing, moderation, and public projection |
 | [reference/fuma-publish-release.md](reference/fuma-publish-release.md) | Durable snapshot claim, semantic rendering, immutable writes, fenced recovery, and atomic activation |
 | [reference/fuma-configuration.md](reference/fuma-configuration.md) | Hosted environment schema, product metadata, and secret-safe summaries |
 | [reference/fuma-hosted-staff-auth.md](reference/fuma-hosted-staff-auth.md) | Same-origin staff routes, host-only sessions, and pre-authentication UI |
 | [reference/fuma-hosted-staff-security.md](reference/fuma-hosted-staff-security.md) | Hosted staff MFA, self-session, admin, and browser response contracts |
+| [reference/fuma-support-moderation-break-glass.md](reference/fuma-support-moderation-break-glass.md) | Bounded Better Auth support impersonation, immutable moderation, and isolated owner recovery |
 | [reference/fuma-test-fixtures.md](reference/fuma-test-fixtures.md) | Deterministic Fuma tenant/profile, provider, PostgreSQL, and transition-source test fixtures |
 | [reference/editor-history.md](reference/editor-history.md)       | Patch-based undo/redo history: `HistoryEntry`, `mutate*` helpers, coalescing |
 | [reference/react-compiler.md](reference/react-compiler.md)       | React Compiler memoization rule, three exceptions, enforcement gates |
@@ -279,8 +298,8 @@ Quick map from "where do I look for X?" to the canonical file:
 | CMS API handlers                 | `server/handlers/cms/`                                   |
 | Repositories                     | `server/repositories/`                                   |
 | DB adapter interface             | `server/db/client.ts`                                    |
-| DB adapters                      | `server/db/postgres.ts`, `server/db/sqlite.ts`            |
-| Migrations                       | `server/db/migrations-pg.ts`, `server/db/migrations-sqlite.ts` |
+| DB adapters                      | `server/db/postgres.ts`            |
+| Migrations                       | `server/db/migrations-pg.ts` |
 | Plugin SDK                       | `src/core/plugin-sdk/`                                   |
 | Plugin permission catalog        | `src/core/plugin-sdk/capabilities.ts`                    |
 | Plugin manifest parser           | `src/core/plugins/manifest.ts`                           |

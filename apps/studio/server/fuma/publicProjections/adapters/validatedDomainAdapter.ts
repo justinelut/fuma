@@ -1,5 +1,5 @@
 import {
-  PublicDatasetVersionSchema, PublicExpertsPageSchema, PublicPluginsPageSchema, PublicPricingCatalogPageSchema,
+  PublicComponentsPageSchema, PublicDatasetVersionSchema, PublicExpertsPageSchema, PublicPluginsPageSchema, PublicPricingCatalogPageSchema,
   PublicProductFactsPageSchema, PublicShowcasesPageSchema, PublicTemplatesPageSchema,
   type PublicProjectionResource,
 } from '@fuma/public-contracts'
@@ -20,6 +20,7 @@ const PAGE_SCHEMAS: Readonly<Record<PublicProjectionResource, TSchema>> = Object
   showcases: PublicShowcasesPageSchema,
   experts: PublicExpertsPageSchema,
   plugins: PublicPluginsPageSchema,
+  components: PublicComponentsPageSchema,
 })
 
 export class ValidatedPublicProjectionAdapter implements PublicProjectionAuthority {

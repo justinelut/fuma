@@ -59,6 +59,24 @@ import { entitlementEvidenceMigration } from './000057_entitlement_evidence'
 import { platformCheckoutAuthorityMigration } from './000058_platform_checkout_authority'
 import { platformBillingReconciliationMigration } from './000059_platform_billing_reconciliation'
 import { quotaSelfServiceMigration } from './000060_quota_self_service'
+import { customerMerchantPaymentsV2Migration } from './000061_customer_merchant_payments_v2'
+import { domainContractAuthorityV2Migration } from './000062_domain_contract_authority_v2'
+import { aiCatalogAuthorityMigration } from './000063_ai_catalog_authority'
+import { cloudflareHostnameAuthorityV2Migration } from './000064_cloudflare_hostname_authority_v2'
+import { registrarLifecycleAuthorityMigration } from './000065_registrar_lifecycle_authority'
+import { aiCreditsAuthorityMigration } from './000066_ai_credits_authority'
+import { domainOperationsAuthorityMigration } from './000067_domain_operations_authority'
+import { siteAiScopeAuthorityMigration } from './000068_site_ai_scope_authority'
+import { mcpConnectorAuthorityMigration } from './000069_mcp_connector_authority'
+import { artifactInstallationAuthorityMigration } from './000070_artifact_installation_authority'
+import { artifactReviewMarketplaceMigration } from './000071_artifact_review_marketplace'
+import { siteRuntimeApplicationMigration } from './000072_site_runtime_application'
+import { customerPaymentPluginMigration } from './000073_customer_payment_plugin'
+import { aiPaymentSetupMigration } from './000074_ai_payment_setup'
+import { componentCatalogAuthorityMigration } from './000075_component_catalog_authority'
+import { supportOperationsAuthorityMigration } from './000076_support_operations_authority'
+import { publicHandoffAuthorityMigration } from './000077_public_handoff_authority'
+import { nextSourcePortabilityAuthorityMigration } from './000078_next_source_portability_authority'
 
 export const hostedMigrations = Object.freeze([
   transitionBookkeepingMigration,
@@ -121,6 +139,24 @@ export const hostedMigrations = Object.freeze([
   platformCheckoutAuthorityMigration,
   platformBillingReconciliationMigration,
   quotaSelfServiceMigration,
+  customerMerchantPaymentsV2Migration,
+  domainContractAuthorityV2Migration,
+  aiCatalogAuthorityMigration,
+  cloudflareHostnameAuthorityV2Migration,
+  registrarLifecycleAuthorityMigration,
+  aiCreditsAuthorityMigration,
+  domainOperationsAuthorityMigration,
+  siteAiScopeAuthorityMigration,
+  mcpConnectorAuthorityMigration,
+  artifactInstallationAuthorityMigration,
+  artifactReviewMarketplaceMigration,
+  siteRuntimeApplicationMigration,
+  customerPaymentPluginMigration,
+  aiPaymentSetupMigration,
+  componentCatalogAuthorityMigration,
+  supportOperationsAuthorityMigration,
+  publicHandoffAuthorityMigration,
+  nextSourcePortabilityAuthorityMigration,
 ])
 
 export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
@@ -190,6 +226,24 @@ export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Obje
   '000058_platform_checkout_authority': '39b444f6ee4783354dda373f0f3e1315b77c77febdfb782b43984d8e63219e8b',
   '000059_platform_billing_reconciliation': '2e66877da6c258cb060cd0d525c70274509d8134248d7bb6c686fbb505e3d4a3',
   '000060_quota_self_service': 'af8a6667a5a2bc2275e2c48f07679a8547193c0a1d9bacf5f1424be523c429e7',
+  '000061_customer_merchant_payments_v2': '1c481f0670054f4510e54db03f24da3d9648778d74d289245c1fd9a3f2e401e7',
+  '000062_domain_contract_authority_v2': '275de598666587dbf9ce82d10da38e19709859b2e50dcf0f4c9a5fda56d380c7',
+  '000063_ai_catalog_authority': '218a40b70d8774a4774bc9b0b5c9b5ffe002b8b793ba87c067e88f7a92682ec8',
+  '000064_cloudflare_hostname_authority_v2': '7c7618b311d6034f9e30da6c45627de1420e8abfcb76108f408a4bafbf577271',
+  '000065_registrar_lifecycle_authority': 'dc0c88c44440871af1d02bd4d0ee0143dec54219b55bfef380643e0144c2b340',
+  '000066_ai_credits_authority': '9de088d429ae82927f92145d191851f99dd98a92f5c852a0a64f0e6a43796517',
+  '000067_domain_operations_authority': '6cfe60d80f884bcb6c9887c118296894c6ea514a29acac4c0c022dc456f1556f',
+  '000068_site_ai_scope_authority': '0c0368622abc603c03cd46e2c37107c2efc61c38f1bb3335539efcffa1e77bd5',
+  '000069_mcp_connector_authority': '4b92c690302ae47184663870b86a7d4179b89eeac097307b9e5589b82cea819d',
+  '000070_artifact_installation_authority': '96c9471345d70bc6cb6636f9f1581859ddc4acb03efe52c3f273da8ed1f2afc8',
+  '000071_artifact_review_marketplace': '168275b6e4f9861ca4b931bec3e8118c5ac23506219d2f632912a4acff905f41',
+  '000072_site_runtime_application': '48b68eb8fa97e6f47a9ef97c510adedd975e88ef39425d9b26e3b24db74722da',
+  '000073_customer_payment_plugin': '393a785bfed74ef9e6f3545d8fb65ec7a76c6351573874c9d09650b825d6f9a6',
+  '000074_ai_payment_setup': '29cc495c97c6bb78f915a9ab5116c2ca997294d4f483c6af8f9433f07b483615',
+  '000075_component_catalog_authority': '760f409e118eaffcd72323ffd2f70aaf008bbde3e732e3372afcaf8e64657f61',
+  '000076_support_operations_authority': 'bafa690ed6e28b161036b235d55c098534e61af929c31824f35a6541ae5ce60e',
+  '000077_public_handoff_authority': 'fb257b84c2e44b65212ef5227845c50524887248fb10732a6ec46a4b7dd53015',
+  '000078_next_source_portability_authority': HOSTED_MIGRATION_CHECKSUM_SENTINEL,
 })
 
 const firstUnappliedMigration = hostedMigrations.findIndex(({ id }) => (

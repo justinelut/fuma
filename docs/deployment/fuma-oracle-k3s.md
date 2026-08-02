@@ -25,7 +25,7 @@ Status: **configuration authored; no cloud purchase, host mutation, Kubernetes a
 2. Apply namespace/service accounts/default deny, provider-specific egress overlay, workloads/services, exact routes, autoscaling and observability.
 3. Run the suspended migration Job only after database backup, advisory-lock and manifest review. Any migration failure halts rollout.
 4. Bring up runtime worker/scheduler/web, public web and control contribution. Scheduler remains one replica with its coordination fence.
-5. Verify exact `fuma.co.ke`, `www`, `auth`, `app`, `admin`, two allocated tenant hosts and one verified custom host. Unknown/unallocated/reserved tenant hosts must fail closed.
+5. Verify exact `trimly.co.ke`, `www`, `auth`, `app`, `admin`, two allocated tenant hosts and one verified custom host. Unknown/unallocated/reserved tenant hosts must fail closed.
 6. Verify identity routes only on auth, customer product only on app, internal console only on admin, and distinct host-only cookies with no `Domain` attribute.
 7. Verify public web cannot forward visitor credentials to the private runtime and can fail/roll back independently while product and tenant serving continue.
 

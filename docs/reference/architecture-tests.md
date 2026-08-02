@@ -19,7 +19,7 @@ Catalog of every test in `apps/studio/src/__tests__/architecture/`. These are st
 
 | Test                                          | What it enforces                                                                 |
 |-----------------------------------------------|----------------------------------------------------------------------------------|
-| `fuma-platform-architecture.test.ts`          | FUMA-001 policy foundation: exact `user → organization → workspace → site` hierarchy; capability-composed Website/Publication profiles; pooled PostgreSQL hosted defaults; no new singleton tenant SQL, per-site SQLite, unguarded dedicated/isolated tenant allocation, forbidden distributed topology, Drizzle module references outside `server/auth/`, speculative future profile registrations, shared profile-ID branch decisions, or sibling process-root imports. TypeScript AST checks cover syntax-sensitive rules; text scans remain for SQL/config/path policies. The gate scans a nonzero real tree, ratchets three inherited singleton occurrences, freezes historical migration hashes, recognizes plausible hosted migration paths, and runs the hostile auditor fixtures directly. |
+| `fuma-platform-architecture.test.ts`          | FUMA-001 policy foundation: exact `user → organization → workspace → site` hierarchy; capability-composed Website/Publication profiles; pooled PostgreSQL hosted defaults; no new singleton tenant SQL, per-site file databases, unguarded dedicated/isolated tenant allocation, forbidden distributed topology, Drizzle module references outside `server/auth/`, speculative future profile registrations, shared profile-ID branch decisions, or sibling process-root imports. TypeScript AST checks cover syntax-sensitive rules; text scans remain for SQL/config/path policies. The gate scans a nonzero real tree, ratchets three inherited singleton occurrences, freezes historical migration hashes, recognizes plausible hosted migration paths, and runs the hostile auditor fixtures directly. |
 | `fuma-managed-client-view.test.ts`            | FUMA-018 app boundary: managed-client rows come from the validated authorized catalog, open canonical scoped site contexts, remain profile-neutral/read-only, and do not expose admin-only offers, grants, billing, pricing, quota, payment, or transfer authority. |
 | `fuma-profile-extension.test.ts`              | FUMA-019 profile-extension boundary: Website, Publication, and fixture profiles compose through generic contributions; shared consumers remain fixture-blind; duplicate IDs, path collisions, missing contributions, named-profile branches, and speculative profiles are rejected. |
 | `fuma-authority-boundaries.test.ts`           | FUMA-020/021 structural trust boundary: mutation Origin and caller header/body role, invariant, scope, correlation, and tenant substitutions precede context derivation; durable job payload never enters authority lookup; canonical claims must remain active; layered records repeat exact platform ancestry; protected internal-console authority cannot be synthesized after explicit deny; permission/context APIs remain barrel-exported. |
@@ -38,7 +38,8 @@ Catalog of every test in `apps/studio/src/__tests__/architecture/`. These are st
 | `fuma-shared-packages.test.ts`                | FUMA-WEB-004/005 independent actual-workspace gate: exactly the Studio and Web apps plus `brand`, `design-tokens`, and `public-contracts`; unique package names; leaf and acyclic manifest/source dependencies; existing non-wildcard source exports; no nested locks; TypeBox-only strict public contracts with no runtime/authority imports or private commercial fields; framework-neutral brand/tokens. Isolated hostile mutations cover every rule. |
 | `fuma-public-web-scaffold.test.ts`             | FUMA-WEB-005 public Next boundary: exact dependency pins; App Router, strict TypeScript, MDX, React Compiler, and standalone output; app-local Tailwind/shadcn ownership; generated token CSS freshness; no Studio/Zod/app-lock leakage; separate non-root architecture-neutral image target. |
 | `fuma-public-projection-boundary.test.ts`      | FUMA-WEB-006 private projection/BFF boundary: strict public contracts, no private fields or app authority imports, no Zod/public API host/credential forwarding, service-only authentication, bounded filters, ETag validation, and central hosted route composition. Every rule has a hostile mutation. |
-| `fuma-workspace-migration-baseline.test.ts`   | FUMA-WEB-001 pre-relocation evidence: shared immutable historical PostgreSQL/SQLite source hashes, canonical hosted IDs/checksums through `000009_tenant_keys`, future `apps/studio` paths, and hostile content/order/checksum/high-water substitutions. |
+| `fuma-workspace-migration-baseline.test.ts`   | FUMA-WEB-001 pre-relocation evidence: the immutable historical PostgreSQL source hash, canonical hosted IDs/checksums through `000009_tenant_keys`, future `apps/studio` paths, and hostile content/order/checksum/high-water substitutions. |
+| `tooling/site-runtime/tests/site-runtime.*.test.ts` | FUMA-SITE-001 future-runtime gate: strict TypeBox application/host/cache/component/cookie/compatibility contracts; one multi-tenant Next app; exact host/release/cache isolation; app-local exact Tailwind/shadcn; Node-first native ARM64; hostile architecture/security/fault fixtures; and the required two-host collision/unknown-host/cross-tenant-cache demo. |
 
 See [docs/reference/fuma-platform-architecture.md](fuma-platform-architecture.md) and [fuma-runtime-boundary-scoping.md](fuma-runtime-boundary-scoping.md).
 
@@ -55,8 +56,7 @@ See [CLAUDE.md → Barrel imports](../../CLAUDE.md) and [docs/reference/page-tre
 | Test                                          | What it enforces                                                                 |
 |-----------------------------------------------|----------------------------------------------------------------------------------|
 | `db-postgres-isms.test.ts`                    | Files that import `DbClient` use only ANSI SQL. Blocks `now()` in DML, `::int`, `::jsonb`, `any($N::...)`, `distinct on`. |
-| `db-json-column-naming.test.ts`               | Every `jsonb` PG column has a name ending in `_json`. Same column appears in SQLite migrations as `text`. |
-| `migration-parity.test.ts`                    | `migrations-pg.ts` and `migrations-sqlite.ts` have identical migration IDs in the same order. |
+| `db-json-column-naming.test.ts`               | Every PostgreSQL `jsonb` column has a name ending in `_json`. |
 | `json-extract-egress.test.ts`                 | `JSON.parse` of stored data goes through a TypeBox boundary helper.              |
 
 See [docs/reference/database-dialects.md](database-dialects.md).
@@ -287,8 +287,8 @@ The following test lives in `src/__tests__/server/` (not `architecture/`) but en
 
 | Test (server/)                                | What it enforces                                                                 |
 |-----------------------------------------------|----------------------------------------------------------------------------------|
-| `dockerConfig.test.ts`                        | Dockerfile uses a multi-stage build (build → production-deps → runtime), `ARG INSTATIC_VERSION` and OCI version label are present, TypeScript path aliases (`tsconfig*.json`) are copied into the runtime stage, `esbuild` is in dependencies (not devDependencies) so the runtime script bundler is available in production. `compose.prod.yml` uses the GHCR image, has healthchecks, persistent volumes, and `depends_on: condition: service_healthy`. `POSTGRES_PASSWORD` carries a `CHANGEME` placeholder default (no `:?` guard) so the file loads in SQLite mode without a `.env`. `INSTATIC_SECRET_KEY` is documented in `.env.production.example` and referenced in `compose.prod.yml`. |
-| `fuma-self-host-parity.test.ts` (architecture/) | FUMA-WEB-003 locks the relocated `apps/studio` self-host contract: root command wrappers and Studio authorities, Docker build/runtime paths and copies, SQLite/PostgreSQL selection, Compose image/port/env/health/persistent-volume overlays, published artefacts under uploads, immutable historical migration paths and hashes, and portable release-bundle membership including TLS `Caddyfile`. |
+| `dockerConfig.test.ts`                        | Dockerfile uses a multi-stage build (build → production-deps → runtime), `ARG INSTATIC_VERSION` and OCI version label are present, TypeScript path aliases (`tsconfig*.json`) are copied into the runtime stage, `esbuild` is in dependencies (not devDependencies) so the runtime script bundler is available in production. `compose.prod.yml` uses the GHCR image, has healthchecks, persistent volumes, and `depends_on: condition: service_healthy`. `POSTGRES_PASSWORD` is present in the production environment contract and must be replaced before deployment. `INSTATIC_SECRET_KEY` is documented in `.env.production.example` and referenced in `compose.prod.yml`. |
+| `fuma-self-host-parity.test.ts` (architecture/) | FUMA-WEB-003 locks the relocated `apps/studio` self-host contract: root command wrappers and Studio authorities, Docker build/runtime paths and copies, the PostgreSQL Compose image/port/env/health/persistent-volume contract, published artefacts under uploads, immutable historical migration paths and hashes, and portable release-bundle membership including TLS `Caddyfile`. |
 
 See [docs/deployment/](../deployment/).
 
@@ -324,26 +324,17 @@ Reads a typed manifest (e.g. `pgMigrations`) and asserts shape:
 
 ```ts
 import { pgMigrations } from '../../../server/db/migrations-pg'
-import { sqliteMigrations } from '../../../server/db/migrations-sqlite'
 
-it('migration IDs match across dialects', () => {
-  const pgIds     = pgMigrations.map((m) => m.id)
-  const sqliteIds = sqliteMigrations.map((m) => m.id)
-  expect(sqliteIds).toEqual(pgIds)
+it('migration IDs are ordered and unique', () => {
+  const ids = pgMigrations.map((m) => m.id)
+  expect(new Set(ids).size).toBe(ids.length)
+  expect(ids).toEqual([...ids].sort())
 })
 ```
 
 ### Integration-style
 
-Spins up a small in-memory SQLite, runs migrations, exercises a code path, asserts:
-
-```ts
-const db = createSqliteClient(':memory:')
-await runMigrations(db, sqliteMigrations)
-await createDataRow(db, ...)
-const rows = await listDataRows(db, 'posts')
-expect(rows).toHaveLength(1)
-```
+Uses an isolated PostgreSQL test schema, runs migrations, exercises a code path, and asserts the result. Integration tests must require an explicit test URL and clean up only their own schema.
 
 ---
 
@@ -352,7 +343,7 @@ expect(rows).toHaveLength(1)
 Add an architecture test when:
 
 - A structural invariant is easy to violate accidentally (e.g. "all icons come from `pixel-art-icons`").
-- A naming convention is load-bearing (e.g. JSON columns end in `_json` because the SQLite adapter auto-parses them).
+- A naming convention is load-bearing (e.g. JSON columns end in `_json` because PostgreSQL JSON boundaries depend on it).
 - A directory boundary needs enforcement (e.g. "no `react-router-dom` in admin code").
 - A new permission / capability / event kind needs all sync-points wired (e.g. `cms.pages.read` exists in 4 places).
 

@@ -108,8 +108,8 @@ export const USER_JOINED_COLUMNS = `users.id,
 /**
  * Run a `select <USER_JOINED_COLUMNS> from users join roles …` with a
  * caller-supplied trailing clause (WHERE / ORDER / LIMIT). The `clause` must
- * use dialect-aware placeholders from `placeholder(db.dialect, n)` for its
- * bound parameters so the same SQL runs on Postgres and SQLite.
+ * use PostgreSQL placeholders from `placeholder(db.dialect, n)` for its
+ * bound parameters.
  */
 async function queryUsers(
   db: DbClient,

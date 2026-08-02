@@ -6,7 +6,8 @@ export async function GET() {
   return new Response(generateAtom(entries, CANONICAL_ORIGIN), {
     headers: {
       'content-type': 'application/atom+xml; charset=utf-8',
-      'cache-control': 'public, max-age=300',
+      'cache-control': 'public, max-age=300, must-revalidate',
+      'x-content-type-options': 'nosniff',
     },
   })
 }

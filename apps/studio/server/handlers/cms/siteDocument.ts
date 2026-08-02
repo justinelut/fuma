@@ -17,9 +17,9 @@
  *     must be empty in this mode.
  *
  * Handler flow — three phases:
- *   1. Validate EVERYTHING outside the transaction (sanitization is CPU
- *      work; the SQLite adapter serializes every transaction through one
- *      chain). Capability diff-gates are identical to the four retired
+ *   1. Validate EVERYTHING outside the transaction so CPU-bound sanitization
+ *      does not extend the PostgreSQL transaction. Capability diff-gates are
+ *      identical to the four retired
  *      endpoints: shell changes via validateSiteWriteDiff, page changes via
  *      validatePageWriteDiff, component/layout changes + deletions require
  *      `site.structure.edit`. Pages validate VC refs against the MERGED
@@ -29,8 +29,8 @@
  *   2. ONE transaction: allocate the site-global sync seq, write the shell,
  *      then apply components → layouts → pages (deletes first inside each,
  *      freeing slugs; see repositories/data/rows/apply.ts). The repository
- *      calls are `…InTx` functions — nesting `db.transaction` wedges the
- *      SQLite adapter's serialized chain.
+ *      calls are `…InTx` functions so the whole save remains in the existing
+ *      PostgreSQL transaction rather than opening a nested transaction.
  *   3. Post-commit effects: bump the publish version when a published page
  *      was deleted (never inside the transaction — the publish lock can be
  *      queued behind the transaction chain). This is also the emission point

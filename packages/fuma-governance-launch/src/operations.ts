@@ -1,5 +1,9 @@
+import { FUMA_GOVERNANCE_DEPLOYMENT } from './deployment'
+import { Buffer } from 'node:buffer'
 import {
   BreakGlassRequestSchema,
+  ConsoleActionEnvelopeSchema,
+  ConsoleActionResultSchema,
   ConsoleContributionSchema,
   ConsoleQuerySchema,
   ExpertInquirySchema,
@@ -19,8 +23,10 @@ import {
 } from './contracts'
 
 export class OperationsPolicyError extends Error {
-  constructor(readonly code: 'host-denied' | 'authority-denied' | 'contribution-denied' | 'support-denied' | 'break-glass-denied' | 'expert-hidden' | 'transfer-denied', message: string) {
+  readonly code: 'host-denied' | 'authority-denied' | 'contribution-denied' | 'support-denied' | 'break-glass-denied' | 'expert-hidden' | 'transfer-denied'
+  constructor(code: 'host-denied' | 'authority-denied' | 'contribution-denied' | 'support-denied' | 'break-glass-denied' | 'expert-hidden' | 'transfer-denied', message: string) {
     super(message)
+    this.code = code
     this.name = 'OperationsPolicyError'
   }
 }
@@ -29,7 +35,7 @@ export type InternalAuthority = Readonly<{ actorId: string; host: string; author
 
 export function authorizeConsoleQuery(value: unknown, authority: InternalAuthority): ConsoleQuery {
   const query = parseStrict(ConsoleQuerySchema, value, 'console.query')
-  if (authority.host !== 'admin.fuma.co.ke' || !authority.authorities.has('internal.console.read')) throw new OperationsPolicyError('authority-denied', 'Platform console read authority denied.')
+  if (authority.host !== FUMA_GOVERNANCE_DEPLOYMENT.hosts.console || !authority.authorities.has('internal.console.read')) throw new OperationsPolicyError('authority-denied', 'Platform console read authority denied.')
   return query
 }
 
@@ -42,25 +48,152 @@ export function redactConsoleRow(row: Readonly<Record<string, unknown>>, allowed
 
 export class PlatformConsoleRegistry {
   readonly #contributions = new Map<string, ConsoleContribution>()
+  readonly #actionDelegates = new Map<string, ConsoleActionDelegate>()
 
   register(value: unknown): ConsoleContribution {
-    const contribution = parseStrict(ConsoleContributionSchema, value, 'console.contribution')
+    const parsed = parseStrict(ConsoleContributionSchema, value, 'console.contribution')
+    const { mounted: _unmounted, ...registered } = parsed
+    const contribution = Object.freeze(registered) as ConsoleContribution
     if (this.#contributions.has(contribution.contributionId)) throw new OperationsPolicyError('contribution-denied', 'Console contribution identity already exists.')
     for (const current of this.#contributions.values()) {
       if (current.routes.some((route) => contribution.routes.includes(route))) throw new OperationsPolicyError('contribution-denied', 'Console route ownership overlaps.')
     }
     this.#contributions.set(contribution.contributionId, contribution)
-    return contribution
+    return structuredClone(contribution)
+  }
+
+  registerAction(delegate: ConsoleActionDelegate): void {
+    if (!/^[a-z][a-z0-9.-]{2,119}$/.test(delegate.actionId)
+      || !/^internal\.[a-z0-9.:-]+$/.test(delegate.requiredAuthority)
+      || this.#actionDelegates.has(delegate.actionId)) {
+      throw new OperationsPolicyError('contribution-denied', 'Console action delegate identity is invalid or already registered.')
+    }
+    this.#actionDelegates.set(delegate.actionId, delegate)
   }
 
   authorize(path: string, authority: InternalAuthority): ConsoleContribution {
-    if (authority.host !== 'admin.fuma.co.ke') throw new OperationsPolicyError('host-denied', 'Platform console is admin-host only.')
+    if (authority.host !== FUMA_GOVERNANCE_DEPLOYMENT.hosts.console) throw new OperationsPolicyError('host-denied', 'Platform console is admin-host only.')
     const contribution = [...this.#contributions.values()].find(({ routes }) => routes.includes(path))
     if (!contribution || contribution.requiredAuthorities.some((required) => !authority.authorities.has(required))) throw new OperationsPolicyError('authority-denied', 'Internal console authority denied.')
-    return contribution
+    return structuredClone(contribution)
+  }
+
+  action(actionId: string, authority: InternalAuthority, now: Date): ConsoleActionDelegate {
+    if (authority.host !== FUMA_GOVERNANCE_DEPLOYMENT.hosts.console) throw new OperationsPolicyError('host-denied', 'Platform console is admin-host only.')
+    const delegate = this.#actionDelegates.get(actionId)
+    const steppedUpAt = authority.stepUpAt === null ? Number.NaN : Date.parse(authority.stepUpAt)
+    const freshStepUp = Number.isFinite(steppedUpAt) && now.getTime() >= steppedUpAt && now.getTime() - steppedUpAt <= 5 * 60_000
+    if (!delegate || !authority.authorities.has('internal.console.write') || !authority.authorities.has(delegate.requiredAuthority)
+      || (delegate.requiresFreshStepUp && !freshStepUp)) {
+      throw new OperationsPolicyError('authority-denied', 'Bounded console action authority denied.')
+    }
+    return delegate
   }
 
   list(): readonly ConsoleContribution[] { return Object.freeze([...this.#contributions.values()].map((value) => structuredClone(value))) }
+  actions(): readonly string[] { return Object.freeze([...this.#actionDelegates.keys()].sort()) }
+}
+
+export type ConsoleScalar = string | number | boolean | null
+export type ConsoleRow = Readonly<Record<string, ConsoleScalar>>
+export type ConsolePage = Readonly<{
+  view: ConsoleQuery['view']
+  rows: readonly ConsoleRow[]
+  nextCursor: string | null
+  total: number
+}>
+
+export interface PlatformConsoleReadSource {
+  read(view: ConsoleQuery['view']): Promise<readonly Readonly<Record<string, unknown>>[]>
+}
+
+export interface ConsoleActionDelegate {
+  readonly actionId: string
+  readonly requiredAuthority: string
+  readonly requiresFreshStepUp: boolean
+  execute(input: unknown, context: Readonly<{ actorId: string; requestId: string; now: string }>): Promise<unknown>
+}
+
+const CONSOLE_ALLOWED_FIELDS = Object.freeze({
+  users: Object.freeze(['userId', 'displayName', 'emailHashSha256', 'status', 'createdAt']),
+  organizations: Object.freeze(['organizationId', 'slug', 'name', 'kind', 'status', 'createdAt']),
+  clients: Object.freeze(['organizationId', 'name', 'lifecycle', 'intendedWorkspaceId', 'intendedSiteId', 'createdAt']),
+  workspaces: Object.freeze(['workspaceId', 'organizationId', 'slug', 'name', 'status', 'createdAt']),
+  sites: Object.freeze(['siteId', 'workspaceId', 'organizationId', 'slug', 'name', 'profileId', 'status', 'createdAt']),
+  plans: Object.freeze(['planId', 'version', 'cadence', 'amountMinor', 'currency', 'state', 'effectiveAt']),
+  offers: Object.freeze(['offerId', 'version', 'organizationId', 'workspaceId', 'siteId', 'cadence', 'recurringAmountMinor', 'setupFeeMinor', 'currency', 'quotaState', 'costModelVersion', 'recurringExpectedCostMinor', 'setupExpectedCostMinor', 'marginBasisPoints', 'state', 'issuedAt', 'acceptedAt', 'expiresAt']),
+  contracts: Object.freeze(['contractId', 'offerId', 'offerVersion', 'organizationId', 'workspaceId', 'siteId', 'state', 'setupPaymentState', 'recurringPaymentState', 'activatedAt', 'handoffState']),
+  invoices: Object.freeze(['invoiceId', 'contractId', 'kind', 'amountMinor', 'currency', 'state', 'issuedAt', 'paidAt']),
+  economics: Object.freeze(['organizationId', 'sourceId', 'revenueMinor', 'costMinor', 'marginBasisPoints', 'variableCogsBasisPoints', 'costModelVersion', 'periodStart', 'periodEnd']),
+  usage: Object.freeze(['organizationId', 'sourceId', 'quotaClass', 'used', 'reserved', 'limit', 'remaining', 'percent', 'observedAt']),
+  domains: Object.freeze(['domainId', 'organizationId', 'siteId', 'hostname', 'kind', 'desired', 'observed', 'certificate', 'updatedAt']),
+  email: Object.freeze(['organizationId', 'siteId', 'domain', 'state', 'provider', 'lastCheckedAt']),
+  jobs: Object.freeze(['jobId', 'kind', 'organizationId', 'siteId', 'state', 'attempt', 'nextAttemptAt', 'updatedAt']),
+  releases: Object.freeze(['releaseId', 'organizationId', 'siteId', 'state', 'contentHashSha256', 'createdAt', 'activatedAt']),
+  ai: Object.freeze(['providerId', 'modelId', 'displayName', 'enabled', 'visibility', 'costModelVersion', 'refreshedAt']),
+  audit: Object.freeze(['eventId', 'actorId', 'action', 'targetKind', 'targetId', 'requestId', 'occurredAt']),
+} satisfies Readonly<Record<ConsoleQuery['view'], readonly string[]>>)
+
+function cursorFor(query: ConsoleQuery, offset: number): string {
+  return Buffer.from(JSON.stringify({ view: query.view, filter: query.filter ?? null, offset }), 'utf8').toString('base64url')
+}
+
+function cursorOffset(query: ConsoleQuery): number {
+  if (!query.cursor) return 0
+  try {
+    const parsed = JSON.parse(Buffer.from(query.cursor, 'base64url').toString('utf8')) as Record<string, unknown>
+    if (parsed.view !== query.view || parsed.filter !== (query.filter ?? null) || !Number.isSafeInteger(parsed.offset)
+      || Number(parsed.offset) < 1 || Number(parsed.offset) > 1_000_000) throw new Error('cursor mismatch')
+    return Number(parsed.offset)
+  } catch {
+    throw new OperationsPolicyError('authority-denied', 'Console pagination cursor is invalid for this query.')
+  }
+}
+
+function searchable(row: ConsoleRow, filter: string): boolean {
+  const needle = filter.toLocaleLowerCase('en-KE')
+  return Object.values(row).some((value) => String(value ?? '').toLocaleLowerCase('en-KE').includes(needle))
+}
+
+export class PlatformConsoleService {
+  readonly #source: PlatformConsoleReadSource
+  readonly #registry: PlatformConsoleRegistry
+  readonly #now: () => Date
+
+  constructor(input: Readonly<{ source: PlatformConsoleReadSource; registry: PlatformConsoleRegistry; now?: () => Date }>) {
+    this.#source = input.source
+    this.#registry = input.registry
+    this.#now = input.now ?? (() => new Date())
+  }
+
+  async query(value: unknown, authority: InternalAuthority): Promise<ConsolePage> {
+    const query = authorizeConsoleQuery(value, authority)
+    const allowed = new Set(CONSOLE_ALLOWED_FIELDS[query.view])
+    const redacted = (await this.#source.read(query.view)).map((row) => redactConsoleRow(row, allowed))
+    const filtered = query.filter ? redacted.filter((row) => searchable(row, query.filter!)) : redacted
+    const offset = cursorOffset(query)
+    if (offset > filtered.length) throw new OperationsPolicyError('authority-denied', 'Console pagination cursor is beyond the current result set.')
+    const rows = Object.freeze(filtered.slice(offset, offset + query.limit))
+    const nextOffset = offset + rows.length
+    return Object.freeze({
+      view: query.view,
+      rows,
+      nextCursor: nextOffset < filtered.length ? cursorFor(query, nextOffset) : null,
+      total: filtered.length,
+    })
+  }
+
+  async execute(value: unknown, authority: InternalAuthority): Promise<import('./contracts').ConsoleActionResult> {
+    const envelope = parseStrict(ConsoleActionEnvelopeSchema, value, 'console.action')
+    const now = this.#now()
+    const delegate = this.#registry.action(envelope.actionId, authority, now)
+    const result = await delegate.execute(envelope.input, { actorId: authority.actorId, requestId: envelope.requestId, now: now.toISOString() })
+    const output = parseStrict(ConsoleActionResultSchema, result, 'console.action.result')
+    if (output.actionId !== envelope.actionId || output.requestId !== envelope.requestId) {
+      throw new OperationsPolicyError('contribution-denied', 'Console action delegate returned mismatched immutable identity.')
+    }
+    return Object.freeze(output)
+  }
 }
 
 export function beginSupportSession(value: unknown, authority: InternalAuthority, now: Date): SupportSession {
@@ -69,7 +202,7 @@ export function beginSupportSession(value: unknown, authority: InternalAuthority
   const startedAt = Date.parse(session.startedAt)
   const expiresAt = Date.parse(session.expiresAt)
   const steppedUp = Number.isFinite(authorityStepUp) && authority.stepUpAt === session.stepUpAt && now.getTime() - authorityStepUp >= 0 && now.getTime() - authorityStepUp <= 5 * 60_000
-  if (authority.host !== 'admin.fuma.co.ke' || !authority.authorities.has('internal.support.impersonate') || authority.protectedOwner || !steppedUp || session.staffActorId !== authority.actorId || session.targetProtected || session.nested || startedAt > now.getTime() || now.getTime() - startedAt > 60_000 || expiresAt <= now.getTime() || expiresAt - startedAt > 30 * 60_000) throw new OperationsPolicyError('support-denied', 'Bounded support session policy denied.')
+  if (authority.host !== FUMA_GOVERNANCE_DEPLOYMENT.hosts.console || !authority.authorities.has('internal.support.impersonate') || authority.protectedOwner || !steppedUp || session.staffActorId !== authority.actorId || session.targetProtected || session.nested || startedAt > now.getTime() || now.getTime() - startedAt > 60_000 || expiresAt <= now.getTime() || expiresAt - startedAt > 30 * 60_000) throw new OperationsPolicyError('support-denied', 'Bounded support session policy denied.')
   return session
 }
 
@@ -77,7 +210,7 @@ export function approveBreakGlass(value: unknown, input: { authority: InternalAu
   const request = parseStrict(BreakGlassRequestSchema, value, 'break-glass.request')
   const [first, second] = request.approverIds
   const steppedUp = input.authority.stepUpAt !== null && input.now.getTime() - Date.parse(input.authority.stepUpAt) >= 0 && input.now.getTime() - Date.parse(input.authority.stepUpAt) <= 5 * 60_000
-  if (!input.isolatedChannel || !steppedUp || input.authority.host !== 'admin.fuma.co.ke' || !input.authority.authorities.has('internal.break-glass.approve') || !first || !second || first === second || !request.approverIds.includes(input.authority.actorId) || !input.approvedActorIds.has(first) || !input.approvedActorIds.has(second) || Date.parse(request.expiresAt) <= input.now.getTime() || Date.parse(request.expiresAt) - input.now.getTime() > 15 * 60_000) throw new OperationsPolicyError('break-glass-denied', 'Break-glass requires an isolated, live, dual-approver workflow.')
+  if (!input.isolatedChannel || !steppedUp || input.authority.host !== FUMA_GOVERNANCE_DEPLOYMENT.hosts.console || !input.authority.authorities.has('internal.break-glass.approve') || !first || !second || first === second || !request.approverIds.includes(input.authority.actorId) || !input.approvedActorIds.has(first) || !input.approvedActorIds.has(second) || Date.parse(request.expiresAt) <= input.now.getTime() || Date.parse(request.expiresAt) - input.now.getTime() > 15 * 60_000) throw new OperationsPolicyError('break-glass-denied', 'Break-glass requires an isolated, live, dual-approver workflow.')
   return request
 }
 

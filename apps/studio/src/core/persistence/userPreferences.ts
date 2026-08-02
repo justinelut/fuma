@@ -26,7 +26,7 @@
  *   • DELETE → resets to default
  *
  * Storage shape: `user_preferences (user_id, key, value_json, updated_at)`
- * — see `server/db/migrations-{pg,sqlite}.ts`. The schemas below are the
+ * — see `server/db/migrations-pg.ts`. The schemas below are the
  * authoritative shape of `value_json` per key; the DB layer is opaque.
  */
 import type { TSchema } from '@sinclair/typebox'

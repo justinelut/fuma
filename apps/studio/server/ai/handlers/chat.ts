@@ -81,7 +81,7 @@ import type {
   AiStreamEvent,
   ToolScope,
 } from '../runtime/types'
-import type { AiStreamRequest } from '../drivers/types'
+import type { AiStreamRequest, ToolContextBase } from '../drivers/types'
 
 const VALID_SCOPES: ToolScope[] = ['site', 'content', 'data', 'plugin']
 const activeChatConversations = new Set<string>()
@@ -364,7 +364,7 @@ async function handleAiChat(
         // posted with the request and is refreshed in place by the bridge's
         // onSnapshot after each mutating browser tool — so a read tool run
         // later in the same turn sees current state, not stale turn-start state.
-        const toolContextBase = {
+        const toolContextBase: ToolContextBase = {
           db,
           userId: user.id,
           capabilities: user.capabilities,
@@ -398,6 +398,7 @@ async function handleAiChat(
         const persister = createConversationsPersister(db, conversation.id, {
           providerId: credential.providerId,
           modelId: conversation.modelId,
+          authority: toolContextBase.authority,
         })
         await runChat({ driver, request, persister, emit })
 

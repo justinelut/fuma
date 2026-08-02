@@ -344,7 +344,7 @@ Useful for moving content (not styling) between sites with similar layouts.
 
 ### Backup script
 
-A nightly cron can hit `/admin/api/cms/export` with an admin session cookie and pipe the response to disk. For larger sites, prefer the DB-level `pg_dump` (Postgres) or file copy (SQLite + `Litestream`) — see [docs/deployment/backup-restore.md](../deployment/backup-restore.md).
+A nightly cron can hit `/admin/api/cms/export` with an admin session cookie and pipe the response to disk. For larger sites, prefer a PostgreSQL `pg_dump` — see [docs/deployment/backup-restore.md](../deployment/backup-restore.md).
 
 ---
 

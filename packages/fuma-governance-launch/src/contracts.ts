@@ -1,3 +1,4 @@
+import { FUMA_GOVERNANCE_DEPLOYMENT } from './deployment'
 import { Type, type Static, type TSchema } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 
@@ -147,30 +148,35 @@ export const CustomerPaymentRequestSchema = Type.Object({
   idempotencyKey: Id,
   returnPath: Type.String({ minLength: 1, maxLength: 256, pattern: '^/[A-Za-z0-9/_-]*$' }),
 }, { additionalProperties: false })
-export const AiPaymentProposalSchema = Type.Object({
-  proposalId: Id,
-  siteId: Id,
-  createdByActorId: Id,
-  reviewedArtifactId: Id,
-  permissions: Type.Array(Type.String({ minLength: 1, maxLength: 96 }), { uniqueItems: true }),
-  feeDisclosure: Type.String({ minLength: 1, maxLength: 1_000 }),
-  configuration: Type.Object({ purposes: Type.Array(PaymentPurposeSchema, { minItems: 1, uniqueItems: true }) }, { additionalProperties: false }),
-  confirmationNonceHashSha256: Sha256,
-  expiresAt: Timestamp,
-  confirmedAt: Type.Union([Timestamp, Type.Null()]),
-}, { additionalProperties: false })
-
+export const CONSOLE_VIEWS = Object.freeze([
+  'users', 'organizations', 'clients', 'workspaces', 'sites', 'plans', 'offers', 'contracts',
+  'invoices', 'economics', 'usage', 'domains', 'email', 'jobs', 'releases', 'ai', 'audit',
+] as const)
+export const ConsoleViewSchema = Type.Union(CONSOLE_VIEWS.map((value) => Type.Literal(value)))
 export const ConsoleQuerySchema = Type.Object({
-  view: Type.Union([Type.Literal('users'), Type.Literal('organizations'), Type.Literal('clients'), Type.Literal('sites'), Type.Literal('subscriptions'), Type.Literal('offers'), Type.Literal('invoices'), Type.Literal('economics'), Type.Literal('usage'), Type.Literal('domains'), Type.Literal('email'), Type.Literal('jobs'), Type.Literal('releases'), Type.Literal('ai'), Type.Literal('audit')]),
-  filter: Type.Optional(Type.String({ minLength: 1, maxLength: 100 })),
+  view: ConsoleViewSchema,
+  filter: Type.Optional(Type.String({ minLength: 1, maxLength: 100, pattern: '^[^\\u0000-\\u001F\\u007F]*$' })),
   cursor: Type.Optional(Type.String({ minLength: 1, maxLength: 256, pattern: '^[A-Za-z0-9_-]+$' })),
   limit: Type.Integer({ minimum: 1, maximum: 100 }),
 }, { additionalProperties: false })
 export const ConsoleContributionSchema = Type.Object({
   contributionId: Id,
-  ownerTicket: Type.String({ pattern: '^FUMA-(068|072|073|074)$' }),
+  ownerTicket: Type.String({ pattern: '^FUMA-(068|072|073|074|087)$' }),
   routes: Type.Array(Type.String({ pattern: '^/internal/[a-z0-9/-]+$' }), { minItems: 1, uniqueItems: true }),
   requiredAuthorities: Type.Array(Type.String({ pattern: '^internal\\.[a-z0-9.:-]+$' }), { minItems: 1, uniqueItems: true }),
+  mounted: Type.Optional(Type.Literal(false)),
+}, { additionalProperties: false })
+export const ConsoleActionEnvelopeSchema = Type.Object({
+  actionId: Type.String({ minLength: 3, maxLength: 120, pattern: '^[a-z][a-z0-9.-]+$' }),
+  requestId: Id,
+  input: Type.Unknown(),
+}, { additionalProperties: false })
+export const ConsoleActionResultSchema = Type.Object({
+  actionId: Type.String({ minLength: 3, maxLength: 120, pattern: '^[a-z][a-z0-9.-]+$' }),
+  requestId: Id,
+  state: Type.Union([Type.Literal('accepted'), Type.Literal('completed')]),
+  resourceId: Id,
+  resourceVersion: Type.Union([PositiveUnits, Type.Null()]),
 }, { additionalProperties: false })
 export const SupportSessionSchema = Type.Object({
   sessionId: Id,
@@ -275,7 +281,7 @@ export const DesignConversionManifestSchema = Type.Object({
 }, { additionalProperties: false })
 
 export const PairedReleaseManifestSchema = Type.Object({
-  schemaVersion: Type.Literal(3),
+  schemaVersion: Type.Literal(4),
   sourceSha: SourceRevision,
   lockHashSha256: Sha256,
   migrationHighWaterMark: Type.String({ pattern: '^000[0-9]{3}_[a-z0-9_]+$' }),
@@ -283,19 +289,27 @@ export const PairedReleaseManifestSchema = Type.Object({
   runtimeImageSourceSha: SourceRevision,
   webImage: Type.String({ pattern: '^ghcr\\.io/corebunch/fuma-web@sha256:[a-f0-9]{64}$' }),
   webImageSourceSha: SourceRevision,
-  architectures: Type.Tuple([Type.Literal('linux/amd64'), Type.Literal('linux/arm64')]),
+  siteRuntimeImage: Type.String({ pattern: '^ghcr\\.io/corebunch/fuma-site-runtime@sha256:[a-f0-9]{64}$' }),
+  siteRuntimeImageSourceSha: SourceRevision,
+  architectures: Type.Tuple([Type.Literal('linux/arm64')]),
   runtimeIndexHashSha256: Sha256,
   webIndexHashSha256: Sha256,
+  siteRuntimeIndexHashSha256: Sha256,
   runtimeScanReportHashSha256: Sha256,
   webScanReportHashSha256: Sha256,
+  siteRuntimeScanReportHashSha256: Sha256,
   runtimeSbomHashSha256: Sha256,
   webSbomHashSha256: Sha256,
+  siteRuntimeSbomHashSha256: Sha256,
   runtimeProvenanceHashSha256: Sha256,
   webProvenanceHashSha256: Sha256,
+  siteRuntimeProvenanceHashSha256: Sha256,
   runtimeSignatureVerificationHashSha256: Sha256,
   webSignatureVerificationHashSha256: Sha256,
+  siteRuntimeSignatureVerificationHashSha256: Sha256,
   runtimeSmokeEvidenceHashSha256: Sha256,
   webSmokeEvidenceHashSha256: Sha256,
+  siteRuntimeSmokeEvidenceHashSha256: Sha256,
   publicationPlanHashSha256: Sha256,
   manifestHashSha256: Sha256,
 }, { additionalProperties: false })
@@ -317,7 +331,7 @@ export const PublicWebDeploymentSeamSchema = Type.Object({
   runtimeProjectionVersion: PositiveUnits,
   webContractVersion: PositiveUnits,
   privateRuntimeAudience: Type.Literal('fuma-public-web'),
-  canonicalHost: Type.Literal('fuma.co.ke'),
+  canonicalHost: Type.Literal(FUMA_GOVERNANCE_DEPLOYMENT.hosts.public),
   canaryPercent: Type.Integer({ minimum: 0, maximum: 100 }),
   publicRollbackIndependent: Type.Literal(true),
   productTenantContinuityRequired: Type.Literal(true),
@@ -332,9 +346,11 @@ export type PluginArtifact = Static<typeof PluginArtifactSchema>
 export type PluginInstallation = Static<typeof PluginInstallationSchema>
 export type PluginReview = Static<typeof PluginReviewSchema>
 export type CustomerPaymentRequest = Static<typeof CustomerPaymentRequestSchema>
-export type AiPaymentProposal = Static<typeof AiPaymentProposalSchema>
 export type ConsoleQuery = Static<typeof ConsoleQuerySchema>
+export type ConsoleView = Static<typeof ConsoleViewSchema>
 export type ConsoleContribution = Static<typeof ConsoleContributionSchema>
+export type ConsoleActionEnvelope = Static<typeof ConsoleActionEnvelopeSchema>
+export type ConsoleActionResult = Static<typeof ConsoleActionResultSchema>
 export type SupportSession = Static<typeof SupportSessionSchema>
 export type BreakGlassRequest = Static<typeof BreakGlassRequestSchema>
 export type ExpertReleaseApproval = Static<typeof ExpertReleaseApprovalSchema>
@@ -349,9 +365,13 @@ export type LaunchGate = Static<typeof LaunchGateSchema>
 export type PublicWebDeploymentSeam = Static<typeof PublicWebDeploymentSeamSchema>
 
 export class PhaseContractError extends Error {
-  constructor(readonly boundary: string, readonly detail: string) {
+  readonly boundary: string
+  readonly detail: string
+  constructor(boundary: string, detail: string) {
     super(`${boundary}: ${detail}`)
     this.name = 'PhaseContractError'
+    this.boundary = boundary
+    this.detail = detail
   }
 }
 

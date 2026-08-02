@@ -18,7 +18,7 @@ import { createHostedStaffAuthBoundary } from './routes'
 import { AUTH_MODEL_NAMES } from './schemaManifest'
 import { withHashedSessionTokens } from './sessionTokenAdapter'
 
-const ORIGIN = 'https://app.fuma.co.ke'
+const ORIGIN = 'https://app.trimly.co.ke'
 const SECRET = 'fuma-013-native-security-secret-with-at-least-32-characters'
 const OWNER_EMAIL = 'owner@fuma.example'
 const OWNER_PASSWORD = 'Fuma-owner-password-123!'
@@ -91,7 +91,7 @@ function request(
   ipAddress?: string,
 ): Request {
   const headers = new Headers(init.headers)
-  headers.set('host', 'app.fuma.co.ke')
+  headers.set('host', 'app.trimly.co.ke')
   if (ipAddress) headers.set('x-forwarded-for', ipAddress)
   if (init.body !== undefined) headers.set('content-type', 'application/json')
   if (jar?.size) headers.set('cookie', cookieHeader(jar))
@@ -352,13 +352,13 @@ function proveCutover(): void {
     '/admin/api/cms/site-document',
     '/admin/api/cms/publish',
   ]) assert(!isLegacyHostedAuthPath(path), `Non-auth CMS path was blocked: ${path}`)
-  const response = rejectLegacyHostedAuth(new Request('https://app.fuma.co.ke/admin/api/cms/me'))
+  const response = rejectLegacyHostedAuth(new Request('https://app.trimly.co.ke/admin/api/cms/me'))
   const cookie = response.headers.getSetCookie()[0]
   assert(response.status === 401, 'Legacy auth did not require reauthentication')
   assert(cookie?.startsWith(`${LEGACY_STAFF_SESSION_COOKIE}=`), 'Legacy cookie was not expired')
   assert(cookie.includes('Max-Age=0') && cookie.includes('Secure'), 'Legacy cookie expiry is unsafe')
 
-  const oldCookieRequest = new Request('https://app.fuma.co.ke/admin', {
+  const oldCookieRequest = new Request('https://app.trimly.co.ke/admin', {
     headers: { cookie: `${LEGACY_STAFF_SESSION_COOKIE}=old-bearer` },
   })
   const accepted = invalidateLegacyStaffCookie(oldCookieRequest, new Response('ok'))
@@ -376,7 +376,7 @@ async function proveExactHostAndOriginPolicy(): Promise<void> {
 
   const wrongUrlOrigin = await boundary.handle(new Request(
     'https://customer.example/api/auth/get-session',
-    { headers: { host: 'app.fuma.co.ke' } },
+    { headers: { host: 'app.trimly.co.ke' } },
   ))
   assert(wrongUrlOrigin?.status === 404, 'Non-product URL origin reached hosted auth')
 
@@ -384,7 +384,7 @@ async function proveExactHostAndOriginPolicy(): Promise<void> {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      host: 'app.fuma.co.ke',
+      host: 'app.trimly.co.ke',
       origin: 'https://evil.example',
     },
     body: JSON.stringify({ email: STAFF_EMAIL, password: STAFF_PASSWORD }),

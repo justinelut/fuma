@@ -13,9 +13,16 @@ import type { AiTool, ToolContext } from '../../runtime/types'
 import { createAuditEvent } from '../../../repositories/audit'
 import { publishDraftSite } from '../../../publish/publishSite'
 
+export interface McpPublishConfirmationInput {
+  confirmationId: string
+  stepUpReceiptId: string
+  confirmedAt: string
+}
+
 export interface McpPublishRuntime {
   connectorId: string
-  uploadsDir: string
+  uploadsDir?: string
+  publish?: (input: Readonly<{ confirmation: McpPublishConfirmationInput | null; context: ToolContext }>) => Promise<unknown>
 }
 
 export function createPublishMcpTool(runtime?: McpPublishRuntime): AiTool {
@@ -27,11 +34,20 @@ export function createPublishMcpTool(runtime?: McpPublishRuntime): AiTool {
     execution: 'server',
     mutates: true,
     requiredCapabilities: ['pages.publish'],
-    inputSchema: Type.Object({}, { additionalProperties: false }),
-    handler: async (_input, ctx: ToolContext) => {
+    inputSchema: Type.Object({
+      confirmation: Type.Optional(Type.Object({
+        confirmationId: Type.String({ minLength: 1, maxLength: 255 }),
+        stepUpReceiptId: Type.String({ minLength: 1, maxLength: 255 }),
+        confirmedAt: Type.String({ format: 'date-time' }),
+      }, { additionalProperties: false })),
+    }, { additionalProperties: false }),
+    handler: async (input, ctx: ToolContext) => {
       if (!runtime) {
-        throw new Error('MCP publish runtime uploads directory is not configured.')
+        throw new Error('MCP publish runtime is not configured.')
       }
+      const confirmation = (input as { confirmation?: McpPublishConfirmationInput }).confirmation ?? null
+      if (runtime.publish) return runtime.publish({ confirmation, context: ctx })
+      if (!runtime.uploadsDir) throw new Error('MCP publish uploads directory is not configured.')
 
       const result = await publishDraftSite(ctx.db, ctx.userId, runtime.uploadsDir)
       await createAuditEvent(ctx.db, {
@@ -46,6 +62,24 @@ export function createPublishMcpTool(runtime?: McpPublishRuntime): AiTool {
         },
       })
       return result
+    },
+  }
+}
+
+export function createComponentPublishMcpTool(runtime?: McpPublishRuntime): AiTool {
+  const base = createPublishMcpTool(runtime)
+  return {
+    ...base,
+    name: 'site_publish_components',
+    mcpCapability: 'component.publish',
+    description: 'Validate every exact component pin and security revocation, then publish through the existing site publisher. Requires component.publish plus a fresh operation-bound confirmation and step-up.',
+    handler: async (input, context) => {
+      const { siteComponentCatalogPort } = await import('../../tools/site/componentCatalogPort')
+      const port = siteComponentCatalogPort()
+      if (!port) throw new Error('Hosted component catalog authority is unavailable.')
+      await port.execute({ conversationId: context.conversationId, actorId: context.userId, operationId: context.toolCallId ?? `${context.conversationId}:site_publish_components`, action: 'publish-check', command: {}, nativeAiAuthority: false })
+      if (!base.handler) throw new Error('MCP publish runtime is unavailable.')
+      return base.handler(input, context)
     },
   }
 }

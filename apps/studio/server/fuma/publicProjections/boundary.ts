@@ -1,5 +1,6 @@
 import {
   ContactRequestSchema,
+  PublicHandoffRequestSchema,
   PublicDatasetVersionSchema,
   PublicProjectionResourceSchema,
   SafeErrorEnvelopeSchema,
@@ -10,9 +11,13 @@ import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 import { safeParseJson } from '@core/utils/jsonValidate'
 import type { FumaLimitDecision, FumaLimitRequest } from '../redis'
-import type { PublicContactSink } from './contact'
+import type { PublicContactRoutingAuthority, PublicContactRoutingReceipt } from './contact'
+import { PublicContactRoutingResponseSchema, publicContactRequestSha256 } from './contact'
+import type { PublicHandoffIssuer } from '../publicHandoff/boundary'
 import type { PublicProjectionAuthority } from './authority'
 import { PublicProjectionInvalidRequestError } from './authority'
+import type { PublicStatusProjectionAuthority } from './status'
+import { PublicStatusProjectionSchema, validCurrentStatusProjection } from './status'
 import {
   PUBLIC_PROJECTION_PATH_PREFIX,
   PUBLIC_PROJECTION_RATE_LIMIT,
@@ -30,7 +35,9 @@ export type PublicProjectionBoundaryInput = Readonly<{
   serviceToken: string
   authority: PublicProjectionAuthority
   coordination: PublicProjectionCoordination
-  contact?: PublicContactSink
+  contact?: PublicContactRoutingAuthority
+  status?: PublicStatusProjectionAuthority
+  handoff?: PublicHandoffIssuer
   nowMs?: () => number
 }>
 
@@ -46,9 +53,12 @@ const SOURCE_RESULT_SCHEMAS: Readonly<Record<PublicProjectionResource, ReturnTyp
   showcases: Type.Object({ datasetVersion: PublicDatasetVersionSchema, data: PUBLIC_PROJECTION_SPECS.showcases.pageSchema }, { additionalProperties: false }),
   experts: Type.Object({ datasetVersion: PublicDatasetVersionSchema, data: PUBLIC_PROJECTION_SPECS.experts.pageSchema }, { additionalProperties: false }),
   plugins: Type.Object({ datasetVersion: PublicDatasetVersionSchema, data: PUBLIC_PROJECTION_SPECS.plugins.pageSchema }, { additionalProperties: false }),
+  components: Type.Object({ datasetVersion: PublicDatasetVersionSchema, data: PUBLIC_PROJECTION_SPECS.components.pageSchema }, { additionalProperties: false }),
 })
 
 const PUBLIC_CONTACT_PATH = `${PUBLIC_PROJECTION_PATH_PREFIX}/contact`
+const PUBLIC_STATUS_PATH = `${PUBLIC_PROJECTION_PATH_PREFIX}/status`
+const PUBLIC_HANDOFF_PATH = `${PUBLIC_PROJECTION_PATH_PREFIX}/handoff`
 const PUBLIC_CONTACT_BODY_BYTES = 8_192
 const PUBLIC_CONTACT_RATE_LIMIT = Object.freeze({ limit: 120, windowMs: 60_000 })
 
@@ -95,20 +105,48 @@ function authorized(request: Request, serviceToken: string): boolean {
   return constantTimeEqual(authorization.slice('Bearer '.length), serviceToken)
 }
 
-async function contactValue(request: Request): Promise<ContactRequest | null> {
+async function boundedJson(request: Request): Promise<unknown | null> {
   if (request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') return null
   const declared = Number(request.headers.get('content-length') ?? '0')
   if (Number.isFinite(declared) && declared > PUBLIC_CONTACT_BODY_BYTES) return null
   let text: string
   try { text = await request.text() } catch { return null }
   if (new TextEncoder().encode(text).byteLength > PUBLIC_CONTACT_BODY_BYTES) return null
-  let value: unknown
-  try { value = JSON.parse(text) as unknown } catch { return null }
+  try { return JSON.parse(text) as unknown } catch { return null }
+}
+
+async function contactValue(request: Request): Promise<ContactRequest | null> {
+  const value = await boundedJson(request)
   return Value.Check(ContactRequestSchema, value) ? value : null
 }
 
-function contactAccepted(): Response {
-  return new Response(null, { status: 202, headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
+function contactAccepted(receipt: PublicContactRoutingReceipt): Response {
+  const candidate = { outcome: 'accepted' as const, receipt }
+  if (!Value.Check(PublicContactRoutingResponseSchema, candidate)) {
+    throw new Error('Contact routing authority returned an invalid receipt.')
+  }
+  return new Response(JSON.stringify(candidate), {
+    status: 202,
+    headers: {
+      'cache-control': 'no-store',
+      'content-type': 'application/json; charset=utf-8',
+      'x-content-type-options': 'nosniff',
+    },
+  })
+}
+
+function statusResponse(value: unknown): Response {
+  if (!Value.Check(PublicStatusProjectionSchema, value)) {
+    throw new Error('Status projection authority returned an invalid response.')
+  }
+  return new Response(JSON.stringify(value), {
+    status: 200,
+    headers: {
+      'cache-control': 'no-store',
+      'content-type': 'application/json; charset=utf-8',
+      'x-content-type-options': 'nosniff',
+    },
+  })
 }
 
 function parseResource(pathname: string): PublicProjectionResource | null {
@@ -197,6 +235,36 @@ export function createPublicProjectionBoundary(input: PublicProjectionBoundaryIn
     if (host !== expectedHost || !authorized(request, input.serviceToken)) {
       return safeError(404, 'not_found', 'Resource not found.')
     }
+    if (url.pathname === PUBLIC_STATUS_PATH) {
+      if (request.method !== 'GET') {
+        const response = safeError(405, 'invalid_request', 'Method not allowed.')
+        response.headers.set('allow', 'GET')
+        return response
+      }
+      if (url.search !== '') return safeError(400, 'invalid_request', 'Invalid status request.')
+      if (!input.status) return safeError(503, 'temporarily_unavailable', 'Current service status is unavailable.', 30)
+      try {
+        const value = await input.status.readCurrent()
+        const current = input.nowMs?.() ?? Date.now()
+        if (!validCurrentStatusProjection(value, current)) {
+          return safeError(503, 'temporarily_unavailable', 'Current service status is unavailable.', 30)
+        }
+        return statusResponse(value)
+      } catch {
+        return safeError(503, 'temporarily_unavailable', 'Current service status is unavailable.', 30)
+      }
+    }
+    if (url.pathname === PUBLIC_HANDOFF_PATH) {
+      if (request.method !== 'POST') {
+        const response = safeError(405, 'invalid_request', 'Method not allowed.')
+        response.headers.set('allow', 'POST')
+        return response
+      }
+      if (url.search !== '') return safeError(400, 'invalid_request', 'Invalid handoff request.')
+      const value = await boundedJson(request)
+      if (!input.handoff || !Value.Check(PublicHandoffRequestSchema, value)) return safeError(400, 'invalid_request', 'Invalid handoff request.')
+      return await input.handoff.issue(value)
+    }
     if (url.pathname === PUBLIC_CONTACT_PATH) {
       if (request.method !== 'POST') {
         const response = safeError(405, 'invalid_request', 'Method not allowed.')
@@ -210,8 +278,21 @@ export function createPublicProjectionBoundary(input: PublicProjectionBoundaryIn
       try { decision = await input.coordination.consumeLimit('public-contact', PUBLIC_CONTACT_RATE_LIMIT) }
       catch { return safeError(503, 'temporarily_unavailable', 'Contact routing is temporarily unavailable.', 30) }
       if (!decision.allowed) return safeError(429, 'rate_limited', 'Try again shortly.', Math.max(1, Math.min(3_600, Math.ceil(decision.retryAfterMs / 1_000))))
-      if (!input.contact || !await input.contact.accept(value)) return safeError(503, 'temporarily_unavailable', 'Contact routing is temporarily unavailable.', 30)
-      return contactAccepted()
+      if (!input.contact) return safeError(503, 'temporarily_unavailable', 'Contact routing is temporarily unavailable.', 30)
+      let routed: Awaited<ReturnType<PublicContactRoutingAuthority['route']>>
+      try { routed = await input.contact.route(value) }
+      catch { return safeError(503, 'temporarily_unavailable', 'Contact routing is temporarily unavailable.', 30) }
+      if (routed.outcome === 'conflict') return safeError(409, 'invalid_request', 'Contact replay does not match the accepted request.')
+      if (routed.outcome === 'busy') {
+        return safeError(429, 'rate_limited', 'Contact routing is already in progress.', Math.max(1, Math.min(30, routed.retryAfterSeconds)))
+      }
+      if (routed.outcome !== 'accepted') return safeError(503, 'temporarily_unavailable', 'Contact routing is temporarily unavailable.', 30)
+      if (routed.receipt.replayToken !== value.replayToken
+        || routed.receipt.routedAs !== value.kind
+        || routed.receipt.requestSha256 !== publicContactRequestSha256(value)) {
+        return safeError(503, 'temporarily_unavailable', 'Contact routing is temporarily unavailable.', 30)
+      }
+      return contactAccepted(routed.receipt)
     }
     if (request.method !== 'GET') {
       const response = safeError(405, 'invalid_request', 'Method not allowed.')

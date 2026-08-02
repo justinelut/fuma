@@ -1,13 +1,10 @@
 import { describe, expect, it, beforeEach } from 'bun:test'
-import { createSqliteClient } from '../../../db/sqlite'
-import { sqliteMigrations } from '../../../db/migrations-sqlite'
-import { runMigrations } from '../../../db/runMigrations'
+import { createTestDatabase } from '../../../db/testDatabase'
 import type { DbClient } from '../../../db/client'
 import { createDataTable, getDataTable, listDataTables } from '../tables'
 
 async function freshDb(): Promise<DbClient> {
-  const db = createSqliteClient(':memory:')
-  await runMigrations(db, sqliteMigrations)
+  const { db: db } = await createTestDatabase('tables')
   return db
 }
 
@@ -42,12 +39,11 @@ describe('data_tables.system column', () => {
   })
 
   it('stores the column as not-null (no null sneaks through)', async () => {
-    // Read the raw column straight from SQLite for every row and assert the
-    // value is a concrete 0/1, never null.
-    const { rows } = await db<{ system: number | null }>`select system from data_tables`
+    // Read the raw PostgreSQL column for every row and assert it is never null.
+    const { rows } = await db<{ system: boolean | null }>`select system from data_tables`
     expect(rows.length).toBeGreaterThan(0)
     for (const row of rows) {
-      expect(row.system === 0 || row.system === 1).toBe(true)
+      expect(row.system).toBeBoolean()
     }
   })
 

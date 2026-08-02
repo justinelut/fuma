@@ -11,7 +11,7 @@ Additive hosted migration `000002_durable_jobs` creates:
 - `fuma_job_effects`: one durable result per `(job_id, effect_key)`, allowing a restarted handler to observe an already committed result instead of creating another;
 - `fuma_job_schedules`: interval cursor and durable enqueue fence used with a short Redis scheduler lease.
 
-The migration is PostgreSQL-only and belongs to the FUMA-006 manifest. Historical Instatic PostgreSQL and SQLite migrations are unchanged.
+The migration is PostgreSQL-only and belongs to the FUMA-006 manifest. Historical Instatic migration evidence is unchanged.
 
 ## Enqueue and admission
 
