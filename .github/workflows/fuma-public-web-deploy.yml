@@ -41,6 +41,16 @@ jobs:
           ! grep -q '__FUMA_' k8s-public-web.yaml
           chmod 0644 k8s-public-web.yaml
 
+      - name: Prepare manifest directory on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sudo mkdir -p /opt/fuma
+            sudo chown -R ubuntu:ubuntu /opt/fuma
+
       - name: Copy manifest to server
         uses: appleboy/scp-action@v0.1.7
         with:
