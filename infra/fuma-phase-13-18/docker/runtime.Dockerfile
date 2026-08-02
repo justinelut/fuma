@@ -50,9 +50,10 @@ RUN test -d node_modules/.bun/@sinclair+typebox@0.34.49/node_modules/@sinclair/t
  && mkdir -p node_modules/@sinclair \
  && ln -s ../.bun/@sinclair+typebox@0.34.49/node_modules/@sinclair/typebox node_modules/@sinclair/typebox
 COPY --chown=bun:bun package.json bun.lock tsconfig.base.json ./
+COPY --chown=bun:bun .github/workflows/fuma-email-compatibility.yml ./.github/workflows/fuma-email-compatibility.yml
 COPY --chown=bun:bun apps/studio/package.json apps/studio/tsconfig*.json ./apps/studio/
 COPY --chown=bun:bun apps/studio/server ./apps/studio/server
-COPY --chown=bun:bun apps/studio/scripts/fuma-migrate.ts ./apps/studio/scripts/fuma-migrate.ts
+COPY --chown=bun:bun apps/studio/scripts/fuma-email-compatibility-matrix.ts apps/studio/scripts/fuma-email-compatibility-target.ts apps/studio/scripts/fuma-migrate.ts ./apps/studio/scripts/
 COPY --chown=bun:bun apps/studio/src ./apps/studio/src
 COPY --chown=bun:bun packages ./packages
 COPY --chmod=0555 infra/fuma-phase-13-18/docker/runtime-entrypoint.sh /usr/local/bin/fuma-runtime
