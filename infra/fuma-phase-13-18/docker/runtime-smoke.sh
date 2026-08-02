@@ -59,10 +59,16 @@ for pair in web:3101 worker:3102 scheduler:3103; do
   while [ "$attempt" -lt 30 ]; do
     ready=$(docker exec "$container_id" bun -e "const r=await fetch('http://127.0.0.1:${port}/readyz'); const t=await r.text(); console.log(t); if(!r.ok)process.exit(1)" 2>/dev/null || true)
     if printf '%s' "$ready" | jq -e --arg role "$role" '.role == $role and .state == "ready"' >/dev/null 2>&1; then break; fi
+    if [ "$(docker inspect --format '{{.State.Running}}' "$container_id" 2>/dev/null || true)" != true ]; then break; fi
     attempt=$((attempt + 1))
     sleep 1
   done
-  printf '%s' "$ready" | jq -e --arg role "$role" '.role == $role and .state == "ready"' >/dev/null
+  if ! printf '%s' "$ready" | jq -e --arg role "$role" '.role == $role and .state == "ready"' >/dev/null 2>&1; then
+    echo "$role runtime did not become ready" >&2
+    docker inspect --format 'status={{.State.Status}} exit={{.State.ExitCode}} error={{.State.Error}}' "$container_id" >&2 || true
+    docker logs --tail 200 "$container_id" >&2 || true
+    exit 1
+  fi
   logs=$(docker logs --tail 200 "$container_id" 2>&1)
   docker stop --time 10 "$container_id" >/dev/null
   exit_code=$(docker inspect --format '{{.State.ExitCode}}' "$container_id")
