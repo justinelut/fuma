@@ -91,7 +91,16 @@ jobs:
             sudo kubectl set image deployment/public-web \
               web=ghcr.io/$REPO_OWNER/fuma-web:$IMAGE_TAG -n $NS
 
-            sudo kubectl rollout status deployment/public-web -n $NS --timeout=10m
+            if ! sudo kubectl rollout status deployment/public-web -n $NS --timeout=5m; then
+              echo "════════════ rollout failed ════════════"
+              sudo kubectl -n $NS get pods -o wide
+              sudo kubectl -n $NS describe deployment/public-web | tail -40
+              sudo kubectl -n $NS describe pods -l app=public-web | tail -80
+              sudo kubectl -n $NS get events --sort-by=.lastTimestamp | tail -30
+              sudo kubectl -n $NS logs deployment/public-web --all-containers=true --tail=100 || true
+              sudo kubectl -n $NS logs deployment/public-web --all-containers=true --previous --tail=100 || true
+              exit 1
+            fi
 
             echo "════════════ final state ════════════"
             sudo kubectl -n $NS get pods,svc,ingressroute -o wide
