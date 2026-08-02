@@ -110,7 +110,7 @@ describe('FUMA-078 native ARM64 supply-chain architecture', () => {
       'provenance: mode=max',
       'sbom: true',
       'Refuse to overwrite existing source-SHA image tags',
-      'ghcr.io/corebunch/fuma-site-runtime',
+      'ghcr.io/${{ github.repository_owner }}/fuma-site-runtime',
       'Scan published immutable ARM64 runtime digest',
       'Generate runtime SPDX from published immutable ARM64 digest',
       'Extract BuildKit SLSA provenance',
