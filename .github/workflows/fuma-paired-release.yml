@@ -137,7 +137,7 @@ jobs:
       - name: Boot native site-runtime standalone server
         run: sh infra/fuma-phase-13-18/docker/site-runtime-smoke.sh fuma-site-runtime-gate:arm64 linux/arm64 ${{ needs.preflight.outputs.source_sha }} ${{ needs.preflight.outputs.lock_hash }} ${{ needs.preflight.outputs.migration_high_water }} supply/prepublish/site-runtime-smoke/arm64.json
       - name: Scan native runtime gate image
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: fuma-runtime-gate:arm64
           format: table
@@ -145,7 +145,7 @@ jobs:
           ignore-unfixed: false
           exit-code: "1"
       - name: Scan native public-web gate image
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: fuma-web-gate:arm64
           format: table
@@ -153,7 +153,7 @@ jobs:
           ignore-unfixed: false
           exit-code: "1"
       - name: Scan native site-runtime gate image
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: fuma-site-runtime-gate:arm64
           format: table
@@ -331,7 +331,7 @@ jobs:
           sh infra/fuma-phase-13-18/docker/public-web-smoke.sh "$web_image" linux/arm64 "${{ needs.preflight.outputs.source_sha }}" "${{ needs.preflight.outputs.lock_hash }}" "${{ needs.preflight.outputs.migration_high_water }}" supply/web-smoke/arm64.json
           sh infra/fuma-phase-13-18/docker/site-runtime-smoke.sh "$site_runtime_image" linux/arm64 "${{ needs.preflight.outputs.source_sha }}" "${{ needs.preflight.outputs.lock_hash }}" "${{ needs.preflight.outputs.migration_high_water }}" supply/site-runtime-smoke/arm64.json
       - name: Scan published immutable ARM64 runtime digest
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/fuma-runtime@${{ steps.runtime.outputs.digest }}
           format: sarif
@@ -340,7 +340,7 @@ jobs:
           ignore-unfixed: false
           exit-code: "1"
       - name: Scan published immutable ARM64 public-web digest
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/fuma-web@${{ steps.web.outputs.digest }}
           format: sarif
@@ -349,7 +349,7 @@ jobs:
           ignore-unfixed: false
           exit-code: "1"
       - name: Scan published immutable ARM64 site-runtime digest
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/fuma-site-runtime@${{ steps.site_runtime.outputs.digest }}
           format: sarif
