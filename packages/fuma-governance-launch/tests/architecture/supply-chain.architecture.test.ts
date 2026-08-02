@@ -99,7 +99,7 @@ describe('FUMA-078 native ARM64 supply-chain architecture', () => {
   it('requires native ARM64 gates before protected publication and immutable signing', () => {
     const workflow = read('.github/workflows/fuma-paired-release.yml')
     for (const fragment of [
-      'github.ref_protected == true',
+      'github.ref_name == github.event.repository.default_branch',
       'runs-on: ubuntu-24.04-arm',
       'test "$RUNNER_ARCH" = "$REQUIRED_RUNNER_ARCH"',
       'platforms: linux/arm64',
@@ -130,7 +130,7 @@ describe('FUMA-078 native ARM64 supply-chain architecture', () => {
     expect(workflow.indexOf('needs: [preflight, architecture-gate]')).toBeLessThan(workflow.indexOf('push: true'))
     expect(workflow.indexOf('Scan published immutable ARM64 runtime digest')).toBeLessThan(workflow.indexOf('Sign only scanned immutable image digests'))
     expect(workflow.indexOf('Extract BuildKit SLSA provenance')).toBeLessThan(workflow.indexOf('Sign only scanned immutable image digests'))
-    expect(workflow).toContain('if: github.ref_protected == true && needs.preflight.outputs.source_sha == github.sha')
+    expect(workflow).toContain('if: github.ref_name == github.event.repository.default_branch && needs.preflight.outputs.source_sha == github.sha')
     const tooling = read('packages/fuma-governance-launch/tooling/pairedRelease.ts')
     expect(tooling).toContain("mkdtemp(join(parent, '.paired-release-'))")
     expect(tooling).toContain('await handle.sync()')
