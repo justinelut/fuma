@@ -79,12 +79,24 @@ for pair in web:3101 worker:3102 scheduler:3103; do
   role_results=$(printf '%s' "$role_results" | jq --arg role "$role" --argjson health "$ready" --arg logsSha "$(printf '%s' "$logs" | sha256sum | cut -d' ' -f1)" '. + [{role:$role,health:$health,logsSha256:$logsSha}]')
 done
 
-migration=$(docker run --rm --platform "$platform" "$runtime_image" migration --next=release_smoke)
-printf '%s' "$migration" | grep -Eq '^000[0-9]{3}_release_smoke$'
-email=$(docker run --rm --platform "$platform" \
+if ! migration=$(docker run --rm --platform "$platform" "$runtime_image" migration --next=release_smoke); then
+  echo 'runtime migration smoke command failed' >&2
+  exit 1
+fi
+if ! printf '%s' "$migration" | grep -Eq '^000[0-9]{3}_release_smoke$'; then
+  printf 'runtime migration smoke output mismatch: %s\n' "$migration" >&2
+  exit 1
+fi
+if ! email=$(docker run --rm --platform "$platform" \
   --env FUMA_EMAIL_EXPECT_PLATFORM=linux --env FUMA_EMAIL_EXPECT_ARCH="$expected_arch" \
-  "$compatibility_image" email-compatibility)
-printf '%s' "$email" | jq -e --arg arch "$expected_arch" '.passed == true and .arch == $arch' >/dev/null
+  "$compatibility_image" email-compatibility); then
+  echo 'email compatibility smoke command failed' >&2
+  exit 1
+fi
+if ! printf '%s' "$email" | jq -e --arg arch "$expected_arch" '.passed == true and .arch == $arch' >/dev/null; then
+  printf 'email compatibility smoke output mismatch: %s\n' "$email" >&2
+  exit 1
+fi
 
 mkdir -p "$(dirname "$output")"
 tmp_output=$(mktemp "${output}.tmp.XXXXXX")
