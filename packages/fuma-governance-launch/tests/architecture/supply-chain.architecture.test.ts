@@ -59,7 +59,7 @@ describe('FUMA-078 native ARM64 supply-chain architecture', () => {
     const nested = [...walk(join(ROOT, 'apps')), ...walk(join(ROOT, 'packages'))]
       .filter((path) => /\/(?:bun\.lockb?|package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/.test(path))
     expect(nested).toEqual([])
-    expect(sha256('bun.lock')).toBe('8601be172f0b8d80a785e9a57183c0fa3b55be66c812bfefd715b5e72c0d1b1a')
+    expect(sha256('bun.lock')).toBe('b7f7c02e49bf46688b85b9f41ce0c3e96b055274775c42c8e2135d025b6aaef9')
   })
 
   it('defines explicit non-root commands for every runtime role and image', () => {

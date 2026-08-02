@@ -6,7 +6,7 @@ const ROOT = resolve(import.meta.dir, '../..')
 const APP = join(ROOT, 'apps/site-runtime')
 const SOURCE = join(ROOT, 'apps/web/node_modules')
 const TARGET = join(APP, 'node_modules')
-const EXPECTED_LOCK = '8601be172f0b8d80a785e9a57183c0fa3b55be66c812bfefd715b5e72c0d1b1a'
+const EXPECTED_LOCK = 'b7f7c02e49bf46688b85b9f41ce0c3e96b055274775c42c8e2135d025b6aaef9'
 const manifest = JSON.parse(readFileSync(join(APP, 'runtime.manifest.json'), 'utf8')) as { dependencies: Record<string, string> }
 
 const lockHash = createHash('sha256').update(readFileSync(join(ROOT, 'bun.lock'))).digest('hex')
