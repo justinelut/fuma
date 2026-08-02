@@ -1,0 +1,205 @@
+name: Fuma Studio deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Published fuma-runtime tag to deploy (7-character commit SHA)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: fuma-studio-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Studio to K3s
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage the Studio environment secret
+        env:
+          FUMA_ENV_SECRET: ${{ secrets.FUMA_ENV_SECRET }}
+          FUMA_DEPLOYMENT_ROOT_DOMAIN: ${{ vars.FUMA_DEPLOYMENT_ROOT_DOMAIN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$IMAGE_TAG" | grep -Eq '^[a-f0-9]{7}$'
+          if [ -z "${FUMA_ENV_SECRET:-}" ]; then
+            echo "::error::FUMA_ENV_SECRET is empty. It must contain every required KEY=value line."
+            exit 1
+          fi
+          mkdir -p k8s/_staged
+          printf '%s\n' "$FUMA_ENV_SECRET" > k8s/_staged/fuma.env
+
+          # Values Fuma derives rather than expecting an operator to repeat.
+          inject() {
+            key="$1"; value="$2"
+            grep -v "^${key}=" k8s/_staged/fuma.env > k8s/_staged/fuma.env.tmp || true
+            mv k8s/_staged/fuma.env.tmp k8s/_staged/fuma.env
+            if [ -n "$value" ]; then printf '%s=%s\n' "$key" "$value" >> k8s/_staged/fuma.env; fi
+          }
+          inject FUMA_ENV production
+          inject FUMA_HOSTED true
+          inject FUMA_DEPLOYMENT_ROOT_DOMAIN "$FUMA_DEPLOYMENT_ROOT_DOMAIN"
+          # Optional integrations: omitted entirely when unset, so they stay inert.
+          inject SENTRY_DSN "${SENTRY_DSN:-}"
+          inject GOOGLE_CLIENT_ID "${GOOGLE_CLIENT_ID:-}"
+          inject GOOGLE_CLIENT_SECRET "${GOOGLE_CLIENT_SECRET:-}"
+
+          # Fail fast on the required production classes rather than crash-looping the pod.
+          missing=""
+          for key in \
+            DATABASE_URL FUMA_REDIS_URL FUMA_ROLE \
+            FUMA_MINIO_ENDPOINT FUMA_MINIO_BUCKET FUMA_MINIO_ACCESS_KEY_ID FUMA_MINIO_SECRET_ACCESS_KEY \
+            FUMA_PROTECTED_OWNER_EMAIL FUMA_PUBLICATION_UNSUBSCRIBE_SIGNING_SECRET \
+            POSTGRES_USER POSTGRES_PASSWORD
+          do
+            grep -q "^${key}=" k8s/_staged/fuma.env || missing="$missing $key"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::FUMA_ENV_SECRET is missing required keys:$missing"
+            exit 1
+          fi
+          chmod 644 k8s/_staged/fuma.env
+          echo "staged $(wc -l < k8s/_staged/fuma.env) environment lines"
+
+      - name: Render Studio manifest
+        env:
+          FUMA_DEPLOYMENT_ROOT_DOMAIN: ${{ vars.FUMA_DEPLOYMENT_ROOT_DOMAIN }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -euo pipefail
+          sed \
+            -e "s|__FUMA_ROOT_DOMAIN__|$FUMA_DEPLOYMENT_ROOT_DOMAIN|g" \
+            -e "s|__FUMA_RUNTIME_IMAGE__|ghcr.io/${{ github.repository_owner }}/fuma-runtime:$IMAGE_TAG|g" \
+            -e "s|__FUMA_SOURCE_SHA__|$GITHUB_SHA|g" \
+            infra/fuma-phase-13-18/k3s/studio-production.template.yaml > k8s/_staged/studio.yaml
+          grep -Fq "Host(\`app.$FUMA_DEPLOYMENT_ROOT_DOMAIN\`)" k8s/_staged/studio.yaml
+          ! grep -q '__FUMA_' k8s/_staged/studio.yaml
+          chmod 644 k8s/_staged/studio.yaml
+
+      - name: Prepare directory on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sudo mkdir -p /opt/fuma/studio
+            sudo chown -R ubuntu:ubuntu /opt/fuma
+
+      - name: Copy manifest and environment to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "k8s/_staged/studio.yaml,k8s/_staged/fuma.env"
+          target: /opt/fuma/studio/
+          strip_components: 2
+
+      - name: Apply, migrate and roll out
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_PULL_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_OWNER: ${{ github.repository_owner }}
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: IMAGE_TAG,GHCR_USERNAME,GHCR_PULL_TOKEN,REPO_OWNER
+          command_timeout: 25m
+          script: |
+            set -e
+            export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+            NS=fuma
+            ENV_FILE=/opt/fuma/studio/fuma.env
+
+            sudo kubectl create namespace $NS 2>/dev/null || true
+
+            # Private image pull rights for this run.
+            sudo kubectl create secret docker-registry ghcr-secret -n $NS \
+              --docker-server=ghcr.io \
+              --docker-username="$GHCR_USERNAME" \
+              --docker-password="$GHCR_PULL_TOKEN" \
+              --dry-run=client -o yaml | sudo kubectl apply -f -
+
+            # All Studio configuration in one Secret, from the single env file.
+            sudo kubectl create secret generic fuma-secrets -n $NS \
+              --from-env-file="$ENV_FILE" \
+              --dry-run=client -o yaml | sudo kubectl apply -f -
+            echo "fuma-secrets synced from $(wc -l < "$ENV_FILE") lines"
+            sudo rm -f "$ENV_FILE"
+
+            # Jobs have immutable specs, so recreate them each deploy.
+            sudo kubectl delete job fuma-migrate minio-init -n $NS --ignore-not-found
+
+            sudo kubectl apply -f /opt/fuma/studio/studio.yaml
+
+            sudo kubectl set image deployment/fuma-studio studio=ghcr.io/$REPO_OWNER/fuma-runtime:$IMAGE_TAG -n $NS
+            sudo kubectl set image deployment/fuma-worker worker=ghcr.io/$REPO_OWNER/fuma-runtime:$IMAGE_TAG -n $NS
+            sudo kubectl set image deployment/fuma-scheduler scheduler=ghcr.io/$REPO_OWNER/fuma-runtime:$IMAGE_TAG -n $NS
+
+            echo "waiting for datastores"
+            sudo kubectl rollout status statefulset/postgres -n $NS --timeout=6m
+            sudo kubectl rollout status deployment/redis -n $NS --timeout=4m
+            sudo kubectl rollout status deployment/minio -n $NS --timeout=4m
+
+            echo "running migrations"
+            if ! sudo kubectl wait --for=condition=complete job/fuma-migrate -n $NS --timeout=12m; then
+              echo "════════ migration failed ════════"
+              sudo kubectl -n $NS describe job/fuma-migrate | tail -30
+              sudo kubectl -n $NS logs job/fuma-migrate --tail=200 || true
+              exit 1
+            fi
+
+            # Clear pods stuck in image-pull backoff so they retry with the refreshed secret.
+            sudo kubectl -n $NS delete pod -l app=fuma-studio --field-selector=status.phase=Pending --ignore-not-found
+
+            if ! sudo kubectl rollout status deployment/fuma-studio -n $NS --timeout=10m; then
+              echo "════════ studio rollout failed ════════"
+              sudo kubectl -n $NS get pods -o wide
+              sudo kubectl -n $NS describe deployment/fuma-studio | tail -40
+              sudo kubectl -n $NS get events --sort-by=.lastTimestamp | tail -30
+              sudo kubectl -n $NS logs deployment/fuma-studio --tail=200 --all-containers=true || true
+              sudo kubectl -n $NS logs deployment/fuma-studio --tail=100 --previous || true
+              exit 1
+            fi
+            sudo kubectl rollout status deployment/fuma-worker -n $NS --timeout=6m || true
+            sudo kubectl rollout status deployment/fuma-scheduler -n $NS --timeout=6m || true
+
+            echo "════════════ final state ════════════"
+            sudo kubectl -n $NS get pods,svc,ingressroute -o wide
+            sudo kubectl -n $NS logs deployment/fuma-studio --tail=60 --all-containers=true || true
+
+      - name: Public HTTPS smoke test
+        env:
+          FUMA_DEPLOYMENT_ROOT_DOMAIN: ${{ vars.FUMA_DEPLOYMENT_ROOT_DOMAIN }}
+        run: |
+          set -euo pipefail
+          for host in "app" "auth" "admin"; do
+            url="https://$host.$FUMA_DEPLOYMENT_ROOT_DOMAIN/healthz"
+            code=000
+            for attempt in $(seq 1 30); do
+              code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$url" || echo 000)"
+              [ "$code" = "200" ] && break
+              sleep 10
+            done
+            echo "$url -> $code"
+            [ "$code" = "200" ]
+          done
+          # The apex must still belong to the public Web, not Studio.
+          apex="$(curl -sS --max-time 20 "https://$FUMA_DEPLOYMENT_ROOT_DOMAIN/" || true)"
+          printf '%s' "$apex" | grep -Fq 'Build, manage and publish in one place.'
