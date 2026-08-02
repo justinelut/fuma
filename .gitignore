@@ -22,11 +22,6 @@ coverage/
 .matrix/
 *.local
 
-# Local SQLite dev databases — runtime state, never source
-data/*.db
-data/*.db-shm
-data/*.db-wal
-
 # Generated audit reports
 /instatic-audit-report.html
 /instatic-audit-report.json

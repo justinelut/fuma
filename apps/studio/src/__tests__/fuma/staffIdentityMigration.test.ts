@@ -22,9 +22,8 @@ import {
   nextHostedMigrationId,
   type HostedMigrationHistoryRow,
 } from '../../../server/fuma/db/migrationPolicy'
-import { createLegacySqliteTransitionSource } from '../helpers/fuma/legacySqliteTransitionSource'
 
-const BASE_URL = 'https://app.fuma.co.ke'
+const BASE_URL = 'https://app.trimly.co.ke'
 const SECRET = 'fuma-011-isolated-auth-boundary-secret-at-least-32-characters'
 
 type MemoryRow = Record<string, unknown>
@@ -145,50 +144,39 @@ describe('FUMA-011 staff identity migration manifest', () => {
 })
 
 describe('FUMA-011 isolated Better Auth-compatible boundary', () => {
-  it('logs in the seeded legacy staff user with the existing password without rewriting its Argon2id hash', async () => {
-    const source = await createLegacySqliteTransitionSource('fuma-011-seeded-login')
-    try {
-      const legacy = await source.db<{
-        id: string
-        email: string
-        display_name: string
-        password_hash: string
-        created_at: string
-        updated_at: string
-      }>`select id, email, display_name, password_hash, created_at, updated_at from users where id = ${source.stableIds.ownerUserId}`
-      const user = legacy.rows[0]!
-      const database = initializedMemoryDatabase()
-      database[AUTH_MODEL_NAMES.user]!.push({
-        id: user.id,
-        name: user.display_name,
-        email: user.email,
-        emailVerified: true,
-        createdAt: new Date(user.created_at),
-        updatedAt: new Date(user.updated_at),
-        role: 'owner',
-        banned: false,
-      })
-      database[AUTH_MODEL_NAMES.account]!.push({
-        id: `legacy-credential:${user.id}`,
-        accountId: user.id,
-        providerId: 'credential',
-        userId: user.id,
-        password: user.password_hash,
-        createdAt: new Date(user.created_at),
-        updatedAt: new Date(user.updated_at),
-      })
-      const originalHash = user.password_hash
-      const response = await createMemoryAuth(database).handler(authRequest('/sign-in/email', {
-        email: user.email,
-        password: source.legacyPassword,
-      }))
+  it('logs in an existing staff user without rewriting its Argon2id hash', async () => {
+    const password = 'Fuma-existing-staff-password-123!'
+    const originalHash = await hashPassword(password)
+    const now = new Date('2026-07-28T12:00:00.000Z')
+    const database = initializedMemoryDatabase()
+    database[AUTH_MODEL_NAMES.user]!.push({
+      id: 'existing-staff',
+      name: 'Existing Staff',
+      email: 'existing.staff@fixture.invalid',
+      emailVerified: true,
+      createdAt: now,
+      updatedAt: now,
+      role: 'owner',
+      banned: false,
+    })
+    database[AUTH_MODEL_NAMES.account]!.push({
+      id: 'existing-credential:existing-staff',
+      accountId: 'existing-staff',
+      providerId: 'credential',
+      userId: 'existing-staff',
+      password: originalHash,
+      createdAt: now,
+      updatedAt: now,
+    })
 
-      expect(response.status).toBe(200)
-      expect(originalHash).toStartWith('$argon2id$')
-      expect(database[AUTH_MODEL_NAMES.account]?.[0]?.password).toBe(originalHash)
-    } finally {
-      await source.cleanup()
-    }
+    const response = await createMemoryAuth(database).handler(authRequest('/sign-in/email', {
+      email: 'existing.staff@fixture.invalid',
+      password,
+    }))
+
+    expect(response.status).toBe(200)
+    expect(originalHash).toStartWith('$argon2id$')
+    expect(database[AUTH_MODEL_NAMES.account]?.[0]?.password).toBe(originalHash)
   })
 
   it('creates exactly one lifecycle profile and rejects a duplicate normalized identity', async () => {
@@ -255,7 +243,7 @@ it.skipIf(postgresUrl === undefined)(
         await transaction.unsafe(`set local search_path to "${freshSchema}"`)
         const db = flattenNestedTransactions(transaction)
         await runMigrations(db, pgMigrations)
-        await runHostedMigrations(db)
+        await db.unsafe(hostedMigrations[2]!.sql)
         const fresh = await db<{ identities: string | number; links: string | number }>`
           select
             (select count(*) from auth_users) as identities,
@@ -280,7 +268,7 @@ it.skipIf(postgresUrl === undefined)(
             (${'fuma-011-legacy-member'}, ${'legacy.member@fixture.invalid'}, ${'legacy.member@fixture.invalid'},
               ${'Legacy Member'}, ${memberHash}, ${'member'})
         `
-        await runHostedMigrations(db)
+        await db.unsafe(hostedMigrations[2]!.sql)
 
         const links = await db<{ legacy_user_id: string; auth_user_id: string; password: string }>`
           select links.legacy_user_id, links.auth_user_id, accounts.password

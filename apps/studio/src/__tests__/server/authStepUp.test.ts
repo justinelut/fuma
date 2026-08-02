@@ -3,7 +3,7 @@
  *
  * Exercises POST /admin/api/cms/auth/step-up plus the three sensitive
  * endpoints it gates (DELETE users/:id, DELETE auth/sessions/:id,
- * POST auth/logout-all) against a real SQLite test DB.
+ * POST auth/logout-all) against an isolated PostgreSQL test schema.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import type { DbClient } from '../../../server/db'

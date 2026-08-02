@@ -44,22 +44,4 @@ describe('FUMA-058 hosted customer-payment composition', () => {
     expect(runtime.cardRenewal).toBeDefined()
     expect(runtime.lifecycle).toBeDefined()
   })
-
-  it('fails closed on non-PostgreSQL composition', () => {
-    const sqlite = db()
-    Object.defineProperty(sqlite, 'dialect', { value: 'sqlite' })
-    expect(() => createHostedCustomerPaymentRuntime({
-      db: sqlite,
-      registry: new PaystackPurposeRegistry(),
-      cipher: new DeterministicCustomerPaymentCipher(),
-      transports: { forCredential: () => { throw new Error('unused') } },
-      cardTransports: { forCredential: () => { throw new Error('unused') } },
-      catalog: { exact: async () => null },
-      recurrence: { supports: async () => false },
-      access: { sync: async () => {} },
-      reminders: { deliver: async () => {} },
-      payerAuthority: { resolve: async () => null },
-      transferOwner: { assertCurrent: async () => {} },
-    })).toThrow('PostgreSQL')
-  })
 })

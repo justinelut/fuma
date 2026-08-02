@@ -65,7 +65,7 @@ describe('responsive accessible authoritative pricing presentation', () => {
       },
     } satisfies PublicPricingCatalogEnvelope
     for (const html of [render(withdrawn), render(stale), render(null)]) {
-      expect(html).toContain('Current publish-approved pricing is unavailable')
+      expect(html).toContain('Current pricing is unavailable')
       expect(html).not.toMatch(/KES(?:&nbsp;|\s)*[0-9]/)
       expect(html).not.toContain('Choose Launch')
       expect(html).not.toContain('Compare published allowances')

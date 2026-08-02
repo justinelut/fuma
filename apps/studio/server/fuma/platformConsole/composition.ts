@@ -6,12 +6,12 @@ import type { ConsoleActionResult } from '../../../../../packages/fuma-governanc
 import type { ArtifactReviewService } from '../artifactReviews/service'
 import { artifactReviewConsoleContribution } from '../artifactReviews/consoleContribution'
 import type { EntitlementService } from '../entitlements/service'
+import { expertDiscoveryConsoleContribution } from '../expertDiscovery/consoleContribution'
+import { supportOperationsConsoleContribution } from '../supportOperations/consoleContribution'
+import { aiCapabilityDashboardConsoleContribution } from '../aiCapabilityDashboard/consoleContribution'
+import { paidHandoffConsoleContribution } from '../transfers/paidHandoffConsoleContribution'
 
-export const futurePlatformConsoleSeams = Object.freeze([
-  Object.freeze({ ownerTicket: 'FUMA-072' as const, contributionId: 'support-moderation', mounted: false as const }),
-  Object.freeze({ ownerTicket: 'FUMA-073' as const, contributionId: 'expert-moderation', mounted: false as const }),
-  Object.freeze({ ownerTicket: 'FUMA-074' as const, contributionId: 'transfer-recovery', mounted: false as const }),
-])
+export const futurePlatformConsoleSeams = Object.freeze([])
 
 function completed(
   actionId: string,
@@ -82,5 +82,9 @@ export function composePlatformConsole(input: Readonly<{
   const registry = new PlatformConsoleRegistry()
   registry.registerAction(customOfferIssueConsoleDelegate(input.entitlements))
   registerArtifactReviewConsole(registry, input.reviews)
+  registry.register(supportOperationsConsoleContribution)
+  registry.register(expertDiscoveryConsoleContribution)
+  registry.register(aiCapabilityDashboardConsoleContribution)
+  registry.register(paidHandoffConsoleContribution)
   return registry
 }

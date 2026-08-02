@@ -17,7 +17,7 @@ describe('FUMA-060 Cloudflare SaaS unit', () => {
       binding: { lifecycle: 'awaiting-dns', providerStatus: 'pending', sslStatus: 'pending', ownershipVerified: false },
     })
     expect(result.records).toEqual([
-      { type: 'CNAME', name: 'www.customer.example', value: 'customers.fuma.co.ke', purpose: 'routing' },
+      { type: 'CNAME', name: 'www.customer.example', value: 'customers.trimly.co.ke', purpose: 'routing' },
       { type: 'TXT', name: '_cf-custom-hostname.www.customer.example', value: 'verify-www.customer.example', purpose: 'ownership' },
       { type: 'TXT', name: '_acme-challenge.www.customer.example', value: 'tls-www.customer.example', purpose: 'tls-validation' },
     ])

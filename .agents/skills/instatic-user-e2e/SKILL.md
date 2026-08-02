@@ -35,18 +35,16 @@ If the user does not name a scope, run the Core Owner Lifecycle:
 
 ## Environment Setup
 
-Prefer an isolated SQLite database and upload directory for each run:
+Use the E2E launcher so each run receives a disposable PostgreSQL schema and upload directory:
 
 ```sh
-DATABASE_URL=sqlite:./.tmp/e2e-agent.db \
-UPLOADS_DIR=./.tmp/e2e-uploads \
-bun run dev
+TEST_POSTGRES_URL=postgres://postgres:postgres@127.0.0.1:5433/postgres \
+E2E_ADMIN_BASE_URL=https://5174.blyss.co.ke \
+E2E_PUBLIC_BASE_URL=https://3002.blyss.co.ke \
+bun run e2e:dev
 ```
 
-Before deleting data, verify the target is disposable:
-
-- Safe: `.tmp/e2e-*`, `.tmp/dev.db`, temporary uploads under `.tmp/`.
-- Unsafe without explicit user instruction: production-looking Postgres URLs, non-temporary upload directories, checked-in fixtures.
+The launcher creates a unique `test_e2e_*` schema, scopes `search_path`, and drops the schema on shutdown. Before deleting data manually, verify the target is a disposable test schema and never point E2E commands at a production database.
 
 If ports are busy, inspect them and avoid killing processes you did not start unless the user explicitly gave control of the running app. When possible, use the already-running local app and log the DB/reset limitation.
 
@@ -103,7 +101,7 @@ Use this shape in run logs:
 - Feature: Publish
 - Status: Open
 - Scenario: PUB-001
-- Environment: local SQLite, Chrome, desktop 1440x900
+- Environment: isolated local PostgreSQL schema, Chrome, desktop 1440x900
 - Evidence: screenshot path, URL, console/network note if relevant
 
 Steps:

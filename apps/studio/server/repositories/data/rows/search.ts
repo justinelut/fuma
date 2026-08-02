@@ -56,7 +56,7 @@ interface SearchDataRowsVisibility {
  * typed in spotlight can't surface other authors' row metadata. Callers
  * with broad visibility (`canSeeAllDataRows`) should omit the filter.
  *
- * Both `lower()` and `LIKE` are ANSI SQL — safe for Postgres and SQLite.
+ * PostgreSQL performs the case-normalized `LIKE` match.
  */
 export async function searchDataRows(
   db: DbClient,

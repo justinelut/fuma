@@ -11,8 +11,7 @@ FUMA-002 is reusable test scaffolding under `src/__tests__/helpers/fuma/`. It do
 - `src/__tests__/helpers/fuma/fixtures.ts` creates deterministic users, organizations, colliding workspaces/sites/resources, and Website/Publication test profiles from an explicit seed.
 - `src/__tests__/helpers/fuma/fakeClock.ts` is an injected monotonic clock; it never patches global `Date`.
 - `src/__tests__/helpers/fuma/fakeProviders.ts` starts independent Bun servers for OCI Email, platform Paystack, customer Paystack, and Cloudflare on ephemeral `127.0.0.1` ports.
-- `src/__tests__/helpers/fuma/postgresTenantHarness.ts` creates and drops ephemeral test-only PostgreSQL schemas. It rejects SQLite and secret-shaped fixture values before SQL runs.
-- `src/__tests__/helpers/fuma/legacySqliteTransitionSource.ts` creates a branded transition-input fixture from the inherited SQLite migration stream. It is not hosted acceptance.
+- `src/__tests__/helpers/fuma/postgresTenantHarness.ts` creates and drops ephemeral test-only PostgreSQL schemas and rejects secret-shaped fixture values before SQL runs.
 - `tests/e2e/helpers/fuma.ts` re-exports only pure fixture factories and types; it does not pull Bun server code into Playwright.
 
 ## Pure tenant and profile fixtures
@@ -26,7 +25,7 @@ const ids = stableFumaFixtureIds(matrix)
 
 The matrix always contains two organizations. Each organization owns one workspace plus one Website site and one Publication site. Capability fixtures include explicit grants and revocations. Workspace IDs collide between organizations, Website and Publication site IDs collide with their counterpart in the other organization, and one resource ID collides across all four sites. Only the complete `organizationId/workspaceId/siteId/resourceId` address is unique.
 
-`fumaFixtureId(seed, kind, label)` reads no clock, UUID generator, random source, environment variable, or database sequence. Product fixture IDs remain stable even though PostgreSQL schema names and SQLite temp paths are ephemeral.
+`fumaFixtureId(seed, kind, label)` reads no clock, UUID generator, random source, environment variable, or database sequence. Product fixture IDs remain stable even though PostgreSQL schema names are ephemeral.
 
 `formatStableFumaFixtureIds(matrix)` is the demo-safe renderer. Its output is a JSON array of fixture IDs only; it contains no labels, email addresses, schema names, URLs, paths, request data, or credentials.
 
@@ -63,19 +62,15 @@ The live test in `src/__tests__/fuma/postgresTenantHarness.test.ts` runs only wh
 FUMA_TEST_POSTGRES_URL=postgres://... bun test src/__tests__/fuma/postgresTenantHarness.test.ts
 ```
 
-### Legacy SQLite transition source
-
-`createLegacySqliteTransitionSource(seed)` in `src/__tests__/helpers/fuma/legacySqliteTransitionSource.ts` applies the complete inherited `server/db/migrations-sqlite.ts` stream in a temp directory and seeds a site, owner, page, published post, and version with stable IDs. `acceptLegacySqliteTransitionSource()` is the explicit transition-test boundary. The PostgreSQL harness rejects its `DbClient`.
-
-FUMA-006 consumes this branded source through `exportLegacySqlite` and `importLegacySqliteToPostgres`. The focused demo in `src/__tests__/fuma/hostedMigrationsTransition.test.ts` proves deterministic counts/hashes, preserved IDs and auth/content links, PostgreSQL foreign-key validation, safe duplicate resume, and hosted SQLite refusal. `server/db/migrations-pg.ts` and `server/db/migrations-sqlite.ts` remain unchanged, and no hosted SQLite acceptance exists.
+All persistence fixtures use PostgreSQL. File-database transition fixtures are legacy implementation details and are not part of supported test acceptance.
 
 ## Forbidden patterns
 
 - Random UUIDs, current timestamps, environment-derived values, or database sequences in stable fixture IDs.
-- Importing `fakeProviders.ts`, `postgresTenantHarness.ts`, or `legacySqliteTransitionSource.ts` from Playwright helpers.
+- Importing `fakeProviders.ts` or `postgresTenantHarness.ts` from Playwright helpers.
 - Raw request-body capture or retention of authorization, cookie, API-key, auth-key, access-key, token, secret, credential, or signature header values.
 - Binding fake providers to non-loopback interfaces or contacting external providers.
-- Accepting SQLite in the hosted PostgreSQL harness.
+- Accepting a non-PostgreSQL client in the hosted harness.
 - Adding test tables to historical migrations or presenting ephemeral fixture schemas as hosted schema.
 - Logging schema names, database URLs, temp paths, request data, or credentials in fixture demos.
 

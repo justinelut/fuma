@@ -13,7 +13,7 @@ describe('FUMA-SITE-001 exact-host demo', () => {
     const beta = authority.resolve('customer.example.', '/colliding-route')
 
     expect(alpha.route).toBe(beta.route)
-    expect(alpha).toMatchObject({ host: 'alpha.fuma.co.ke', siteId: 'site_alpha', releaseId: 'release_alpha_17' })
+    expect(alpha).toMatchObject({ host: 'alpha.trimly.co.ke', siteId: 'site_alpha', releaseId: 'release_alpha_17' })
     expect(beta).toMatchObject({ host: 'customer.example', siteId: 'site_beta', releaseId: 'release_beta_23' })
     expect(alpha.releaseHashSha256).not.toBe(beta.releaseHashSha256)
 
@@ -24,7 +24,7 @@ describe('FUMA-SITE-001 exact-host demo', () => {
 
   test('rejects unknown host without a default tenant', () => {
     const authority = new FixtureTenantRuntimeAuthority(VALID_TENANT_RUNTIME_RATIFICATION.hostBindings)
-    expect(() => authority.resolve('unknown.fuma.co.ke', '/colliding-route')).toThrow(expect.objectContaining({ code: 'unknown-host' }))
+    expect(() => authority.resolve('unknown.trimly.co.ke', '/colliding-route')).toThrow(expect.objectContaining({ code: 'unknown-host' }))
   })
 
   test('rejects a cross-tenant cache identity', () => {

@@ -23,13 +23,7 @@ export const UserStatusSchema = Type.Union([Type.Literal('active'), Type.Literal
 
 export interface CmsHandlerOptions {
   uploadsDir?: string
-  /**
-   * The raw `DATABASE_URL` the server booted with. Forwarded so handlers
-   * that need to resolve the on-disk SQLite file (e.g. the storage
-   * dashboard widget) can do so without re-parsing `process.env`. Postgres
-   * URLs are passed verbatim — handlers that care about dialect should
-   * branch on `db.dialect` instead of inspecting the URL themselves.
-   */
+  /** PostgreSQL URL forwarded to handlers that query database-level metrics. */
   databaseUrl?: string
 }
 

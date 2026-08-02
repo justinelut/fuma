@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test'
 
 const PUBLIC = 'https://3002.blyss.co.ke'
-const APP = 'https://app.fuma.co.ke'
+const APP = 'https://app.trimly.co.ke'
 const FIXTURE_INTENT = 'fixture_intent_0123456789abcdef0123456789'
 const FIXTURE_CORRELATION = 'fixture_correlation_0123456789abcdef'
 
 for (const journey of [
-  { path: '/website', heading: 'Build the site', homeLink: 'Build a website', startLink: 'Create a website', profile: 'website' },
-  { path: '/publication', heading: 'recurring ideas', homeLink: 'Start a publication', startLink: 'Create a publication', profile: 'publication' },
+  { path: '/website', heading: 'Build the site', homeLink: /Explore the Website journey/, startLink: 'Create a website', profile: 'website' },
+  { path: '/publication', heading: 'recurring ideas', homeLink: /Explore the Publication journey/, startLink: 'Start a publication', profile: 'publication' },
 ] as const) {
   for (const width of [320, 1280] as const) {
     test(`${journey.profile} conversion reaches the app-host handoff layer at ${width}px`, async ({ page }) => {
@@ -28,7 +28,7 @@ for (const journey of [
         await route.fulfill({
           status: 200,
           contentType: 'text/html',
-          body: '<!doctype html><html lang="en-KE"><title>App handoff fixture</title><body><main><h1>Application resume boundary reached</h1><p>No identity or session is established by this WEB-007 fixture.</p></main></body></html>',
+          body: '<!doctype html><html lang="en"><title>Fuma</title><body><main><h1>Fuma opened</h1><p>You can continue with your site.</p></main></body></html>',
         })
       })
 
@@ -37,13 +37,13 @@ for (const journey of [
       await page.getByRole('link', { name: journey.homeLink }).click()
       await expect(page).toHaveURL(`${PUBLIC}${journey.path}`)
       await expect(page.getByRole('heading', { level: 1 })).toContainText(journey.heading)
-      await page.getByRole('link', { name: journey.startLink }).click()
+      await page.getByRole('link', { name: journey.startLink }).first().click()
       await expect(page).toHaveURL(new RegExp(`^https://3002\\.blyss\\.co\\.ke/start\\?.*profile=${journey.profile}`))
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Continue to the Fuma application')
-      await page.getByRole('button', { name: 'Continue to the Fuma application' }).click()
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Create your site')
+      await page.getByRole('button', { name: 'Create site' }).click()
       await expect(page).toHaveURL(`${APP}/resume?intent=${FIXTURE_INTENT}&correlation=${FIXTURE_CORRELATION}`)
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Application resume boundary reached')
-      await expect(page.getByText('No identity or session is established by this WEB-007 fixture.')).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Fuma opened')
+      await expect(page.getByText('You can continue with your site.')).toBeVisible()
     })
   }
 }

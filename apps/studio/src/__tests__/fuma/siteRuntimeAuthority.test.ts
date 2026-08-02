@@ -44,7 +44,7 @@ async function releaseFixture(revision: 1 | 2) {
   return { seed, manifest, objects }
 }
 
-function row(fixture: Awaited<ReturnType<typeof releaseFixture>>, host = 'alpha.fuma.co.ke') {
+function row(fixture: Awaited<ReturnType<typeof releaseFixture>>, host = 'alpha.trimly.co.ke') {
   return {
     host,
     platform_id: SITE_002_AUTHORITY.scope.platformId,
@@ -106,17 +106,17 @@ function service(input: { db: DbClient; storage: TenantObjectStorage; cache: Mem
   })
 }
 
-const request = { host: 'ALPHA.fuma.co.ke:443', route: '/menu', canonicalQuery: '', runtimeDeploymentVersion: '1.0.0', memberSessionToken: null }
+const request = { host: 'ALPHA.trimly.co.ke:443', route: '/menu', canonicalQuery: '', runtimeDeploymentVersion: '1.0.0', memberSessionToken: null }
 
 describe('FUMA-SITE-003 private runtime authority', () => {
   test('resolves one exact active host and immutable route with public/member cache separation', async () => {
     const fixture = await releaseFixture(1)
     const reads = { count: 0 }
     const cache = new MemoryCache()
-    const runtime = service({ db: database((host) => host === 'alpha.fuma.co.ke' ? row(fixture) : null), storage: storage(fixture.objects, reads), cache, member: true })
+    const runtime = service({ db: database((host) => host === 'alpha.trimly.co.ke' ? row(fixture) : null), storage: storage(fixture.objects, reads), cache, member: true })
     const publicResult = await runtime.resolve(request)
     const memberResult = await runtime.resolve({ ...request, memberSessionToken: 's'.repeat(48) })
-    expect(publicResult.cacheIdentity).toMatchObject({ host: 'alpha.fuma.co.ke', releaseId: fixture.seed.releaseId, route: '/menu', audience: { kind: 'public' } })
+    expect(publicResult.cacheIdentity).toMatchObject({ host: 'alpha.trimly.co.ke', releaseId: fixture.seed.releaseId, route: '/menu', audience: { kind: 'public' } })
     expect(memberResult.cacheIdentity.audience).toEqual({ kind: 'member', memberId: 'member-a', accessFingerprintSha256: 'f'.repeat(64) })
     expect(publicResult.routeArtifact.page.title).toBe('Seasonal menu')
     expect(cache.values.size).toBe(1)
@@ -127,7 +127,7 @@ describe('FUMA-SITE-003 private runtime authority', () => {
     const fixture = await releaseFixture(1)
     const reads = { count: 0 }
     const cache = new MemoryCache()
-    const db = database((host) => host === 'alpha.fuma.co.ke' ? row(fixture) : null)
+    const db = database((host) => host === 'alpha.trimly.co.ke' ? row(fixture) : null)
     const objects = storage(fixture.objects, reads)
     await service({ db, storage: objects, cache }).resolve(request)
     const afterFirst = reads.count

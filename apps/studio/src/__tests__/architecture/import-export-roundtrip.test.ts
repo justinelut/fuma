@@ -3,7 +3,7 @@
  *
  * Verifies that the site bundle export/import cycle preserves data fidelity:
  *
- *   1. Boot a fresh in-memory SQLite database and apply all migrations.
+ *   1. Boot an isolated PostgreSQL test schema and apply all migrations.
  *   2. Seed some rows into the `pages` system table.
  *   3. Simulate an export by reading tables + rows directly from repositories.
  *   4. Wipe all data rows and non-system tables.
@@ -26,9 +26,7 @@
  */
 
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
-import { createSqliteClient } from '../../../server/db/sqlite'
-import { runMigrations } from '../../../server/db/runMigrations'
-import { sqliteMigrations } from '../../../server/db/migrations-sqlite'
+import { createTestDatabase } from '../../../server/db/testDatabase'
 import { mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -71,9 +69,8 @@ let exportedRows: DataRow[]
 // ---------------------------------------------------------------------------
 
 beforeAll(async () => {
-  // Boot a fresh in-memory SQLite database
-  const db = createSqliteClient(':memory:')
-  await runMigrations(db, sqliteMigrations)
+  // Boot an isolated PostgreSQL test schema.
+  const { db: db } = await createTestDatabase('import-export-roundt')
 
   // Add a few rows to the `pages` system table
   await createDataRow(db, {
@@ -116,8 +113,8 @@ beforeAll(async () => {
   await db`delete from data_rows`
 
   // Confirm wipe
-  const { rows: postWipeRows } = await db<{ cnt: number }>`select count(*) as cnt from data_rows`
-  if (postWipeRows[0].cnt !== 0) throw new Error('Wipe did not clear all rows')
+  const { rows: postWipeRows } = await db<{ cnt: number | bigint | string }>`select count(*) as cnt from data_rows`
+  if (Number(postWipeRows[0].cnt) !== 0) throw new Error('Wipe did not clear all rows')
 
   // --- Simulate import: re-insert rows preserving ids, status, timestamps ---
   for (const row of exportedRows) {
@@ -208,17 +205,15 @@ describe('import/export round-trip — data integrity', () => {
 // ---------------------------------------------------------------------------
 
 describe('import/export round-trip — site shell', () => {
-  test('getDraftSite returns null on a fresh in-memory DB (before setup)', async () => {
+  test('getDraftSite returns null in a fresh PostgreSQL schema before setup', async () => {
     // A separate fresh DB to confirm the null case without touching the seeded one
-    const freshDb = createSqliteClient(':memory:')
-    await runMigrations(freshDb, sqliteMigrations)
+    const { db: freshDb } = await createTestDatabase('import-export-roundt')
     const shell = await getDraftSite(freshDb, SELF_HOST_SITE_ID)
     expect(shell).toBeNull()
   })
 
   test('saveDraftSite + getDraftSite round-trips the shell', async () => {
-    const db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    const { db: db } = await createTestDatabase('import-export-roundt')
 
     const mockShell = {
       id: 'default',
@@ -336,8 +331,7 @@ describe('with strategies — handler-level roundtrip', () => {
   let sourceBundle: SiteBundle
 
   beforeAll(async () => {
-    const sourceDb = createSqliteClient(':memory:')
-    await runMigrations(sourceDb, sqliteMigrations)
+    const { db: sourceDb } = await createTestDatabase('import-export-roundt')
     const sourceCookie = await seedRoundtripAuth(sourceDb, 'source@roundtrip.test')
 
     await createDataRow(sourceDb, {
@@ -387,8 +381,7 @@ describe('with strategies — handler-level roundtrip', () => {
     let targetCookie: string
 
     beforeAll(async () => {
-      targetDb = createSqliteClient(':memory:')
-      await runMigrations(targetDb, sqliteMigrations)
+      targetDb = (await createTestDatabase('import-export-roundt')).db
       targetCookie = await seedRoundtripAuth(targetDb, 'target-replace@roundtrip.test')
 
       const req = new Request('http://localhost/admin/api/cms/import?strategy=replace', {
@@ -451,8 +444,7 @@ describe('with strategies — handler-level roundtrip', () => {
     let targetCookie: string
 
     beforeAll(async () => {
-      targetDb = createSqliteClient(':memory:')
-      await runMigrations(targetDb, sqliteMigrations)
+      targetDb = (await createTestDatabase('import-export-roundt')).db
       targetCookie = await seedRoundtripAuth(targetDb, 'target-merge-add@roundtrip.test')
 
       const req = new Request('http://localhost/admin/api/cms/import?strategy=merge-add', {
@@ -498,8 +490,7 @@ describe('with strategies — handler-level roundtrip', () => {
     let targetCookie: string
 
     beforeAll(async () => {
-      targetDb = createSqliteClient(':memory:')
-      await runMigrations(targetDb, sqliteMigrations)
+      targetDb = (await createTestDatabase('import-export-roundt')).db
       targetCookie = await seedRoundtripAuth(targetDb, 'target-merge-overwrite@roundtrip.test')
 
       const req = new Request('http://localhost/admin/api/cms/import?strategy=merge-overwrite', {
@@ -547,8 +538,7 @@ describe('with strategies — handler-level roundtrip', () => {
     let localOnlyRowId: string
 
     beforeAll(async () => {
-      targetDb = createSqliteClient(':memory:')
-      await runMigrations(targetDb, sqliteMigrations)
+      targetDb = (await createTestDatabase('import-export-roundt')).db
       targetCookie = await seedRoundtripAuth(targetDb, 'target-mo-collision@roundtrip.test')
 
       // Pre-seed: add a local-only row + one row that will collide with bundle
@@ -631,8 +621,7 @@ describe('full-site round-trip — folders, membership, redirects', () => {
     targetDir = await mkdtemp(join(tmpdir(), 'instatic-export-tgt-'))
 
     // --- Source: seed a folder, an asset assigned to it, and a redirect ---
-    const sourceDb = createSqliteClient(':memory:')
-    await runMigrations(sourceDb, sqliteMigrations)
+    const { db: sourceDb } = await createTestDatabase('import-export-roundt')
     const sourceCookie = await seedRoundtripAuth(sourceDb, 'fullsite@roundtrip.test')
 
     const targetRow = await createDataRow(sourceDb, {
@@ -696,8 +685,7 @@ describe('full-site round-trip — folders, membership, redirects', () => {
     expect(bundle!.media?.find((m) => m.id === 'asset-logo')?.folderIds).toEqual(['folder-logos'])
 
     // --- Import (replace) into a pristine instance ---
-    targetDb = createSqliteClient(':memory:')
-    await runMigrations(targetDb, sqliteMigrations)
+    targetDb = (await createTestDatabase('import-export-roundt')).db
     const targetCookie = await seedRoundtripAuth(targetDb, 'fullsite-target@roundtrip.test')
 
     const importReq = new Request('http://localhost/admin/api/cms/import/archive?strategy=replace', {
@@ -747,8 +735,7 @@ describe('archive import validation', () => {
   test('rejects an Instatic archive that omits manifest-declared media', async () => {
     const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-import-missing-media-'))
     try {
-      const db = createSqliteClient(':memory:')
-      await runMigrations(db, sqliteMigrations)
+      const { db: db } = await createTestDatabase('import-export-roundt')
       const cookie = await seedRoundtripAuth(db, 'missing-media@roundtrip.test')
       const manifest = {
         schemaVersion: 1,
@@ -798,8 +785,7 @@ describe('archive import validation', () => {
   test('rejects malformed replace archives before mutating existing data', async () => {
     const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-import-atomic-media-'))
     try {
-      const db = createSqliteClient(':memory:')
-      await runMigrations(db, sqliteMigrations)
+      const { db: db } = await createTestDatabase('import-export-roundt')
       const cookie = await seedRoundtripAuth(db, 'atomic-media@roundtrip.test')
       const existingRow = await createDataRow(db, {
         tableId: 'posts',
@@ -853,8 +839,7 @@ describe('archive import validation', () => {
   test('merge-add archive import skips rows whose slug is already used locally', async () => {
     const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-import-slug-conflict-'))
     try {
-      const db = createSqliteClient(':memory:')
-      await runMigrations(db, sqliteMigrations)
+      const { db: db } = await createTestDatabase('import-export-roundt')
       const cookie = await seedRoundtripAuth(db, 'slug-conflict@roundtrip.test')
       await createDataRow(db, {
         id: 'local-existing-row',
@@ -916,8 +901,7 @@ describe('archive import validation', () => {
   test('skips unselected media entries while streaming a selected archive import', async () => {
     const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-import-skip-media-'))
     try {
-      const db = createSqliteClient(':memory:')
-      await runMigrations(db, sqliteMigrations)
+      const { db: db } = await createTestDatabase('import-export-roundt')
       const cookie = await seedRoundtripAuth(db, 'skip-media@roundtrip.test')
       const manifest = {
         schemaVersion: 1,

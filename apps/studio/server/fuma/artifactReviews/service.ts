@@ -2,6 +2,7 @@ import type { ArtifactInstallation, ArtifactInstallationAuthority, ArtifactRelea
 import {
   ApprovedArtifactReviewSchema,
   ArtifactReviewDecisionSchema,
+  ArtifactReviewInvalidationSchema,
   ArtifactReviewError,
   ArtifactReviewSignatureSchema,
   ArtifactReviewSubmissionSchema,
@@ -14,6 +15,7 @@ import {
   reviewHash,
   type ApprovedArtifactReview,
   type ArtifactReviewDecision,
+  type ArtifactReviewInvalidation,
   type ArtifactReviewRevocation,
   type ArtifactReviewSubmission,
   type ArtifactScanReport,
@@ -66,17 +68,35 @@ function decisionPayload(decision: Omit<ArtifactReviewDecision, 'signature'>): s
 
 function same(left: unknown, right: unknown): boolean { return canonicalReviewJson(left) === canonicalReviewJson(right) }
 
+export interface ArtifactReviewInvalidationPort {
+  publish(event: ArtifactReviewInvalidation): Promise<void>
+}
+
 export class ArtifactReviewService {
   readonly #repository: ArtifactReviewRepository
   readonly #artifacts: ReviewArtifactAuthority
   readonly #scanners: ArtifactScannerRegistry
   readonly #signer: ArtifactReviewSigner
+  readonly #invalidation: ArtifactReviewInvalidationPort | null
 
-  constructor(input: Readonly<{ repository: ArtifactReviewRepository; artifacts: ReviewArtifactAuthority; scanners: ArtifactScannerRegistry; signer: ArtifactReviewSigner }>) {
+  constructor(input: Readonly<{ repository: ArtifactReviewRepository; artifacts: ReviewArtifactAuthority; scanners: ArtifactScannerRegistry; signer: ArtifactReviewSigner; invalidation?: ArtifactReviewInvalidationPort }>) {
     this.#repository = input.repository
     this.#artifacts = input.artifacts
     this.#scanners = input.scanners
     this.#signer = input.signer
+    this.#invalidation = input.invalidation ?? null
+  }
+
+  async #publishInvalidation(submission: ArtifactReviewSubmission, reason: 'approved' | 'revoked', changedAt: string): Promise<void> {
+    if (!this.#invalidation) return
+    const event = parseReviewContract(ArtifactReviewInvalidationSchema, {
+      resource: submission.artifact.kind === 'plugin' ? 'plugins' : 'components',
+      packageId: submission.artifact.packageId,
+      exactVersion: submission.artifact.exactVersion,
+      reason,
+      changedAt,
+    }, 'artifact review public invalidation') as ArtifactReviewInvalidation
+    await this.#invalidation.publish(event)
   }
 
   async submit(raw: unknown): Promise<Readonly<{ submission: ArtifactReviewSubmission; scans: readonly ArtifactScanReport[] }>> {
@@ -146,6 +166,7 @@ export class ArtifactReviewService {
     }
     const decision = parseReviewContract(ArtifactReviewDecisionSchema, { ...unsigned, signature }, 'artifact review decision') as ArtifactReviewDecision
     if (!await this.#repository.insertDecision(decision)) return await this.decide(command)
+    if (decision.decision === 'approved') await this.#publishInvalidation(record.submission, 'approved', decision.decidedAt)
     return decision
   }
 
@@ -161,6 +182,7 @@ export class ArtifactReviewService {
       return existing
     }
     if (!await this.#repository.insertRevocation(command)) return await this.revoke(command)
+    await this.#publishInvalidation(record.submission, 'revoked', command.revokedAt)
     return command
   }
 

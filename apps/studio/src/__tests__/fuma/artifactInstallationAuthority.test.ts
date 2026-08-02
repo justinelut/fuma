@@ -144,7 +144,7 @@ function exactScope(value: ArtifactInstallation) {
       transport,
       policy: { allowedMimeTypes: ['application/zip', 'application/json'], maxObjectBytes: 1024, maxTenantBytes: 4096 },
       signingSecret: 's'.repeat(32),
-      accessUrlBase: 'https://app.fuma.co.ke/_fuma/objects',
+      accessUrlBase: 'https://app.trimly.co.ke/_fuma/objects',
       nowMs: () => Date.parse(now),
     })
     const objects = new TenantSharedArtifactObjectStore(storage, { organizationId: 'platform-artifacts', workspaceId: 'platform-artifacts', siteId: 'platform-artifacts' })

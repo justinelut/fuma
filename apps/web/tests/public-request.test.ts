@@ -13,7 +13,7 @@ describe('public Web request boundary', () => {
     const safe = new Request(`${PUBLIC}/api/contact`, { headers: { host: '3002.blyss.co.ke', origin: PUBLIC } })
     expect(isPublicWebRequest(safe)).toBe(true)
     expect(isSameOriginPublicRequest(safe)).toBe(true)
-    expect(isSameOriginPublicRequest(new Request(`${PUBLIC}/api/contact`, { headers: { host: 'fuma.co.ke', origin: PUBLIC } }))).toBe(false)
+    expect(isSameOriginPublicRequest(new Request(`${PUBLIC}/api/contact`, { headers: { host: 'trimly.co.ke', origin: PUBLIC } }))).toBe(false)
     expect(isSameOriginPublicRequest(new Request(`${PUBLIC}/api/contact`, { headers: { origin: 'https://attacker.test' } }))).toBe(false)
     expect(isPublicWebRequest(new Request('http://3002.blyss.co.ke/api/contact'))).toBe(false)
   })

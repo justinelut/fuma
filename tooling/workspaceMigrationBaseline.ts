@@ -6,8 +6,7 @@ import {
 export const STUDIO_ROOT = 'apps/studio' as const
 
 export const HISTORICAL_MIGRATION_SOURCE_HASHES: Readonly<Record<string, string>> = Object.freeze({
-  'apps/studio/server/db/migrations-pg.ts': '428010a428294c6b434956eb5e00aba682b7359107eb4fbf1732d8dac774cf34',
-  'apps/studio/server/db/migrations-sqlite.ts': 'e5ae1d091f5b385ef55e4a8928e5f60e223a6a5094df3132f69f8aa7404ad150',
+  'apps/studio/server/db/migrations-pg.ts': '0fc0edbbb66ed51495f609d5e19e05579eac2b776a097e8714b10a91c06eb410',
 })
 
 export type WorkspaceMigrationPathEvidence = Readonly<{

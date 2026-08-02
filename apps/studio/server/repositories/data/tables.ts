@@ -61,16 +61,16 @@ interface DataTableRow {
   primary_field_id: string
   fields_json?: unknown
   /**
-   * The `system` column is `not null default 0` (SQLite) / `default false`
-   * (Postgres), so every read carries a concrete value. SQLite surfaces it as
-   * `0`/`1`, Postgres as a boolean — `mapTable` coerces both via `Boolean`.
+   * The PostgreSQL `system` column is `not null default false`, so every
+   * read carries a concrete boolean. `mapTable` retains a defensive `Boolean`
+   * coercion for test doubles.
    */
   system: number | boolean
   created_by_user_id: string | null
   updated_by_user_id: string | null
   /**
-   * Adapters normalize: PG returns Date, SQLite returns ISO string, test fakes
-   * may return either. The mapper coerces both via `isoDate` below.
+   * PostgreSQL may return a Date while test fakes may return an ISO string.
+   * The mapper normalizes either representation via `isoDate` below.
    */
   created_at: string | Date
   updated_at: string | Date
@@ -120,8 +120,8 @@ export async function listDataTables(db: DbClient): Promise<DataTable[]> {
  * row count. The count is derived via a correlated subselect (one per table)
  * which is fine given the tiny number of tables.
  *
- * SQL is dialect-naive: no Postgres-isms (`::int`, `now()`, `::jsonb`,
- * `any($N::...)`, `distinct on`) — runs identically on SQLite and Postgres.
+ * The correlated count is standard PostgreSQL SQL and keeps the result to one
+ * row per table without a separate aggregation query.
  */
 export async function listDataTablesWithCounts(db: DbClient): Promise<DataTableListItem[]> {
   const { rows } = await db<DataTableRow & { row_count: number | string }>`
@@ -255,7 +255,7 @@ export async function updateDataTable(
  * the table was inserted, `false` when it was skipped (id conflict). Used by
  * the `merge-add` and `merge-overwrite` import strategies.
  *
- * RETURNING id is supported by both Postgres and SQLite.
+ * PostgreSQL `returning id` reports whether the insert occurred.
  */
 export async function insertDataTableIfAbsent(
   db: DbClient,

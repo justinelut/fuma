@@ -166,31 +166,31 @@ Media data lives in dedicated tables (not in `data_tables` — they predate the 
 
 ### `media_assets`
 
-| Column                | Type (PG)     | Type (SQLite)   | Notes                                                                                           |
-|-----------------------|---------------|-----------------|-------------------------------------------------------------------------------------------------|
-| `id`                  | `text` PK     | `text` PK       |                                                                                                 |
-| `filename`            | `text`        | `text`          | Original upload filename                                                                        |
-| `public_path`         | `text`        | `text`          | URL the browser uses: `/uploads/...` for local-disk; `/_instatic/media/<adapterId>/<storagePath>` for non-public-url adapters |
-| `mime_type`           | `text`        | `text`          |                                                                                                 |
-| `size_bytes`          | `bigint`      | `integer`       |                                                                                                 |
-| `storage_path`        | `text`        | `text`          | Adapter-internal handle (local basename or S3 key). Never exposed to the browser.              |
-| `storage_adapter_id`  | `text`        | `text`          | Id of the adapter that wrote this asset. Empty string = built-in local-disk.                   |
-| `externally_hosted`   | `boolean`     | `integer` (0/1) | True when bytes live outside the host's `uploads/` dir (`'public-url'` adapters).              |
-| `uploaded_by_user_id` | `text`        | `text`          | Nullable FK to `users`.                                                                         |
-| `alt_text`            | `text`        | `text`          | Required for accessibility                                                                      |
-| `caption`             | `text`        | `text`          | Optional                                                                                        |
-| `title`               | `text`        | `text`          | Optional; falls back to filename                                                                |
-| `tags_json`           | `jsonb`       | `text`          | `string[]`, sorted lowercase                                                                    |
-| `width`               | `integer`     | `integer`       | Nullable, populated on image upload                                                             |
-| `height`              | `integer`     | `integer`       | Nullable                                                                                        |
-| `duration_ms`         | `integer`     | `integer`       | Nullable, for video / audio                                                                     |
-| `dominant_color`      | `text`        | `text`          | Nullable, `#rrggbb`. Computed server-side on upload                                             |
-| `blur_hash`           | `text`        | `text`          | Nullable. Used for skeleton placeholders                                                        |
-| `variants_json`       | `jsonb`       | `text`          | `MediaVariant[]` — each entry carries `width`, `height`, `format`, `path`, `sizeBytes`, `storagePath`, `storageAdapterId` |
-| `poster_path`         | `text`        | `text`          | Nullable. URL for video poster frame                                                            |
-| `deleted_at`          | `timestamptz` | `text`          | Nullable. Non-null = soft-deleted (in Trash)                                                    |
-| `replaced_at`         | `timestamptz` | `text`          | Nullable. Set when binary is swapped via "Replace file"                                         |
-| `created_at`          | `timestamptz` | `text`          |                                                                                                 |
+| Column                | PostgreSQL type | Notes                                                                                           |
+|-----------------------|-----------------|-------------------------------------------------------------------------------------------------|
+| `id`                  | `text` PK       |                                                                                                 |
+| `filename`            | `text`          | Original upload filename                                                                        |
+| `public_path`         | `text`          | URL the browser uses: `/uploads/...` for local-disk; `/_instatic/media/<adapterId>/<storagePath>` for non-public-url adapters |
+| `mime_type`           | `text`          |                                                                                                 |
+| `size_bytes`          | `bigint`        |                                                                                                 |
+| `storage_path`        | `text`          | Adapter-internal handle (local basename or S3 key). Never exposed to the browser.              |
+| `storage_adapter_id`  | `text`          | Id of the adapter that wrote this asset. Empty string = built-in local-disk.                   |
+| `externally_hosted`   | `boolean`       | True when bytes live outside the host's `uploads/` dir (`'public-url'` adapters).              |
+| `uploaded_by_user_id` | `text`          | Nullable FK to `users`.                                                                         |
+| `alt_text`            | `text`          | Required for accessibility                                                                      |
+| `caption`             | `text`          | Optional                                                                                        |
+| `title`               | `text`          | Optional; falls back to filename                                                                |
+| `tags_json`           | `jsonb`         | `string[]`, sorted lowercase                                                                    |
+| `width`               | `integer`       | Nullable, populated on image upload                                                             |
+| `height`              | `integer`       | Nullable                                                                                        |
+| `duration_ms`         | `integer`       | Nullable, for video / audio                                                                     |
+| `dominant_color`      | `text`          | Nullable, `#rrggbb`. Computed server-side on upload                                             |
+| `blur_hash`           | `text`          | Nullable. Used for skeleton placeholders                                                        |
+| `variants_json`       | `jsonb`         | `MediaVariant[]` — each entry carries `width`, `height`, `format`, `path`, `sizeBytes`, `storagePath`, `storageAdapterId` |
+| `poster_path`         | `text`          | Nullable. URL for video poster frame                                                            |
+| `deleted_at`          | `timestamptz`   | Nullable. Non-null = soft-deleted (in Trash)                                                    |
+| `replaced_at`         | `timestamptz`   | Nullable. Set when binary is swapped via "Replace file"                                         |
+| `created_at`          | `timestamptz`   |                                                                                                 |
 
 ### `media_folders`
 
@@ -315,7 +315,7 @@ The redirect handler is `tryServeMediaRedirect` in `server/router.ts`. The redir
 
 ### Add a new column to `media_assets`
 
-1. Add the column to both `server/db/migrations-pg.ts` and `migrations-sqlite.ts` with the same migration ID.
+1. Add the column in a new forward-only migration in `server/db/migrations-pg.ts`.
 2. JSON column → name ends in `_json`.
 3. In `server/repositories/mediaAssetMapping.ts`:
    - Add the column to `MEDIA_ASSET_COLUMNS`.

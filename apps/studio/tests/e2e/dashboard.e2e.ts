@@ -61,7 +61,7 @@ test.describe('dashboard', () => {
     await test.step('default first-party widgets load their data', async () => {
       const storage = await expectWidget(page, 'storage', 'Storage')
       await expectLoaded(storage)
-      await expect(storage).toContainText(/used.*SQLite.*self-hosted/)
+      await expect(storage).toContainText(/used.*PostgreSQL.*self-hosted/)
 
       const pages = await expectWidget(page, 'pages', 'Pages')
       await expectLoaded(pages)

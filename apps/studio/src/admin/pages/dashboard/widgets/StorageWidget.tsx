@@ -6,9 +6,8 @@
  * never imposes an artificial disk cap, so the headline stat is the
  * total currently in use and the breakdown bar stretches to fill its
  * full width — each segment reads as a proportion of *what is used*,
- * not of an imaginary plan limit. The widget caption surfaces which
- * database adapter is active (`SQLite` / `Postgres`) so the operator
- * knows where data physically lives.
+ * not of an imaginary plan limit. The widget caption identifies PostgreSQL
+ * as the database backing the reported storage.
  *
  * Data comes from `useStorageStats()` → `/admin/api/cms/dashboard/storage`.
  * Sizing detail per segment:
@@ -17,8 +16,7 @@
  *   • Documents  — sum of `media_assets.size_bytes` for everything else
  *                  (audio, PDFs, archives, NULL mime types).
  *   • Plugins    — total bytes under `<uploadsDir>/plugins/` on disk.
- *   • Database   — for SQLite the file + WAL/SHM sidecars; for
- *                  Postgres `pg_database_size(current_database())`.
+ *   • Database   — PostgreSQL `pg_database_size(current_database())`.
  */
 import { DatabaseSolidIcon } from 'pixel-art-icons/icons/database-solid'
 import { StackedBar, StatValue } from '@ui/components/charts'
@@ -39,8 +37,8 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
 }
 
-function dialectLabel(dialect: 'sqlite' | 'postgres'): string {
-  return dialect === 'postgres' ? 'Postgres' : 'SQLite'
+function dialectLabel(_dialect: 'postgres'): string {
+  return 'PostgreSQL'
 }
 
 export function StorageWidget({ span, editing }: DashboardWidgetRendererProps) {

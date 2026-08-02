@@ -1,25 +1,22 @@
 /**
  * Architecture Gate — System table seeds after fresh boot
  *
- * After applying the SQLite migrations to a fresh in-memory database, the
- * four system tables (`posts`, `pages`, `components`, `layouts`) must exist with:
+ * After applying PostgreSQL migrations to an isolated test schema, the four
+ * system tables (`posts`, `pages`, `components`, `layouts`) must exist with:
  *
- *   - `system = 1` (the integer flag used by SQLite)
+ *   - `system = true`
  *   - `fields_json` that parses to a valid array of `DataField` objects,
  *     each with the expected `builtIn: true` field ids.
  *
  * This test catches regressions where a migration edit accidentally drops a
  * seed row, removes the `system` column, or corrupts the built-in field list.
  *
- * @see server/db/migrations-sqlite.ts  — SQLite migrations (same seed content)
- * @see server/db/migrations-pg.ts      — Postgres migrations (same seed content)
+ * @see server/db/migrations-pg.ts      — canonical PostgreSQL migrations
  * @see src/core/data/schemas.ts        — DataFieldSchema
  */
 
 import { describe, test, expect, beforeAll } from 'bun:test'
-import { createSqliteClient } from '../../../server/db/sqlite'
-import { runMigrations } from '../../../server/db/runMigrations'
-import { sqliteMigrations } from '../../../server/db/migrations-sqlite'
+import { createTestDatabase } from '../../../server/db/testDatabase'
 import { filterArray } from '@core/utils/typeboxHelpers'
 import { DataFieldSchema } from '@core/data/schemas'
 
@@ -29,16 +26,15 @@ import { DataFieldSchema } from '@core/data/schemas'
 
 interface DataTableSeedRow {
   id: string
-  system: number
+  system: boolean
   fields_json: unknown
 }
 
 let seededRows: DataTableSeedRow[]
 
 beforeAll(async () => {
-  // Boot a fresh in-memory SQLite database and apply all migrations.
-  const db = createSqliteClient(':memory:')
-  await runMigrations(db, sqliteMigrations)
+  // Boot an isolated PostgreSQL schema and apply all migrations.
+  const { db: db } = await createTestDatabase('data-tables-system-f')
 
   const { rows } = await db<DataTableSeedRow>`
     select id, system, fields_json
@@ -59,9 +55,9 @@ describe('data_tables system seeds — four tables present after fresh boot', ()
     expect(ids).toEqual(['components', 'layouts', 'pages', 'posts'])
   })
 
-  test('all four system tables have system = 1', () => {
+  test('all four system tables have system = true', () => {
     for (const row of seededRows) {
-      expect(row.system).toBe(1)
+      expect(row.system).toBe(true)
     }
   })
 

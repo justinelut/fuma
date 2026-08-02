@@ -21,10 +21,10 @@ describe('FUMA-040 public analytics boundary', () => {
     } as never)
     const boundary = new PublicationPrivacyAnalyticsPublicBoundary({
       adapter,
-      hosts: { async scopeForHost(host) { return host === 'tenant.fuma.co.ke' ? scope : null } },
+      hosts: { async scopeForHost(host) { return host === 'tenant.trimly.co.ke' ? scope : null } },
       now: () => new Date('2040-01-02T03:04:05.000Z'),
     })
-    const request = new Request('https://tenant.fuma.co.ke/_fuma/publication/analytics', {
+    const request = new Request('https://tenant.trimly.co.ke/_fuma/publication/analytics', {
       method: 'POST', body,
       headers: { 'content-type': 'application/json', 'user-agent': 'ExampleBot/1.0' },
     })

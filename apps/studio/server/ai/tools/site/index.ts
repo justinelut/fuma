@@ -14,6 +14,7 @@ import type { AiTool } from '../types'
 import { siteReadTools } from './readTools'
 import { siteWriteTools } from './writeTools'
 import { siteComponentCatalogTools } from './componentCatalogTools'
+import { nextSourceAdaptationTool, nextSourceInteractionMappingTool } from './nextSourceAdaptationTool'
 
 const READ_ONLY_NAMES_IN_WRITE_FILE = new Set([
   'site_get_node_html',
@@ -38,6 +39,8 @@ export const siteTools: AiTool[] = [
   ...stampMutationFlag(siteReadTools, false),
   ...stampMutationFlag(siteWriteTools, true),
   ...siteComponentCatalogTools,
+  nextSourceAdaptationTool,
+  nextSourceInteractionMappingTool,
 ]
 
 export { buildSiteSystemPrompt } from './systemPrompt'

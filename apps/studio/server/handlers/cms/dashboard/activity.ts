@@ -44,11 +44,8 @@ type ActivityRow = {
 }
 
 export async function readRecentActivity(db: DbClient): Promise<RecentActivityStats> {
-  // `where action in (...)` would be dialect-painful (Postgres requires
-  // ANY($n::text[]) and SQLite needs an inline expansion that the tagged-
-  // template binding here can't produce). The set is small and bounded,
-  // so we filter client-side after the query — same end result, dialect-
-  // naive query.
+  // The action set is small and bounded, so filtering client-side keeps the
+  // tagged query static and avoids constructing a dynamic PostgreSQL IN list.
   //
   // The actor join also pulls `media_assets.public_path` for the actor's
   // uploaded avatar (via `users.avatar_media_id`) so the widget can

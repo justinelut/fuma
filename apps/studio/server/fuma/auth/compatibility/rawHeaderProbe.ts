@@ -9,7 +9,7 @@ import { isStoredSessionToken, withHashedSessionTokens } from '../../../auth/hos
 type Row = Record<string, unknown>
 type MemoryDatabase = Record<string, Row[]>
 
-const BASE_URL = 'https://app.fuma.co.ke'
+const BASE_URL = 'https://app.trimly.co.ke'
 const SECRET = 'fuma-010-native-header-probe-secret-at-least-32-characters'
 const PASSWORD = 'Fuma-compatibility-password-123!'
 const EMAIL = 'fuma-010-native-probe@example.invalid'

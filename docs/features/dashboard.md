@@ -250,8 +250,8 @@ Endpoints that don't bin timestamps receive the `?tz=` param but ignore it. The 
 
 - **`imageBytes` / `videoBytes` / `documentBytes`** — `coalesce(sum(case when mime_type like 'image/%' then size_bytes else 0 end), 0)` (and the matching `video/%` / fallback bucket) over active `media_assets`. Anything that isn't `image/*` or `video/*` — audio, PDFs, archives, rows with NULL mime_type — sums into `documentBytes`, so the three sub-counters add up to the full media total.
 - **`pluginBytes`** — recursive `fs.stat` walk of `<uploadsDir>/plugins/`.
-- **`databaseBytes`** — SQLite stats the `.db` file plus its `-wal` / `-shm` sidecars when present; Postgres runs `select pg_database_size(current_database())`.
-- **`dialect`** — `db.dialect`, surfaced verbatim so the widget caption can show "SQLite" / "Postgres".
+- **`databaseBytes`** — PostgreSQL runs `select pg_database_size(current_database())`.
+- **`dialect`** — the widget reports PostgreSQL.
 
 There is **no quota** — self-hosted Instatic never imposes an artificial disk cap, so the widget shows real usage and stretches its breakdown bar to fill the full width.
 

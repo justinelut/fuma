@@ -1088,7 +1088,7 @@ export default definePlugin({
 | Pattern                                                                  | Use instead                                                  |
 |--------------------------------------------------------------------------|--------------------------------------------------------------|
 | `import fs from 'node:fs'` or any Node API                               | `api.cms.storage.*` for data, `api.plugin.assetUrl(p)` for files |
-| `import { Database } from 'bun:sqlite'` or any `bun:*` module            | The SDK                                                      |
+| Any `bun:*` module import            | The SDK                                                      |
 | `Bun.spawn` / `Bun.serve` / `Bun.write` / `Bun.sql` / `Bun.$`            | Hooks (`api.cms.hooks.emit`) for cross-plugin signals        |
 | `process.env.SECRET_KEY`                                                 | `api.cms.settings.get('secretKey')`                          |
 | `require('module')`                                                      | ES module `import` (resolved at build time)                  |

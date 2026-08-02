@@ -6,7 +6,7 @@ FUMA-060 owns the concrete Cloudflare-for-SaaS adapter and reconciliation author
 
 The default launch path is a `www` or other subdomain. For `www.customer.example`, prevalidation creates the provider custom hostname through the injected platform transport and returns:
 
-1. a routing `CNAME` from `www.customer.example` to `customers.fuma.co.ke`;
+1. a routing `CNAME` from `www.customer.example` to `customers.trimly.co.ke`;
 2. Cloudflare's exact ownership `TXT` record;
 3. Cloudflare's exact certificate-validation `TXT` record.
 

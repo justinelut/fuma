@@ -1,3 +1,4 @@
+import { readFumaDeploymentProfile } from '@fuma/brand'
 import { Type, safeParseValue, type Static } from '@core/utils/typeboxHelpers'
 
 const PrivateProjectionConfigSchema = Type.Object({
@@ -34,7 +35,10 @@ export function readPrivateProjectionConfig(env: Env = process.env): PrivateProj
   }
   const parsed = safeParseValue(PrivateProjectionConfigSchema, candidate)
   if (!parsed.ok) throw new Error('Private public-projection configuration is invalid.')
-  if (host === 'fuma.co.ke' || host === 'www.fuma.co.ke' || host.endsWith('.fuma.co.ke')) {
+  const deployment = readFumaDeploymentProfile(env, { required: production })
+  if (host === deployment.hosts.public
+    || host === deployment.hosts.redirect
+    || host.endsWith(deployment.tenantSuffix)) {
     throw new Error('The public projection endpoint must use a private cluster host.')
   }
   return Object.freeze(parsed.value)

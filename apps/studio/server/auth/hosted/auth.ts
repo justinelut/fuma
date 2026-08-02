@@ -1,3 +1,4 @@
+import { Type, safeParseValue } from '@core/utils/typeboxHelpers'
 import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import { betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from 'better-auth'
 import { admin, organization, twoFactor } from 'better-auth/plugins'
@@ -34,6 +35,49 @@ export type HostedAuthInput = Readonly<{
   delivery?: HostedAuthDelivery
 }>
 
+export type HostedAuthImpersonationMutation = Readonly<{
+  userId: string
+  sessionId: string
+  impersonatedBy: string | null
+  setCookies: readonly string[]
+}>
+
+function responseCookieValues(headers: Headers): readonly string[] {
+  const getSetCookie = (headers as Headers & { getSetCookie?: () => string[] }).getSetCookie
+  if (typeof getSetCookie === 'function') return Object.freeze(getSetCookie.call(headers))
+  const combined = headers.get('set-cookie')
+  return Object.freeze(combined ? [combined] : [])
+}
+
+function safeHostedCookies(headers: Headers, cookieName: string, secureCookies: boolean): readonly string[] {
+  const values = responseCookieValues(headers)
+  if (values.some((value) => /(?:^|;)\s*Domain=/i.test(value)
+    || (value.startsWith(`${cookieName}=`) && (!/(?:^|;)\s*HttpOnly(?:;|$)/i.test(value)
+      || !/(?:^|;)\s*SameSite=Lax(?:;|$)/i.test(value)
+      || !/(?:^|;)\s*Path=\/(?:;|$)/i.test(value)
+      || (secureCookies && !/(?:^|;)\s*Secure(?:;|$)/i.test(value)))))) {
+    throw new Error('Better Auth emitted an unsafe support impersonation cookie.')
+  }
+  return values
+}
+
+
+const HostedAuthMutationResponseSchema = Type.Object({
+  session: Type.Object({
+    id: Type.String({ minLength: 1 }),
+    userId: Type.String({ minLength: 1 }),
+    impersonatedBy: Type.Optional(Type.String({ minLength: 1 })),
+  }, { additionalProperties: true }),
+  user: Type.Object({ id: Type.String({ minLength: 1 }) }, { additionalProperties: true }),
+}, { additionalProperties: true })
+
+type HostedAdminApi = Readonly<{
+  impersonateUser(input: Readonly<{ body: { userId: string }; headers: Headers; returnHeaders: true }>): Promise<{ headers: Headers; response: unknown }>
+  stopImpersonating(input: Readonly<{ headers: Headers; returnHeaders: true }>): Promise<{ headers: Headers; response: unknown }>
+  banUser(input: Readonly<{ headers: Headers; body: { userId: string; banReason: string } }>): Promise<unknown>
+  unbanUser(input: Readonly<{ headers: Headers; body: { userId: string } }>): Promise<unknown>
+  revokeUserSessions(input: Readonly<{ headers: Headers; body: { userId: string } }>): Promise<unknown>
+}>
 export type HostedStaffProfileLifecycle = Readonly<{
   create: (user: Readonly<{ id: string }>) => Promise<void>
 }>
@@ -141,6 +185,7 @@ export function createHostedAuthOptions(
       admin({
         defaultRole: 'user',
         adminRoles: ['admin'],
+        impersonationSessionDuration: 30 * 60,
         bannedUserMessage: 'This Fuma staff account is suspended.',
       }) as unknown as BetterAuthPlugin,
       twoFactor({
@@ -203,13 +248,10 @@ function assertSafeSearchPath(searchPath: string): void {
   }
 }
 
-export function createPostgresHostedAuth(input: PostgresHostedAuthInput): Readonly<{
-  auth: HostedAuth
-  resolveSession: (headers: Headers) => Promise<HostedResolvedSession | null>
-  findUserEmailById: (userId: string) => Promise<string | null>
-  findSessionUserIdByToken: (token: string) => Promise<string | null>
-  close: () => Promise<void>
-}> {
+function createPostgresHostedAuthBase(
+  input: PostgresHostedAuthInput,
+  createStaffProfiles: boolean,
+) {
   if (input.searchPath) assertSafeSearchPath(input.searchPath)
   const client = postgres(input.databaseUrl, {
     max: 2,
@@ -221,20 +263,107 @@ export function createPostgresHostedAuth(input: PostgresHostedAuthInput): Readon
     schema: authSchema,
     transaction: true,
   }))
-  const staffProfiles: HostedStaffProfileLifecycle = {
-    create: async ({ id }) => {
-      await client`
-        insert into auth_staff_profiles (user_id, source)
-        values (${id}, ${'native'})
-        on conflict (user_id) do nothing
-      `
-    },
-  }
-  const auth = createHostedAuth(database, input, staffProfiles)
+  const profiles: HostedStaffProfileLifecycle = createStaffProfiles
+    ? {
+      create: async ({ id }) => {
+        await client`
+          insert into auth_staff_profiles (user_id, source)
+          values (${id}, ${'native'})
+          on conflict (user_id) do nothing
+        `
+      },
+    }
+    : { create: async () => undefined }
+  const auth = createHostedAuth(database, input, profiles)
+  return { client, auth }
+}
+
+export type PostgresHostedIdentityAuth = Readonly<{
+  auth: HostedAuth
+  resolveSession: (headers: Headers) => Promise<HostedResolvedSession | null>
+  close: () => Promise<void>
+}>
+
+/**
+ * Reuses the canonical Better Auth users, credentials, and sessions for the
+ * public app identity host without granting or persisting staff lifecycle state.
+ */
+export function createPostgresHostedIdentityAuth(input: PostgresHostedAuthInput): PostgresHostedIdentityAuth {
+  const { client, auth } = createPostgresHostedAuthBase(input, false)
+  return Object.freeze({
+    auth,
+    resolveSession: async (headers: Headers) => await resolveHostedSession(auth, headers),
+    close: async () => await client.end({ timeout: 5 }),
+  })
+}
+
+export function createPostgresHostedAuth(input: PostgresHostedAuthInput): Readonly<{
+  auth: HostedAuth
+  resolveSession: (headers: Headers) => Promise<HostedResolvedSession | null>
+  startSupportImpersonation: (headers: Headers, targetUserId: string, expiresAt: string) => Promise<HostedAuthImpersonationMutation>
+  stopSupportImpersonation: (headers: Headers) => Promise<HostedAuthImpersonationMutation>
+  setSupportModerationBan: (headers: Headers, targetUserId: string, banned: boolean, reason: string) => Promise<void>
+  recoverProtectedOwner: (headers: Headers, targetUserId: string) => Promise<void>
+  findUserEmailById: (userId: string) => Promise<string | null>
+  findSessionUserIdByToken: (token: string) => Promise<string | null>
+  close: () => Promise<void>
+}> {
+  const { client, auth } = createPostgresHostedAuthBase(input, true)
+  // Better Auth's admin plugin is cast at configuration because 1.6.25 ships a
+  // declaration mismatch; recover only the reviewed runtime endpoints here.
+  const supportApi = auth.api as unknown as HostedAdminApi
 
   return {
     auth,
     resolveSession: async (headers) => await resolveHostedSession(auth, headers),
+    startSupportImpersonation: async (headers, targetUserId, expiresAt) => {
+      const requestedExpiry = Date.parse(expiresAt)
+      if (!Number.isFinite(requestedExpiry) || requestedExpiry <= Date.now() || requestedExpiry - Date.now() > 30 * 60_000) {
+        throw new Error('Support impersonation expiry is invalid or exceeds 30 minutes.')
+      }
+      const result = await supportApi.impersonateUser({ body: { userId: targetUserId }, headers, returnHeaders: true })
+      const parsed = safeParseValue(HostedAuthMutationResponseSchema, result.response)
+      if (!parsed.ok) throw new Error('Better Auth returned a malformed support impersonation response.')
+      const session = parsed.value.session
+      if (session.userId !== targetUserId || typeof session.id !== 'string'
+        || (session.impersonatedBy !== undefined && typeof session.impersonatedBy !== 'string')) {
+        throw new Error('Better Auth returned an invalid support impersonation session.')
+      }
+      const tightened = await client`update auth_sessions set expires_at=${new Date(requestedExpiry).toISOString()},updated_at=current_timestamp where id=${session.id} and user_id=${targetUserId} and impersonated_by=${session.impersonatedBy ?? ''} and expires_at>=${new Date(requestedExpiry).toISOString()}`
+      if (tightened.count !== 1) throw new Error('Better Auth support impersonation expiry could not be tightened.')
+      return Object.freeze({
+        userId: session.userId,
+        sessionId: session.id,
+        impersonatedBy: typeof session.impersonatedBy === 'string' ? session.impersonatedBy : null,
+        setCookies: safeHostedCookies(result.headers, input.cookieName ?? FUMA_STAFF_SESSION_COOKIE, input.secureCookies),
+      })
+    },
+    stopSupportImpersonation: async (headers) => {
+      const result = await supportApi.stopImpersonating({ headers, returnHeaders: true })
+      const parsed = safeParseValue(HostedAuthMutationResponseSchema, result.response)
+      if (!parsed.ok) throw new Error('Better Auth returned a malformed restored staff response.')
+      const session = parsed.value.session
+      if (typeof session.userId !== 'string' || typeof session.id !== 'string') {
+        throw new Error('Better Auth returned an invalid restored staff session.')
+      }
+      return Object.freeze({
+        userId: session.userId,
+        sessionId: session.id,
+        impersonatedBy: typeof session.impersonatedBy === 'string' ? session.impersonatedBy : null,
+        setCookies: safeHostedCookies(result.headers, input.cookieName ?? FUMA_STAFF_SESSION_COOKIE, input.secureCookies),
+      })
+    },
+    setSupportModerationBan: async (headers, targetUserId, banned, reason) => {
+      if (banned) await supportApi.banUser({ headers, body: { userId: targetUserId, banReason: reason } })
+      else await supportApi.unbanUser({ headers, body: { userId: targetUserId } })
+    },
+    recoverProtectedOwner: async (headers, targetUserId) => {
+      const rows = await client<{ email: string }[]>`select email from auth_users where id=${targetUserId} limit 1`
+      const email = rows[0]?.email
+      if (!email) throw new Error('Protected owner recovery target no longer exists.')
+      await supportApi.revokeUserSessions({ headers, body: { userId: targetUserId } })
+      await auth.api.requestPasswordReset({ body: { email } })
+    },
     findUserEmailById: async (userId) => {
       const rows = await client<{ email: string }[]>`
         select email from auth_users where id = ${userId} limit 1

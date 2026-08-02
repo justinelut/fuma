@@ -1,7 +1,5 @@
 import { describe, expect, it, beforeEach } from 'bun:test'
-import { createSqliteClient } from '../../../../db/sqlite'
-import { sqliteMigrations } from '../../../../db/migrations-sqlite'
-import { runMigrations } from '../../../../db/runMigrations'
+import { createTestDatabase } from '../../../../db/testDatabase'
 import type { DbClient } from '../../../../db/client'
 import { softDeleteDataRow } from '../mutations'
 import { getDataRow } from '../read'
@@ -9,8 +7,7 @@ import { getDataRow } from '../read'
 const USER_ID = 'user-author'
 
 async function freshDb(): Promise<DbClient> {
-  const db = createSqliteClient(':memory:')
-  await runMigrations(db, sqliteMigrations)
+  const { db: db } = await createTestDatabase('mutations')
   await db`
     insert into users (id, email, email_normalized, display_name, password_hash, status, role_id)
     values (${USER_ID}, ${'author@example.com'}, ${'author@example.com'}, ${'Author Person'}, ${'x'}, ${'active'}, ${'owner'})

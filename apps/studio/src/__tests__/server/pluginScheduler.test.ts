@@ -12,8 +12,7 @@
  *     never fire; re-registration on boot preserves a pause
  *   • Ghost sweep — schedules not re-registered during an activation pass
  *     are disabled
- *   • HA leader path (SQLite single-leader sentinel; PG path covered
- *     structurally — we don't spin a real PG in tests)
+ *   • PostgreSQL advisory-lock leader path
  *
  * The schedule firing path itself depends on a live worker — those are
  * exercised via the existing `cmsPlugins` integration suite. Here we
@@ -23,9 +22,7 @@ import { describe, expect, it, mock } from 'bun:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createSqliteClient } from '../../../server/db/sqlite'
-import { runMigrations } from '../../../server/db/runMigrations'
-import { sqliteMigrations } from '../../../server/db/migrations-sqlite'
+import { createTestDatabase } from '../../../server/db/testDatabase'
 import {
   computeNextRun,
   registerPluginSchedule,
@@ -99,7 +96,7 @@ describe('computeNextRun', () => {
 async function insertTestPlugin(db: DbClient, id: string, enabled = true): Promise<void> {
   await db`
     insert into installed_plugins (id, name, version, enabled, manifest_json)
-    values (${id}, ${'Scheduler Test'}, ${'1.0.0'}, ${enabled ? 1 : 0}, ${JSON.stringify({
+    values (${id}, ${'Scheduler Test'}, ${'1.0.0'}, ${enabled}, ${JSON.stringify({
       id,
       name: 'Scheduler Test',
       version: '1.0.0',
@@ -114,8 +111,7 @@ async function insertTestPlugin(db: DbClient, id: string, enabled = true): Promi
 async function setupDb(): Promise<{ db: DbClient; cleanup: () => Promise<void> }> {
   const dir = await mkdtemp(join(tmpdir(), 'instatic-scheduler-'))
   const dbPath = join(dir, 'test.db')
-  const db = createSqliteClient(dbPath)
-  await runMigrations(db, sqliteMigrations)
+  const { db: db } = await createTestDatabase('pluginScheduler')
   // Bootstrap a fake installed_plugins row — the FK on plugin_schedules
   // requires it to exist before any registration.
   await insertTestPlugin(db, 'test.sched')

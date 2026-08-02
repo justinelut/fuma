@@ -1,3 +1,4 @@
+import { readFumaDeploymentProfile } from '@fuma/brand'
 import { Type, safeParseValue, type Static } from '@core/utils/typeboxHelpers'
 
 const SiteRuntimeConfigSchema = Type.Object({
@@ -30,7 +31,8 @@ export function readSiteRuntimeConfig(env: Readonly<Record<string, unknown>> = p
   const parsed = safeParseValue(SiteRuntimeConfigSchema, candidate)
   if (!parsed.ok) throw new Error('Private site-runtime configuration is invalid.')
   const hostWithoutPort = privateHost.replace(/:[0-9]+$/, '')
-  if (hostWithoutPort === 'fuma.co.ke' || hostWithoutPort.endsWith('.fuma.co.ke')) {
+  const deployment = readFumaDeploymentProfile(env, { required: production })
+  if (hostWithoutPort === deployment.hosts.public || hostWithoutPort.endsWith(deployment.tenantSuffix)) {
     throw new Error('The site-runtime authority must use a private cluster host.')
   }
   return Object.freeze(parsed.value)

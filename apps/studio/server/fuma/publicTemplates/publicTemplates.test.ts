@@ -186,7 +186,7 @@ describe('public template release authority', () => {
     expect(await ok?.text()).toContain('Exact preview')
     expect(await boundary.handle(request(`/releases/${RELEASE_ID}/?draft=1`))).toHaveProperty('status', 404)
     expect(await boundary.handle(request(`/releases/${RELEASE_ID}/`, { authorization: 'Bearer forbidden' }))).toHaveProperty('status', 404)
-    expect(boundary.handles(new Request(`https://fuma.co.ke/releases/${RELEASE_ID}/`, { headers: { host: 'fuma.co.ke' } }))).toBe(false)
+    expect(boundary.handles(new Request(`https://trimly.co.ke/releases/${RELEASE_ID}/`, { headers: { host: 'trimly.co.ke' } }))).toBe(false)
     await service.withdraw({ templateId: 'template_portfolio', expectedVersion: 1, withdrawnAt: WITHDRAWN_AT })
     expect(await boundary.handle(request(`/releases/${RELEASE_ID}/`))).toHaveProperty('status', 404)
   })

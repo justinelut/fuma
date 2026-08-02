@@ -4,13 +4,14 @@ import {
   PublicHandoffRequestSchema,
   type PublicHandoffRequest,
 } from '@fuma/public-contracts'
+import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
+import { ContactRequestSchema, type ContactRequest } from './public-web-contracts'
+import { FUMA_WEB_DEPLOYMENT } from './deployment-profile'
 import {
-  ContactRequestSchema,
-  PublicStatusSchema,
-  type ContactRequest,
-  type PublicStatus,
-} from './public-web-contracts'
+  ContactRoutingReceiptSchema,
+  type ContactRoutingResult,
+} from './contact-boundary'
 import {
   readPublicProjectionClientConfig,
   type PublicProjectionClientConfig,
@@ -18,10 +19,13 @@ import {
 } from './public-projections'
 
 const MAX_BYTES = 16_384
-const APP_ORIGIN = 'https://app.fuma.co.ke' as const
-const STATUS_ORIGIN = 'https://status.fuma.co.ke' as const
+const APP_ORIGIN = FUMA_WEB_DEPLOYMENT.origins.product
+const ContactRoutingBridgeResponseSchema = Type.Object({
+  outcome: Type.Literal('accepted'),
+  receipt: ContactRoutingReceiptSchema,
+}, { additionalProperties: false })
 
-type PrivateBridgeOptions = Readonly<{
+export type PrivateBridgeOptions = Readonly<{
   config?: PublicProjectionClientConfig
   fetchImpl?: PublicProjectionFetch
 }>
@@ -30,7 +34,12 @@ function config(options: PrivateBridgeOptions = {}) {
   return options.config ?? readPublicProjectionClientConfig()
 }
 
-async function requestPrivate(path: string, body: unknown, options: PrivateBridgeOptions = {}): Promise<Response> {
+async function requestPrivate(
+  path: string,
+  body: unknown,
+  options: PrivateBridgeOptions = {},
+  internalHeaders: Readonly<Record<string, string>> = {},
+): Promise<Response> {
   const value = config(options)
   return (options.fetchImpl ?? fetch)(new URL(path, value.internalOrigin), {
     method: 'POST',
@@ -40,6 +49,7 @@ async function requestPrivate(path: string, body: unknown, options: PrivateBridg
       authorization: `Bearer ${value.serviceToken}`,
       'x-fuma-audience': 'fuma-public-web',
       'x-fuma-request-id': crypto.randomUUID(),
+      ...internalHeaders,
     },
     body: JSON.stringify(body),
     cache: 'no-store',
@@ -71,42 +81,76 @@ export async function issueHandoff(value: unknown, options: PrivateBridgeOptions
   }
 }
 
-export async function forwardContact(value: unknown): Promise<boolean> {
-  if (!Value.Check(ContactRequestSchema, value)) return false
+export async function forwardContact(
+  value: unknown,
+  requestSha256: string,
+  options: PrivateBridgeOptions = {},
+): Promise<ContactRoutingResult> {
+  if (!Value.Check(ContactRequestSchema, value) || !/^[a-f0-9]{64}$/.test(requestSha256)) {
+    return { outcome: 'unavailable' }
+  }
   try {
-    const response = await requestPrivate('/_fuma/private/public/v1/contact', value as ContactRequest)
-    return response.status === 202
+    const response = await requestPrivate('/_fuma/private/public/v1/contact', value as ContactRequest, options, {
+      'x-fuma-request-sha256': requestSha256,
+    })
+    if (response.status === 202) {
+      const body = await json(response)
+      return Value.Check(ContactRoutingBridgeResponseSchema, body)
+        ? body as ContactRoutingResult
+        : { outcome: 'unavailable' }
+    }
+    if (response.status === 409) return { outcome: 'conflict' }
+    if (response.status === 429) {
+      const raw = response.headers.get('retry-after')
+      const retryAfterSeconds = raw && /^[1-9][0-9]{0,3}$/.test(raw) ? Number(raw) : 30
+      return { outcome: 'rate_limited', retryAfterSeconds: Math.min(3_600, retryAfterSeconds) }
+    }
+    return { outcome: 'unavailable' }
   } catch {
-    return false
+    return { outcome: 'unavailable' }
   }
 }
 
-export async function collectAcquisition(value: unknown): Promise<boolean> {
-  if (!Value.Check(PublicAcquisitionEventSchema, value)) return false
+export async function requestPrivateStatus(options: PrivateBridgeOptions = {}): Promise<Response | null> {
   try {
-    const response = await requestPrivate('/_fuma/private/public/v1/acquisition-events', value)
-    return response.status === 202
-  } catch {
-    return false
-  }
-}
-
-export async function readPublicStatus(): Promise<PublicStatus> {
-  try {
-    const response = await fetch(STATUS_ORIGIN + '/api/summary', {
-      headers: { accept: 'application/json' },
+    const value = config(options)
+    return await (options.fetchImpl ?? fetch)(new URL('/_fuma/private/public/v1/status', value.internalOrigin), {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        authorization: `Bearer ${value.serviceToken}`,
+        'x-fuma-audience': 'fuma-public-web',
+        'x-fuma-request-id': crypto.randomUUID(),
+      },
       cache: 'no-store',
       redirect: 'error',
-      signal: AbortSignal.timeout(2_000),
+      signal: AbortSignal.timeout(value.timeoutMs),
     })
-    const value = await json(response)
-    if (response.ok && Value.Check(PublicStatusSchema, value)) return value as PublicStatus
   } catch {
-    // The public status surface degrades to an explicit unknown state.
+    return null
   }
-  return {
-    status: 'unknown',
-    message: 'Live status is temporarily unavailable. Check the independent status page for updates.',
-    checkedAt: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+}
+
+export type PublicAcquisitionPrivacy = Readonly<{
+  globalPrivacyControl: boolean
+  doNotTrack: boolean
+  traffic: 'human' | 'known-bot' | 'internal'
+}>
+
+export async function collectAcquisition(
+  value: unknown,
+  privacy: PublicAcquisitionPrivacy,
+  options: PrivateBridgeOptions = {},
+): Promise<boolean> {
+  if (!Value.Check(PublicAcquisitionEventSchema, value)) return false
+  try {
+    const response = await requestPrivate('/_fuma/private/public/v1/acquisition-events', value, options, {
+      'x-fuma-gpc': privacy.globalPrivacyControl ? '1' : '0',
+      'x-fuma-dnt': privacy.doNotTrack ? '1' : '0',
+      'x-fuma-traffic': privacy.traffic,
+    })
+    return response.status === 202
+  } catch {
+    return false
   }
 }

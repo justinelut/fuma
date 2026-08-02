@@ -22,8 +22,8 @@
  *      - No single top-level try/catch wraps the whole plugin iteration loop
  *        (which would be the band-aid pattern).
  *
- * These tests run as part of `bun test` under the SQLite adapter.
- * No real DB, no worker, no filesystem I/O required for the functional layer.
+ * These tests use a fake in-memory `DbClient`; no PostgreSQL server, worker, or
+ * filesystem I/O is required for the functional layer.
  */
 
 import { describe, test, expect } from 'bun:test'
@@ -78,7 +78,7 @@ function makeFakeDb(pluginRows: FakePluginRow[]) {
 
   handle.transaction = async <T>(cb: (tx: DbClient) => Promise<T>): Promise<T> =>
     cb(handle as unknown as DbClient)
-  handle.dialect = 'sqlite' as const
+  handle.dialect = 'postgres' as const
 
   return Object.assign(handle as DbClient, { pluginRows, lifecycleUpdates })
 }

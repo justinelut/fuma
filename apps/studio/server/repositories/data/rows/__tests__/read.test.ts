@@ -1,15 +1,12 @@
 import { describe, expect, it, beforeEach } from 'bun:test'
-import { createSqliteClient } from '../../../../db/sqlite'
-import { sqliteMigrations } from '../../../../db/migrations-sqlite'
-import { runMigrations } from '../../../../db/runMigrations'
+import { createTestDatabase } from '../../../../db/testDatabase'
 import type { DbClient } from '../../../../db/client'
 import { countDataRows, getDataRow, getDataRowMany } from '../read'
 import { softDeleteDataRow } from '../mutations'
 import { getDataTableBySlug } from '../../tables'
 
 async function freshDb(): Promise<DbClient> {
-  const db = createSqliteClient(':memory:')
-  await runMigrations(db, sqliteMigrations)
+  const { db: db } = await createTestDatabase('read')
   return db
 }
 

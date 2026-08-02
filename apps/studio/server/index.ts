@@ -9,12 +9,21 @@ import { applySecurityHeaders } from './securityHeaders'
 import { startConversationPurgeTick } from './ai/boot'
 import { readFumaConfig } from './fuma/config'
 import { createHostedAuthFakeInbox } from './auth/hosted/fakeInbox'
+import { createHostedAuthOciDelivery } from './auth/hosted/ociDelivery'
 import {
   createHostedFumaScopedApi,
+  createHostedIdentityAuthRuntime,
   createHostedStaffAuthRuntime,
   readHostedAuthSecret,
 } from './auth/hosted/runtime'
-import { createHostedPublicProjectionRuntime } from './fuma/publicProjections'
+import {
+  createHostedPublicProjectionAuthorityCatalog,
+  createHostedPublicProjectionRuntime,
+} from './fuma/publicProjections'
+import {
+  AUTH_HANDOFF_SESSION_COOKIE,
+  createHostedPublicHandoffRuntime,
+} from './fuma/publicHandoff'
 import { createHostedSiteRuntimeAuthority, emptyApplicationSnapshot, type SiteRuntimeMemberProjectionPort } from './fuma/siteRuntime'
 import { createHostedFreeHostRuntime, createHostedReleaseObjectStorage, type FreeHostResolution } from './fuma/freeHosts'
 import {
@@ -40,7 +49,26 @@ import { createHostedArtifactRuntime } from './fuma/artifacts'
 import { createArtifactMarketplaceScopedRoutes, createHostedArtifactReviewRuntime } from './fuma/artifactReviews'
 import { createQuotaRuntime } from './fuma/quotas'
 import { createHostedComponentCatalogRuntime } from './fuma/componentCatalog'
+import { createHostedCapabilityDashboardRuntime } from './fuma/aiCapabilityDashboard'
+import { AuditService, PostgresAuditRepository } from './fuma/audit'
+import { createHostedMeteringRuntime } from './fuma/metering'
+import { createHostedNextSourceRuntime, readHostedNextSourceGitHubConfig } from './fuma/nextSource'
+import { createMinioObjectStorage } from './fuma/objectStorage'
+import {
+  BetterAuthOwnerRecoveryAuthority,
+  BetterAuthSupportImpersonationAuthority,
+  ObjectStorageSupportEvidenceAuthority,
+  PostgresModerationMutationAuthority,
+  PostgresSupportAuthorityResolver,
+  PostgresSupportRouteAuthorizationAuthority,
+  createHostedSupportOperationsRuntime,
+} from './fuma/supportOperations'
 import { configureSiteComponentCatalogPort, PostgresSiteComponentCatalogPort } from './ai/tools/site/componentCatalogPort'
+import { createHostedExpertDiscoveryRuntime, readHostedExpertInquiryKey } from './fuma/expertDiscovery'
+import {
+  configureNextSourceAdaptationToolPort,
+  PostgresNextSourceAdaptationToolPort,
+} from './ai/tools/site/nextSourceAdaptationPort'
 import {
   createHostedMemberIdentityRuntime,
   createMemberImportBoundary,
@@ -94,7 +122,6 @@ if (fumaHosted) {
   await assertFumaHostedStartup({
     db,
     databaseUrl: config.databaseUrl,
-    legacySqliteConfigured: Boolean(process.env.FUMA_LEGACY_SQLITE_PATH?.trim()),
   })
 }
 const hostedFumaConfig = fumaHosted ? readFumaConfig() : undefined
@@ -102,7 +129,9 @@ const hostedStaffSecret = hostedFumaConfig ? readHostedAuthSecret() : undefined
 const hostedStaffAuthRuntime = hostedFumaConfig
   ? (() => {
     const fumaConfig = hostedFumaConfig
-    const inbox = createHostedAuthFakeInbox()
+    const delivery = fumaConfig.environment === 'production'
+      ? createHostedAuthOciDelivery({ config: fumaConfig })
+      : createHostedAuthFakeInbox()
     return createHostedStaffAuthRuntime({
       databaseUrl: fumaConfig.database.url,
       productHost: fumaConfig.hosts.product,
@@ -110,7 +139,64 @@ const hostedStaffAuthRuntime = hostedFumaConfig
       secureCookies: fumaConfig.staffCookie.secure,
       cookieName: fumaConfig.staffCookie.name,
       secret: hostedStaffSecret!,
-      delivery: inbox,
+      delivery,
+    })
+  })()
+  : undefined
+const hostedSupportOperationsRuntime = hostedFumaConfig && hostedStaffAuthRuntime
+  ? (() => {
+    const evidenceStorage = createMinioObjectStorage({
+      config: hostedFumaConfig.minio,
+      policy: {
+        allowedMimeTypes: ['application/json'],
+        maxObjectBytes: 2 * 1024 * 1024,
+        maxTenantBytes: 1024 * 1024 * 1024,
+      },
+      signingSecret: requiredFumaObjectSigningSecret(),
+      accessUrlBase: `https://${hostedFumaConfig.hosts.product}/_fuma/objects`,
+    })
+    return createHostedSupportOperationsRuntime({
+      db,
+      ports: {
+        authority: new PostgresSupportAuthorityResolver({
+          db,
+          protectedOwnerEmail: hostedFumaConfig.protectedOwner.email,
+          consoleHost: hostedFumaConfig.hosts.console,
+        }),
+        evidence: new ObjectStorageSupportEvidenceAuthority(evidenceStorage),
+        impersonation: new BetterAuthSupportImpersonationAuthority(hostedStaffAuthRuntime),
+        moderation: new PostgresModerationMutationAuthority({ db, auth: hostedStaffAuthRuntime }),
+        recovery: new BetterAuthOwnerRecoveryAuthority(hostedStaffAuthRuntime),
+        routeAuthorization: new PostgresSupportRouteAuthorizationAuthority({
+          db,
+          protectedOwnerEmail: hostedFumaConfig.protectedOwner.email,
+        }),
+        audit: new AuditService({ repository: new PostgresAuditRepository(db) }),
+      },
+    })
+  })()
+  : undefined
+const hostedExpertDiscoveryRuntime = hostedFumaConfig && hostedStaffSecret
+  ? await (() => {
+    const inquiryStorage = createMinioObjectStorage({
+      config: hostedFumaConfig.minio,
+      policy: {
+        allowedMimeTypes: ['application/json'],
+        maxObjectBytes: 64 * 1024,
+        maxTenantBytes: 5 * 1024 * 1024 * 1024,
+      },
+      signingSecret: requiredFumaObjectSigningSecret(),
+      accessUrlBase: `https://${hostedFumaConfig.hosts.product}/_fuma/objects`,
+    })
+    return createHostedExpertDiscoveryRuntime({
+      db,
+      storage: inquiryStorage,
+      inquiryKey: readHostedExpertInquiryKey(),
+      abusePepper: hostedStaffSecret,
+      approvalAuthorization: new PostgresSupportRouteAuthorizationAuthority({
+        db,
+        protectedOwnerEmail: hostedFumaConfig.protectedOwner.email,
+      }),
     })
   })()
   : undefined
@@ -118,8 +204,52 @@ const hostedStaffAuth = hostedStaffAuthRuntime?.boundary
 const memberIdentityRuntime = hostedFumaConfig && hostedStaffSecret
   ? createHostedMemberIdentityRuntime({ db, secret: readMemberAuthSecret(hostedStaffSecret) })
   : undefined
+const hostedAuthHost = hostedFumaConfig
+  ? hostedFumaConfig.hosts.auth
+  : undefined
+const centralIdentityAuthRuntime = hostedFumaConfig && hostedStaffSecret && hostedAuthHost
+  ? (() => {
+    const delivery = hostedFumaConfig.environment === 'production'
+      ? createHostedAuthOciDelivery({ config: hostedFumaConfig, linkHost: hostedAuthHost, audience: 'account' })
+      : createHostedAuthFakeInbox()
+    return createHostedIdentityAuthRuntime({
+      databaseUrl: hostedFumaConfig.database.url,
+      identityHost: hostedAuthHost,
+      secureCookies: hostedFumaConfig.staffCookie.secure,
+      cookieName: hostedFumaConfig.staffCookie.secure ? AUTH_HANDOFF_SESSION_COOKIE : 'fuma_auth',
+      secret: hostedStaffSecret,
+      delivery,
+    })
+  })()
+  : undefined
+const templateCatalog = hostedFumaConfig
+  ? new PublicTemplateCatalogService(
+    new PostgresPublicTemplateCatalogRepository(db),
+    new PostgresTemplateReleaseAuthority(db),
+    hostedFumaConfig.hosts.templatePreview,
+  )
+  : undefined
+const publicProjectionAuthority = fumaHosted
+  ? createHostedPublicProjectionAuthorityCatalog(db)
+  : undefined
+const publicHandoffRuntime = hostedFumaConfig && hostedAuthHost && centralIdentityAuthRuntime && templateCatalog && publicProjectionAuthority
+  ? createHostedPublicHandoffRuntime({
+    db,
+    projections: publicProjectionAuthority,
+    templates: templateCatalog,
+    identityAuth: centralIdentityAuthRuntime,
+    appHost: hostedFumaConfig.hosts.product,
+    authHost: hostedAuthHost,
+    marketingHost: hostedFumaConfig.hosts.marketing,
+    secureCookies: hostedFumaConfig.staffCookie.secure,
+  })
+  : undefined
 const publicProjectionRuntime = fumaHosted
-  ? await createHostedPublicProjectionRuntime({ db })
+  ? await createHostedPublicProjectionRuntime({
+    db,
+    ...(publicProjectionAuthority ? { authority: publicProjectionAuthority } : {}),
+    ...(publicHandoffRuntime ? { handoff: publicHandoffRuntime.issuer } : {}),
+  })
   : undefined
 const quotaRuntime = hostedFumaConfig ? createQuotaRuntime({ db }) : undefined
 const publicationRuntime = hostedFumaConfig
@@ -167,6 +297,38 @@ const releaseObjectStorage = hostedFumaConfig
     objectAccessSigningSecret: requiredFumaObjectSigningSecret(),
   })
   : undefined
+const nextSourceObjectStorage = hostedFumaConfig
+  ? createMinioObjectStorage({
+    config: hostedFumaConfig.minio,
+    policy: {
+      allowedMimeTypes: ['application/zip'],
+      maxObjectBytes: 256 * 1024 * 1024,
+      maxTenantBytes: 20 * 1024 * 1024 * 1024,
+    },
+    signingSecret: requiredFumaObjectSigningSecret(),
+    accessUrlBase: `https://${hostedFumaConfig.hosts.product}/_fuma/objects`,
+  })
+  : undefined
+const hostedMeteringRuntime = hostedFumaConfig ? createHostedMeteringRuntime({ db }) : undefined
+const nextSourceGithubConfigured = Boolean(process.env.FUMA_GITHUB_APP_ID?.trim() || process.env.FUMA_GITHUB_APP_PRIVATE_KEY_PEM?.trim())
+const hostedNextSourceRuntime = hostedFumaConfig && hostedStaffAuthRuntime && nextSourceObjectStorage && releaseObjectStorage && hostedMeteringRuntime
+  ? createHostedNextSourceRuntime({
+    db,
+    storage: nextSourceObjectStorage,
+    releaseStorage: releaseObjectStorage,
+    metering: hostedMeteringRuntime.collector,
+    resolveSession: hostedStaffAuthRuntime.resolveSession,
+    ...(hostedFumaConfig.environment === 'production' || nextSourceGithubConfigured
+      ? { githubConfig: readHostedNextSourceGitHubConfig() }
+      : {}),
+  })
+  : undefined
+if (hostedNextSourceRuntime && nextSourceObjectStorage) {
+  configureNextSourceAdaptationToolPort(new PostgresNextSourceAdaptationToolPort({
+    db,
+    storage: nextSourceObjectStorage,
+  }))
+}
 const hostedArtifactRuntime = hostedFumaConfig
   ? createHostedArtifactRuntime({
     db,
@@ -255,15 +417,9 @@ const siteRuntimeAuthority = hostedFumaConfig && releaseObjectStorage
     } : {}),
   })
   : undefined
-const templateCatalog = hostedFumaConfig
-  ? new PublicTemplateCatalogService(
-    new PostgresPublicTemplateCatalogRepository(db),
-    new PostgresTemplateReleaseAuthority(db),
-  )
-  : undefined
 const templatePreviewBoundary = templateCatalog && releaseObjectStorage
   ? createTemplatePreviewBoundary({
-    host: TEMPLATE_PREVIEW_HOST,
+    host: hostedFumaConfig?.hosts.templatePreview ?? TEMPLATE_PREVIEW_HOST,
     catalog: templateCatalog,
     reader: new PostgresTemplatePreviewReader(db, releaseObjectStorage),
   })
@@ -365,6 +521,17 @@ const hostedMcpRuntime = hostedFumaConfig && hostedStaffAuthRuntime && hostedSta
     })
   })()
   : undefined
+const hostedCapabilityDashboardRuntime = hostedComponentCatalogRuntime && hostedMcpRuntime && hostedFumaConfig
+  ? createHostedCapabilityDashboardRuntime({
+    db,
+    components: hostedComponentCatalogRuntime.service,
+    mcp: hostedMcpRuntime.service,
+    platformAuthorization: new PostgresSupportRouteAuthorizationAuthority({
+      db,
+      protectedOwnerEmail: hostedFumaConfig.protectedOwner.email,
+    }),
+  })
+  : undefined
 const fumaScopedApi = createHostedFumaScopedApi({
   db,
   hostedStaffAuth: hostedStaffAuthRuntime,
@@ -374,6 +541,10 @@ const fumaScopedApi = createHostedFumaScopedApi({
   ...(hostedMcpRuntime ? { mcpRoutes: hostedMcpRuntime.scopedRoutes } : {}),
   ...(artifactMarketplaceRoutes ? { marketplaceRoutes: artifactMarketplaceRoutes } : {}),
   ...(hostedComponentCatalogRuntime ? { componentCatalogRoutes: hostedComponentCatalogRuntime.scopedRoutes } : {}),
+  ...(hostedSupportOperationsRuntime ? { supportRoutes: hostedSupportOperationsRuntime.scopedRoutes } : {}),
+  ...(hostedExpertDiscoveryRuntime ? { expertRoutes: hostedExpertDiscoveryRuntime.scopedRoutes } : {}),
+  ...(hostedCapabilityDashboardRuntime ? { capabilityDashboardRoutes: hostedCapabilityDashboardRuntime.scopedRoutes } : {}),
+  ...(hostedNextSourceRuntime ? { nextSourceRoutes: hostedNextSourceRuntime.scopedRoutes } : {}),
 })
 const memberImportBoundary = memberIdentityRuntime && hostedStaffAuthRuntime && fumaScopedApi
   ? createMemberImportBoundary({
@@ -503,6 +674,7 @@ const server = Bun.serve<PublicationSocketData>({
         databaseUrl: config.databaseUrl,
         hostedStaffAuth,
         publicProjections: publicProjectionRuntime?.boundary,
+        publicHandoff: publicHandoffRuntime?.boundary,
         publicationPublic: publicationRuntime?.publicBoundary,
         freeHostPublic: freeHostRuntime?.boundary,
         memberAuth: memberIdentityRuntime?.boundary,
@@ -550,6 +722,7 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
       platformBillingRuntime?.close(),
       publicationSockets?.close(),
       hostedStaffAuthRuntime?.close(),
+      centralIdentityAuthRuntime?.close(),
       publicProjectionRuntime?.close(),
       siteRuntimeAuthority?.close(),
       publicationRuntime?.close(),

@@ -6,7 +6,7 @@ import {
 import { isStoredSessionToken } from '../../../auth/hosted/sessionTokenAdapter'
 import { installCompatibilitySchema } from './postgresGateSchema'
 
-const BASE_URL = 'https://app.fuma.co.ke'
+const BASE_URL = 'https://app.trimly.co.ke'
 const SECRET = 'fuma-010-postgres-probe-secret-at-least-32-characters'
 const PASSWORD = 'Fuma-compatibility-password-123!'
 

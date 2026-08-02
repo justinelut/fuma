@@ -1,31 +1,56 @@
+import type { Route } from 'next'
 import type { ApprovedClaimId } from '@/lib/acquisition-content'
 import { approvedClaim } from '@/lib/acquisition-content'
 import type { ReactNode } from 'react'
+import Link from 'next/link'
 
 export function Eyebrow({ children }: Readonly<{ children: ReactNode }>) {
-  return <p className="mb-4 font-mono text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{children}</p>
+  return <p className="eyebrow">{children}</p>
 }
 
+/**
+ * Shared public hero.
+ *
+ * Structure follows the briefed reference: left-aligned display headline at the
+ * margin, action row directly beneath it, and a release note pushed to the far
+ * right of that same row. No centred stack, no pill-above-headline template.
+ *
+ * Entrance is CSS-only (`fuma-rise`) so the hero costs no route JavaScript and
+ * inherits the global reduced-motion rule.
+ */
 export function Hero({
   eyebrow,
   title,
   description,
   children,
 }: Readonly<{ eyebrow: string; title: string; description: string; children?: ReactNode }>) {
-  return <section aria-labelledby="page-title" className="grid gap-8 border-b pb-12 sm:pb-14 lg:grid-cols-[1.45fr_1fr] lg:items-end">
-    <div>
-      <Eyebrow>{eyebrow}</Eyebrow>
-      <h1 id="page-title" className="max-w-4xl text-[clamp(2.65rem,10vw,4.75rem)] font-semibold leading-[0.96] tracking-[-0.045em]">{title}</h1>
-    </div>
-    <div>
-      <p className="max-w-2xl text-lg leading-8 text-muted-foreground">{description}</p>
-      {children && <div className="mt-6 flex flex-wrap items-center gap-3">{children}</div>}
-    </div>
+  return <section aria-labelledby="page-title" className="section fuma-glow !pb-0 pt-16 sm:pt-24" data-fuma-visual="hero">
+    {/* No badge pill: none of the eight measured premium references uses one above the h1. The
+        eyebrow stays as quiet type, which is how linear and framer label a page. */}
+    <p className="eyebrow fuma-rise">{eyebrow}</p>
+    <h1
+      className="fuma-rise max-w-[19ch] font-display text-display-xl text-balance"
+      id="page-title"
+    >{title}</h1>
+    <p
+      className="fuma-rise mt-6 max-w-xl text-lede text-muted-foreground text-pretty"
+      style={{ animationDelay: '70ms' }}
+    >{description}</p>
+    {children && <div className="fuma-rise mt-10 flex flex-row flex-wrap items-center gap-3" style={{ animationDelay: '140ms' }}>{children}</div>}
   </section>
 }
 
-export function CTA({ href, children, secondary = false }: Readonly<{ href: string; children: ReactNode; secondary?: boolean }>) {
-  return <a className={`inline-flex min-h-11 items-center justify-center rounded-md px-5 py-3 text-center text-sm font-semibold ${secondary ? 'border bg-background text-foreground hover:bg-secondary' : 'bg-primary text-primary-foreground hover:opacity-90'}`} href={href}>{children}</a>
+export function CTA({ href, children, prefetch = false, secondary = false }: Readonly<{
+  href: Route | string
+  children: ReactNode
+  prefetch?: boolean
+  secondary?: boolean
+}>) {
+  const className = `inline-flex min-h-11 sm:min-h-0 sm:h-[2.125rem] items-center justify-center rounded-control px-3.5 text-center text-sm font-medium transition-colors ${secondary ? 'control-secondary' : 'control-primary bg-primary text-primary-foreground'}`
+  // External destinations get a real anchor with safe rel; internal ones route client-side.
+  return /^https?:\/\//.test(href)
+    ? <a className={className} href={href} rel="noopener noreferrer" target="_blank">{children}</a>
+    : <Link className={className} href={href as Route} prefetch={prefetch}>{children}</Link>
 }
 
 export function FeatureGrid({
@@ -37,93 +62,80 @@ export function FeatureGrid({
   heading?: string
   intro?: string
 }>) {
-  return <section aria-labelledby={`feature-${heading.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} className="mt-16 sm:mt-20">
+  return <section aria-labelledby={`feature-${heading.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} className="section">
     <div className="max-w-2xl">
-      <h2 id={`feature-${heading.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} className="text-3xl font-semibold tracking-tight sm:text-4xl">{heading}</h2>
-      {intro && <p className="mt-4 text-lg leading-8 text-muted-foreground">{intro}</p>}
+      <h2 id={`feature-${heading.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} className="font-display text-display-lg">{heading}</h2>
+      {intro && <p className="mt-5 text-lede text-muted-foreground">{intro}</p>}
     </div>
-    <div className="mt-8 grid overflow-hidden rounded-xl border bg-border sm:grid-cols-2 lg:grid-cols-3">
+    <div className="mt-8 grid overflow-hidden rounded-panel border bg-border sm:grid-cols-2 lg:grid-cols-3">
       {items.map((item) => <article className="border-b bg-card p-6 last:border-b-0 sm:border-r lg:min-h-56" key={item.title}>
-        <h3 className="text-xl font-semibold">{item.title}</h3>
-        <p className="mt-3 leading-7 text-muted-foreground">{item.body}</p>
+        <h3 className="font-display text-display-md">{item.title}</h3>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">{item.body}</p>
       </article>)}
     </div>
   </section>
 }
 
-export function JourneyChoices() {
-  return <section aria-labelledby="choose-journey" className="mt-16 sm:mt-20">
+export function JourneyChoices({ embedded = false }: Readonly<{ embedded?: boolean }>) {
+  return <section aria-labelledby="choose-journey" className={embedded ? undefined : 'section'}>
     <Eyebrow>Choose by outcome</Eyebrow>
-    <h2 id="choose-journey" className="max-w-3xl text-3xl font-semibold tracking-tight sm:text-5xl">What are you here to publish?</h2>
+    <h2 id="choose-journey" className="max-w-3xl font-display text-display-lg">What are you here to publish?</h2>
     <p className="mt-4 max-w-2xl text-lg leading-8 text-muted-foreground">Both paths use the same ownership model. Pick the working surface that best matches what you need today.</p>
     <div className="mt-8 grid gap-4 md:grid-cols-2">
-      <a className="group rounded-2xl border bg-card p-7 hover:border-foreground" href="/website">
+      <Link className="group rounded-surface border bg-card p-7 hover:border-foreground" href="/website">
         <span className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">A home for your work</span>
-        <h3 className="mt-4 text-3xl font-semibold">Website</h3>
+        <h3 className="mt-4 font-display text-display-md">Website</h3>
         <p className="mt-3 max-w-xl leading-7 text-muted-foreground">For services, portfolios, campaigns, organisations and content-rich sites.</p>
         <span className="mt-6 inline-block font-semibold underline decoration-brand-mint decoration-4 underline-offset-4">Explore the Website journey</span>
-      </a>
-      <a className="group rounded-2xl border bg-card p-7 hover:border-foreground" href="/publication">
+      </Link>
+      <Link className="group rounded-surface border bg-card p-7 hover:border-foreground" href="/publication">
         <span className="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground">A rhythm for recurring ideas</span>
-        <h3 className="mt-4 text-3xl font-semibold">Publication</h3>
+        <h3 className="mt-4 font-display text-display-md">Publication</h3>
         <p className="mt-3 max-w-xl leading-7 text-muted-foreground">For blogs, magazines, newsletters, newsrooms and editorial teams.</p>
         <span className="mt-6 inline-block font-semibold underline decoration-brand-lilac decoration-4 underline-offset-4">Explore the Publication journey</span>
-      </a>
+      </Link>
     </div>
   </section>
 }
 
-export function ProductMedia({ mode, caption }: Readonly<{ mode: 'canvas' | 'editorial'; caption: string }>) {
-  const isCanvas = mode === 'canvas'
-  return <figure className="mt-10 overflow-hidden rounded-2xl border bg-brand-black text-brand-near-white shadow-sm sm:mt-14">
-    <svg aria-labelledby={`media-${mode}-title media-${mode}-description`} className="block h-auto w-full" role="img" viewBox="0 0 1200 620">
-      <title id={`media-${mode}-title`}>{isCanvas ? 'Responsive website canvas' : 'Publication editorial workspace'}</title>
-      <desc id={`media-${mode}-description`}>{caption}</desc>
-      <rect fill="#101212" height="620" width="1200" />
-      <rect fill="#1d2222" height="62" rx="14" width="1080" x="60" y="48" />
-      <circle cx="96" cy="79" fill="#8ef2c6" r="10" />
-      <circle cx="128" cy="79" fill="#c8b7ff" r="10" />
-      <circle cx="160" cy="79" fill="#ffb59d" r="10" />
-      <rect fill="#f5f5ef" height="440" rx="16" width={isCanvas ? 720 : 760} x="60" y="132" />
-      <rect fill="#8ef2c6" height="130" rx="10" width={isCanvas ? 620 : 280} x="110" y="180" />
-      <rect fill="#101212" height="22" rx="6" width={isCanvas ? 360 : 450} x="110" y="346" />
-      <rect fill="#777d7b" height="14" rx="5" width={isCanvas ? 510 : 580} x="110" y="392" />
-      <rect fill="#777d7b" height="14" rx="5" width={isCanvas ? 440 : 520} x="110" y="424" />
-      <rect fill="#c8b7ff" height="54" rx="9" width="170" x="110" y="470" />
-      <rect fill="#232928" height="440" rx="16" width={isCanvas ? 330 : 290} x={isCanvas ? 810 : 850} y="132" />
-      {[0, 1, 2, 3].map((row) => <g key={row}>
-        <rect fill={row === 0 ? '#8ef2c6' : '#454d4b'} height="12" rx="4" width={isCanvas ? 230 : 190} x={isCanvas ? 860 : 900} y={190 + row * 76} />
-        <rect fill="#303735" height="10" rx="4" width={isCanvas ? 190 : 150} x={isCanvas ? 860 : 900} y={216 + row * 76} />
-      </g>)}
-    </svg>
-    <figcaption className="border-t border-white/15 px-5 py-4 text-sm text-brand-near-white/80">{caption} Illustrative interface; no customer content or live availability is implied.</figcaption>
-  </figure>
-}
-
-export function ClaimList({ ids, heading = 'Reviewed product facts' }: Readonly<{ ids: readonly ApprovedClaimId[]; heading?: string }>) {
-  return <section aria-labelledby={`claim-${heading.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} className="mt-16 rounded-2xl bg-secondary p-6 sm:p-10">
-    <h2 id={`claim-${heading.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} className="text-2xl font-semibold">{heading}</h2>
-    <ul className="mt-6 grid gap-4 md:grid-cols-2">
+/**
+ * Approved claims, rendered as receipts rather than as prose cards.
+ *
+ * Every claim in the inventory carries a named reviewing owner. Showing that owner as a signed-off
+ * record is the honest form of the section: the point is not that we assert these things, it is that
+ * each one has someone accountable for it. Nothing here is a rating, score or invented metric.
+ */
+export function ClaimList({ columns = 1, ids, heading = 'Reviewed product facts' }: Readonly<{ columns?: 1 | 2; ids: readonly ApprovedClaimId[]; heading?: string }>) {
+  const anchor = `claim-${heading.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+  return <section aria-labelledby={anchor}>
+    <p className="eyebrow">Accountability</p>
+    <h2 className="font-display text-display-md" id={anchor}>{heading}</h2>
+    <ul className={`mt-6 grid gap-px overflow-hidden rounded-panel border border-border bg-border ${columns === 2 ? 'md:grid-cols-2' : ''}`}>
       {ids.map((id) => {
         const claim = approvedClaim(id)
-        return <li className="rounded-xl border bg-card p-5" data-claim-id={claim.id} key={claim.id}>
-          <p className="leading-7">{claim.statement}</p>
-          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reviewed by {claim.owner}</p>
+        return <li className="bg-card p-5" data-claim-id={claim.id} key={claim.id}>
+          <p className="text-[0.9375rem] leading-7">{claim.statement}</p>
+          <div className="mt-4 flex items-center gap-2.5 border-t border-border/70 pt-3.5">
+            <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-live" />
+            <span className="font-mono text-[0.7rem] uppercase tracking-[0.1em] text-muted-foreground">
+              Reviewed by {claim.owner}
+            </span>
+          </div>
         </li>
       })}
     </ul>
   </section>
 }
 
-export function AuthorityUnavailable({ subject, detail = 'Authoritative information is temporarily unavailable. We will not guess or show stale data.' }: Readonly<{ subject: string; detail?: string }>) {
-  return <section aria-live="polite" role="status" className="mt-10 rounded-xl border border-dashed p-8">
+export function AuthorityUnavailable({ subject, detail = 'Current information is temporarily unavailable. We will not guess or show outdated data.' }: Readonly<{ subject: string; detail?: string }>) {
+  return <section aria-live="polite" role="status" className="mt-10 rounded-panel border border-dashed p-8">
     <h2 className="text-xl font-semibold">{subject} unavailable</h2>
     <p className="mt-2 max-w-2xl text-muted-foreground">{detail}</p>
   </section>
 }
 
 export function FilterBar({ children }: Readonly<{ children: ReactNode }>) {
-  return <form className="mt-8 flex flex-wrap gap-3 rounded-xl border bg-card p-4" method="get">{children}<button className="min-h-11 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" type="submit">Apply filters</button></form>
+  return <form className="mt-8 flex flex-wrap gap-3 rounded-panel border bg-card p-4" method="get">{children}<button className="min-h-11 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" type="submit">Apply filters</button></form>
 }
 
 export function Tag({ children }: Readonly<{ children: ReactNode }>) {

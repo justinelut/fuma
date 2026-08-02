@@ -54,8 +54,7 @@ interface MessageRow {
   conversation_id: string
   position: number
   role: string
-  // Both dialect adapters auto-hydrate `_json` columns to JS values. The row
-  // arrives already parsed even when a backing column stores JSON as text.
+  // PostgreSQL hydrates the JSON column to a JavaScript value before mapping.
   content_json: unknown
   tool_call_id: string | null
   tool_name: string | null
@@ -477,9 +476,8 @@ export async function appendMessage(
  * Hard-delete soft-deleted conversations older than `cutoffIsoString`.
  * Cascading FK takes the messages with them.
  *
- * Returns the number of CONVERSATIONS purged (counted before delete) — not
- * the raw `rowCount`, which on SQLite includes cascaded message deletions
- * and would mislead the caller.
+ * Returns the number of conversations purged, counted before the PostgreSQL
+ * delete so cascade behavior cannot affect the reported total.
  */
 export async function purgeSoftDeletedOlderThan(
   db: DbClient,

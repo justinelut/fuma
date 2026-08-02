@@ -426,9 +426,8 @@ export async function touchCredentialLastUsed(
 // ---------------------------------------------------------------------------
 
 function isUniqueViolation(err: unknown): boolean {
-  // PG sqlstate 23505 + SQLite "UNIQUE constraint failed". Match on message
-  // text to stay dialect-agnostic — repositories shouldn't import driver
-  // error classes.
+  // PostgreSQL reports SQLSTATE 23505. The message fallback avoids coupling
+  // the repository to a driver-specific error class.
   if (!(err instanceof Error)) return false
   const msg = err.message.toLowerCase()
   return msg.includes('unique') || msg.includes('23505') || msg.includes('duplicate')

@@ -32,7 +32,7 @@ The future workspace adds an application, not another shared package:
 
 ```text
 apps/studio        Bun platform, React/Vite editor, self-host product, authorities
-apps/web           Next public acquisition and trust site for fuma.co.ke
+apps/web           Next public acquisition and trust site for trimly.co.ke
 apps/site-runtime  Next multi-tenant hosted website renderer
 ```
 

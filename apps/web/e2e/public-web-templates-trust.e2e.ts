@@ -1,19 +1,32 @@
 import { expect, test } from '@playwright/test'
 
 const PUBLIC = 'https://3002.blyss.co.ke'
-const ROUTES = ['/templates', '/contact', '/trust', '/security', '/status', '/legal/privacy', '/legal/history'] as const
+const HTML_ROUTES = ['/templates', '/contact', '/trust', '/security', '/status', '/legal', '/legal/privacy', '/legal/history'] as const
+const SECURITY_TEXT_ROUTE = '/.well-known/security.txt'
 
-test('template and trust surfaces render accessibly through the Blyss HTTPS host', async ({ page }) => {
+test('template and trust surfaces render responsively through the Blyss HTTPS host', async ({ page }) => {
   const runtimeErrors: string[] = []
   page.on('pageerror', (error) => runtimeErrors.push(error.message))
-  await page.setViewportSize({ width: 320, height: 720 })
-  for (const route of ROUTES) {
-    const response = await page.goto(`${PUBLIC}${route}`)
-    expect(response?.status(), route).toBe(200)
-    await expect(page.getByRole('main')).toBeVisible()
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 2), route).toBe(true)
+  for (const viewport of [{ width: 320, height: 720 }, { width: 1280, height: 900 }]) {
+    await page.setViewportSize(viewport)
+    for (const route of HTML_ROUTES) {
+      const response = await page.goto(`${PUBLIC}${route}`)
+      expect(response?.status(), `${route} at ${viewport.width}px`).toBe(200)
+      await expect(page.getByRole('main')).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 2), `${route} at ${viewport.width}px`).toBe(true)
+    }
   }
+
+  await page.setViewportSize({ width: 320, height: 720 })
+  await page.goto(`${PUBLIC}/contact`)
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%' })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 2), '/contact at 320px and 200% text').toBe(true)
+
+  const securityText = await page.request.get(`${PUBLIC}${SECURITY_TEXT_ROUTE}`)
+  expect(securityText.status()).toBe(200)
+  expect(securityText.headers()['content-type']).toBe('text/plain; charset=utf-8')
+  expect(await securityText.text()).toContain('Canonical: https://trimly.co.ke/.well-known/security.txt')
   expect(runtimeErrors).toEqual([])
 })
 

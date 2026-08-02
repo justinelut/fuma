@@ -310,12 +310,18 @@ if (typeof (globalThis as { EventSource?: unknown }).EventSource === 'undefined'
 // installed — a static top-level import would be hoisted and pull in React
 // before `document` exists.
 {
-  const { afterEach } = await import('bun:test')
+  const { afterAll, afterEach } = await import('bun:test')
   const { cleanup } = await import('@testing-library/react')
   const { __resetToastBusForTests } = await import('@ui/components/Toast/toastBus')
+  const { cleanupTestDatabases } = await import('../../server/db/testDatabase')
   afterEach(() => {
     cleanup()
     __resetToastBusForTests()
     document.getElementById('toast-root')?.remove()
   })
+  // Database fixtures may be allocated in beforeAll and shared by a suite, so
+  // close pools and drop any unclaimed schemas only after the file completes.
+  afterAll(async () => {
+    await cleanupTestDatabases()
+  }, 30_000)
 }

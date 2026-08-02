@@ -139,10 +139,8 @@ export async function countMigrationBacklog(
   `
   const originals = Number(originalRows[0]?.n ?? 0)
 
-  // Variants — pull every variants_json that has at least one non-target
-  // entry. `variants_json` is a JSON column with no per-engine query
-  // operators we can portably rely on (jsonb in PG, text in SQLite), so
-  // we filter JS-side after a coarse `is not null` predicate.
+  // Variants — pull every non-null `variants_json` value, then inspect the
+  // hydrated jsonb in JavaScript so the storage-role comparison stays explicit.
   const { rows: variantRows } = await db<{ variants_json: unknown }>`
     select variants_json
     from media_assets

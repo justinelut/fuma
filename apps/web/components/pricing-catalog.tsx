@@ -1,5 +1,7 @@
+import type { Route } from 'next'
 import type { PublicPricingCatalogEnvelope, PublicPricingDisplayPlan } from '@fuma/public-contracts'
 import { AuthorityUnavailable, CTA, Tag } from '@/components/public-sections'
+import Link from 'next/link'
 import {
   activePromotion,
   formatKes,
@@ -80,7 +82,7 @@ function Comparison({ plans, cadence }: Readonly<{ plans: readonly PublicPricing
   const quotaKeys = [...new Set(plans.flatMap((plan) => plan.quotas.map(({ key }) => key)))]
   return <section aria-labelledby="pricing-comparison" className="mt-16 sm:mt-20">
     <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl" id="pricing-comparison">Compare published allowances</h2>
-    <p className="mt-3 max-w-2xl leading-7 text-muted-foreground">A horizontal view of the same authority-backed details. Scroll the table on a narrow screen.</p>
+    <p className="mt-3 max-w-2xl leading-7 text-muted-foreground">Compare plan details side by side. Scroll the table on a narrow screen.</p>
     <div className="mt-7 overflow-x-auto rounded-xl border" tabIndex={0}>
       <table className="w-full min-w-[42rem] border-collapse text-left text-sm">
         <caption className="sr-only">Published plan comparison for {cadence} billing</caption>
@@ -113,35 +115,34 @@ export function PricingCatalog({ envelope, cadence, profile, now = new Date() }:
   const version = envelope?.data.effectiveVersion
   return <>
     <nav aria-label="Pricing cadence" className="mt-10 flex flex-wrap gap-2">
-      {(['monthly', 'annual'] as const).map((value) => <a
+      {(['monthly', 'annual'] as const).map((value) => <Link
         aria-current={value === cadence ? 'page' : undefined}
         className={`inline-flex min-h-11 items-center rounded-full border px-5 py-2 text-sm font-semibold ${value === cadence ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-secondary'}`}
-        href={cadenceHref(value, profile)}
+        href={cadenceHref(value, profile) as Route}
         key={value}
-      >{words(value)} billing</a>)}
+      >{words(value)} billing</Link>)}
     </nav>
     <nav aria-label="Pricing profile" className="mt-4 flex max-w-full gap-2 overflow-x-auto pb-1">
       {([
         [undefined, 'All plans'],
         ['website', 'Website'],
         ['publication', 'Publication'],
-      ] as const).map(([value, label]) => <a
+      ] as const).map(([value, label]) => <Link
         aria-current={value === profile || (value === undefined && profile === undefined) ? 'page' : undefined}
         className="inline-flex min-h-11 shrink-0 items-center rounded-full border bg-card px-4 py-2 text-sm font-medium hover:bg-secondary"
-        href={profileHref(cadence, value)}
+        href={profileHref(cadence, value) as Route}
         key={label}
-      >{label}</a>)}
+      >{label}</Link>)}
     </nav>
     {plans.length === 0 || !version
-      ? <AuthorityUnavailable subject="Pricing" detail="Current publish-approved pricing is unavailable. Amounts and purchase actions stay hidden until the pricing authority publishes a complete, current and commercially approved catalog." />
+      ? <AuthorityUnavailable subject="Pricing" detail="Current pricing is unavailable. Amounts and purchase actions will return when the plan list is ready." />
       : <>
-        <p className="mt-8 text-xs text-muted-foreground">Effective catalog version <span className="font-mono">{version}</span></p>
-        <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{plans.map((plan) => <PriceCard key={plan.id} now={now} plan={plan} version={version} />)}</div>
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{plans.map((plan) => <PriceCard key={plan.id} now={now} plan={plan} version={version} />)}</div>
         <Comparison cadence={cadence} plans={plans} />
       </>}
-    <aside aria-labelledby="pricing-resolution" className="mt-10 rounded-xl bg-secondary p-5 sm:p-6">
-      <h2 className="font-semibold" id="pricing-resolution">The application confirms your selection</h2>
-      <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Choosing a plan creates only an opaque, short-lived handoff. The Fuma application re-resolves the plan, effective price-book version, cadence, availability and eligibility before checkout. This public display is not a payment commitment.</p>
+    <aside aria-labelledby="pricing-review" className="mt-10 rounded-xl bg-secondary p-5 sm:p-6">
+      <h2 className="font-semibold" id="pricing-review">Review before checkout</h2>
+      <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Choosing a plan opens it in Fuma, where you can review the current price and eligibility before checkout. You won’t be charged by selecting a plan here.</p>
     </aside>
   </>
 }

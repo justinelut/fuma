@@ -132,11 +132,26 @@ describe('strict status boundary', () => {
       now: () => NOW,
       env: {
         FUMA_STATUS_SUMMARY_URL: 'https://status-authority.example.test/summary',
+        FUMA_STATUS_SUMMARY_TOKEN: 'status-authority-token-0000000000000001',
         FUMA_PUBLIC_STATUS_PAGE_URL: 'https://status.example.test/history',
       },
       fetchImpl: async (_input, options) => {
         init = options
-        return Response.json({ status: 'degraded', message: 'A validated test fixture.', checkedAt: '2026-07-27T11:59:00Z' })
+        return Response.json({
+          schemaVersion: 1,
+          scope: 'public-web',
+          status: 'degraded',
+          message: 'A validated test fixture.',
+          checkedAt: '2026-07-27T11:59:00Z',
+          incident: {
+            incidentId: 'incident-1',
+            state: 'monitoring',
+            summary: 'A bounded test incident.',
+            startedAt: '2026-07-27T11:30:00Z',
+            updatedAt: '2026-07-27T11:58:00Z',
+          },
+          onCall: { coverage: 'confirmed', checkedAt: '2026-07-27T11:59:00Z' },
+        })
       },
     })
     expect(value).toEqual({
@@ -144,6 +159,14 @@ describe('strict status boundary', () => {
       status: 'degraded',
       message: 'A validated test fixture.',
       checkedAt: '2026-07-27T11:59:00Z',
+      incident: {
+        incidentId: 'incident-1',
+        state: 'monitoring',
+        summary: 'A bounded test incident.',
+        startedAt: '2026-07-27T11:30:00Z',
+        updatedAt: '2026-07-27T11:58:00Z',
+      },
+      onCallCoverage: { coverage: 'confirmed', checkedAt: '2026-07-27T11:59:00Z' },
       statusPageUrl: 'https://status.example.test/history',
     })
     expect(init?.cache).toBe('no-store')
@@ -160,11 +183,14 @@ describe('strict status boundary', () => {
     for (const fetchImpl of scenarios) {
       const value = await readPublicStatus({
         now: () => NOW,
-        env: { FUMA_STATUS_SUMMARY_URL: 'https://status-authority.example.test/summary' },
+        env: {
+          FUMA_STATUS_SUMMARY_URL: 'https://status-authority.example.test/summary',
+          FUMA_STATUS_SUMMARY_TOKEN: 'status-authority-token-0000000000000001',
+        },
         fetchImpl,
       })
       expect(value.availability).toBe('unavailable')
-      expect(value.message).toContain('No operational, uptime, or incident claim')
+      expect(value.message).toContain('No operational, uptime, incident, monitoring, or on-call claim')
     }
     const unconfigured = await readPublicStatus({
       now: () => NOW,
@@ -172,7 +198,7 @@ describe('strict status boundary', () => {
     })
     expect(unconfigured).toEqual({
       availability: 'unavailable',
-      message: 'Current service status is unavailable. No operational, uptime, or incident claim is being made.',
+      message: 'Current service status is unavailable. No operational, uptime, incident, monitoring, or on-call claim is being made.',
       attemptedAt: '2026-07-27T12:00:00Z',
       statusPageUrl: null,
     })
@@ -207,8 +233,14 @@ describe('legal version linkage and accessible content', () => {
     ], new Date('2026-07-27T12:00:00Z'))).toThrow('overdue')
     const policies = (await readEditorial(false, new Date(NOW))).filter((entry) => entry.meta.collection === 'legal')
     expect(policies.map((entry) => entry.meta.slug).sort()).toEqual(['acceptable-use', 'cookies', 'privacy', 'terms'])
+    const expectedVersions: Readonly<Record<string, string>> = {
+      'acceptable-use': '2026-07-26',
+      cookies: '2026-08-02',
+      privacy: '2026-08-02',
+      terms: '2026-08-02',
+    }
     for (const entry of policies) {
-      expect(entry.meta.version).toBe('2026-07-26')
+      expect(entry.meta.version).toBe(expectedVersions[entry.meta.slug])
       expect(entry.meta.publishedAt).toBe('2026-07-26T00:00:00Z')
       expect(entry.meta.owner).toMatch(/review owner/)
       expect(Date.parse(entry.meta.reviewAt)).toBeGreaterThan(NOW)
@@ -217,11 +249,11 @@ describe('legal version linkage and accessible content', () => {
 
   test('keeps legal metadata canonical and noindexes malformed route input', async () => {
     const current = await legalMetadata({ params: Promise.resolve({ slug: 'privacy' }) })
-    expect(current.alternates?.canonical).toBe('https://fuma.co.ke/legal/privacy')
+    expect(current.alternates?.canonical).toBe('https://trimly.co.ke/legal/privacy')
     expect(current.robots).toEqual({ index: true, follow: true })
 
     const malformed = await legalMetadata({ params: Promise.resolve({ slug: 'privacy#attacker' }) })
-    expect(malformed.alternates?.canonical).toBe('https://fuma.co.ke/legal/unavailable')
+    expect(malformed.alternates?.canonical).toBe('https://trimly.co.ke/legal/unavailable')
     expect(malformed.robots).toEqual({ index: false, follow: false })
   })
 
@@ -235,7 +267,7 @@ describe('legal version linkage and accessible content', () => {
     const statusHtml = renderToStaticMarkup(createElement(StatusSummary, {
       value: {
         availability: 'unavailable',
-        message: 'Current service status is unavailable. No operational, uptime, or incident claim is being made.',
+        message: 'Current service status is unavailable. No operational, uptime, incident, monitoring, or on-call claim is being made.',
         attemptedAt: '2026-07-27T12:00:00Z',
         statusPageUrl: null,
       },
@@ -243,6 +275,29 @@ describe('legal version linkage and accessible content', () => {
     expect(statusHtml).toContain('role="status"')
     expect(statusHtml).toContain('Status not available')
     expect(statusHtml).not.toContain('href="http')
+
+    const degradedHtml = renderToStaticMarkup(createElement(StatusSummary, {
+      value: {
+        availability: 'current',
+        status: 'degraded',
+        message: 'A bounded authority-reported degradation.',
+        checkedAt: '2026-07-27T11:59:00Z',
+        incident: {
+          incidentId: 'incident-1',
+          state: 'monitoring',
+          summary: 'A bounded test incident.',
+          startedAt: '2026-07-27T11:30:00Z',
+          updatedAt: '2026-07-27T11:58:00Z',
+        },
+        onCallCoverage: { coverage: 'confirmed', checkedAt: '2026-07-27T11:59:00Z' },
+        statusPageUrl: 'https://status.example.test/history',
+      },
+    }))
+    expect(degradedHtml).toContain('Current incident')
+    expect(degradedHtml).toContain('A bounded test incident.')
+    expect(degradedHtml).toContain('On-call coverage:')
+    expect(degradedHtml).toContain('confirmed')
+    expect(degradedHtml).toContain('rel="noopener noreferrer"')
 
     const privacy = (await readEditorial(false, new Date(NOW))).find((entry) => entry.meta.slug === 'privacy')!
     const policyHtml = renderToStaticMarkup(createElement(LegalPolicyPage, { entry: privacy }))

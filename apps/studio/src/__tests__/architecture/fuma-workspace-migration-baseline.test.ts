@@ -40,7 +40,7 @@ describe('FUMA-WEB-001/002 migration relocation baseline', () => {
     }
   })
 
-  test('preserves exact historical Postgres/SQLite source hashes', () => {
+  test('preserves the exact historical PostgreSQL source hash', () => {
     expect(WORKSPACE_MIGRATION_BASELINE.historicalMigrations.map(({ currentPath, sha256: digest }) => [currentPath, digest])).toEqual(
       Object.entries(HISTORICAL_MIGRATION_SOURCE_HASHES),
     )
@@ -53,7 +53,9 @@ describe('FUMA-WEB-001/002 migration relocation baseline', () => {
 
   test('preserves canonical hosted history through 000009', () => {
     expect(() => assertHostedMigrationManifest(hostedMigrations, HOSTED_MIGRATION_CHECKSUMS)).not.toThrow()
-    expect(runnableHostedMigrations).toEqual(hostedMigrations)
+    expect(runnableHostedMigrations).toEqual(hostedMigrations.slice(0, 77))
+    expect(runnableHostedMigrations).toHaveLength(77)
+    expect(runnableHostedMigrations.at(-1)?.id).toBe('000077_public_handoff_authority')
     const relocationBaseline = WORKSPACE_MIGRATION_BASELINE.hostedMigrations.filter(
       ({ id }) => id <= WORKSPACE_MIGRATION_BASELINE.hostedHighWaterMark,
     )

@@ -1,3 +1,4 @@
+import { FUMA_GOVERNANCE_DEPLOYMENT } from './deployment'
 import { Type, type Static, type TSchema } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 
@@ -160,7 +161,7 @@ export const ConsoleQuerySchema = Type.Object({
 }, { additionalProperties: false })
 export const ConsoleContributionSchema = Type.Object({
   contributionId: Id,
-  ownerTicket: Type.String({ pattern: '^FUMA-(068|072|073|074)$' }),
+  ownerTicket: Type.String({ pattern: '^FUMA-(068|072|073|074|087)$' }),
   routes: Type.Array(Type.String({ pattern: '^/internal/[a-z0-9/-]+$' }), { minItems: 1, uniqueItems: true }),
   requiredAuthorities: Type.Array(Type.String({ pattern: '^internal\\.[a-z0-9.:-]+$' }), { minItems: 1, uniqueItems: true }),
   mounted: Type.Optional(Type.Literal(false)),
@@ -330,7 +331,7 @@ export const PublicWebDeploymentSeamSchema = Type.Object({
   runtimeProjectionVersion: PositiveUnits,
   webContractVersion: PositiveUnits,
   privateRuntimeAudience: Type.Literal('fuma-public-web'),
-  canonicalHost: Type.Literal('fuma.co.ke'),
+  canonicalHost: Type.Literal(FUMA_GOVERNANCE_DEPLOYMENT.hosts.public),
   canaryPercent: Type.Integer({ minimum: 0, maximum: 100 }),
   publicRollbackIndependent: Type.Literal(true),
   productTenantContinuityRequired: Type.Literal(true),

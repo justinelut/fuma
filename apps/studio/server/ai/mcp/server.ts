@@ -157,7 +157,7 @@ export function buildMcpServer(ctx: McpServerContext): Server {
         scope: tool.scope === 'shared' ? 'content' : tool.scope,
         conversationId: `mcp:${ctx.connectorId}`,
         snapshot: null,
-      })
+      }, operationId)
     } catch (err) {
       await ctx.authority?.abortTool({
         operationId,

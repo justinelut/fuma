@@ -95,7 +95,7 @@ function route(root: RuntimeNode, components: readonly ComponentRegistryEntry[],
 }
 
 function render(value: RuntimeRouteArtifact): string {
-  return renderToStaticMarkup(<RuntimeTree route={value} host="alpha.fuma.co.ke" ownerKey="owner-alpha" siteId="site-alpha" />)
+  return renderToStaticMarkup(<RuntimeTree route={value} host="alpha.trimly.co.ke" ownerKey="owner-alpha" siteId="site-alpha" />)
 }
 
 describe('FUMA-SITE-004 exact React component registry', () => {

@@ -13,6 +13,8 @@ source_sha=$3
 lock_hash_sha256=$4
 migration_high_water=$5
 output=$6
+: "${FUMA_DEPLOYMENT_ROOT_DOMAIN:?FUMA_DEPLOYMENT_ROOT_DOMAIN is required}"
+printf '%s' "$FUMA_DEPLOYMENT_ROOT_DOMAIN" | grep -Eq '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$' || { echo "invalid deployment root domain" >&2; exit 64; }
 printf '%s' "$source_sha" | grep -Eq '^[a-f0-9]{40}([a-f0-9]{24})?$' || { echo "source SHA must be 40 or 64 lowercase hex characters" >&2; exit 64; }
 printf '%s' "$lock_hash_sha256" | grep -Eq '^[a-f0-9]{64}$' && ! printf '%s' "$lock_hash_sha256" | grep -Eq '^0{64}$' || { echo "lock hash must be a non-placeholder SHA-256" >&2; exit 64; }
 printf '%s' "$migration_high_water" | grep -Eq '^000[0-9]{3}_[a-z0-9_]+$' || { echo "invalid migration high-water mark" >&2; exit 64; }
@@ -37,11 +39,11 @@ name="fuma-078-public-web-$$"
 container_id=''
 cleanup() { [ -z "$container_id" ] || docker rm -f "$container_id" >/dev/null 2>&1 || true; }
 trap cleanup EXIT INT TERM
-container_id=$(docker run --detach --name "$name" --platform "$platform" "$image")
+container_id=$(docker run --detach --name "$name" --platform "$platform" -e FUMA_DEPLOYMENT_ROOT_DOMAIN="$FUMA_DEPLOYMENT_ROOT_DOMAIN" "$image")
 response=''
 attempt=0
 while [ "$attempt" -lt 60 ]; do
-  response=$(docker exec "$container_id" node -e "const h=require('node:http'),c=require('node:crypto');const q=h.get({hostname:'127.0.0.1',port:3002,path:'/',headers:{host:'fuma.co.ke'}},r=>{const b=[];r.on('data',v=>b.push(v));r.on('end',()=>{const x=Buffer.concat(b);console.log(JSON.stringify({status:r.statusCode,bytes:x.length,bodySha256:c.createHash('sha256').update(x).digest('hex')}));if(r.statusCode!==200)process.exit(1)})});q.on('error',()=>process.exit(1))" 2>/dev/null || true)
+  response=$(docker exec "$container_id" node -e "const h=require('node:http'),c=require('node:crypto');const q=h.get({hostname:'127.0.0.1',port:3002,path:'/',headers:{host:process.env.FUMA_DEPLOYMENT_ROOT_DOMAIN}},r=>{const b=[];r.on('data',v=>b.push(v));r.on('end',()=>{const x=Buffer.concat(b);console.log(JSON.stringify({status:r.statusCode,bytes:x.length,bodySha256:c.createHash('sha256').update(x).digest('hex')}));if(r.statusCode!==200)process.exit(1)})});q.on('error',()=>process.exit(1))" 2>/dev/null || true)
   if printf '%s' "$response" | jq -e '.status == 200 and .bytes > 0' >/dev/null 2>&1; then break; fi
   attempt=$((attempt + 1))
   sleep 1

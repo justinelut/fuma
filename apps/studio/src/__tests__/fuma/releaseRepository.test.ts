@@ -32,7 +32,7 @@ class RecordingReleaseDb {
   rollbacks = 0
   readonly client: DbClient
 
-  constructor(dialect: 'postgres' | 'sqlite' = 'postgres') {
+  constructor() {
     const query = (async <Row = Record<string, unknown>>(
       strings: TemplateStringsArray,
       ...values: unknown[]
@@ -58,7 +58,7 @@ class RecordingReleaseDb {
         throw error
       }
     }
-    this.client = Object.assign(query, { dialect })
+    this.client = Object.assign(query, { dialect: 'postgres' as const })
   }
 }
 
@@ -86,9 +86,7 @@ function queued(version = 1) {
 }
 
 describe('FUMA-048 PostgreSQL release repository', () => {
-  it('requires PostgreSQL and denies stale current owner authority before work', async () => {
-    expect(() => new PostgresReleaseRepository(new RecordingReleaseDb('sqlite').client))
-      .toThrow('Fuma releases require PostgreSQL authority.')
+  it('denies stale current owner authority before work', async () => {
     const capture = new RecordingReleaseDb()
     capture.authorize = false
     const repository = new PostgresReleaseRepository(capture.client)
@@ -184,7 +182,7 @@ describe('FUMA-048 PostgreSQL release repository', () => {
   })
 
   it('composes the production service with the durable PostgreSQL repository only', () => {
-    const postgres = new RecordingReleaseDb('postgres')
+    const postgres = new RecordingReleaseDb()
     const composition = createPostgresReleaseComposition({
       db: postgres.client,
       objectStorage: {} as TenantObjectStorage,
@@ -192,9 +190,5 @@ describe('FUMA-048 PostgreSQL release repository', () => {
     })
     expect(Object.isFrozen(composition)).toBe(true)
     expect(composition.repository).toBeInstanceOf(PostgresReleaseRepository)
-    expect(() => createPostgresReleaseComposition({
-      db: new RecordingReleaseDb('sqlite').client,
-      objectStorage: {} as TenantObjectStorage,
-    })).toThrow('Fuma releases require PostgreSQL authority.')
   })
 })

@@ -7,7 +7,7 @@ import {
 } from './selfHostSmoke'
 
 describe('FUMA-WEB-003 self-host smoke plan', () => {
-  it('builds an isolated SQLite and PostgreSQL lifecycle without invoking Docker', () => {
+  it('builds one isolated PostgreSQL lifecycle without invoking Docker', () => {
     const options = parseSelfHostSmokeArgs([
       '--dry-run',
       '--run-id', 'focused-test',
@@ -20,30 +20,41 @@ describe('FUMA-WEB-003 self-host smoke plan', () => {
     expect(Value.Check(SelfHostSmokePlanSchema, plan)).toBe(true)
     expect(plan.projectPrefix).toBe('instatic-fuma-web-003-focused-test')
     expect(plan.resources).toEqual([
-      'instatic-fuma-web-003-focused-test-sqlite',
-      'instatic-fuma-web-003-focused-test-sqlite_uploads',
-      'instatic-fuma-web-003-focused-test-sqlite_data',
       'instatic-fuma-web-003-focused-test-postgres',
       'instatic-fuma-web-003-focused-test-postgres_uploads',
       'instatic-fuma-web-003-focused-test-postgres_postgres_data',
     ])
 
-    const sqliteStart = plan.steps.find((step) => step.id === 'sqlite-start')
+    expect(plan.steps.map((step) => step.id)).toEqual([
+      'release-bundle-list',
+      'initial-image-inspect',
+      'replacement-image-inspect',
+      'postgres-preflight-containers',
+      'postgres-preflight-volumes',
+      'postgres-preflight-networks',
+      'postgres-start',
+      'postgres-restart',
+      'postgres-replace',
+      'postgres-cleanup',
+    ])
+
     const postgresStart = plan.steps.find((step) => step.id === 'postgres-start')
     const preflights = plan.steps.filter((step) => step.id.includes('-preflight-'))
     const replacements = plan.steps.filter((step) => step.id.endsWith('-replace'))
     const cleanups = plan.steps.filter((step) => step.id.endsWith('-cleanup'))
 
-    expect(preflights).toHaveLength(6)
-    expect(preflights.every((step) => step.command.includes('label=com.docker.compose.project=instatic-fuma-web-003-focused-test-sqlite') || step.command.includes('label=com.docker.compose.project=instatic-fuma-web-003-focused-test-postgres'))).toBe(true)
-
-    expect(sqliteStart?.command.some((value) => value.endsWith('/compose.sqlite.yml'))).toBe(true)
-    expect(postgresStart?.command.some((value) => value.endsWith('/compose.sqlite.yml'))).toBe(false)
-    expect(replacements).toHaveLength(2)
-    expect(replacements.every((step) => step.command.includes('--force-recreate'))).toBe(true)
-    expect(replacements.every((step) => step.environment?.INSTATIC_IMAGE === 'instatic:after')).toBe(true)
-    expect(cleanups).toHaveLength(2)
-    expect(cleanups.every((step) => step.command.includes('--volumes'))).toBe(true)
+    expect(preflights).toHaveLength(3)
+    expect(preflights.every((step) => step.command.includes('label=com.docker.compose.project=instatic-fuma-web-003-focused-test-postgres'))).toBe(true)
+    expect(postgresStart?.command.some((value) => value.endsWith('/compose.prod.yml'))).toBe(true)
+    expect(postgresStart?.command).toContain('<temporary-smoke-override.yml>')
+    expect(JSON.stringify(plan)).not.toContain('compose.sqlite.yml')
+    expect(JSON.stringify(plan)).not.toContain('sqlite')
+    expect(plan.steps.every((step) => !('dialect' in step))).toBe(true)
+    expect(replacements).toHaveLength(1)
+    expect(replacements[0]?.command).toContain('--force-recreate')
+    expect(replacements[0]?.environment?.INSTATIC_IMAGE).toBe('instatic:after')
+    expect(cleanups).toHaveLength(1)
+    expect(cleanups[0]?.command).toContain('--volumes')
     expect(plan.steps.some((step) => step.command.includes('docker system prune'))).toBe(false)
   })
 

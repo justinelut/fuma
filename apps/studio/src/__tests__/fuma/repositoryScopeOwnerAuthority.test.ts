@@ -76,12 +76,6 @@ function recordingDb(rows: OwnerKeyRowFixture[] = []): Readonly<{
   return { db, calls }
 }
 
-function sqliteDb(): DbClient {
-  const { db } = recordingDb()
-  Object.defineProperty(db, 'dialect', { value: 'sqlite' })
-  return db
-}
-
 function normalized(sql: string): string {
   return sql.replaceAll(/\s+/g, ' ').trim().toLowerCase()
 }
@@ -135,9 +129,7 @@ function trustedContext() {
 }
 
 describe('PostgresFumaRepositoryScopeOwnerKeyAuthority', () => {
-  it('requires PostgreSQL and exposes only owner-key loading', () => {
-    expect(() => new PostgresFumaRepositoryScopeOwnerKeyAuthority(sqliteDb()))
-      .toThrow('Fuma repository scope owner keys require PostgreSQL authority.')
+  it('exposes only owner-key loading', () => {
     expect(Object.getOwnPropertyNames(
       PostgresFumaRepositoryScopeOwnerKeyAuthority.prototype,
     )).toEqual(['constructor', 'loadOwnerKey'])

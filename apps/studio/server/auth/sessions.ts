@@ -6,9 +6,9 @@ const SESSION_IDLE_TIMEOUT_MS = 1000 * 60 * 60 * 24 * 30
 
 /**
  * Debounce window for the per-request `last_seen_at` touch. Every authenticated
- * request used to fire an unconditional `update sessions set last_seen_at` —
- * a WAL-serialized write on SQLite, a hot-row lock on Postgres. The session
- * idle timeout is 30 days, so letting `last_seen_at` drift up to 30s stale is
+ * request used to fire an unconditional `update sessions set last_seen_at`,
+ * repeatedly taking a PostgreSQL row lock. The session idle timeout is 30 days,
+ * so letting `last_seen_at` drift up to 30s stale is
  * functionally irrelevant; the in-memory tracker below collapses the write to
  * at most one per session per window.
  */

@@ -15,7 +15,7 @@ const blyssProxyHeaders = {
 
 describe('public Web exact host dispatch', () => {
   test('allows only canonical and required acceptance public hosts', () => {
-    expect(proxy(request('https://fuma.co.ke/', 'fuma.co.ke')).status).toBe(200)
+    expect(proxy(request('https://trimly.co.ke/', 'trimly.co.ke')).status).toBe(200)
     expect(proxy(request('https://3002.blyss.co.ke/', '3002.blyss.co.ke')).status).toBe(200)
     expect(proxy(request('https://attacker.test/', 'attacker.test')).status).toBe(404)
     expect(proxy(request('https://direct-origin.test/', 'direct-origin.test')).status).toBe(404)
@@ -34,9 +34,9 @@ describe('public Web exact host dispatch', () => {
   })
 
   test('redirects www to canonical while preserving path and query', () => {
-    const response = proxy(request('https://www.fuma.co.ke/docs/getting-started?ref=public', 'www.fuma.co.ke'))
+    const response = proxy(request('https://www.trimly.co.ke/docs/getting-started?ref=public', 'www.trimly.co.ke'))
     expect(response.status).toBe(308)
-    expect(response.headers.get('location')).toBe('https://fuma.co.ke/docs/getting-started?ref=public')
+    expect(response.headers.get('location')).toBe('https://trimly.co.ke/docs/getting-started?ref=public')
   })
 
   test('restricts internal host to probes and metrics', () => {

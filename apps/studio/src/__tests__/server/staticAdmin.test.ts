@@ -128,7 +128,7 @@ describe('self-hosted admin static serving', () => {
     try {
       const login = await serveAdminApp(
         staticDir,
-        new Request('https://app.fuma.co.ke/admin/login'),
+        new Request('https://app.trimly.co.ke/admin/login'),
         { hostedCookieName },
       )
       const loginHtml = (await login?.text()) ?? ''
@@ -138,7 +138,7 @@ describe('self-hosted admin static serving', () => {
       expect(loginHtml).not.toContain('window.__instaticBootPromises')
       expect(loginHtml).not.toContain('AuthenticatedAdmin-test.js')
 
-      const authenticatedRequest = new Request('https://app.fuma.co.ke/admin')
+      const authenticatedRequest = new Request('https://app.trimly.co.ke/admin')
       authenticatedRequest.headers.set('cookie', `${hostedCookieName}=test-session`)
       const authenticated = await serveAdminApp(
         staticDir,

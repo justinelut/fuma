@@ -12,9 +12,8 @@
  * `storageAdapterId` / `externallyHosted` and never derived a variant's
  * `storagePath` / `storageAdapterId`).
  *
- * Dialect rules apply: `MEDIA_ASSET_COLUMNS` is ANSI-only and spliced into
- * `db.unsafe` SELECT / RETURNING clauses; JSON columns end in `_json` and are
- * auto-(de)serialized by the SQLite adapter / Postgres jsonb.
+ * `MEDIA_ASSET_COLUMNS` is spliced into PostgreSQL SELECT / RETURNING clauses;
+ * `_json` columns are backed by jsonb and hydrate as JavaScript values.
  */
 
 import { isoDate, isoDateOrNull } from '@core/utils/isoDate'
@@ -74,7 +73,7 @@ export interface MediaAssetRow {
   variants_json: unknown
   poster_path: string | null
   storage_adapter_id: string
-  /** PG: boolean; SQLite: integer 0/1. Read via Boolean(row.externally_hosted). */
+  /** PostgreSQL boolean indicating whether the asset is externally hosted. */
   externally_hosted: boolean | number
 }
 

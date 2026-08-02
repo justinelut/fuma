@@ -73,8 +73,11 @@ import { artifactReviewMarketplaceMigration } from './000071_artifact_review_mar
 import { siteRuntimeApplicationMigration } from './000072_site_runtime_application'
 import { customerPaymentPluginMigration } from './000073_customer_payment_plugin'
 import { aiPaymentSetupMigration } from './000074_ai_payment_setup'
-
 import { componentCatalogAuthorityMigration } from './000075_component_catalog_authority'
+import { supportOperationsAuthorityMigration } from './000076_support_operations_authority'
+import { publicHandoffAuthorityMigration } from './000077_public_handoff_authority'
+import { nextSourcePortabilityAuthorityMigration } from './000078_next_source_portability_authority'
+
 export const hostedMigrations = Object.freeze([
   transitionBookkeepingMigration,
   durableJobsMigration,
@@ -151,6 +154,9 @@ export const hostedMigrations = Object.freeze([
   customerPaymentPluginMigration,
   aiPaymentSetupMigration,
   componentCatalogAuthorityMigration,
+  supportOperationsAuthorityMigration,
+  publicHandoffAuthorityMigration,
+  nextSourcePortabilityAuthorityMigration,
 ])
 
 export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
@@ -235,6 +241,9 @@ export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Obje
   '000073_customer_payment_plugin': '393a785bfed74ef9e6f3545d8fb65ec7a76c6351573874c9d09650b825d6f9a6',
   '000074_ai_payment_setup': '29cc495c97c6bb78f915a9ab5116c2ca997294d4f483c6af8f9433f07b483615',
   '000075_component_catalog_authority': '760f409e118eaffcd72323ffd2f70aaf008bbde3e732e3372afcaf8e64657f61',
+  '000076_support_operations_authority': 'bafa690ed6e28b161036b235d55c098534e61af929c31824f35a6541ae5ce60e',
+  '000077_public_handoff_authority': 'fb257b84c2e44b65212ef5227845c50524887248fb10732a6ec46a4b7dd53015',
+  '000078_next_source_portability_authority': HOSTED_MIGRATION_CHECKSUM_SENTINEL,
 })
 
 const firstUnappliedMigration = hostedMigrations.findIndex(({ id }) => (

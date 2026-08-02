@@ -3,51 +3,99 @@
 @import "shadcn/tailwind.css";
 @import "../styles/generated/fuma-design-tokens.css";
 
+/**
+ * Public web design system.
+ *
+ * Every value below is measured from a live reference site at 1440x900 via computed styles —
+ * see docs/reference/fuma-web-design-system.md for the source table. Nothing here is chosen
+ * by eye. Components must use these tokens rather than arbitrary values, so sections cannot
+ * drift apart.
+ *
+ * Two rules the measurements made non-negotiable:
+ *   - display type sits at weight 500 with line-height 1.0; heavier reads amateur.
+ *   - sections need real vertical separation. The references run 820-1230px apart.
+ */
 :root {
-  color-scheme: light;
-  --background: color-mix(in srgb, var(--fuma-color-near-white) 94%, var(--fuma-color-black));
-  --foreground: var(--fuma-color-black);
-  --card: var(--fuma-color-near-white);
-  --card-foreground: var(--fuma-color-black);
-  --popover: var(--fuma-color-near-white);
-  --popover-foreground: var(--fuma-color-black);
-  --primary: var(--fuma-color-black);
-  --primary-foreground: var(--fuma-color-near-white);
-  --secondary: color-mix(in srgb, var(--fuma-color-near-white) 88%, var(--fuma-color-black));
-  --secondary-foreground: var(--fuma-color-black);
-  --muted: color-mix(in srgb, var(--fuma-color-near-white) 88%, var(--fuma-color-black));
-  --muted-foreground: color-mix(in srgb, var(--fuma-color-black) 64%, var(--fuma-color-near-white));
-  --accent: var(--fuma-color-mint);
-  --accent-foreground: var(--fuma-color-black);
-  --border: color-mix(in srgb, var(--fuma-color-near-white) 78%, var(--fuma-color-black));
-  --input: color-mix(in srgb, var(--fuma-color-near-white) 78%, var(--fuma-color-black));
-  --ring: var(--foreground);
-}
+  color-scheme: dark;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --background: var(--fuma-color-black);
-    --foreground: var(--fuma-color-near-white);
-    --card: color-mix(in srgb, var(--fuma-color-near-white) 8%, var(--fuma-color-black));
-    --card-foreground: var(--fuma-color-near-white);
-    --popover: color-mix(in srgb, var(--fuma-color-near-white) 8%, var(--fuma-color-black));
-    --popover-foreground: var(--fuma-color-near-white);
-    --primary: var(--fuma-color-near-white);
-    --primary-foreground: var(--fuma-color-black);
-    --secondary: color-mix(in srgb, var(--fuma-color-near-white) 14%, var(--fuma-color-black));
-    --secondary-foreground: var(--fuma-color-near-white);
-    --muted: color-mix(in srgb, var(--fuma-color-near-white) 14%, var(--fuma-color-black));
-    --muted-foreground: var(--fuma-color-muted-gray);
-    --accent: var(--fuma-color-mint);
-    --accent-foreground: var(--fuma-color-black);
-    --border: color-mix(in srgb, var(--fuma-color-near-white) 22%, var(--fuma-color-black));
-    --input: color-mix(in srgb, var(--fuma-color-near-white) 22%, var(--fuma-color-black));
-    --ring: var(--foreground);
-  }
+  /* Ground and surfaces — pure black, matching framer.com and resend.com. */
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #0a0a0a;
+  --card-foreground: #ffffff;
+  --popover: #0d0d0d;
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: rgba(255, 255, 255, 0.06);
+  --secondary-foreground: #ffffff;
+  --muted: rgba(255, 255, 255, 0.06);
+  /* Body copy is muted, never full-contrast white — true of all five references. */
+  --muted-foreground: rgba(255, 255, 255, 0.62);
+  --border: rgba(255, 255, 255, 0.12);
+  --input: rgba(255, 255, 255, 0.14);
+
+  /* Semantic surface hierarchy. Components never invent white-alpha surfaces locally. */
+  --surface-inset: rgba(255, 255, 255, 0.025);
+  --surface-raised: var(--effect-glow-core);
+  --surface-hover: rgba(255, 255, 255, 0.075);
+  --surface-active: var(--effect-rim);
+  --line-soft: var(--effect-glow-core);
+  --line-strong: rgba(255, 255, 255, 0.2);
+
+  /* Control states are named here so every CTA and menu uses one treatment. */
+  --control-secondary: var(--effect-glow-core);
+  --control-secondary-hover: rgba(255, 255, 255, 0.12);
+  --control-border: rgba(255, 255, 255, 0.15);
+  --control-border-hover: rgba(255, 255, 255, 0.25);
+  --primary-hover: rgba(255, 255, 255, 0.9);
+
+  /* Code and diagram surfaces. These are roles, not one-off component colours. */
+  --code-surface: #070a14;
+  --code-foreground: #c8d6ff;
+  --diagram-track: var(--effect-highlight);
+  --diagram-node: rgba(255, 255, 255, 0.06);
+
+  /* Accent duty is split so this never becomes "black plus one acid colour". */
+  --signal: #3f6bff;
+  --signal-bright: #6f92ff;
+  /* Mint is reserved for published/live STATE only. Never decorative. */
+  --live: var(--fuma-color-mint);
+  --accent: var(--signal);
+  --accent-foreground: #ffffff;
+  --ring: var(--signal);
+
+  /* Signal and state alphas are derived from the canonical colours above. */
+  --signal-soft: color-mix(in srgb, var(--signal) 12%, transparent);
+  --signal-medium: color-mix(in srgb, var(--signal) 24%, transparent);
+  --signal-line: color-mix(in srgb, var(--signal) 42%, transparent);
+  --signal-glow: color-mix(in srgb, var(--signal) 46%, transparent);
+  --live-soft: color-mix(in srgb, var(--live) 12%, transparent);
+  --live-line: color-mix(in srgb, var(--live) 34%, transparent);
+  --live-glow: color-mix(in srgb, var(--live) 52%, transparent);
+
+  /* One authored signal scale for diagrams. No inline oklch() generation in components. */
+  --signal-tone-1: var(--fuma-color-sky);
+  --signal-tone-2: color-mix(in srgb, var(--fuma-color-sky) 66%, var(--signal));
+  --signal-tone-3: color-mix(in srgb, var(--fuma-color-sky) 34%, var(--signal));
+  --signal-tone-4: var(--signal);
+  --signal-tone-5: color-mix(in srgb, var(--signal) 62%, var(--background));
+
+  /* Effect palette: raw effect values exist only here, never in components. */
+  --effect-highlight: rgba(255, 255, 255, 0.09);
+  --effect-rim: rgba(255, 255, 255, 0.1);
+  --effect-grid-line: rgba(255, 255, 255, 0.045);
+  --effect-glow-core: rgba(255, 255, 255, 0.07);
+  --effect-glow-soft: rgba(255, 255, 255, 0.03);
+  --effect-glow-fade: rgba(255, 255, 255, 0);
+  --effect-overlay-ring: rgba(255, 255, 255, 0.13);
+  --effect-shadow-soft: rgba(0, 0, 0, 0.6);
+  --effect-shadow-strong: rgba(0, 0, 0, 0.9);
+  --effect-scrim: rgba(0, 0, 0, 0.72);
 }
 
 @theme inline {
+  --color-scrim: var(--effect-scrim);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -65,32 +113,75 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-brand-black: var(--fuma-color-black);
-  --color-brand-near-white: var(--fuma-color-near-white);
-  --color-brand-muted-gray: var(--fuma-color-muted-gray);
+  --color-signal: var(--signal);
+  --color-signal-bright: var(--signal-bright);
+  --color-live: var(--live);
+  --color-surface-inset: var(--surface-inset);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+  --color-line-soft: var(--line-soft);
+  --color-line-strong: var(--line-strong);
+  --color-control-secondary: var(--control-secondary);
+  --color-control-secondary-hover: var(--control-secondary-hover);
+  --color-control-border: var(--control-border);
+  --color-control-border-hover: var(--control-border-hover);
+  --color-primary-hover: var(--primary-hover);
+  --color-code-surface: var(--code-surface);
+  --color-code-foreground: var(--code-foreground);
+  --color-diagram-track: var(--diagram-track);
+  --color-diagram-node: var(--diagram-node);
+  --color-signal-soft: var(--signal-soft);
+  --color-signal-medium: var(--signal-medium);
+  --color-signal-line: var(--signal-line);
+  --color-live-soft: var(--live-soft);
+  --color-live-line: var(--live-line);
+  --color-signal-tone-1: var(--signal-tone-1);
+  --color-signal-tone-2: var(--signal-tone-2);
+  --color-signal-tone-3: var(--signal-tone-3);
+  --color-signal-tone-4: var(--signal-tone-4);
+  --color-signal-tone-5: var(--signal-tone-5);
   --color-brand-mint: var(--fuma-color-mint);
   --color-brand-lilac: var(--fuma-color-lilac);
   --color-brand-sky: var(--fuma-color-sky);
   --color-brand-peach: var(--fuma-color-peach);
-  --font-sans: var(--fuma-font-sans);
-  --font-mono: var(--fuma-font-mono);
-  --text-fuma-xs: var(--fuma-text-xs);
-  --text-fuma-sm: var(--fuma-text-sm);
-  --text-fuma-md: var(--fuma-text-md);
-  --text-fuma-lg: var(--fuma-text-lg);
-  --text-fuma-display: var(--fuma-text-display);
-  --spacing-fuma-hairline: var(--fuma-space-hairline);
-  --spacing-fuma-xs: var(--fuma-space-xs);
-  --spacing-fuma-sm: var(--fuma-space-sm);
-  --spacing-fuma-md: var(--fuma-space-md);
-  --spacing-fuma-lg: var(--fuma-space-lg);
-  --spacing-fuma-xl: var(--fuma-space-xl);
-  --spacing-fuma-2xl: var(--fuma-space-2xl);
-  --spacing-fuma-3xl: var(--fuma-space-3xl);
-  --radius-sm: var(--fuma-radius-sm);
-  --radius-md: var(--fuma-radius-md);
-  --radius-lg: var(--fuma-radius-lg);
-  --radius-xl: var(--fuma-radius-xl);
+
+  /* Plus Jakarta Sans substitutes for the licensed GT Walsheim; Inter carries body copy. */
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+  /* Measured type scale. Line heights and tracking come straight from the reference table. */
+  --text-display-xl: clamp(2.875rem, 5.6vw, 4.75rem);
+  --text-display-xl--line-height: 1;
+  --text-display-xl--letter-spacing: -0.022em;
+  --text-display-xl--font-weight: 500;
+
+  --text-display-lg: clamp(2rem, 3.4vw, 3rem);
+  --text-display-lg--line-height: 1.05;
+  --text-display-lg--letter-spacing: -0.022em;
+  --text-display-lg--font-weight: 500;
+
+  --text-display-md: clamp(1.5rem, 2.2vw, 1.875rem);
+  --text-display-md--line-height: 1.15;
+  --text-display-md--letter-spacing: -0.02em;
+  --text-display-md--font-weight: 500;
+
+  --text-lede: 1.125rem;
+  --text-lede--line-height: 1.55;
+
+  --text-eyebrow: 0.75rem;
+  --text-eyebrow--line-height: 1.4;
+  --text-eyebrow--letter-spacing: 0.14em;
+
+  /* Section rhythm. The references sit 820-1230px apart; these are the paddings that,
+     with real section content, produce that separation. */
+  --spacing-section: 3.5rem;
+  --spacing-section-lg: 5rem;
+
+  --radius-control: 0.5rem;
+  --radius-panel: 0.75rem;
+  --radius-surface: 1rem;
 }
 
 @layer base {
@@ -115,16 +206,180 @@
 }
 
 @layer components {
-  .prose-public { @apply text-base leading-8 text-foreground; }
-  .prose-public h2 { @apply mt-12 scroll-mt-28 text-3xl font-semibold tracking-tight; }
-  .prose-public h3 { @apply mt-9 scroll-mt-28 text-2xl font-semibold; }
+  /* Shared section shell: one container width and one vertical rhythm for every section. */
+  .section {
+    @apply mx-auto w-full max-w-[80rem] px-4 sm:px-8;
+    padding-block: var(--spacing-section);
+  }
+  @media (width >= 64rem) {
+    .section { padding-block: var(--spacing-section-lg); }
+  }
+
+  .eyebrow {
+    @apply mb-5 font-mono text-eyebrow font-medium uppercase text-muted-foreground;
+  }
+
+  .control-secondary {
+    border: 1px solid var(--control-border);
+    background: var(--control-secondary);
+    color: var(--foreground);
+  }
+  .control-secondary:hover {
+    border-color: var(--control-border-hover);
+    background: var(--control-secondary-hover);
+  }
+  .control-primary:hover { background: var(--primary-hover); }
+
+  .live-indicator {
+    background: var(--live);
+    box-shadow: 0 0 10px 2px var(--live-glow);
+  }
+
+  .signal-panel {
+    border-color: var(--signal-line);
+    background: var(--signal-soft);
+    box-shadow: 0 0 40px -14px var(--signal-glow);
+  }
+
+  .signal-inset {
+    box-shadow: inset 0 0 60px -20px var(--signal-glow);
+  }
+
+  .prose-public { @apply text-base leading-[1.7] text-foreground; }
+  .prose-public h2 { @apply mt-14 scroll-mt-28 font-display text-display-lg; }
+  .prose-public h3 { @apply mt-10 scroll-mt-28 font-display text-display-md; }
   .prose-public p, .prose-public ul, .prose-public blockquote, .prose-public pre { @apply mt-5; }
   .prose-public ul { @apply list-disc pl-6; }
-  .prose-public a { @apply underline decoration-brand-mint decoration-2 underline-offset-4; }
+  .prose-public a { @apply underline decoration-signal decoration-2 underline-offset-4; }
   .prose-public code { @apply rounded bg-secondary px-1.5 py-0.5 font-mono text-sm; }
-  .prose-public pre { @apply overflow-x-auto rounded-xl bg-brand-black p-5 text-brand-near-white; }
+  .prose-public pre { @apply overflow-x-auto rounded-panel border border-border bg-card p-5; }
   .prose-public pre code { @apply bg-transparent p-0; }
-  .prose-public blockquote { @apply border-l-4 border-brand-mint pl-5 text-muted-foreground; }
+  .prose-public blockquote { @apply border-l-2 border-signal pl-5 text-muted-foreground; }
 }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; } }
+
+/* Entrance only; `both` holds the final state so the reduced-motion override below resolves
+   to the finished composition rather than hiding content. */
+@keyframes fuma-rise { from { opacity: 0; transform: translateY(0.75rem); } to { opacity: 1; transform: none; } }
+.fuma-rise { animation: fuma-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Ambient signal bloom. Decorative, aria-hidden in markup, bounded so it can never extend
+   the document (that bug caused real horizontal overflow before). */
+.fuma-bloom { position: relative; isolation: isolate; }
+.fuma-bloom::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: -6%;
+  /* Bounded to the container: an overhang here previously grew the document by exactly
+     the overhang width, producing real horizontal overflow on narrow viewports. */
+  width: min(1180px, 100%);
+  max-width: 100%;
+  aspect-ratio: 1.45;
+  translate: -50% 0;
+  background:
+    radial-gradient(ellipse 50% 50% at 50% 42%, var(--effect-glow-core), var(--effect-glow-soft) 45%, var(--effect-glow-fade) 74%),
+    radial-gradient(ellipse 40% 44% at 22% 30%, var(--effect-glow-soft), var(--effect-glow-fade) 70%);
+  filter: blur(40px);
+  pointer-events: none;
+}
+
+/* Rim-lit panel: a bright hairline plus outward bloom, the way a lit surface reads. */
+.fuma-rimlit {
+  position: relative;
+  border: 1px solid var(--effect-rim);
+  /* A hairline of light on the top edge plus depth beneath: this is what stops a screenshot on a
+     black ground from reading as a flat rectangle. Neutral, never coloured. */
+  box-shadow:
+    inset 0 1px 0 0 var(--effect-highlight),
+    0 1px 2px var(--effect-shadow-strong),
+    0 24px 60px -20px var(--effect-shadow-strong),
+    0 0 120px -40px var(--effect-glow-core);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
 @media (forced-colors: active) { a, button { forced-color-adjust: auto; } }
+
+/* Ambient pool behind a large product visual. Sized and bounded so it can never extend the
+   document, and neutral so it reads as light rather than as a brand wash. */
+.fuma-pool { position: relative; isolation: isolate; }
+.fuma-pool::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: 4%;
+  width: min(1320px, 100%);
+  max-width: 100%;
+  aspect-ratio: 2.1;
+  translate: -50% 0;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(255, 255, 255, 0.085), var(--effect-glow-fade) 70%);
+  filter: blur(52px);
+  pointer-events: none;
+}
+
+/* Floating overlay surface (menus, popovers). Elevation is layered, not a single flat shadow:
+   a hairline ring for definition, a wide soft lift, a tight contact shadow, and an inner
+   highlight on the top edge so the panel reads as lit from above. */
+.fuma-overlay {
+  background: color-mix(in oklab, var(--color-card) 97%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 var(--effect-glow-core),
+    0 0 0 0.5px var(--effect-overlay-ring),
+    0 16px 36px -6px rgba(0, 0, 0, 0.85),
+    0 8px 16px -3px var(--effect-shadow-soft),
+    0 40px 90px -30px var(--effect-shadow-strong);
+}
+
+/* ---------------------------------------------------------------------------
+   Ambient glow layers.
+
+   The measured reference intensities (linear rgba(255,255,255,0.04), resend
+   rgba(200,200,200,0.1)) read as flat on this ground, so these run warmer and
+   stronger by design decision. Every layer is bounded by min(<n>px, 100%) and
+   carries max-width:100% so a decorative element can never extend the document
+   -- that exact bug produced real horizontal overflow twice.
+   --------------------------------------------------------------------------- */
+.fuma-glow { position: relative; isolation: isolate; }
+.fuma-glow::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  left: 50%;
+  translate: -50% 0;
+  width: min(1180px, 100%);
+  max-width: 100%;
+  /* Light sits low, over the artifact, matching framer's brightest region at y60%. */
+  top: 34%;
+  aspect-ratio: 2.2;
+  filter: blur(72px);
+  background: radial-gradient(ellipse 48% 50% at 50% 50%, var(--effect-glow-core), rgba(255, 255, 255, 0) 72%);
+}
+
+
+
+/* A faint technical grid, the way vercel anchors a dark band. Bounded identically. */
+.fuma-grid { position: relative; isolation: isolate; }
+.fuma-grid::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  inset-inline: 0;
+  top: 0;
+  height: 100%;
+  max-width: 100%;
+  background-image:
+    linear-gradient(to right, var(--effect-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--effect-grid-line) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 60% 55% at 50% 40%, #000 20%, transparent 75%);
+}

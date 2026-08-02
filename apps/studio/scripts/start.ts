@@ -12,7 +12,7 @@
  *
  * Defaults map to "production mode on the dev DB":
  *   PORT=3001
- *   DATABASE_URL=sqlite:./.tmp/dev.db (server/config.ts default)
+ *   DATABASE_URL=postgres://instatic:instatic@127.0.0.1:5433/instatic
  *   STATIC_DIR=./dist
  *   UPLOADS_DIR=./uploads
  *

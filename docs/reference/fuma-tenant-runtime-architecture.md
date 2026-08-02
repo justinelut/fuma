@@ -145,7 +145,7 @@ tooling/site-runtime/tests/site-runtime.demo.test.ts
 
 The strict contracts cover application, authority, compatibility, exact host, immutable route resolution, cache identity, component trust, and site-member cookies. The auditor has one independent hostile fixture for every typed rule and rejects per-customer apps, app imports/shared UI, direct authority, Studio Tailwind, Zod, non-exact/app-external styling, tenant dynamic imports, unqualified cache identity, non-exact components, unknown-host fallback, global/default tenants, unsafe cookies, persisted JSX/utilities, arbitrary Server Components, compatibility removal, non-Node production, and non-native ARM64 policy.
 
-The demo resolves `/colliding-route` on `alpha.fuma.co.ke` and `customer.example` to different exact owner/site/release/hash bindings, produces distinct qualified cache keys, denies an unknown host, and denies using the first host's cache identity for the second resolution.
+The demo resolves `/colliding-route` on `alpha.trimly.co.ke` and `customer.example` to different exact owner/site/release/hash bindings, produces distinct qualified cache keys, denies an unknown host, and denies using the first host's cache identity for the second resolution.
 
 ## Non-claims
 

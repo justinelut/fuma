@@ -14,10 +14,9 @@
  * long-lived process. The common path stays allocation-free: one counter
  * bump and a size check.
  *
- * Why in-memory instead of Redis or a DB table?
- *   - The CMS deploys as a single Bun process (the SQLite trade-off applies
- *     equally to PG-backed deployments — admin login is rare, single-writer).
- *   - No external dep, no extra container.
+ * Why in-memory instead of Redis or a database table?
+ *   - The self-hosted CMS runs as one Bun process and admin login is rare.
+ *   - No additional dependency or service is required.
  *   - Counter loss on restart is acceptable: an attacker who waits for a
  *     restart still has to start over from scratch on the next attempt set.
  */

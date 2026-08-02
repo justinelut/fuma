@@ -20,7 +20,7 @@ Status: **UNSIGNED — abort by default**. This artifact becomes a launch declar
 
 ## Host/browser/crawler matrix
 
-Record success and cookie jar for `fuma.co.ke`, `auth.fuma.co.ke`, `app.fuma.co.ke`, `admin.fuma.co.ke`, two tenant subdomains, and one activated custom host. Cover Chromium, Firefox, WebKit, narrow mobile, keyboard, screen reader, crawler user agent, GPC, DNT, JavaScript failure, image/font failure, and projection outage. Public browser acceptance uses `https://3002.blyss.co.ke` for this environment.
+Record success and cookie jar for `trimly.co.ke`, `auth.trimly.co.ke`, `app.trimly.co.ke`, `admin.trimly.co.ke`, two tenant subdomains, and one activated custom host. Cover Chromium, Firefox, WebKit, narrow mobile, keyboard, screen reader, crawler user agent, GPC, DNT, JavaScript failure, image/font failure, and projection outage. Public browser acceptance uses `https://3002.blyss.co.ke` for this environment.
 
 Required journeys: home→Website→create site; home→Publication→create publication; pricing→plan intent→app→auth→app resume; template→immutable preview→onboarding; expert browse→approved work→mediated inquiry; reviewed plugin evidence; docs search/redirect/feed; contact; policy history; status degradation. Separately prove internal admin login and prove its session reaches none of public/app/tenant/custom surfaces.
 

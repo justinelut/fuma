@@ -2,7 +2,7 @@
  * Integration tests — Account → Sessions endpoints.
  *
  * Exercises GET /admin/api/cms/auth/sessions, DELETE /sessions/:id, and
- * POST /auth/logout-all against a real SQLite test DB. Verifies the
+ * POST /auth/logout-all against an isolated PostgreSQL test schema. Verifies the
  * cross-user revoke guard, the current-session pin, and the cookie-survives
  * behaviour of "logout all other devices".
  */

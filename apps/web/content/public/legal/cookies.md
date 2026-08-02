@@ -6,30 +6,30 @@ description: Storage used by the Fuma public website and the boundaries around o
 author: Fuma policy maintainers
 category: Storage notice
 publishedAt: 2026-07-26T00:00:00Z
-updatedAt: 2026-07-27T00:00:00Z
+updatedAt: 2026-08-02T00:00:00Z
 reviewAt: 2026-10-26T00:00:00Z
 draft: false
-version: 2026-07-26
+version: 2026-08-02
 redirects: []
 components: []
 owner: Privacy review owner
 audience: public
 ---
-The Fuma public website does not issue an application, identity, administration, member, or tenant session cookie. It does not set a parent-domain session cookie.
+Browsing the Fuma public website does not require an account cookie.
 
 ## Essential operation
 
-Page delivery and bounded submissions may process request headers, a replay token, form age, and short-lived process-memory anti-abuse keys. The contact route does not set a cookie and returns no-store responses.
+Page delivery and form submissions use limited security and anti-abuse information. Public contact forms do not set a cookie.
 
 ## Optional measurement
 
-Optional measurement remains off until you choose it. If allowed, the public site stores a versioned preference in session storage for this host. The preference is not a product session and is not made available to product or tenant hosts.
+Optional measurement remains off until you choose it. If allowed, the public site remembers your preference for this browsing session. It is not used to sign you in.
 
 Global Privacy Control or Do Not Track disables the optional path. Blocking optional measurement does not block essential page delivery or the server-side validation of a form request.
 
 ## Change your choice
 
-Use the on-page privacy control to choose essential-only behavior or clear this public host’s session storage. A changed policy version requires a fresh compatible choice rather than silently extending an earlier one.
+Use the on-page privacy control to allow optional measurement, choose essential only, or clear your saved choice. If this notice changes, Fuma asks again instead of extending an earlier choice.
 
 ## Approval state
 

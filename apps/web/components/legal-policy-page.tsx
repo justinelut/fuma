@@ -2,7 +2,8 @@ import { Breadcrumbs } from '@/components/breadcrumbs'
 import { EditorialContent } from '@/components/editorial-content'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { EditorialEntry } from '@/lib/editorial'
-import { jsonLd } from '@/lib/seo'
+import { CANONICAL_ORIGIN, jsonLd } from '@/lib/seo'
+import Link from 'next/link'
 
 export function LegalPolicyPage({ entry }: Readonly<{ entry: EditorialEntry }>) {
   return <>
@@ -14,7 +15,7 @@ export function LegalPolicyPage({ entry }: Readonly<{ entry: EditorialEntry }>) 
       datePublished: entry.meta.publishedAt,
       dateModified: entry.meta.updatedAt,
       inLanguage: 'en-KE',
-      isPartOf: { '@type': 'WebSite', name: 'Fuma', url: 'https://fuma.co.ke' },
+      isPartOf: { '@type': 'WebSite', name: 'Fuma', url: CANONICAL_ORIGIN },
     })} />
     <Breadcrumbs items={[
       { label: 'Trust centre', href: '/trust' },
@@ -35,9 +36,9 @@ export function LegalPolicyPage({ entry }: Readonly<{ entry: EditorialEntry }>) 
     </Card>
     <EditorialContent entry={entry} />
     <nav aria-label="Policy resources" className="mt-12 flex flex-wrap gap-x-6 gap-y-3 border-t pt-6">
-      <a className="min-h-11 py-2 underline underline-offset-4" href="/legal/history">Policy history</a>
-      <a className="min-h-11 py-2 underline underline-offset-4" href="/trust">Trust centre</a>
-      <a className="min-h-11 py-2 underline underline-offset-4" href="/contact">Contact</a>
+      <Link className="min-h-11 py-2 underline underline-offset-4" href="/legal/history">Policy history</Link>
+      <Link className="min-h-11 py-2 underline underline-offset-4" href="/trust">Trust centre</Link>
+      <Link className="min-h-11 py-2 underline underline-offset-4" href="/contact">Contact</Link>
     </nav>
   </>
 }

@@ -2,8 +2,8 @@
  * Shared types for the Users workspace.
  *
  * These types are shared across the page shell, the per-tab components, the
- * dialogs and the helper utilities. Keep them dialect-naive — no React
- * imports, no DOM types, no API client imports.
+ * dialogs and helper utilities. Keep them framework-neutral: no React imports,
+ * DOM types, or API client imports.
  */
 import type { ReactNode } from 'react'
 import type { CmsCurrentUser } from '@core/persistence'

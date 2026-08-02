@@ -8,7 +8,7 @@ import type { DomainScope } from '../../../server/fuma/domains/contracts'
 export const scope:DomainScope={platformId:'fuma',organizationId:'org-a',workspaceId:'workspace-a',siteId:'site-a',ownerKey:'owner-a',generation:1,state:'active',transferFence:null,profileId:'website'}
 export const destination:DomainScope={platformId:'fuma',organizationId:'org-b',workspaceId:'workspace-b',siteId:'site-a',ownerKey:'owner-b',generation:2,state:'active',transferFence:null,profileId:'website'}
 export const records:readonly DnsInstruction[]=[
-  {type:'CNAME',name:'www.example.co.ke',value:'customers.fuma.co.ke',purpose:'routing'},
+  {type:'CNAME',name:'www.example.co.ke',value:'customers.trimly.co.ke',purpose:'routing'},
   {type:'TXT',name:'_cf-custom-hostname.www.example.co.ke',value:'ownership-token',purpose:'ownership'},
   {type:'TXT',name:'_acme-challenge.www.example.co.ke',value:'tls-token',purpose:'tls-validation'},
 ]

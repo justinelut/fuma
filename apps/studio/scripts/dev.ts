@@ -1,33 +1,13 @@
 /**
- * One-command dev server.
+ * One-command PostgreSQL development server.
  *
- * `bun run dev` is the only thing a developer should need.
- *
- * Default behaviour (no DATABASE_URL in the environment): the script uses
- * SQLite at ./.tmp/dev.db — no Docker or any other external services required.
- * The parent directory is created automatically on first run.
- *
- * Postgres mode: set DATABASE_URL=postgres://... to run against a Postgres
- * database. The script will manage a local docker postgres for you:
- *
- *   1. Verifies the docker daemon is reachable.
- *   2. Starts the `postgres` compose service if it isn't running.
- *   3. Stops the `app` compose service if it IS running (it would
- *      otherwise hold port 3001 and block the local cms).
- *   4. Waits until postgres actually accepts connections.
- *
- * Either way, the script then:
- *
- *   - Pre-checks ports 3001 (cms) and 5173 (vite) and prints an
- *     actionable message if either is held by something we don't own.
- *   - Spawns the cms (`bun --watch server/index.ts`) and vite
- *     (`bun node_modules/vite/bin/vite.js --host 127.0.0.1`) as children, forwarding their output
- *     and signals so Ctrl+C cleanly kills both.
+ * `bun run dev` starts the local PostgreSQL service when the canonical local
+ * URL is used, waits for it to accept connections, then starts the CMS and
+ * Vite. A caller-provided PostgreSQL URL is used as-is.
  */
 
-import { mkdir } from 'node:fs/promises'
-import { dirname, join, resolve } from 'node:path'
-import { isSqliteUrl } from '../server/db'
+import { join, resolve } from 'node:path'
+import { DEFAULT_LOCAL_DATABASE_URL } from '../server/db'
 import { bunCommand, viteCommand } from './lib/bunCommand'
 import { ensurePortFree } from './lib/freePort'
 
@@ -35,7 +15,7 @@ const CMS_PORT = Number(process.env.PORT ?? '3001')
 const VITE_PORT = Number(process.env.VITE_PORT ?? '5173')
 const POSTGRES_HOST = '127.0.0.1'
 const POSTGRES_PORT = 5433
-const DATABASE_URL = process.env.DATABASE_URL ?? 'sqlite:./.tmp/dev.db'
+const DATABASE_URL = process.env.DATABASE_URL ?? DEFAULT_LOCAL_DATABASE_URL
 const WORKSPACE_ROOT = resolve(import.meta.dir, '../../..')
 const COMPOSE_FILE = join(WORKSPACE_ROOT, 'docker-compose.yml')
 
@@ -211,20 +191,24 @@ async function waitForPostgresReady(timeoutMs = 60_000): Promise<void> {
 
 // --- main -----------------------------------------------------------------
 
-if (isSqliteUrl(DATABASE_URL)) {
-  const dbPath = DATABASE_URL.replace(/^sqlite:|^file:/, '')
-  await mkdir(dirname(dbPath), { recursive: true })
-  log(`Using SQLite at ${dbPath} — skipping Postgres docker provisioning`)
-} else {
+const parsedDatabaseUrl = new URL(DATABASE_URL)
+if (parsedDatabaseUrl.protocol !== 'postgres:' && parsedDatabaseUrl.protocol !== 'postgresql:') {
+  fail('DATABASE_URL must use postgres:// or postgresql://. SQLite is no longer supported.')
+}
+const usesManagedLocalPostgres = parsedDatabaseUrl.hostname === POSTGRES_HOST
+  && Number(parsedDatabaseUrl.port || '5432') === POSTGRES_PORT
+if (usesManagedLocalPostgres) {
   if (!dockerInstalled()) {
-    fail('Docker is not installed. Install Docker Desktop, or set DATABASE_URL to point at your own postgres.')
+    fail('Docker is not installed. Install Docker, or point DATABASE_URL at an existing PostgreSQL server.')
   }
   if (!dockerDaemonRunning()) {
-    fail('Docker daemon is not running. Start Docker Desktop, or set DATABASE_URL to point at your own postgres.')
+    fail('Docker daemon is not running. Start Docker, or point DATABASE_URL at an existing PostgreSQL server.')
   }
   ensurePostgresRunning()
   stopAppContainerIfRunning()
   await waitForPostgresReady()
+} else {
+  log(`Using configured PostgreSQL server at ${parsedDatabaseUrl.hostname}:${parsedDatabaseUrl.port || '5432'}.`)
 }
 
 await ensurePortFree(CMS_PORT, 'cms', log)

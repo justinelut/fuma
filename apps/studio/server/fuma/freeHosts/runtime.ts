@@ -57,7 +57,7 @@ export function createHostedFreeHostRuntime(input: Readonly<{
 }>): HostedFreeHostRuntime {
   const storage = input.storage ?? createHostedReleaseObjectStorage(input)
   const repository = new PostgresFreeHostRepository(input.db)
-  const service = new FreeHostService(repository, repository, input.now)
+  const service = new FreeHostService(repository, repository, input.now, `.${input.config.hosts.rootDomain}`)
   return Object.freeze({
     repository,
     boundary: new FreeHostPublicRouter({

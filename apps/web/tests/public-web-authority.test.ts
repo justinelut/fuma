@@ -61,14 +61,14 @@ describe('authoritative public commerce presentation', () => {
     const plan = pricingEnvelope.data.items[0]
     const href = pricingPlanIntentHref(plan, pricingEnvelope.data.effectiveVersion)
     expect(href).toBe('/start?kind=choose_plan&source=pricing&planId=plan_launch&priceBookVersion=ke-2026-07-v1&cadence=monthly')
-    const params = Object.fromEntries(new URL(href, 'https://fuma.co.ke').searchParams)
+    const params = Object.fromEntries(new URL(href, 'https://trimly.co.ke').searchParams)
     expect(Value.Check(PublicHandoffRequestSchema, params)).toBe(true)
     expect(href).not.toMatch(/amount|provider|offer|grant|margin|cogs|payment|transfer/i)
   })
 
   test('requires isolated immutable template previews', () => {
-    expect(isImmutableTemplatePreview('https://templates.preview.fuma.co.ke/releases/release_1/')).toBe(true)
-    expect(isImmutableTemplatePreview('https://fuma.co.ke/templates/live')).toBe(false)
-    expect(isImmutableTemplatePreview('https://sample.preview.fuma.co.ke/draft')).toBe(false)
+    expect(isImmutableTemplatePreview('https://templates.preview.trimly.co.ke/releases/release_1/')).toBe(true)
+    expect(isImmutableTemplatePreview('https://trimly.co.ke/templates/live')).toBe(false)
+    expect(isImmutableTemplatePreview('https://sample.preview.trimly.co.ke/draft')).toBe(false)
   })
 })

@@ -8,7 +8,7 @@ const postgresUrl = process.env.FUMA_TEST_POSTGRES_URL
 const quote = (value: string) => { if (!/^[a-z][a-z0-9_]*$/.test(value)) throw new Error('Unsafe schema.'); return `"${value}"` }
 const scoped = (connection: string, schema: string) => { const url = new URL(connection); url.searchParams.set('options', `-c search_path=${schema},public`); return url.toString() }
 const binding: SiteRuntimeExactBinding = {
-  host: 'alpha.fuma.co.ke', platformId: 'platform', organizationId: 'org-a', workspaceId: 'workspace-a', siteId: 'site-a', ownerKey: 'owner-a', ownerGeneration: 1,
+  host: 'alpha.trimly.co.ke', platformId: 'platform', organizationId: 'org-a', workspaceId: 'workspace-a', siteId: 'site-a', ownerKey: 'owner-a', ownerGeneration: 1,
   releaseId: 'release-react', releaseHashSha256: 'a'.repeat(64),
 }
 

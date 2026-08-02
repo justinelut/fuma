@@ -6,10 +6,10 @@ collection: legal
 author: Fuma policy maintainers
 category: Website terms
 publishedAt: 2026-07-26T00:00:00Z
-updatedAt: 2026-07-27T00:00:00Z
+updatedAt: 2026-08-02T00:00:00Z
 reviewAt: 2026-10-26T00:00:00Z
 draft: false
-version: 2026-07-26
+version: 2026-08-02
 redirects: []
 components: []
 owner: Legal review owner
@@ -27,9 +27,9 @@ Nothing on this website promises a provider, certification, compliance result, u
 
 You may browse public pages and send genuine, bounded requests. Do not interfere with operation, bypass controls, misrepresent identity or authority, submit malicious material, probe other people’s data, automate abusive traffic, or use forms for spam.
 
-## External and product transitions
+## Account actions and external links
 
-A link or handoff does not itself create an account, contract, purchase, entitlement, or endorsement. The destination must validate current authority and present any applicable terms before action. Configured external links use HTTPS and do not receive a public-site product session from this website.
+Opening a link or choosing an action does not by itself create an account, contract, purchase, entitlement, or endorsement. Review the destination and any applicable terms before continuing. Configured external links use HTTPS.
 
 ## Availability and changes
 

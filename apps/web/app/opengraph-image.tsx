@@ -1,1 +1,10 @@
-import { ImageResponse } from 'next/og';export const alt='Fuma — own your publishing';export const size={width:1200,height:630};export const contentType='image/png';export default function Image(){return new ImageResponse(<div style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',justifyContent:'space-between',background:'#101212',color:'#f5f5ef',padding:'72px',fontFamily:'sans-serif'}}><div style={{fontSize:42,fontWeight:700,display:'flex'}}>Fuma<span style={{color:'#8ef2c6'}}>.</span></div><div style={{display:'flex',flexDirection:'column'}}><span style={{fontSize:84,fontWeight:700,letterSpacing:'-4px'}}>Own your publishing.</span><span style={{fontSize:28,color:'#b8b9b4',marginTop:22}}>Websites and publications, built with craft.</span></div><div style={{fontSize:22,color:'#8ef2c6'}}>fuma.co.ke · Kenya</div></div>,size)}
+import { ImageResponse } from 'next/og'
+import { SOCIAL_CARD, SocialCard } from '@/lib/social-card'
+
+export const alt = SOCIAL_CARD.alt
+export const size = { width: SOCIAL_CARD.width, height: SOCIAL_CARD.height }
+export const contentType = SOCIAL_CARD.contentType
+
+export default function Image() {
+  return new ImageResponse(<SocialCard />, size)
+}

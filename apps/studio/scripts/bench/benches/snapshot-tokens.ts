@@ -22,8 +22,6 @@
  * default), so the numbers reflect production payloads, not synthetic trees.
  */
 
-import { resolve } from 'node:path'
-import { existsSync } from 'node:fs'
 import type { Page, SiteDocument } from '@core/page-tree'
 import type { DataRow } from '@core/data/schemas'
 import { describeFrameworkTokens } from '@core/framework'
@@ -34,8 +32,7 @@ import { log } from '../lib/log'
 import { createTokenCounter, type TokenCounter } from '../lib/anthropicTokens'
 import { SELF_HOST_SITE_ID } from '../../../server/selfHost'
 
-const REPO_ROOT = resolve(import.meta.dir, '../../..')
-const DEV_DB_PATH = resolve(REPO_ROOT, '.tmp/dev.db')
+const DEV_DATABASE_URL = process.env.BENCH_POSTGRES_URL ?? process.env.DATABASE_URL
 
 // Pacing between count_tokens calls so a big site doesn't trip provider rate limits.
 const COUNT_DELAY_MS = 120
@@ -47,7 +44,7 @@ function sleep(ms: number): Promise<void> {
 async function loadDeps() {
   // Register the base modules so read_document can render real pages.
   await import('../../../src/modules/base')
-  const { createSqliteClient } = await import('../../../server/db/sqlite')
+  const { createDbClient, DEFAULT_LOCAL_DATABASE_URL } = await import('../../../server/db')
   const { getDraftSite } = await import('../../../server/repositories/site')
   const { listDataRows } = await import('../../../server/repositories/data/rows')
   const { pageFromRow } = await import('../../../src/core/data/pageFromRow')
@@ -56,7 +53,8 @@ async function loadDeps() {
   const { renderAgentDocument } = await import('../../../src/core/ai')
   const { registry } = await import('../../../src/core/module-engine')
   return {
-    createSqliteClient,
+    createDbClient,
+    DEFAULT_LOCAL_DATABASE_URL,
     getDraftSite,
     listDataRows,
     pageFromRow,
@@ -182,7 +180,7 @@ function flattenForBench(
 
 /** Assemble the full draft SiteDocument (shell + pages + VCs) from the dev DB. */
 async function loadSeededSite(deps: Deps): Promise<SiteDocument | null> {
-  const db = deps.createSqliteClient(DEV_DB_PATH)
+  const db = deps.createDbClient(DEV_DATABASE_URL ?? deps.DEFAULT_LOCAL_DATABASE_URL).db
   const shell = await deps.getDraftSite(db, SELF_HOST_SITE_ID)
   if (!shell) return null
   const [pageRows, vcRows] = await Promise.all([
@@ -448,21 +446,13 @@ export const snapshotTokensBench: BenchModule = {
       )
     }
 
-    if (!existsSync(DEV_DB_PATH)) {
-      return skippedResult(
-        'Skipped — no seeded dev database',
-        `Expected a SQLite dev DB at ${DEV_DB_PATH}.`,
-        ['Run `bun run dev` once to seed a dev database, then re-run this bench.'],
-      )
-    }
-
-    log.step('Loading base modules + seeded site from .tmp/dev.db')
+    log.step('Loading base modules + seeded site from PostgreSQL')
     const deps = await loadDeps()
     const site = await loadSeededSite(deps)
     if (!site || site.pages.length === 0) {
       return skippedResult(
-        'Skipped — empty dev database',
-        'The dev DB has no draft site or no pages.',
+        'Skipped — empty PostgreSQL dev database',
+        'The PostgreSQL dev database has no draft site or no pages.',
         ['Open the editor (`bun run dev`) and create at least one page, then re-run this bench.'],
       )
     }

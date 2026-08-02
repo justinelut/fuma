@@ -27,9 +27,9 @@ const item = {
     notes: ['Landmarks and heading order were reviewed.'],
   },
   releaseId: 'release_portfolio_7',
-  previewUrl: 'https://templates.preview.fuma.co.ke/releases/release_portfolio_7/',
+  previewUrl: 'https://templates.preview.trimly.co.ke/releases/release_portfolio_7/',
   image: {
-    url: 'https://templates.preview.fuma.co.ke/releases/release_portfolio_7/assets/cover.webp',
+    url: 'https://templates.preview.trimly.co.ke/releases/release_portfolio_7/assets/cover.webp',
     alt: 'Editorial portfolio home page with project cards.',
     width: 1600,
     height: 900,
@@ -59,10 +59,10 @@ describe('public template discovery presentation', () => {
 
   test('requires the isolated host, exact release root and matching budgeted release image', () => {
     expect(exactTemplatePreview(item)).toBe(true)
-    expect(exactTemplatePreview({ ...item, previewUrl: 'https://fuma.co.ke/templates/editorial-portfolio' })).toBe(false)
-    expect(exactTemplatePreview({ ...item, previewUrl: 'https://sample.preview.fuma.co.ke/releases/release_portfolio_7/' })).toBe(false)
+    expect(exactTemplatePreview({ ...item, previewUrl: 'https://trimly.co.ke/templates/editorial-portfolio' })).toBe(false)
+    expect(exactTemplatePreview({ ...item, previewUrl: 'https://sample.preview.trimly.co.ke/releases/release_portfolio_7/' })).toBe(false)
     expect(exactTemplatePreview({ ...item, previewUrl: `${item.previewUrl}?draft=1` })).toBe(false)
-    expect(exactTemplatePreview({ ...item, image: { ...item.image, url: 'https://templates.preview.fuma.co.ke/releases/other/assets/cover.webp' } })).toBe(false)
+    expect(exactTemplatePreview({ ...item, image: { ...item.image, url: 'https://templates.preview.trimly.co.ke/releases/other/assets/cover.webp' } })).toBe(false)
     expect(exactTemplatePreview({ ...item, image: { ...item.image, byteSize: 300001 } })).toBe(false)
   })
 
@@ -78,7 +78,7 @@ describe('public template discovery presentation', () => {
   test('sitemap eligibility disappears with withdrawn or stale projection records', () => {
     expect(templateSitemapRows([item])).toEqual([{ path: '/templates/editorial-portfolio', lastModified: item.updatedAt }])
     expect(templateSitemapRows([])).toEqual([])
-    expect(templateSitemapRows([{ ...item, previewUrl: 'https://templates.preview.fuma.co.ke/releases/stale/' }])).toEqual([])
+    expect(templateSitemapRows([{ ...item, previewUrl: 'https://templates.preview.trimly.co.ke/releases/stale/' }])).toEqual([])
   })
 
   test('template pages retain semantic, responsive and accessibility behavior without shared UI imports', () => {

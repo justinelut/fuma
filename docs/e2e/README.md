@@ -44,13 +44,13 @@ The Playwright config starts a disposable local stack by default:
 
 - Admin UI: `http://127.0.0.1:5174`
 - CMS/public site: `http://127.0.0.1:3002`
-- Database: `.tmp/e2e-agent.db`
+- Database: dedicated PostgreSQL test database (for example `postgres://instatic:instatic@127.0.0.1:5433/instatic_test`)
 - Uploads: `.tmp/e2e-uploads`
 
 `scripts/e2e-dev.ts` resets only those `.tmp/e2e-*` paths, then runs the same
 Vite + Bun CMS stack a developer uses — with one deliberate difference: the CMS
 runs **without** `bun --watch`. A regression suite needs a stable server, and
-under watch the publish pipeline writing baked HTML (and the SQLite DB churning)
+under watch the publish pipeline writing baked HTML (and database writes)
 can reload the server mid-test and drop in-memory state. Vite is likewise told to
 ignore the runtime-written paths (`.tmp`, `uploads`, `dist` in `vite.config.ts`),
 so publishing never reloads the admin app mid-test. The Vite dev proxy follows
@@ -304,15 +304,13 @@ durable assertion brittle:
   `src/__tests__/panels/formSettingsPanel.test.tsx`; browser success/error
   copy, min-submit timing with real clocks, full authoring-to-publish form
   submission, and mobile public form layout remain operator-run.
-- **CONFIG-001 remaining operator permutations** — DATABASE_URL parsing,
-  SQLite adapter selection, parent-dir creation, migration idempotence,
-  Postgres scheme selection, invalid scheme errors, migration parity, JSON
-  column naming, repository SQL portability, SQLite smoke behavior, rowCount,
-  transaction serialization, advisory-lock fallback, statement cache, dev
-  workflow, and Docker config are covered by focused Bun tests in
+- **CONFIG-001 remaining operator permutations** — PostgreSQL URL parsing,
+  migration idempotence, invalid scheme errors, JSON column naming, bound SQL,
+  row counts, transactions, advisory locks, statement caching, development
+  workflow, and production configuration are covered by focused Bun tests in
   `src/__tests__/db/`, `src/__tests__/architecture/`,
   `server/db/__tests__/`, `src/__tests__/devWorkflow.test.ts`, and
-  `src/__tests__/server/dockerConfig.test.ts`; live Postgres connectivity,
+  `src/__tests__/server/dockerConfig.test.ts`; live PostgreSQL connectivity,
   credential failures, backups/restore, and hosted environment permutations
   remain operator-run.
 - **CONFIG-002 remaining operator permutations** — runtime config defaults

@@ -52,7 +52,7 @@ function harness() {
 }
 
 const authority: InternalAuthority = {
-  actorId: 'staff-commercial', host: 'admin.fuma.co.ke',
+  actorId: 'staff-commercial', host: 'admin.trimly.co.ke',
   authorities: new Set(['internal.console.write', 'internal.commercial.offer.issue', 'internal.plugins.review']),
   stepUpAt: '2026-07-29T11:59:00.000Z', protectedOwner: false,
 }
@@ -71,10 +71,16 @@ describe('FUMA-071 canonical domain-service integration', () => {
     await expect(service.execute({ actionId: 'commercial.offer.issue', requestId: 'request-margin', input: { ...draft(1), offerId: 'offer-underpriced' } }, authority)).rejects.toMatchObject({ code: 'margin' })
   })
 
-  it('mounts FUMA-068 only and binds review actors server-side', async () => {
+  it('mounts FUMA-068, FUMA-072 and FUMA-073 while binding review actors server-side', async () => {
     const { registry, reviewCalls, service } = harness()
-    expect(registry.list()).toEqual([{ contributionId: 'artifact-review', ownerTicket: 'FUMA-068', routes: ['/internal/artifacts/reviews'], requiredAuthorities: ['internal.plugins.review'] }])
-    expect(registry.list().some(({ ownerTicket }) => ['FUMA-072', 'FUMA-073', 'FUMA-074'].includes(ownerTicket))).toBe(false)
+    expect(registry.list()).toEqual([
+      { contributionId: 'artifact-review', ownerTicket: 'FUMA-068', routes: ['/internal/artifacts/reviews'], requiredAuthorities: ['internal.plugins.review'] },
+      { contributionId: 'support-moderation', ownerTicket: 'FUMA-072', routes: ['/internal/support', '/internal/support/moderation', '/internal/support/suspensions', '/internal/support/appeals', '/internal/support/owner-recovery'], requiredAuthorities: ['internal.support.read'] },
+      { contributionId: 'expert-moderation', ownerTicket: 'FUMA-073', routes: ['/internal/experts', '/internal/experts/approvals', '/internal/experts/inquiries', '/internal/experts/transfers'], requiredAuthorities: ['internal.experts.read'] },
+      { contributionId: 'ai-backend-capabilities', ownerTicket: 'FUMA-087', routes: ['/internal/ai-capabilities'], requiredAuthorities: ['internal.console.read'] },
+      { contributionId: 'transfer-recovery', ownerTicket: 'FUMA-074', routes: ['/internal/transfers', '/internal/transfers/reconcile', '/internal/transfers/recover', '/internal/transfers/refund-escalations'], requiredAuthorities: ['internal.transfers.read'] },
+    ])
+    expect(registry.list().some(({ ownerTicket }) => ownerTicket === 'FUMA-074')).toBe(true)
     await service.execute({ actionId: 'artifact-review.decide', requestId: 'request-review', input: { decisionId: 'decision-console', submissionId: 'submission-console', reviewerId: 'attacker', decision: 'rejected', reason: 'Fixture rejection.', decidedAt: NOW.toISOString() } }, authority)
     expect(reviewCalls[0]?.reviewerId).toBe('staff-commercial')
   })

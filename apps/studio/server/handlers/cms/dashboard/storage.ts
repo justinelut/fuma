@@ -1,7 +1,7 @@
 /**
  * Storage widget reader — per-category byte counts (image / video /
- * document media + plugins-on-disk + database) plus the dialect label
- * the widget surfaces in its caption.
+ * document media + plugins-on-disk + PostgreSQL) plus the database label shown
+ * in the widget caption.
  *
  * Media is split into three sub-categories with a single SQL pass that
  * sums conditionally per mime-type bucket. Anything that isn't
@@ -9,14 +9,11 @@
  * with NULL mime_type) lands in `documentBytes` so the three counters
  * are guaranteed to sum back to the original media total.
  *
- * `case when ... then size_bytes else 0 end` is portable across PG and
- * SQLite — both dialects support standard SQL `CASE` and the `LIKE`
- * pattern match.
+ * PostgreSQL computes all media buckets in one pass with conditional sums.
  */
 import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { DbClient } from '../../../db/client'
-import { isSqliteUrl, parseSqlitePath } from '../../../db'
 import type { CmsHandlerOptions } from '../shared'
 import { coerceBytes } from './shared'
 import type { StorageStats } from './types'
@@ -43,7 +40,7 @@ export async function readStorageStats(
     options.uploadsDir
       ? sumDirectoryBytes(join(options.uploadsDir, 'plugins'))
       : Promise.resolve(0),
-    readDatabaseBytes(db, options.databaseUrl),
+    readDatabaseBytes(db),
   ])
 
   const totals = mediaResult.rows[0]
@@ -113,54 +110,18 @@ function isFsNotFound(err: unknown): boolean {
 }
 
 /**
- * Compute the byte size of the underlying database.
- *
- *   • SQLite: stat the file at the parsed DATABASE_URL path. WAL +
- *     shared-memory sidecars (`-wal`, `-shm`) are added when present
- *     because they hold uncommitted page data and matter for the "what
- *     is this database really costing on disk?" answer the widget is
- *     trying to give. Missing sidecars (WAL not yet rotated, no live
- *     connections) silently contribute zero.
- *   • Postgres: `pg_database_size(current_database())` — the canonical
- *     PG function for this. Dialect-aware because there is no portable
- *     equivalent; SQLite has no `pg_database_size` and Postgres has no
- *     on-disk file the host process can stat directly.
- *
- * Returns `0` when no measurement is possible (missing config, stat
- * error). The dashboard would still render — the segment just contributes
- * zero to the breakdown bar.
+ * Compute database bytes with PostgreSQL's canonical database-size function.
+ * Returns zero when the database cannot be measured so the dashboard remains
+ * available while reporting the failure to server logs.
  */
-async function readDatabaseBytes(
-  db: DbClient,
-  databaseUrl: string | undefined,
-): Promise<number> {
-  if (db.dialect === 'postgres') {
-    try {
-      const { rows } = await db<{ size: number | string | null }>`
-        select pg_database_size(current_database()) as size
-      `
-      return coerceBytes(rows[0]?.size)
-    } catch (err) {
-      console.error('[dashboard:storage] pg_database_size failed:', err)
-      return 0
-    }
+async function readDatabaseBytes(db: DbClient): Promise<number> {
+  try {
+    const { rows } = await db<{ size: number | string | null }>`
+      select pg_database_size(current_database()) as size
+    `
+    return coerceBytes(rows[0]?.size)
+  } catch (error) {
+    console.error('[dashboard:storage] pg_database_size failed:', error)
+    return 0
   }
-
-  // SQLite: stat the main file + WAL/SHM sidecars when present.
-  if (!databaseUrl || !isSqliteUrl(databaseUrl)) return 0
-  const path = parseSqlitePath(databaseUrl)
-  const sidecars = [path, `${path}-wal`, `${path}-shm`]
-  let total = 0
-  for (const p of sidecars) {
-    try {
-      const s = await stat(p)
-      total += s.size
-    } catch (err) {
-      // ENOENT for sidecars is the common case; only log unexpected errors.
-      if (!isFsNotFound(err)) {
-        console.error('[dashboard:storage] stat failed for', p, err)
-      }
-    }
-  }
-  return total
 }

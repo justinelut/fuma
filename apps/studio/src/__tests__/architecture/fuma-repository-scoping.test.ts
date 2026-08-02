@@ -662,7 +662,7 @@ describe('FUMA-025 repository scoping architecture', () => {
 
     const production = productionTypeScript('server')
       .filter((path) => !path.includes('/migrations/'))
-      .filter((path) => path !== 'server/db/migrations-pg.ts' && path !== 'server/db/migrations-sqlite.ts')
+      .filter((path) => path !== 'server/db/migrations-pg.ts')
       .flatMap((path) => singletonSqlFindings(path, read(path)))
     expect(production, formatFindings(production)).toEqual([])
   })

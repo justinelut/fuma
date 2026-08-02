@@ -96,7 +96,7 @@ describe('FUMA-066 hosted production authorities', () => {
       }),
     })
     const operationId = `${connector.connectorId}:publish-a`
-    const confirmation = await authority.issue({ connector, operationId, request: new Request('https://app.fuma.co.ke/confirm') })
+    const confirmation = await authority.issue({ connector, operationId, request: new Request('https://app.trimly.co.ke/confirm') })
     expect(confirmation.stepUpReceiptId).toMatch(/^[a-f0-9]{64}$/)
     expect(JSON.stringify(confirmation)).not.toContain('s'.repeat(32))
     await expect(authority.verify({ connector, session: mcpSession, operationId, confirmation })).resolves.toBeUndefined()
@@ -113,7 +113,7 @@ describe('FUMA-066 hosted production authorities', () => {
         createdAt: new Date('2026-07-29T02:54:59.000Z'),
       }),
     })
-    await expect(stale.issue({ connector, operationId, request: new Request('https://app.fuma.co.ke/confirm') })).rejects.toThrow('fresh direct')
+    await expect(stale.issue({ connector, operationId, request: new Request('https://app.trimly.co.ke/confirm') })).rejects.toThrow('fresh direct')
   })
 
   it('requires one canonical independent 256-bit BYOK metadata key', () => {

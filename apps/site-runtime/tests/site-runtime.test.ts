@@ -14,7 +14,7 @@ function headers(values: Record<string, string>): Headers { return new Headers(v
 
 describe('FUMA-SITE-003 exact-host Next request boundary', () => {
   test('normalizes ASCII host ports and one terminal dot while rejecting IDN, malformed, and ambiguous authorities', () => {
-    expect(normalizeTenantHost('ALPHA.fuma.co.ke:443')).toBe('alpha.fuma.co.ke')
+    expect(normalizeTenantHost('ALPHA.trimly.co.ke:443')).toBe('alpha.trimly.co.ke')
     expect(normalizeTenantHost('customer.example.')).toBe('customer.example')
     expect(() => normalizeTenantHost('xn--bcher-kva.example')).toThrow('IDN')
     expect(() => normalizeTenantHost('customer.example..')).toThrow('Malformed')
@@ -22,10 +22,10 @@ describe('FUMA-SITE-003 exact-host Next request boundary', () => {
   })
 
   test('denies direct-origin and caller-authorization requests before tenant resolution', () => {
-    expect(authorizeRoutedHost(headers({ host: 'alpha.fuma.co.ke', 'x-fuma-routed-host': 'alpha.fuma.co.ke', 'x-fuma-routing-token': token }), token)).toBe('alpha.fuma.co.ke')
-    expect(() => authorizeRoutedHost(headers({ host: 'alpha.fuma.co.ke' }), token)).toThrow('Direct origin')
-    expect(() => authorizeRoutedHost(headers({ host: 'alpha.fuma.co.ke', 'x-fuma-routed-host': 'beta.fuma.co.ke', 'x-fuma-routing-token': token }), token)).toThrow('Direct origin')
-    expect(() => authorizeRoutedHost(headers({ host: 'alpha.fuma.co.ke', authorization: 'Bearer staff', 'x-fuma-routed-host': 'alpha.fuma.co.ke', 'x-fuma-routing-token': token }), token)).toThrow('Caller authorization')
+    expect(authorizeRoutedHost(headers({ host: 'alpha.trimly.co.ke', 'x-fuma-routed-host': 'alpha.trimly.co.ke', 'x-fuma-routing-token': token }), token)).toBe('alpha.trimly.co.ke')
+    expect(() => authorizeRoutedHost(headers({ host: 'alpha.trimly.co.ke' }), token)).toThrow('Direct origin')
+    expect(() => authorizeRoutedHost(headers({ host: 'alpha.trimly.co.ke', 'x-fuma-routed-host': 'beta.trimly.co.ke', 'x-fuma-routing-token': token }), token)).toThrow('Direct origin')
+    expect(() => authorizeRoutedHost(headers({ host: 'alpha.trimly.co.ke', authorization: 'Bearer staff', 'x-fuma-routed-host': 'alpha.trimly.co.ke', 'x-fuma-routing-token': token }), token)).toThrow('Caller authorization')
   })
 
   test('canonicalizes exact routes and stable query identities', () => {
@@ -45,10 +45,10 @@ describe('FUMA-SITE-003 exact-host Next request boundary', () => {
   })
 
   test('uses Next links only for same-host canonical page references and denies executable schemes', () => {
-    expect(resolveRuntimeLink('cms:page:/menu', 'alpha.fuma.co.ke')).toEqual({ kind: 'internal', href: '/menu' })
-    expect(resolveRuntimeLink('https://alpha.fuma.co.ke/about', 'alpha.fuma.co.ke')).toEqual({ kind: 'internal', href: '/about' })
-    expect(resolveRuntimeLink('https://external.example/', 'alpha.fuma.co.ke')).toEqual({ kind: 'external', href: 'https://external.example/', rel: 'noopener noreferrer' })
-    expect(() => resolveRuntimeLink('javascript:alert(1)', 'alpha.fuma.co.ke')).toThrow('denied')
+    expect(resolveRuntimeLink('cms:page:/menu', 'alpha.trimly.co.ke')).toEqual({ kind: 'internal', href: '/menu' })
+    expect(resolveRuntimeLink('https://alpha.trimly.co.ke/about', 'alpha.trimly.co.ke')).toEqual({ kind: 'internal', href: '/about' })
+    expect(resolveRuntimeLink('https://external.example/', 'alpha.trimly.co.ke')).toEqual({ kind: 'external', href: 'https://external.example/', rel: 'noopener noreferrer' })
+    expect(() => resolveRuntimeLink('javascript:alert(1)', 'alpha.trimly.co.ke')).toThrow('denied')
   })
 
   test('keeps lifecycle state separate from tenant state and marks graceful drain', () => {

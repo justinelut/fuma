@@ -32,10 +32,15 @@ describe('FUMA-071 platform console architecture', () => {
     expect(composition).not.toMatch(/\b(?:select|insert|update|delete)\s+(?:from|into|fuma_)/i)
   })
 
-  it('keeps future support, expert and transfer seams empty until their owners compose them', () => {
+  it('composes support, expert and paid-handoff owners through bounded contributions', () => {
     const composition = source('apps/studio/server/fuma/platformConsole/composition.ts')
-    for (const ticket of ['FUMA-072', 'FUMA-073', 'FUMA-074']) expect(composition).toContain(`ownerTicket: '${ticket}'`)
-    expect(composition.match(/mounted: false as const/g)).toHaveLength(3)
+    expect(composition).toContain("from '../supportOperations/consoleContribution'")
+    expect(composition).toContain("from '../expertDiscovery/consoleContribution'")
+    expect(composition).toContain("from '../transfers/paidHandoffConsoleContribution'")
+    expect(composition).toContain('registry.register(supportOperationsConsoleContribution)')
+    expect(composition).toContain('registry.register(expertDiscoveryConsoleContribution)')
+    expect(composition).toContain('registry.register(paidHandoffConsoleContribution)')
+    expect(composition).toContain('futurePlatformConsoleSeams = Object.freeze([])')
     expect(composition).not.toContain('beginSupportSession(')
     expect(composition).not.toContain('approveExpertRelease(')
     expect(composition).not.toContain('authorizeTransferHandoff(')

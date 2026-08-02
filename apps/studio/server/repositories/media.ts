@@ -55,10 +55,9 @@ async function loadFolderIdsForAssets(
   if (assetIds.length === 0) return map
   for (const id of assetIds) map.set(id, [])
 
-  // Cross-dialect IN-list: SQLite has no native array binding and the shared
-  // `DbClient` tagged-template form can't expand a JS array into a SQL IN list.
-  // So we build the placeholder list explicitly through `placeholder()` and
-  // group in JS — one round-trip for the whole batch, dialect-naive ANSI SQL.
+  // Build the PostgreSQL placeholder list explicitly because the shared
+  // `DbClient` tagged-template form cannot expand a JS array into an IN list.
+  // Grouping in JS keeps this to one round trip for the whole batch.
   const placeholders = assetIds.map((_, i) => placeholder(db.dialect, i + 1)).join(', ')
   const { rows } = await db.unsafe<{ asset_id: string; folder_id: string }>(
     `select asset_id, folder_id from media_asset_folders
@@ -83,11 +82,7 @@ export async function createMediaAsset(
   db: DbClient,
   input: CreateMediaAssetInput,
 ): Promise<MediaAsset> {
-  // SQLite cross-dialect note: boolean values bind as `true`/`false` for
-  // Postgres but need 1/0 for SQLite. Both the tagged-template and the
-  // `db.unsafe` paths route params through the SQLite adapter's `toBindable`
-  // coercion (`server/db/sqlite.ts`), so passing a JS boolean works against
-  // both engines.
+  // PostgreSQL binds JavaScript booleans directly for the boolean column.
   //
   // Values are keyed by column name and read back in `MEDIA_ASSET_INSERT_COLUMNS`
   // order, so the tuple and the placeholders share one source of truth and
@@ -132,19 +127,17 @@ export async function getMediaAsset(
 /**
  * List every media asset (active or in-trash, never both). The repo intentionally
  * returns the full set and lets the handler apply additional filters (folder /
- * type / search / tag / sort / pagination) in JS — cross-dialect dynamic SQL
- * with optional WHERE clauses is fragile and the media library is small enough
- * (low thousands per site) that the round-trip dominates. If a site grows past
- * the comfort zone we'll move filters server-side per-dialect; not premature
- * optimization for M2.
+ * type / search / tag / sort / pagination) in JS. Optional dynamic SQL is
+ * unnecessary while the media library remains small enough (low thousands per
+ * site) that the round trip dominates. If a site grows past the comfort zone,
+ * the filters can move server-side.
  */
 export async function listMediaAssets(
   db: DbClient,
   options: { includeDeleted?: boolean } = {},
 ): Promise<MediaAsset[]> {
-  // Two queries, not one, because cross-dialect optional WHERE clauses in
-  // tagged templates require literal SQL text — `includeDeleted` is the
-  // only branch.
+  // Two queries keep the optional WHERE branch explicit in tagged-template
+  // SQL; `includeDeleted` is the only branch.
   const { rows } = options.includeDeleted
     ? await db.unsafe<MediaAssetRow>(
         `select ${MEDIA_ASSET_COLUMNS}
@@ -180,7 +173,7 @@ export async function renameMediaAsset(
 /**
  * Patch user-editable metadata. The query updates every field unconditionally
  * using COALESCE — undefined inputs map to NULL which preserves the existing
- * column value. This keeps the query shape stable across dialects.
+ * column value. This keeps the PostgreSQL query shape stable.
  */
 export async function updateMediaAssetMetadata(
   db: DbClient,
@@ -411,8 +404,7 @@ export async function assignAssetToFolders(
       `
     }
     for (const folderId of input.add ?? []) {
-      // Cross-dialect upsert — PG 9.5+ and SQLite 3.24+ both accept
-      // `ON CONFLICT DO NOTHING` on a primary key conflict.
+      // PostgreSQL ignores an existing primary-key pair.
       await tx`
         insert into media_asset_folders (asset_id, folder_id)
         values (${assetId}, ${folderId})

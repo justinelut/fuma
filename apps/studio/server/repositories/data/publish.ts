@@ -11,7 +11,7 @@
  *                                   published version of a row; resolves
  *                                   `featuredMediaPath` via a second query
  *                                   against `media_assets` (app code reads the
- *                                   cell value — SQL stays dialect-naive)
+ *                                   cell value rather than extracting JSON in SQL)
  *   getDataRowRedirectByRoute     — resolve a public URL to a redirect target
  *                                   when the URL belongs to a
  *                                   previously-published slug
@@ -339,7 +339,7 @@ export async function listPublishedRowRoutes(db: DbClient): Promise<PublishedRow
  * `cells.featuredMedia` (via `readFeaturedMediaCell`) from the version's
  * `cells_json`, then — only when a media id is present — we do a second
  * query against `media_assets` for the `public_path`. This keeps the primary
- * query dialect-naive (no JSON-extract functions, no PG-specific operators).
+ * primary query simple and avoids unnecessary PostgreSQL JSON extraction.
  */
 export async function getPublishedDataRowByRoute(
   db: DbClient,
@@ -352,8 +352,8 @@ export async function getPublishedDataRowByRoute(
   // `userRefJoin` fragments (the single source, also spliced by the hydrated
   // data-row SELECT in `rows/mapper.ts`). The publisher join targets
   // `data_row_versions.published_by_user_id` — the per-version publisher — not
-  // `data_rows.published_by_user_id`. SQL stays dialect-naive (ANSI joins,
-  // positional `placeholder()` binds).
+  // `data_rows.published_by_user_id`. The query uses ordinary PostgreSQL joins
+  // and positional `placeholder()` binds.
   const p = (n: number) => placeholder(db.dialect, n)
   const { rows } = await db.unsafe<PublishedDataRowQueryRow>(
     `select data_row_versions.id,
@@ -392,7 +392,7 @@ export async function getPublishedDataRowByRoute(
 
   // Resolve featuredMediaPath in app code: read the cell value, then do a
   // second query only when a media id is present. This avoids any
-  // dialect-specific JSON extraction in the primary query.
+  // PostgreSQL JSON extraction in the primary query.
   const featuredMediaId = readFeaturedMediaCell(cells)
   let featuredMediaPath: string | null = null
 

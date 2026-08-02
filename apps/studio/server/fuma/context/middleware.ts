@@ -26,6 +26,7 @@ import {
   FumaRequestContextResolutionError,
   deriveFumaRequestContext,
   type FumaRequestContextAuthorityPorts,
+  type FumaSiteAuthorizationAuthority,
 } from './requestContext'
 
 const SCOPED_PATH_PATTERN = /^\/api\/fuma\/organizations\/([^/]+)\/workspaces\/([^/]+)\/sites\/([^/]+)(\/.*)?$/
@@ -79,7 +80,10 @@ export type FumaScopedRouteHandler = (
 ) => Response | Promise<Response>
 
 export type FumaScopedRouteDeclaration = Readonly<
-  FumaScopedRouteMetadata & { handler: FumaScopedRouteHandler }
+  FumaScopedRouteMetadata & {
+    handler: FumaScopedRouteHandler
+    authorization?: FumaSiteAuthorizationAuthority
+  }
 >
 
 export type FumaScopedRouteBoundaryDependencies = Readonly<{
@@ -131,6 +135,7 @@ type CompiledRoute = Readonly<{
   path: FumaScopedRoutePath
   permission: PermissionId
   handler: FumaScopedRouteHandler
+  authorization?: FumaSiteAuthorizationAuthority
   segments: readonly CompiledSegment[]
 }>
 
@@ -285,8 +290,15 @@ function compileRoute(declaration: FumaScopedRouteDeclaration): CompiledRoute {
     permission: declaration.permission,
   }
   const parsed = safeParseValue(FumaScopedRouteDeclarationSchema, candidate)
-  if (!parsed.ok || typeof declaration.handler !== 'function') {
-    declarationError('A scoped route declaration has invalid method, path, permission, or handler fields.')
+  if (
+    !parsed.ok
+    || typeof declaration.handler !== 'function'
+    || (declaration.authorization !== undefined
+      && (typeof declaration.authorization !== 'object'
+        || declaration.authorization === null
+        || typeof declaration.authorization.loadExactSiteAuthorization !== 'function'))
+  ) {
+    declarationError('A scoped route declaration has invalid method, path, permission, handler, or authorization fields.')
   }
 
   const names = new Set<string>()
@@ -307,6 +319,7 @@ function compileRoute(declaration: FumaScopedRouteDeclaration): CompiledRoute {
   return Object.freeze({
     ...parsed.value,
     handler: declaration.handler,
+    ...(declaration.authorization ? { authorization: declaration.authorization } : {}),
     segments: Object.freeze(segments),
   })
 }
@@ -544,7 +557,9 @@ export function createFumaScopedRouteBoundary(
         request,
         routeScope: parsedPath.scope,
         requiredPermission: selected.route.permission,
-        ports: input.ports,
+        ports: selected.route.authorization
+          ? { ...input.ports, authorization: selected.route.authorization }
+          : input.ports,
         ...(input.registry ? { registry: input.registry } : {}),
         generateRequestId: () => serverRequestId,
       })

@@ -20,9 +20,8 @@ import type { DataRow, DataRowCells, DataRowStatus } from '@core/data/schemas'
 import { userRefAt, userRefColumns, userRefJoin, type UserJoinColumns } from '../shared'
 import { isoDate, isoDateOrNull } from '@core/utils/isoDate'
 
-// Re-exported so the sibling rows/ query modules (filter, read) keep one
-// local entry point for the dialect-aware placeholder; the single definition
-// lives in db/client.
+// Re-exported so sibling row query modules share the canonical PostgreSQL
+// placeholder implementation from db/client.
 export { placeholder }
 
 // ---------------------------------------------------------------------------
@@ -138,9 +137,8 @@ const DATA_ROW_JOINS = `from data_rows
 /**
  * Shape of a hydrated data-row query. Every clause is spliced verbatim into the
  * canonical "row + four user-ref joins" SELECT, so each must reference columns
- * only and bind values through positional placeholders (see `placeholder`),
- * with the matching values supplied in `params`. The SQL stays dialect-naive
- * (ANSI joins + CTE, no Postgres-isms).
+ * only and bind values through PostgreSQL positional placeholders (see
+ * `placeholder`), with matching values supplied in `params`.
  */
 interface HydratedDataRowsQuery {
   /**

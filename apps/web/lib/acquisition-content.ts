@@ -1,6 +1,7 @@
 import claimsSource from '@/content/public/claims.json'
 import { PublicClaimInventorySchema } from '@/lib/public-web-contracts'
 import { Value } from '@sinclair/typebox/value'
+import { canonicalPublicUrl } from '@/lib/seo'
 
 export const ACQUISITION_PATHS = [
   '/',
@@ -28,34 +29,34 @@ export function approvedClaim(id: ApprovedClaimId) {
 
 export const ACQUISITION_ROUTE_CONTRACT = Object.freeze({
   '/': {
-    canonical: 'https://fuma.co.ke/',
+    canonical: canonicalPublicUrl('/'),
     links: ['/website', '/publication', '/features', '/solutions', '/about', '/start?kind=sign_up&source=home'],
-    claims: ['single-workflow', 'kenya-context'],
+    claims: ['single-workflow', 'clean-output'],
   },
   '/website': {
-    canonical: 'https://fuma.co.ke/website',
+    canonical: canonicalPublicUrl('/website'),
     links: ['/start?kind=create_site&source=product&profile=website', '/publication'],
     claims: ['clean-output', 'owned-form-data'],
   },
   '/publication': {
-    canonical: 'https://fuma.co.ke/publication',
+    canonical: canonicalPublicUrl('/publication'),
     links: ['/start?kind=create_site&source=product&profile=publication', '/website'],
     claims: ['draft-isolation', 'clean-output'],
   },
   '/features': {
-    canonical: 'https://fuma.co.ke/features',
+    canonical: canonicalPublicUrl('/features'),
     links: ['/start?kind=sign_up&source=solution', '/website', '/publication'],
     claims: ['single-workflow', 'owned-form-data'],
   },
   '/solutions': {
-    canonical: 'https://fuma.co.ke/solutions',
+    canonical: canonicalPublicUrl('/solutions'),
     links: ['/website', '/publication'],
-    claims: ['single-workflow', 'kenya-context'],
+    claims: ['single-workflow', 'clean-output'],
   },
   '/about': {
-    canonical: 'https://fuma.co.ke/about',
+    canonical: canonicalPublicUrl('/about'),
     links: ['/blog', '/contact', '/trust'],
-    claims: ['kenya-context'],
+    claims: ['single-workflow'],
   },
 } satisfies Record<AcquisitionPath, {
   canonical: string

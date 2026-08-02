@@ -4,8 +4,8 @@
  *   listDataRowsWithFilter — list rows in a table with operator-object
  *                            filters, sort, and pagination
  *
- * The filter SQL is dialect-naive (ANSI lower/like, the `jsonField()` helper
- * for cells_json paths) — `db-postgres-isms.test.ts` gates against drift.
+ * Filters use PostgreSQL `lower`/`like` and the validated `jsonField()` helper
+ * for `cells_json` paths.
  */
 import type { DbClient } from '../../../db/client'
 import type { DataRow } from '@core/data/schemas'
@@ -23,8 +23,8 @@ import { placeholder, selectHydratedDataRows } from './mapper'
  * regex before splicing it into SQL.
  *
  * `orderBy` accepts JSON-cell paths AND the four row-level columns
- * `slug` / `status` / `created_at` / `updated_at` (recognised by suffix
- * so the SQL stays dialect-naive).
+ * `slug` / `status` / `created_at` / `updated_at` (recognized by suffix so
+ * only validated PostgreSQL expressions enter the query).
  */
 interface ListDataRowsFilterOptions {
   filter?: Record<string, StorageFilterValue>
@@ -56,9 +56,8 @@ const ROW_LEVEL_ORDER_KEYS = new Set([
  *
  * Two queries total, independent of page size: a single hydrated SELECT (the
  * filter + pagination live in a `filtered_ids` CTE that the row + user-ref
- * joins are restricted to) plus one COUNT. The CTE keeps the SQL dialect-naive
- * — both Postgres and SQLite support `with` — while collapsing what used to be
- * one hydration round-trip per matching id.
+ * joins are restricted to) plus one COUNT. The PostgreSQL CTE collapses what
+ * used to be one hydration round trip per matching id.
  */
 export async function listDataRowsWithFilter(
   db: DbClient,

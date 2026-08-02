@@ -154,7 +154,7 @@ describe('FUMA-057 entitlement enforcement architecture', () => {
     expect(migration).not.toMatch(/\b(?:drop|truncate)\b|^\s*delete\s+from/im)
     expect(migrationIndex).toContain("import { quotaSelfServiceMigration } from './000060_quota_self_service'")
     expect(migrationIndex).toContain("'000060_quota_self_service': 'af8a6667a5a2bc2275e2c48f07679a8547193c0a1d9bacf5f1424be523c429e7'")
-    expect(releaseMigration).toContain(".toBe('000076_release_followup')")
+    expect(releaseMigration).toContain(".toBe('000078_release_followup')")
   })
 
   it('keeps quota and app-local usage modules under source ceilings', () => {

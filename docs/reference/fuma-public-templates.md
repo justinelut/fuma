@@ -7,7 +7,7 @@ FUMA-WEB-010 keeps template truth in the product and limits `apps/web` to strict
 `server/fuma/publicTemplates` owns approval, withdrawal, discovery, preview authorization, and install resolution. Approval compares the requested manifest SHA-256 with the current exact ready/active release, requires a retention root, verifies `/index.html`, verifies the discovery image against the release manifest, enforces the 300,000-byte image budget, and derives the only accepted preview origin:
 
 ```text
-https://templates.preview.fuma.co.ke/releases/<exact-release-id>/
+https://templates.preview.trimly.co.ke/releases/<exact-release-id>/
 ```
 
 Stable IDs and canonical slugs cannot be replaced. Withdrawal is a monotonic compare-and-set mutation and leaves a minimal `{id, slug, withdrawnAt}` tombstone. Withdrawn records disappear from unfiltered discovery and sitemap material immediately, while an exact slug lookup can distinguish the tombstone from a never-existing record. A withdrawn stable ID cannot be resurrected.
@@ -16,7 +16,7 @@ The projection is `no-store`. Canonical filters are `profile`, `capability`, `in
 
 ## Preview isolation and artifact ownership
 
-The preview boundary accepts only exact Host `templates.preview.fuma.co.ke`, `GET`/`HEAD`, canonical `/releases/<id>/...` paths, and requests without cookies or authorization. Every read first rechecks current template approval, exact manifest hash, and retention, then reads and SHA-256-verifies the existing release object. It never copies release bytes into Web or a template-specific object store. Responses are no-store and carry CSP, COOP, COEP, CORP, permissions, referrer, framing, and MIME-sniffing isolation headers. Withdrawal therefore revokes future preview reads even though the underlying retained artifact is immutable.
+The preview boundary accepts only exact Host `templates.preview.trimly.co.ke`, `GET`/`HEAD`, canonical `/releases/<id>/...` paths, and requests without cookies or authorization. Every read first rechecks current template approval, exact manifest hash, and retention, then reads and SHA-256-verifies the existing release object. It never copies release bytes into Web or a template-specific object store. Responses are no-store and carry CSP, COOP, COEP, CORP, permissions, referrer, framing, and MIME-sniffing isolation headers. Withdrawal therefore revokes future preview reads even though the underlying retained artifact is immutable.
 
 ## Product-owned install handoff
 

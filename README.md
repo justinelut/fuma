@@ -32,7 +32,7 @@ A self-hosted CMS where the visual editor, content engine, and publisher all liv
 
 <br>
 
-A modern website usually means assembling a stack: a headless CMS, a framework, a host, a form service, an analytics vendor, an image CDN — each with its own bill, dashboard, and 2 a.m. outage. Instatic is the opposite bet. One Bun server holds the whole thing — the canvas editor, the content engine, media, auth, forms, plugins, and the publisher — and you run it wherever you like, backed by SQLite or Postgres.
+A modern website usually means assembling a stack: a headless CMS, a framework, a host, a form service, an analytics vendor, an image CDN — each with its own bill, dashboard, and 2 a.m. outage. Instatic is the opposite bet. One Bun server holds the whole thing — the canvas editor, the content engine, media, auth, forms, plugins, and the publisher — and you run it wherever you like, backed by PostgreSQL.
 
 What comes out the other end is the part most builders quietly compromise on: plain semantic HTML and compact CSS, with none of the editor's machinery left behind in the page. No framework runtime, no builder attributes, no div soup. The site loads like a static file because, most of the time, it is one.
 
@@ -56,12 +56,11 @@ Railway is the fastest way to get Instatic live. Pick a template, hit the button
 
 | Provider | Database | Best for | Deploy |
 |---|---|---|---|
-| **Railway** · *Recommended* | SQLite | A single site — blog, portfolio, small business | [Deploy →](https://railway.com/deploy/instatic-cms-sqlite?referralCode=Zm9bVJ&utm_medium=integration&utm_source=template&utm_campaign=generic) |
-| **Railway** | Postgres | Multiple authors, managed backups, room to grow | [Deploy →](https://railway.com/deploy/instatic-cms-postgres?referralCode=Zm9bVJ&utm_medium=integration&utm_source=template&utm_campaign=generic) |
-| **Render** | SQLite or Postgres | Teams that prefer Render services, disks, and managed Postgres | [Guide →](docs/deployment/render.md) |
-| **Docker / VPS** | SQLite or Postgres | Bring-your-own server, Caddy TLS, custom backup policy | [Guide →](docs/deployment/vps.md) |
+| **Railway** · *Recommended* | Managed PostgreSQL | Fast managed deployment with backups | [Deploy →](https://railway.com/deploy/instatic-cms-postgres?referralCode=Zm9bVJ&utm_medium=integration&utm_source=template&utm_campaign=generic) |
+| **Render** | Managed PostgreSQL | Teams that prefer Render services and managed databases | [Guide →](docs/deployment/render.md) |
+| **Compose / VPS** | PostgreSQL | Bring-your-own server, Caddy TLS, custom backup policy | [Guide →](docs/deployment/vps.md) |
 
-SQLite is the right default for most sites. Reach for Postgres when you've got a team of authors or want managed database backups.
+PostgreSQL is the sole supported database across development, tests, and production.
 
 ### Updating is just a redeploy
 
@@ -70,7 +69,7 @@ When a new Instatic version is available, update by redeploying the latest image
 Prefer your own hardware? Instatic is a single Docker image:
 
 ```sh
-INSTATIC_IMAGE=ghcr.io/corebunch/instatic:latest docker compose -f compose.prod.yml -f compose.sqlite.yml up -d
+INSTATIC_IMAGE=ghcr.io/corebunch/instatic:latest docker compose -f compose.prod.yml up -d
 ```
 
 Full guides for VPS, Postgres, HTTPS with Caddy, Render, and backups are in [docs/deployment](docs/deployment/README.md).
@@ -145,7 +144,7 @@ Through the SDK, a plugin can add:
 - Media storage adapters and frontend assets
 - Lifecycle hooks across install, activation, and beyond
 
-Start with the [plugin system docs](docs/features/plugin-system.md) and the [template plugin](examples/plugins/template/README.md).
+Start with the [plugin system docs](docs/features/plugin-system.md).
 
 <br>
 
@@ -165,20 +164,20 @@ What comes out the other end is plain HTML and compact CSS, all the way down. No
 
 ## Quick start
 
-You need [Bun](https://bun.sh). Nothing else. The default dev setup runs on SQLite, so there are no extra services to stand up.
+You need [Bun](https://bun.sh) and PostgreSQL. Create the local database with the credentials in `.env.example`, then use the canonical local connection URL.
 
 ```sh
 git clone https://github.com/corebunch/instatic.git
 cd instatic
 bun install
-bun run dev
+DATABASE_URL=postgres://instatic:instatic@127.0.0.1:5433/instatic bun run dev
 ```
 
 Open `http://localhost:5173`. The first visit walks you through creating your site and your owner account.
 
 Want to see it the way it actually ships? `bun run start` builds the admin and serves it from the Bun server at `http://localhost:3001/admin`.
 
-> **Backups, in one sentence:** back up the database (a Postgres dump or the SQLite file) and the uploads folder, and you've backed up the whole site — [details](docs/deployment/backup-restore.md).
+> **Backups, in one sentence:** back up PostgreSQL with `pg_dump` and back up the uploads folder, and you've backed up the whole site — [details](docs/deployment/backup-restore.md).
 
 <br>
 
@@ -217,7 +216,7 @@ One Bun server. A React admin built with Vite. A publisher that emits pages you'
 | **Language** | TypeScript everywhere |
 | **Admin app** | React 19 (React Compiler on), Vite, Zustand + Mutative, CodeMirror, dnd-kit |
 | **Server** | `Bun.serve` with a hand-written router |
-| **Database** | SQLite or Postgres — one `DbClient` interface, picked by `DATABASE_URL` |
+| **Database** | PostgreSQL through one `DbClient` interface |
 | **Validation** | TypeBox at every untyped boundary; schemas are the source of truth |
 | **Plugins** | QuickJS-WASM backend sandbox, owner-granted permissions, explicit `editor.code` for admin-window code |
 | **AI** | Provider-agnostic drivers over raw HTTP/SSE, no vendor SDKs |

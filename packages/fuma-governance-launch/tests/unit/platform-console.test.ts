@@ -11,11 +11,11 @@ import {
 
 const now = new Date('2026-07-29T12:00:00.000Z')
 const reader: InternalAuthority = Object.freeze({
-  actorId: 'staff-reader', host: 'admin.fuma.co.ke',
+  actorId: 'staff-reader', host: 'admin.trimly.co.ke',
   authorities: new Set(['internal.console.read']), stepUpAt: null, protectedOwner: false,
 })
 const writer: InternalAuthority = Object.freeze({
-  actorId: 'staff-writer', host: 'admin.fuma.co.ke',
+  actorId: 'staff-writer', host: 'admin.trimly.co.ke',
   authorities: new Set(['internal.console.read', 'internal.console.write', 'internal.commercial.offer.issue']),
   stepUpAt: '2026-07-29T11:59:00.000Z', protectedOwner: false,
 })
@@ -86,7 +86,7 @@ describe('FUMA-071 bounded delegated actions', () => {
     expect(result).toEqual({ actionId: 'commercial.offer.issue', requestId: 'request-a', state: 'completed', resourceId: 'offer-a', resourceVersion: 1 })
     expect(received).toMatchObject({ context: { actorId: 'staff-writer', requestId: 'request-a', now: now.toISOString() } })
     for (const authority of [
-      { ...writer, host: 'app.fuma.co.ke' },
+      { ...writer, host: 'app.trimly.co.ke' },
       { ...writer, authorities: new Set(['internal.console.write']) },
       { ...writer, stepUpAt: '2026-07-29T11:40:00.000Z' },
     ]) await expect(service(new Rows({}), registry).execute({ actionId: 'commercial.offer.issue', requestId: 'request-a', input: {} }, authority)).rejects.toThrow()

@@ -19,7 +19,7 @@ If private vulnerability reporting is unavailable, open a minimal public issue a
 Helpful reports include:
 
 - affected version, commit, or Docker image tag
-- deployment mode, for example SQLite Compose, Postgres Compose, Railway, or Render
+- deployment mode, for example PostgreSQL Compose, Railway, or Render
 - clear reproduction steps
 - impact and expected attacker capabilities
 - any relevant logs with secrets redacted

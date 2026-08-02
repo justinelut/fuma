@@ -12,6 +12,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@fuma/brand": "workspace:*",
     "@fuma/governance-launch": "workspace:*",
     "@radix-ui/react-slot": "1.3.3",
     "@sinclair/typebox": "0.34.49",

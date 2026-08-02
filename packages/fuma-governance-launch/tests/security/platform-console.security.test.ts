@@ -4,14 +4,14 @@ import { PlatformConsoleRegistry, PlatformConsoleService, type InternalAuthority
 const source: PlatformConsoleReadSource = {
   async read() { return [{ organizationId: 'org-a', name: 'Visible', password: 'needle-password', cookie: 'needle-cookie', ciphertext: 'needle-ciphertext', rawWebhook: 'needle-webhook' }] },
 }
-const allowed: InternalAuthority = { actorId: 'staff-a', host: 'admin.fuma.co.ke', authorities: new Set(['internal.console.read']), stepUpAt: null, protectedOwner: false }
+const allowed: InternalAuthority = { actorId: 'staff-a', host: 'admin.trimly.co.ke', authorities: new Set(['internal.console.read']), stepUpAt: null, protectedOwner: false }
 const console = new PlatformConsoleService({ source, registry: new PlatformConsoleRegistry(), now: () => new Date('2026-07-29T12:00:00.000Z') })
 
 describe('FUMA-071 adversarial console boundary', () => {
   it('rejects host substitution, absent capability, caller authority fields, and malformed queries', async () => {
     for (const authority of [
-      { ...allowed, host: 'app.fuma.co.ke' },
-      { ...allowed, host: 'admin.fuma.co.ke.attacker.invalid' },
+      { ...allowed, host: 'app.trimly.co.ke' },
+      { ...allowed, host: 'admin.trimly.co.ke.attacker.invalid' },
       { ...allowed, authorities: new Set<string>() },
     ]) await expect(console.query({ view: 'organizations', limit: 10 }, authority)).rejects.toThrow()
     for (const query of [

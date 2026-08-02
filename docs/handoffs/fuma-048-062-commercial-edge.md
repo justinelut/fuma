@@ -47,7 +47,7 @@ Browser acceptance is authored only against the mandatory public endpoints `http
 
 ### 1. Hosted migration stream
 
-In `server/fuma/db/migrations/index.ts`, first apply the existing FUMA-028–047 handoff for `000013`–`000020`, then import and append `000021`–`000034` in numeric order. Copy checksum values from `server/fuma/commercialEdgePhase/migrations.ts`; do not infer, reorder, or rewrite historical migrations. The final sequence must be one contiguous hosted PostgreSQL stream through `000034_domain_operations`. Do not add SQLite mirrors.
+In `server/fuma/db/migrations/index.ts`, first apply the existing FUMA-028–047 handoff for `000013`–`000020`, then import and append `000021`–`000034` in numeric order. Copy checksum values from `server/fuma/commercialEdgePhase/migrations.ts`; do not infer, reorder, or rewrite historical migrations. The final sequence must be one contiguous hosted PostgreSQL stream through `000034_domain_operations`. Do not add non-PostgreSQL mirrors.
 
 ### 2. Durable jobs
 

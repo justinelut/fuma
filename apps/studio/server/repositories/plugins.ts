@@ -295,9 +295,9 @@ export async function setPluginSettings(
 /** Identifier regex — same rule as the jsonField() helper. */
 const FIELD_KEY_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/
 
-/** Build a dialect-appropriate positional parameter placeholder. */
-function placeholder(dialect: Dialect, index: number): string {
-  return dialect === 'postgres' ? `$${index}` : '?'
+/** Build a PostgreSQL positional parameter placeholder. */
+function placeholder(_dialect: Dialect, index: number): string {
+  return `$${index}`
 }
 
 export async function listPluginRecords(
@@ -511,8 +511,7 @@ export async function recordPluginCrash(
   `
 
   // Roll the window — keep only the N most recent events for this plugin.
-  // Done as a separate statement (not a CTE) to stay dialect-naive: ANSI
-  // SQL guarantees this works on both PG and SQLite.
+  // A separate PostgreSQL statement keeps the retention step explicit.
   await db`
     delete from plugin_crash_events
     where plugin_id = ${input.pluginId}

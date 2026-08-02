@@ -14,6 +14,7 @@
     "evidence:dry-run": "bun run tooling/evidence.ts --dry-run"
   },
   "dependencies": {
+    "@fuma/brand": "workspace:*",
     "@sinclair/typebox": "0.34.49"
   },
   "devDependencies": {

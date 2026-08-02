@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { effectivePublicHost, isKnownPublicHost, normalizedPublicHost } from '@/lib/public-host'
+import { FUMA_WEB_DEPLOYMENT } from '@/lib/deployment-profile'
 
 const INTERNAL_HOST = 'web-internal.service'
 
@@ -7,9 +8,9 @@ export function proxy(request: NextRequest) {
   const host = effectivePublicHost(request.headers)
   const path = request.nextUrl.pathname
 
-  if (host === 'www.fuma.co.ke') {
+  if (host === FUMA_WEB_DEPLOYMENT.hosts.redirect) {
     const target = request.nextUrl.clone()
-    target.hostname = 'fuma.co.ke'
+    target.hostname = FUMA_WEB_DEPLOYMENT.hosts.public
     target.protocol = 'https:'
     target.port = ''
     return NextResponse.redirect(target, 308)

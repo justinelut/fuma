@@ -1,7 +1,8 @@
+import { FUMA_DEFAULT_DEPLOYMENT_PROFILE } from '@fuma/brand'
 import { Type, Value, type Static } from '@core/utils/typeboxHelpers'
 import type { ReleaseManifest } from '../releases'
 
-export const FREE_HOST_SUFFIX = '.fuma.co.ke' as const
+export const FREE_HOST_SUFFIX = FUMA_DEFAULT_DEPLOYMENT_PROFILE.tenantSuffix
 export const RESERVED_FREE_HOST_LABELS = Object.freeze(new Set([
   'auth', 'app', 'admin', 'www', 'api', 'status', 'support', 'mail',
   'assets', 'billing', 'cdn', 'checkout', 'console', 'dashboard', 'docs',
@@ -146,15 +147,21 @@ export class FreeHostService {
   readonly #repository: FreeHostRepository
   readonly #releases: ActiveReleaseResolver
   readonly #now: () => Date
+  readonly #suffix: string
 
   constructor(
     repository: FreeHostRepository,
     releases: ActiveReleaseResolver,
     now: () => Date = () => new Date(),
+    suffix: string = FREE_HOST_SUFFIX,
   ) {
+    if (!suffix.startsWith('.') || !Value.Check(HostSchema, suffix.slice(1))) {
+      throw new TypeError('Free-host suffix is invalid.')
+    }
     this.#repository = repository
     this.#releases = releases
     this.#now = now
+    this.#suffix = suffix
   }
 
   async allocate(input: Readonly<FreeHostAuthority & {
@@ -162,9 +169,9 @@ export class FreeHostService {
     canonicalHost?: string | null
   }>): Promise<FreeHostRecord> {
     const label = normalizeFreeHostLabel(input.label)
-    const host = `${label}${FREE_HOST_SUFFIX}`
+    const host = `${label}${this.#suffix}`
     const canonicalHost = input.canonicalHost ? normalizePublicHost(input.canonicalHost) : null
-    if (canonicalHost?.endsWith(FREE_HOST_SUFFIX)) {
+    if (canonicalHost?.endsWith(this.#suffix)) {
       throw new FreeHostError('reserved', 'A free host cannot redirect through another free-host allocation.')
     }
     const record = Object.freeze({
@@ -199,10 +206,12 @@ export class FreeHostService {
 
   async resolve(rawHost: string): Promise<FreeHostResolution> {
     const host = normalizePublicHost(rawHost)
-    if (!host.endsWith(FREE_HOST_SUFFIX) || host.split('.').length !== 4) {
+    if (!host.endsWith(this.#suffix)) {
       throw new FreeHostError('unknown', 'No default host is configured.')
     }
-    normalizeFreeHostLabel(host.slice(0, -FREE_HOST_SUFFIX.length))
+    const label = host.slice(0, -this.#suffix.length)
+    if (label.includes('.')) throw new FreeHostError('unknown', 'No default host is configured.')
+    normalizeFreeHostLabel(label)
     const record = await this.#repository.exact(host)
     if (!record) throw new FreeHostError('unknown', 'Unknown host.')
     if (record.state !== 'active') throw new FreeHostError('suspended', 'Host is suspended.')

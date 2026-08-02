@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "state": "blocked",
-  "sqliteTransitionHashMatched": false,
+  "postgresMigrationHashMatched": false,
   "ghostManifestHashMatched": false,
   "lawyerInventoryComplete": false,
   "immutableGrandfatheredContract": false,

@@ -9,7 +9,7 @@ function context(route: string, state: SiteApplicationSnapshot, siteId = 'site-a
   return {
     schemaVersion: 1,
     cacheIdentity: {
-      host: siteId === 'site-a' ? 'alpha.fuma.co.ke' : 'beta.fuma.co.ke', platformId: 'platform', organizationId: 'org', workspaceId: 'workspace', siteId, ownerKey: `owner-${siteId}`, ownerGeneration: 1,
+      host: siteId === 'site-a' ? 'alpha.trimly.co.ke' : 'beta.trimly.co.ke', platformId: 'platform', organizationId: 'org', workspaceId: 'workspace', siteId, ownerKey: `owner-${siteId}`, ownerGeneration: 1,
       releaseId: 'release-a', releaseHashSha256: 'a'.repeat(64), route, canonicalQuery: '', audience: { kind: 'member', memberId: 'member-a', accessFingerprintSha256: 'f'.repeat(64) },
       runtimeDeploymentVersion: '1.0.0', componentRegistryVersion: '1.0.0', rolloutPolicyVersion: 1,
     },

@@ -1,3 +1,4 @@
+import { FUMA_WEB_DEPLOYMENT } from './deployment-profile'
 import { Value } from '@sinclair/typebox/value'
 import path from 'node:path'
 import {
@@ -55,7 +56,7 @@ const LOWERCASE_HTML_TAG = /<\/?[a-z][^>]*>/i
 const MARKDOWN_LINK = /(!?)\[([^\]]*)\]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/g
 const ALLOWED_COMPONENTS = new Set(['Callout', 'CodeBlock'])
 const STATIC_PUBLIC_PATHS = new Set([
-  '/', '/about', '/blog', '/changelog', '/contact', '/docs', '/experts', '/features',
+  '/', '/about', '/blog', '/changelog', '/components', '/contact', '/docs', '/experts', '/features',
   '/feeds/atom.xml', '/feeds/rss.xml', '/guides', '/legal/history', '/plugins',
   '/pricing', '/publication', '/security', '/showcase', '/solutions', '/start',
   '/status', '/templates', '/trust', '/website',
@@ -284,7 +285,7 @@ function normalizeInternalHref(href: string, entry: EditorialEntry): { pathname:
   if (href.startsWith('https:')) return null
   if (href.startsWith('#')) return { pathname: entry.canonicalPath, hash: href.slice(1) }
   const base = href.startsWith('/') ? href : path.posix.resolve(path.posix.dirname(entry.canonicalPath), href)
-  const parsed = new URL(base, 'https://fuma.co.ke')
+  const parsed = new URL(base, FUMA_WEB_DEPLOYMENT.origins.public)
   return { pathname: parsed.pathname.replace(/\/$/, '') || '/', hash: parsed.hash.slice(1) }
 }
 

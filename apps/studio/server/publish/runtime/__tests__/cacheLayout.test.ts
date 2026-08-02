@@ -57,7 +57,7 @@ function createThrowingDb(): { db: DbClient; wasQueried: () => boolean } {
   const db = failTagged as DbClient
   db.unsafe = failUnsafe
   db.transaction = async <T>(cb: (tx: DbClient) => Promise<T>): Promise<T> => cb(db)
-  Object.defineProperty(db, 'dialect', { value: 'sqlite' satisfies DbClient['dialect'] })
+  Object.defineProperty(db, 'dialect', { value: 'postgres' satisfies DbClient['dialect'] })
   return { db, wasQueried: () => queried }
 }
 

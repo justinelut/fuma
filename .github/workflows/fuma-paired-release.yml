@@ -18,6 +18,7 @@ concurrency:
 env:
   REQUIRED_RUNNER_ARCH: ARM64
   REQUIRED_PLATFORM: linux/arm64
+  FUMA_DEPLOYMENT_ROOT_DOMAIN: ${{ vars.FUMA_DEPLOYMENT_ROOT_DOMAIN }}
 
 jobs:
   preflight:
@@ -42,6 +43,7 @@ jobs:
           set -euo pipefail
           test "$RUNNER_ARCH" = "$REQUIRED_RUNNER_ARCH"
           test "$(uname -m)" = aarch64
+          printf '%s' "$FUMA_DEPLOYMENT_ROOT_DOMAIN" | grep -Eq '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$'
           test "$(git rev-parse HEAD)" = "${{ inputs.release_ref }}"
           printf '%s' '${{ inputs.release_ref }}' | grep -Eq '^[a-f0-9]{40}$'
           bun -e 'const p = await Bun.file("package.json").json(); if (p.packageManager !== "bun@1.3.14" || JSON.stringify(p.workspaces) !== JSON.stringify(["apps/*", "packages/*"])) throw new Error("root Bun/workspace contract mismatch")'
@@ -110,6 +112,7 @@ jobs:
           build-args: |
             BUN_IMAGE=${{ vars.FUMA_BUN_IMAGE_DIGEST }}
             NODE_IMAGE=${{ vars.FUMA_NODE_IMAGE_DIGEST }}
+            FUMA_DEPLOYMENT_ROOT_DOMAIN=${{ vars.FUMA_DEPLOYMENT_ROOT_DOMAIN }}
             SOURCE_SHA=${{ needs.preflight.outputs.source_sha }}
             LOCK_HASH_SHA256=${{ needs.preflight.outputs.lock_hash }}
             MIGRATION_HIGH_WATER_MARK=${{ needs.preflight.outputs.migration_high_water }}
@@ -261,6 +264,7 @@ jobs:
           build-args: |
             BUN_IMAGE=${{ vars.FUMA_BUN_IMAGE_DIGEST }}
             NODE_IMAGE=${{ vars.FUMA_NODE_IMAGE_DIGEST }}
+            FUMA_DEPLOYMENT_ROOT_DOMAIN=${{ vars.FUMA_DEPLOYMENT_ROOT_DOMAIN }}
             SOURCE_SHA=${{ needs.preflight.outputs.source_sha }}
             LOCK_HASH_SHA256=${{ needs.preflight.outputs.lock_hash }}
             MIGRATION_HIGH_WATER_MARK=${{ needs.preflight.outputs.migration_high_water }}

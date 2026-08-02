@@ -1,11 +1,12 @@
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { promisify } from 'node:util'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { ANONYMOUS_STATE, OWNER, completeStepUp, login, loginAs } from './helpers'
 
 const execFileAsync = promisify(execFile)
-const E2E_DB_PATH = '.tmp/e2e-agent.db'
+const E2E_DATABASE_URL_PATH = '.tmp/e2e-database-url'
 const SESSION_COOKIE_NAME = 'instatic_admin_session'
 const EXPIRED_STEP_UP_TIMESTAMP = '2000-01-01T00:00:00.000Z'
 
@@ -491,19 +492,19 @@ async function expireCurrentStepUpWindow(page: Page): Promise<void> {
   if (!sessionCookie) throw new Error('No admin session cookie available')
 
   const idHash = createHash('sha256').update(sessionCookie.value).digest('hex')
+  const databaseUrl = (await readFile(E2E_DATABASE_URL_PATH, 'utf8')).trim()
   const script = `
-import { Database } from 'bun:sqlite'
+import { SQL } from 'bun'
 
-const db = new Database(${JSON.stringify(E2E_DB_PATH)})
-const result = db.run(
-  'update sessions set step_up_expires_at = ? where id_hash = ? and revoked_at is null',
-  ${JSON.stringify(EXPIRED_STEP_UP_TIMESTAMP)},
-  ${JSON.stringify(idHash)},
+const db = new SQL(${JSON.stringify(databaseUrl)})
+const result = await db.unsafe(
+  'update sessions set step_up_expires_at = $1 where id_hash = $2 and revoked_at is null',
+  [${JSON.stringify(EXPIRED_STEP_UP_TIMESTAMP)}, ${JSON.stringify(idHash)}],
 )
-db.close()
+await db.close()
 
-if (result.changes !== 1) {
-  console.error(\`Expected to expire one live session row, changed \${result.changes}\`)
+if (result.count !== 1) {
+  console.error(\`Expected to expire one live session row, changed \${result.count}\`)
   process.exit(1)
 }
 `

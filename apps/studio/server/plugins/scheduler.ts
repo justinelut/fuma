@@ -22,8 +22,7 @@
  *
  *   4. **HA leader election** — via the shared `withSchedulerLeaderLock`
  *      (`server/db/advisoryLock.ts`), so only ONE host instance ticks at a
- *      time when running against Postgres. Against SQLite (single-instance by
- *      definition) this is a no-op. The lock is released between ticks so a
+ *      time against PostgreSQL. The lock is released between ticks so a
  *      leader crash hands off naturally to the next tick on another instance.
  *
  *   5. **Failure cap + auto-pause** — after FAILURE_CAP consecutive

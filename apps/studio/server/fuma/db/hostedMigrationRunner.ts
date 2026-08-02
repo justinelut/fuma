@@ -50,7 +50,7 @@ export async function runHostedMigrations(
   options: Readonly<{ dryRun?: boolean }> = {},
 ): Promise<HostedMigrationReport> {
   if (db.dialect !== 'postgres') {
-    throw new HostedMigrationError('Fuma hosted migrations require PostgreSQL; SQLite is transition input only.')
+    throw new HostedMigrationError('Fuma hosted migrations require PostgreSQL.')
   }
   assertHostedMigrationManifest(hostedMigrations, HOSTED_MIGRATION_CHECKSUMS)
 

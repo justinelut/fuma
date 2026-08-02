@@ -31,14 +31,9 @@ import { nanoid } from 'nanoid'
 import { Dialog } from '@ui/components/Dialog'
 import { pushToast } from '@ui/components/Toast'
 import {
-  ingestInput,
-  buildImportPlan,
-  commitImportPlan,
-  type FileMap,
-  type ImportPlan,
-  type ImportResult,
-  type ConflictResolution,
-  type StylesheetImportMode,
+  ingestInput, buildImportPlan, commitImportPlan,
+  type FileMap, type ImportPlan, type ImportResult, type ConflictResolution,
+  type NextSourceProvenance, type StylesheetImportMode,
 } from '@core/siteImport'
 import { useAdminUi } from '@admin/state/adminUi'
 import { useEditorStore } from '@site/store/store'
@@ -48,41 +43,30 @@ import { CmsBundleAnalyzeStep } from './steps/CmsBundleAnalyzeStep'
 import { CmsBundleConflictsStep } from './steps/CmsBundleConflictsStep'
 import { ConflictsStep } from './steps/ConflictsStep'
 import { ImportStep } from './steps/ImportStep'
+import { NextSourceCompatibilityController } from './shared/NextSourceCompatibilityController'
+import { prepareNextSourceCompatibility, type NextSourceCompatibilityInput } from './shared/nextSourceCompatibility'
 import { SiteImportFooter } from './SiteImportFooter'
 import { makeInitialRunProgress, type RunProgress } from './shared/importProgress'
 import { createSiteImportAdapter } from './shared/createSiteImportAdapter'
 import { describeCmsBundleLoadError, useCmsBundleImport } from './shared/useCmsBundleImport'
 import {
-  selectedCmsConflicts,
-  selectedCmsMediaCount,
-  selectedCmsMediaFolderCount,
-  selectedCmsRedirectCount,
-  selectedCmsRowCount,
-  withCmsConflictResolutions,
+  selectedCmsConflicts, selectedCmsMediaCount, selectedCmsMediaFolderCount,
+  selectedCmsRedirectCount, selectedCmsRowCount, withCmsConflictResolutions,
 } from './shared/cmsBundleFlow'
 import {
-  type ImportSelection,
-  tokenConflictKey,
-  crossSheetConflictKey,
-  makeDefaultSelection,
-  filterPlanBySelection,
-  buildResolvedPlan,
-  describeIngestError,
-  ensureCurrentSiteForStaticImport,
-  saveImportedDraftSite,
+  type ImportSelection, tokenConflictKey, crossSheetConflictKey, makeDefaultSelection,
+  filterPlanBySelection, buildResolvedPlan, describeIngestError,
+  ensureCurrentSiteForStaticImport, saveImportedDraftSite,
 } from './shared/importPlanning'
 import styles from './SiteImportModal.module.css'
 import { getErrorMessage } from '@core/utils/errorMessage'
-import type {
-  BundleImportSelection,
-  ImportResult as CmsImportResult,
-} from '@core/data/bundleSchema'
+import type { BundleImportSelection, ImportResult as CmsImportResult } from '@core/data/bundleSchema'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type Step = 'drop' | 'analyze' | 'conflicts' | 'run'
+export type Step = 'drop' | 'compatibility' | 'analyze' | 'conflicts' | 'run'
 
 export type { ImportSelection }
 
@@ -114,6 +98,7 @@ export function SiteImportModal({ onCmsBundleImportComplete }: SiteImportModalPr
     onImportComplete: onCmsBundleImportComplete,
   })
 
+  const [nextSourceInput, setNextSourceInput] = useState<NextSourceCompatibilityInput | null>(null)
   // ── Wizard state ──────────────────────────────────────────────────────────
 
   const [step, setStep] = useState<Step>('drop')
@@ -154,7 +139,10 @@ export function SiteImportModal({ onCmsBundleImportComplete }: SiteImportModalPr
       }
 
       const map = await ingestInput(files)
-      await finalizePlan(map)
+      await finalizePlan(map, stylesheetModes, {
+        kind: 'folder',
+        locator: map.strippedTopLevelFolder ?? (files.length === 1 ? files[0]!.name : `${files.length}-file selection`),
+      })
     } catch (err) {
       console.error('[SiteImportModal] ingest failed:', err)
       const singleJson = files.length === 1 && files[0].name.toLowerCase().endsWith('.json')
@@ -180,7 +168,7 @@ export function SiteImportModal({ onCmsBundleImportComplete }: SiteImportModalPr
 
       const zipBytes = new Uint8Array(await file.arrayBuffer())
       const map = await ingestInput({ zipBytes })
-      await finalizePlan(map)
+      await finalizePlan(map, stylesheetModes, { kind: 'zip', locator: file.name })
     } catch (err) {
       console.error('[SiteImportModal] ingest failed:', err)
       setErrorMsg(err instanceof Error && err.name === 'SiteBundleParseError'
@@ -213,7 +201,21 @@ export function SiteImportModal({ onCmsBundleImportComplete }: SiteImportModalPr
     }
   }
 
-  async function finalizePlan(map: FileMap, modes: Record<string, StylesheetImportMode> = stylesheetModes) {
+  async function finalizePlan(
+    map: FileMap,
+    modes: Record<string, StylesheetImportMode> = stylesheetModes,
+    provenance?: NextSourceProvenance,
+  ) {
+    const nextInput = prepareNextSourceCompatibility(map, provenance)
+    if (nextInput) {
+      setFileMap(nextInput.fileMap)
+      setPlan(null)
+      setSelection(null)
+      setNextSourceInput(nextInput)
+      setBusy(false)
+      setStep('compatibility')
+      return
+    }
     const currentSite = await ensureCurrentSiteForStaticImport()
     const importPlan = buildImportPlan({
       fileMap: map,
@@ -249,6 +251,14 @@ export function SiteImportModal({ onCmsBundleImportComplete }: SiteImportModalPr
     setStylesheetModes(modes)
     setBusy(true)
     void finalizePlan(fileMap, modes)
+  }
+
+  function handleNextSourceCancel() {
+    setFileMap(null)
+    setNextSourceInput(null)
+    setErrorMsg(null)
+    setBusy(false)
+    setStep('drop')
   }
 
   // ── Step navigation ───────────────────────────────────────────────────────
@@ -526,6 +536,7 @@ export function SiteImportModal({ onCmsBundleImportComplete }: SiteImportModalPr
 
   const titleByStep: Record<Step, string> = {
     drop: 'Import site',
+    compatibility: 'Next.js compatibility',
     analyze: 'Review import',
     conflicts: 'Resolve conflicts',
     // The Import step title tracks its phase: "Importing" while running,
@@ -543,9 +554,9 @@ export function SiteImportModal({ onCmsBundleImportComplete }: SiteImportModalPr
       onClose={handleClose}
       title={titleByStep[step]}
       eyebrow="Instatic"
-      size={step === 'analyze' ? '2xl' : 'xl'}
+      size={step === 'analyze' || step === 'compatibility' ? '2xl' : 'xl'}
       tone={isCmsReplace ? 'danger' : 'neutral'}
-      footer={step === 'drop' ? undefined : (
+      footer={step === 'drop' || step === 'compatibility' ? undefined : (
         <SiteImportFooter
           step={step}
           cmsBundleState={cmsBundleState}
@@ -578,6 +589,10 @@ export function SiteImportModal({ onCmsBundleImportComplete }: SiteImportModalPr
             onFilesReady={(files) => { void handleFilesReady(files) }}
             onZipReady={(file) => { void handleZipReady(file) }}
           />
+        )}
+
+        {step === 'compatibility' && nextSourceInput && (
+          <NextSourceCompatibilityController input={nextSourceInput} onCancel={handleNextSourceCancel} />
         )}
 
         {step === 'analyze' && cmsBundleState && (

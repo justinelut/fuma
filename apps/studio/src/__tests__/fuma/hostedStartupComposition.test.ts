@@ -15,11 +15,11 @@ const ORIGIN = 'https://hosted.fuma.test'
 const HOST = 'hosted.fuma.test'
 const SCOPED_EDITOR_URL = `${ORIGIN}/api/fuma/organizations/org-a/workspaces/workspace-a/sites/site-a/editor/document`
 
-function database(dialect: 'postgres' | 'sqlite'): DbClient {
+function database(): DbClient {
   const query = (async <Row>(): Promise<DbResult<Row>> => {
     throw new Error('Unexpected database query')
   }) as DbClient
-  query.dialect = dialect
+  query.dialect = 'postgres'
   query.unsafe = async <Row>(): Promise<DbResult<Row>> => {
     throw new Error('Unexpected unsafe database query')
   }
@@ -108,13 +108,9 @@ describe('FUMA-027 hosted startup composition', () => {
     await auth.close()
   })
 
-  it('constructs no hosted authority for self-host SQLite or PostgreSQL', () => {
+  it('constructs no hosted authority without hosted staff auth', () => {
     expect(createHostedFumaScopedApi({
-      db: database('sqlite'),
-      hostedStaffAuth: undefined,
-    })).toBeUndefined()
-    expect(createHostedFumaScopedApi({
-      db: database('postgres'),
+      db: database(),
       hostedStaffAuth: undefined,
     })).toBeUndefined()
   })
@@ -128,7 +124,7 @@ describe('FUMA-027 hosted startup composition', () => {
       return null
     })
     const scopedApi = createHostedFumaScopedApi({
-      db: database('postgres'),
+      db: database(),
       hostedStaffAuth: auth,
     })
     expect(scopedApi).toBeDefined()
@@ -150,15 +146,8 @@ describe('FUMA-027 hosted startup composition', () => {
     expect(resolvedHeaders).toBe(read.headers)
   })
 
-  it('rejects a hosted runtime backed by non-PostgreSQL persistence', () => {
-    expect(() => createHostedFumaScopedApi({
-      db: database('sqlite'),
-      hostedStaffAuth: runtime(async () => null),
-    })).toThrow('Fuma request-context authority requires PostgreSQL.')
-  })
-
   it('composes quota self-service, forecast, dunning, and continuous collection boundaries', () => {
-    const quotas = createQuotaRuntime({ db: database('postgres') })
+    const quotas = createQuotaRuntime({ db: database() })
     expect(quotas.scopedRoutes.map(({ method, path }) => `${method} ${path}`)).toEqual([
       'GET /quotas/self-service',
       'GET /quotas/self-service/export',

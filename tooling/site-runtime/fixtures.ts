@@ -55,7 +55,7 @@ export const VALID_TENANT_RUNTIME_RATIFICATION: TenantRuntimeRatification = {
   },
   hostBindings: [
     {
-      host: 'alpha.fuma.co.ke',
+      host: 'alpha.trimly.co.ke',
       platformId: 'platform_fuma',
       organizationId: 'organization_alpha',
       workspaceId: 'workspace_alpha',
@@ -81,7 +81,7 @@ export const VALID_TENANT_RUNTIME_RATIFICATION: TenantRuntimeRatification = {
   ],
   cacheIdentities: [
     {
-      host: 'alpha.fuma.co.ke',
+      host: 'alpha.trimly.co.ke',
       platformId: 'platform_fuma',
       organizationId: 'organization_alpha',
       workspaceId: 'workspace_alpha',

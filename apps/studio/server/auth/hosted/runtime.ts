@@ -14,6 +14,7 @@ import {
 import {
   FUMA_STAFF_FRESH_SESSION_SECONDS,
   createPostgresHostedAuth,
+  createPostgresHostedIdentityAuth,
   type HostedAuthDelivery,
   type HostedResolvedSession,
 } from './auth'
@@ -29,9 +30,28 @@ export type HostedStaffAuthRuntimeInput = Readonly<{
   delivery: HostedAuthDelivery
 }>
 
+export type HostedIdentityAuthRuntimeInput = Readonly<{
+  databaseUrl: string
+  identityHost: string
+  secureCookies: boolean
+  cookieName: string
+  secret: string
+  delivery: HostedAuthDelivery
+}>
+
+export type HostedIdentityAuthRuntime = Readonly<{
+  boundary: HostedStaffAuthBoundary
+  resolveSession: (headers: Headers) => Promise<HostedResolvedSession | null>
+  close: () => Promise<void>
+}>
+
 export type HostedStaffAuthRuntime = Readonly<{
   boundary: HostedStaffAuthBoundary
   resolveSession: (headers: Headers) => Promise<HostedResolvedSession | null>
+  startSupportImpersonation: ReturnType<typeof createPostgresHostedAuth>['startSupportImpersonation']
+  stopSupportImpersonation: ReturnType<typeof createPostgresHostedAuth>['stopSupportImpersonation']
+  setSupportModerationBan: ReturnType<typeof createPostgresHostedAuth>['setSupportModerationBan']
+  recoverProtectedOwner: ReturnType<typeof createPostgresHostedAuth>['recoverProtectedOwner']
   allowsMutationOrigin: (request: Request) => boolean
   close: () => Promise<void>
 }>
@@ -46,6 +66,11 @@ export type HostedFumaScopedApiInput = Readonly<{
   marketplaceRoutes?: readonly FumaScopedRouteDeclaration[]
   aiPaymentSetupRoutes?: readonly FumaScopedRouteDeclaration[]
   componentCatalogRoutes?: readonly FumaScopedRouteDeclaration[]
+  supportRoutes?: readonly FumaScopedRouteDeclaration[]
+  expertRoutes?: readonly FumaScopedRouteDeclaration[]
+  paidHandoffRoutes?: readonly FumaScopedRouteDeclaration[]
+  capabilityDashboardRoutes?: readonly FumaScopedRouteDeclaration[]
+  nextSourceRoutes?: readonly FumaScopedRouteDeclaration[]
 }>
 
 export function readHostedAuthSecret(
@@ -56,6 +81,32 @@ export function readHostedAuthSecret(
     throw new Error('Fuma hosted auth requires BETTER_AUTH_SECRET (at least 32 characters).')
   }
   return secret
+}
+
+export function createHostedIdentityAuthRuntime(
+  input: HostedIdentityAuthRuntimeInput,
+): HostedIdentityAuthRuntime {
+  const protocol = input.secureCookies ? 'https' : 'http'
+  const origin = `${protocol}://${input.identityHost}`
+  const postgres = createPostgresHostedIdentityAuth({
+    baseURL: origin,
+    databaseUrl: input.databaseUrl,
+    secret: input.secret,
+    secureCookies: input.secureCookies,
+    cookieName: input.cookieName,
+    delivery: input.delivery,
+  })
+  const boundary = createHostedStaffAuthBoundary({
+    auth: postgres.auth,
+    origin,
+    cookieName: input.cookieName,
+    secureCookies: input.secureCookies,
+  })
+  return Object.freeze({
+    boundary,
+    resolveSession: postgres.resolveSession,
+    close: postgres.close,
+  })
 }
 
 export function createHostedStaffAuthRuntime(
@@ -87,6 +138,10 @@ export function createHostedStaffAuthRuntime(
   return Object.freeze({
     boundary,
     resolveSession: postgres.resolveSession,
+    startSupportImpersonation: postgres.startSupportImpersonation,
+    stopSupportImpersonation: postgres.stopSupportImpersonation,
+    setSupportModerationBan: postgres.setSupportModerationBan,
+    recoverProtectedOwner: postgres.recoverProtectedOwner,
     allowsMutationOrigin: (request: Request) => (
       boundary.handlesProductRequest(request)
       && request.headers.get('origin') === boundary.origin
@@ -98,7 +153,7 @@ export function createHostedStaffAuthRuntime(
 /**
  * Mounts hosted editor routes from live PostgreSQL and trusted Better Auth
  * authority. An absent hosted runtime returns before any hosted authority or
- * storage is constructed, preserving both SQLite and PostgreSQL self-hosting.
+ * storage is constructed, preserving PostgreSQL self-hosting.
  */
 export function createHostedFumaScopedApi(
   input: HostedFumaScopedApiInput,
@@ -129,5 +184,10 @@ export function createHostedFumaScopedApi(
     ...(input.marketplaceRoutes ?? []),
     ...(input.aiPaymentSetupRoutes ?? []),
     ...(input.componentCatalogRoutes ?? []),
+    ...(input.supportRoutes ?? []),
+    ...(input.expertRoutes ?? []),
+    ...(input.paidHandoffRoutes ?? []),
+    ...(input.capabilityDashboardRoutes ?? []),
+    ...(input.nextSourceRoutes ?? []),
   ]))
 }

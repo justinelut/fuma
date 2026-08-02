@@ -5,7 +5,7 @@ import { createHostedStaffAuthBoundary } from './routes'
 import { AUTH_MODEL_NAMES } from './schemaManifest'
 import { withHashedSessionTokens } from './sessionTokenAdapter'
 
-const ORIGIN = 'https://app.fuma.co.ke'
+const ORIGIN = 'https://app.trimly.co.ke'
 const SECRET = 'fuma-012-native-probe-secret-with-at-least-32-characters'
 const EMAIL = 'native.staff@fuma.example'
 const PASSWORD = 'Fuma-native-password-123!'
@@ -168,7 +168,7 @@ assert(clearedCookie.raw.includes('Max-Age=0'), 'Logout did not expire staff coo
 const signedOut = await dispatch(request('/get-session', { headers: { cookie: loginCookie.pair } }))
 assert(await signedOut.text() === 'null', 'Logged-out session remained valid')
 
-for (const host of ['customer.example', 'fuma.co.ke']) {
+for (const host of ['customer.example', 'trimly.co.ke']) {
   const denied = await dispatch(request(`https://${host}/api/auth/get-session`, {}, { host }))
   assert(denied.status === 404, `${host} received staff auth route`)
   assert(cookies(denied).length === 0, `${host} received a staff cookie`)

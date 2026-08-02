@@ -24,7 +24,7 @@ import {
 
 const hash = 'a'.repeat(64)
 const now = new Date('2026-07-26T08:00:00Z')
-const internal = { actorId: 'staff-a', host: 'admin.fuma.co.ke', authorities: new Set(['internal.plugins.review', 'internal.support.impersonate', 'internal.break-glass.approve']), stepUpAt: '2026-07-26T07:59:00Z', protectedOwner: false }
+const internal = { actorId: 'staff-a', host: 'admin.trimly.co.ke', authorities: new Set(['internal.plugins.review', 'internal.support.impersonate', 'internal.break-glass.approve']), stepUpAt: '2026-07-26T07:59:00Z', protectedOwner: false }
 const digest = async (_value: string | Uint8Array) => hash
 
 describe('FUMA-071 platform console composition', () => {
@@ -36,7 +36,7 @@ describe('FUMA-071 platform console composition', () => {
     expect(authorizeConsoleQuery({ view: 'organizations', filter: 'Nairobi', limit: 25 }, reader).limit).toBe(25)
     expect(redactConsoleRow({ organizationId: 'org-a', name: 'Fixture', secretToken: 'forbidden' }, new Set(['organizationId', 'name', 'secretToken']))).toEqual({ organizationId: 'org-a', name: 'Fixture' })
     expect(() => authorizeConsoleQuery({ view: 'organizations', limit: 101 }, reader)).toThrow('console.query')
-    expect(() => registry.authorize('/internal/plugins/review', { ...internal, host: 'app.fuma.co.ke' })).toThrow('admin-host')
+    expect(() => registry.authorize('/internal/plugins/review', { ...internal, host: 'app.trimly.co.ke' })).toThrow('admin-host')
     expect(() => registry.register({ contributionId: 'plugin-review-copy', ownerTicket: 'FUMA-068', routes: ['/internal/plugins/review'], requiredAuthorities: ['internal.plugins.review'] })).toThrow('overlaps')
   })
 })
@@ -114,7 +114,7 @@ describe('FUMA-076/077 Lawyer reconciliation and reusable conversion', () => {
 
 describe('FUMA-084 pilot policy', () => {
   it('requires signed migration, parity, provider reconciliation, and rollback evidence', () => {
-    const evidence = { sqliteTransitionHashMatched: true, ghostManifestHashMatched: true, lawyerInventoryComplete: true, immutableGrandfatheredContract: true, ociEmailActive: true, routeMemberAccessParity: true, providerPaymentsReconciled: true, rollbackRestoredHash: true, severityOneOpen: 0, signedBy: ['migration-owner', 'pilot-owner'] }
+    const evidence = { postgresMigrationHashMatched: true, ghostManifestHashMatched: true, lawyerInventoryComplete: true, immutableGrandfatheredContract: true, ociEmailActive: true, routeMemberAccessParity: true, providerPaymentsReconciled: true, rollbackRestoredHash: true, severityOneOpen: 0, signedBy: ['migration-owner', 'pilot-owner'] }
     expect(acceptPilot(evidence).lawyerInventoryComplete).toBe(true)
     expect(() => acceptPilot({ ...evidence, providerPaymentsReconciled: false })).toThrow('incomplete')
   })

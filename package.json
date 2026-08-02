@@ -29,7 +29,6 @@
     "e2e:dev": "bun --cwd=apps/studio run e2e:dev",
     "db:drop": "bun --cwd=apps/studio run db:drop",
     "fuma:migrate": "bun --cwd=apps/studio run fuma:migrate",
-    "fuma:transition": "bun --cwd=apps/studio run fuma:transition",
     "start": "bun --cwd=apps/studio run start",
     "start:web": "bun --cwd=apps/web run start",
     "start:site-runtime": "HOSTNAME=0.0.0.0 PORT=3003 node apps/site-runtime/.next/standalone/apps/site-runtime/server.js",

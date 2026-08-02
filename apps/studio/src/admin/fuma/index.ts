@@ -36,3 +36,6 @@ export type {
   ProfileOnboardingStepHandler,
 } from './ProfileOnboarding'
 export * from './publication'
+export * from './supportOperations'
+export * from './expertDiscovery'
+export * from './aiCapabilities'

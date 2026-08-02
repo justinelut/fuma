@@ -87,4 +87,14 @@ describe('public submission routes', () => {
     expect(invalidVital.status).toBe(400)
     expectNoStore(invalidVital)
   })
+
+  test('suppresses collection under GPC and DNT without disrupting the page', async () => {
+    for (const headers of [{ 'sec-gpc': '1' }, { dnt: '1' }]) {
+      const response = await events(request('/api/events', {
+        version: 1, kind: 'page_view', routeClass: 'home', timestamp: '2026-07-26T09:00:00Z', consent: 'not_required',
+      }, headers))
+      expect(response.status).toBe(202)
+      expectNoStore(response)
+    }
+  })
 })

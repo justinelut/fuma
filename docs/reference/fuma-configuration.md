@@ -2,7 +2,7 @@
 
 This reference describes the validated hosted configuration and immutable product metadata in `server/fuma/config.ts`.
 
-`readFumaConfig` is the fail-closed boundary for Fuma environment values. It is separate from the current self-hosted `readServerConfig` in `server/config.ts`, so existing SQLite/PostgreSQL self-hosting defaults and startup behavior remain unchanged.
+`readFumaConfig` is the fail-closed boundary for Fuma environment values. It is separate from the current self-hosted `readServerConfig` in `server/config.ts`, and shares the PostgreSQL-only runtime contract.
 
 ---
 
@@ -12,7 +12,7 @@ This reference describes the validated hosted configuration and immutable produc
 - Local mode needs no environment file, remains PostgreSQL-only, and uses only localhost/fake provider values.
 - `NODE_ENV` and `FUMA_ENV` must both be `production` for production mode; either one alone is rejected.
 - Production requires every configuration class explicitly and accepts only the reserved product/marketing hosts.
-- Product metadata fixes `app.fuma.co.ke`, deferred `fuma.co.ke`, and `en-KE` / `KES` / `Africa/Nairobi`.
+- Product metadata fixes `app.trimly.co.ke`, deferred `trimly.co.ke`, and `en-KE` / `KES` / `Africa/Nairobi`.
 - Staff cookies are host-only because their configuration has no `domain` property. A boolean cannot assert host-only semantics.
 - `summarizeFumaConfig` revalidates its input and returns only non-secret capability/policy facts.
 - `.env.fuma.example` contains no deployment credentials or identities. Copy it to an ignored environment file before supplying secrets.
@@ -38,8 +38,8 @@ FUMA-003 does not add a Fuma process root or call providers. Role-specific boot 
 
 | Surface | Value | Status |
 |---|---|---|
-| Product | `app.fuma.co.ke` | active product host |
-| Marketing | `fuma.co.ke` | `deferred` |
+| Product | `app.trimly.co.ke` | active product host |
+| Marketing | `trimly.co.ke` | `deferred` |
 | Locale | `en-KE` | Kenya launch default |
 | Currency | `KES` | integer minor-unit currency |
 | Display time zone | `Africa/Nairobi` | persisted timestamps remain UTC |

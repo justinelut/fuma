@@ -16,7 +16,7 @@ The current Git repository becomes the Fuma workspace root. FUMA-WEB-001 records
 - The accepted initial layout is `apps/studio` plus `apps/web`; the approved FUMA-SITE extension adds a third independent `apps/site-runtime` Next App Router application for all exact tenant/customer hosts, never one application per customer.
 - The initial shared-package set is exactly `packages/brand`, `packages/design-tokens`, and `packages/public-contracts`. Do not extract additional packages without a demonstrated second consumer.
 - Use native Bun workspaces, one private root orchestrator, and one root `bun.lock`. Do not add Turborepo or nested lockfiles.
-- `fuma.co.ke`, `auth.fuma.co.ke`, `app.fuma.co.ke`, `admin.fuma.co.ke`, tenant subdomains, and customer domains have distinct route, session, and data ownership. There is no public `api.fuma.co.ke`.
+- `trimly.co.ke`, `auth.trimly.co.ke`, `app.trimly.co.ke`, `admin.trimly.co.ke`, tenant subdomains, and customer domains have distinct route, session, and data ownership. There is no public `api.trimly.co.ke`.
 - Better Auth is centralized on the auth host. Auth, app, and admin use host-only cookies; app and admin establish separate relying-party sessions that cannot authorize one another.
 - `apps/web` is presentation plus a same-origin BFF. Mutable business truth remains in the Bun platform and reaches the public web only through private, versioned, TypeBox-validated public projections.
 - Pricing amounts, quotas, availability, promotions, provider identifiers, entitlements, costs, and margins are not hardcoded public-web truth.
@@ -92,17 +92,17 @@ Host dispatch is exact and fails closed. No host may fall through to a default s
 
 | Host | Route owner | Route surface | Browser session | Data authority |
 |---|---|---|---|---|
-| `fuma.co.ke` | `apps/web` | Public marketing, product, solution, pricing, templates, showcase, experts, reviewed plugins, docs, guides, blog, changelog, company, legal, SEO, feed, and same-origin public BFF routes | No staff, app, admin, member, or tenant session | Git-backed public editorial content plus validated public projections; no mutable business authority |
-| `www.fuma.co.ke` | Edge redirect | Permanent redirect to `fuma.co.ke`, preserving path and query | None | None |
-| `auth.fuma.co.ke` | Central Better Auth boundary in Studio | Signup, sign-in, verification, MFA, recovery, central account state, logout, global revocation, and relying-party code issuance/exchange entry | Host-only identity cookie | Better Auth identity, credential, verification, MFA, recovery, and central security state |
-| `app.fuma.co.ke` | Studio customer product | Organization/workspace/site routes, onboarding, editor, customer mutations, billing self-service, and product WebSocket/API routes | Host-only `__Host-fuma_app` relying session | Customer product and tenant-scoped domain authorities in the Bun platform |
-| `admin.fuma.co.ke` | Studio internal console | Fuma-internal operations, moderation, support, break-glass, managed-client commercial setup, and bounded domain-service actions | Host-only `__Host-fuma_admin` relying session | Internal read models and authorized domain-service actions; customer roles never authorize this host |
-| `<tenant>.fuma.co.ke` | Runtime/component/application boundary implemented in `apps/site-runtime`; production traffic remains on Studio until infrastructure/pilot/launch cutover gates | Active immutable releases through the current semantic path or gated React runtime, with explicit route shadow/fallback/retained-legacy rollback | No auth/app/admin cookie; the separate host-only site-member realm is exact-site scoped | Exact durable host/release authority, member projection, rollout policies, and immutable replay evidence in Bun/PostgreSQL |
+| `trimly.co.ke` | `apps/web` | Public marketing, product, solution, pricing, templates, showcase, experts, reviewed plugins, docs, guides, blog, changelog, company, legal, SEO, feed, and same-origin public BFF routes | No staff, app, admin, member, or tenant session | Git-backed public editorial content plus validated public projections; no mutable business authority |
+| `www.trimly.co.ke` | Edge redirect | Permanent redirect to `trimly.co.ke`, preserving path and query | None | None |
+| `auth.trimly.co.ke` | Central Better Auth boundary in Studio | Signup, sign-in, verification, MFA, recovery, central account state, logout, global revocation, and relying-party code issuance/exchange entry | Host-only identity cookie | Better Auth identity, credential, verification, MFA, recovery, and central security state |
+| `app.trimly.co.ke` | Studio customer product | Organization/workspace/site routes, onboarding, editor, customer mutations, billing self-service, and product WebSocket/API routes | Host-only `__Host-fuma_app` relying session | Customer product and tenant-scoped domain authorities in the Bun platform |
+| `admin.trimly.co.ke` | Studio internal console | Fuma-internal operations, moderation, support, break-glass, managed-client commercial setup, and bounded domain-service actions | Host-only `__Host-fuma_admin` relying session | Internal read models and authorized domain-service actions; customer roles never authorize this host |
+| `<tenant>.trimly.co.ke` | Runtime/component/application boundary implemented in `apps/site-runtime`; production traffic remains on Studio until infrastructure/pilot/launch cutover gates | Active immutable releases through the current semantic path or gated React runtime, with explicit route shadow/fallback/retained-legacy rollback | No auth/app/admin cookie; the separate host-only site-member realm is exact-site scoped | Exact durable host/release authority, member projection, rollout policies, and immutable replay evidence in Bun/PostgreSQL |
 | Activated customer domain | Same implemented `apps/site-runtime` target and pending infrastructure/pilot/launch cutover gates | The same exact release/application surface as the mapped tenant host; React/legacy rollout remains explicit per known host/route | No auth/app/admin cookie; the separate host-only site-member realm is exact-site scoped | The same exact durable host, release, member, rollout, and replay authorities |
 
-Better Auth routes exist only on `auth.fuma.co.ke`. Product routes do not mount on `admin.fuma.co.ke`; console routes do not mount on `app.fuma.co.ke`. Public, tenant, and customer hosts mount neither staff identity nor relying-party routes.
+Better Auth routes exist only on `auth.trimly.co.ke`. Product routes do not mount on `admin.trimly.co.ke`; console routes do not mount on `app.trimly.co.ke`. Public, tenant, and customer hosts mount neither staff identity nor relying-party routes.
 
-There is no public `api.fuma.co.ke`. Public browser requests remain same-origin to `fuma.co.ke`; the public BFF reaches versioned projection endpoints over private cluster networking. The reserved `api` label prevents it from becoming either a tenant or an accidental public API authority.
+There is no public `api.trimly.co.ke`. Public browser requests remain same-origin to `trimly.co.ke`; the public BFF reaches versioned projection endpoints over private cluster networking. The reserved `api` label prevents it from becoming either a tenant or an accidental public API authority.
 
 ### Reserved tenant labels
 
@@ -125,14 +125,14 @@ The allocation authority may add reviewed operational names, but it may not remo
 
 Better Auth is the centralized staff identity authority, not a parent-domain session provider.
 
-1. `auth.fuma.co.ke` authenticates the identity and keeps its identity cookie host-only.
+1. `auth.trimly.co.ke` authenticates the identity and keeps its identity cookie host-only.
 2. Auth issues an opaque, short-lived, single-use code bound to the exact relying-party audience, callback, and state.
-3. `app.fuma.co.ke` or `admin.fuma.co.ke` exchanges that code server-side.
+3. `app.trimly.co.ke` or `admin.trimly.co.ke` exchanges that code server-side.
 4. The relying host creates its own linked session: `__Host-fuma_app` or `__Host-fuma_admin`.
 5. App and admin session lifecycles are independent. Neither session authorizes the other host.
 6. Central password reset, ban, recovery, and global revocation invalidate all linked relying sessions.
 
-Every identity and relying-session cookie is `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/`, host-only, and omits `Domain`. No `.fuma.co.ke` or other parent-domain cookie is permitted because tenant sites occupy the wildcard namespace. No staff cookie reaches `fuma.co.ke`, a tenant subdomain, or a customer domain. Browser bearer sessions, session tokens in redirect URLs, arbitrary return URLs, replay, wrong-audience exchange, and cross-host session probing are forbidden.
+Every identity and relying-session cookie is `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/`, host-only, and omits `Domain`. No `.trimly.co.ke` or other parent-domain cookie is permitted because tenant sites occupy the wildcard namespace. No staff cookie reaches `trimly.co.ke`, a tenant subdomain, or a customer domain. Browser bearer sessions, session tokens in redirect URLs, arbitrary return URLs, replay, wrong-audience exchange, and cross-host session probing are forbidden.
 
 Public acquisition intent is not a session. A CTA may carry a separate opaque, short-lived intent containing only allowlisted profile, template, plan, and source values. App revalidates that intent and all authority after authentication. A public flow cannot request an admin audience.
 
@@ -177,7 +177,7 @@ Private projections exclude provisional organizations, private custom offers and
 - Paystack/provider plan or price identifiers;
 - provider costs, margins, internal entitlements, grandfathered terms, or private offers.
 
-The public pricing UI consumes only the publish-approved projection. Missing, expired, withdrawn, incomplete-cost, margin-rejected, malformed, or unavailable pricing suppresses amounts and purchase CTAs rather than guessing, retaining stale values, or falling back to editorial copy. Checkout and authoritative re-resolution occur on `app.fuma.co.ke`.
+The public pricing UI consumes only the publish-approved projection. Missing, expired, withdrawn, incomplete-cost, margin-rejected, malformed, or unavailable pricing suppresses amounts and purchase CTAs rather than guessing, retaining stale values, or falling back to editorial copy. Checkout and authoritative re-resolution occur on `app.trimly.co.ke`.
 
 ## Mechanical move sequence
 
@@ -186,7 +186,7 @@ The accepted sequence is ordered; later steps do not bypass earlier evidence:
 1. Validate FUMA-018 through FUMA-024, record clean baseline build/test/lint evidence, and finalize hosted migration checksums.
 2. Add workspace boundaries and root orchestration without dependency upgrades.
 3. Move current application paths with `git mv` into `apps/studio` and retain root command wrappers.
-4. Prove fresh and upgrade SQLite, PostgreSQL, Docker, publishing, and self-host release parity.
+4. Prove fresh and upgrade PostgreSQL, publishing, and self-host release parity.
 5. Add exactly the three bounded shared packages and scaffold `apps/web` with exact dependency pins.
 6. Add workspace-aware affected-application CI, paired images, deployment, and rollback evidence.
 
@@ -194,7 +194,7 @@ The move is structural only. It performs no database, object, upload, content, i
 
 ## Self-host and rollback contract
 
-The self-hosted Instatic distribution remains a supported product of `apps/studio`. Relocation must preserve its SQLite/PostgreSQL selection, migrations, image/release contract, ports, environment variables, volumes, uploads, publishing, plugin tooling, startup commands, and upgrade behavior. A workspace conversion is not permission to make hosted-only assumptions in the self-host path.
+The self-hosted Instatic distribution remains a supported product of `apps/studio`. Relocation must preserve its PostgreSQL migrations, image/release contract, ports, environment variables, volumes, uploads, publishing, plugin tooling, startup commands, and upgrade behavior. A workspace conversion is not permission to make hosted-only assumptions in the self-host path.
 
 Repository-conversion rollback uses normal Git reversion of the mechanical move and orchestration changes. It does not use database down migrations, destructive SQL, data rewrites, lockfile regeneration with upgraded dependencies, or a parallel compatibility tree. Existing release tags remain valid.
 
@@ -204,12 +204,12 @@ A public-web rollback is independently deployable and must not interrupt auth, c
 
 The repository move does not alter migration history:
 
-- `server/db/migrations-pg.ts` and `server/db/migrations-sqlite.ts` remain the immutable paired historical Instatic sources until their paths move mechanically under `apps/studio`.
+- `server/db/migrations-pg.ts` is the immutable historical Instatic source until its path moves mechanically under `apps/studio`.
 - Their exact baseline hashes remain guarded by `src/__tests__/architecture/fuma-platform-architecture.test.ts`; parity remains guarded by `src/__tests__/architecture/migration-parity.test.ts`.
 - `server/fuma/db/migrations/**` remains the additive, PostgreSQL-only hosted stream until mechanically relocated.
-- Applied hosted IDs, source checksums, and migration high-water marks remain unchanged; relocation cannot regenerate, renumber, rewrite, mirror to SQLite, or reapply them.
+- Applied hosted IDs, source checksums, and migration high-water marks remain unchanged; relocation cannot regenerate, renumber, rewrite, create a non-PostgreSQL mirror, or reapply them.
 - `src/__tests__/fuma/hostedMigrationsTransition.test.ts` remains the focused hosted migration/transition evidence before path relocation.
-- Existing SQLite is preserved as self-host authority and as an explicit transition source; the workspace move itself neither imports nor cuts over it.
+- PostgreSQL remains the self-host authority throughout the workspace move.
 
 Before FUMA-WEB-002 changes paths, the primary implementation owner must record the current migration hashes/checksums and current command evidence. This ADR does not assert that those commands have passed.
 
@@ -243,7 +243,7 @@ The FUMA-WEB-001 future-workspace gate exercises one complete valid fixture and 
 - parent-domain/shared cookies, unsafe cookie attributes, app/admin session reuse, and Better Auth routes outside the auth host;
 - product routes on admin, console routes on app, or staff routes/cookies on public, tenant, or customer hosts;
 - allocation of `auth`, `app`, `www`, `api`, `admin`, `status`, `support`, or `mail` as tenant labels;
-- unknown-host fallback, a public `api.fuma.co.ke`, visitor-credential forwarding, or public direct database/provider access;
+- unknown-host fallback, a public `api.trimly.co.ke`, visitor-credential forwarding, or public direct database/provider access;
 - hardcoded pricing truth or private pricing/payment/cost fields in public-web content/contracts;
 - edits to historical migration content or changes to hosted migration IDs/checksums.
 
@@ -270,7 +270,7 @@ The evidence record must also include historical migration hashes, hosted migrat
 Primary-agent verification before any workspace move:
 
 - FUMA-WEB-001 focused gates: **78 passed, 0 failed, 167 assertions** across the complete valid fixture, 25 typed rejection rules, all hostile subcase matrices, deterministic ordering, symlink containment, and canonical migration evidence.
-- Existing migration integration: **53 passed, 1 environment-gated live-PostgreSQL skip, 0 failed, 235 assertions** across FUMA-001 architecture, PostgreSQL/SQLite parity, and hosted transition history.
+- Existing migration integration: **53 passed, 1 environment-gated live-PostgreSQL skip, 0 failed, 235 assertions** across FUMA-001 architecture and hosted migration history.
 - `bun run build`: passed `tsc -b` and the production Vite build with **2,046 modules**; normal output remains `dist/index.html`.
 - `bun run lint`: passed.
 - Primary full `bun test`: **6,910 passed, 8 environment-gated skips, 25 failed across 6,943 tests**. The failures were recorded rather than hidden: 20 plugin runtime/handler tests, one canvas behavior test, and four pre-existing architecture budgets (seven oversized FUMA server modules, hosted PostgreSQL syntax in current `DbClient` consumers, three pre-auth CSS token aliases, and the existing admin entry chunk). None names or imports a FUMA-WEB-001-owned file; both new gates pass inside the full run. Repository policy permits task-local completion when unrelated parallel work is failing, but FUMA-WEB-002 must repeat and re-triage the full gate after relocation.
@@ -278,7 +278,6 @@ Primary-agent verification before any workspace move:
 Immutable evidence:
 
 - `server/db/migrations-pg.ts`: `428010a428294c6b434956eb5e00aba682b7359107eb4fbf1732d8dac774cf34`.
-- `server/db/migrations-sqlite.ts`: `e5ae1d091f5b385ef55e4a8928e5f60e223a6a5094df3132f69f8aa7404ad150`.
 - Canonical hosted runnable history remains contiguous through `000009_tenant_keys`; every source checksum equals `HOSTED_MIGRATION_CHECKSUMS`, and the focused baseline rejects content, ID, order, checksum, and high-water substitutions.
 
 ## Forbidden patterns
@@ -287,7 +286,7 @@ Immutable evidence:
 - More than one lockfile or an install authority below the root.
 - Adding shared packages beyond the exact initial three without a demonstrated second consumer and a separate architecture decision.
 - Any app importing another app.
-- A public API host, cross-subdomain staff cookie, parent-domain cookie, or Better Auth route outside `auth.fuma.co.ke`.
+- A public API host, cross-subdomain staff cookie, parent-domain cookie, or Better Auth route outside `auth.trimly.co.ke`.
 - App sessions authorizing admin, admin sessions authorizing customer mutations, or staff cookies reaching public/tenant/customer hosts.
 - Public Web importing or duplicating Studio repositories, auth, providers, billing, publishing, moderation, migration, or tenant-routing authority.
 - Hardcoded authoritative prices, quotas, availability, promotions, provider IDs, costs, or margins in public-web code/content.
@@ -299,11 +298,11 @@ Immutable evidence:
 ## Related
 
 - [`fuma-platform-architecture.md`](fuma-platform-architecture.md) — tenant hierarchy, pooled topology, process roles, and immutable migration policy.
-- [`fuma-hosted-migrations-transition.md`](fuma-hosted-migrations-transition.md) — hosted migration checksums and SQLite transition evidence.
+- [`fuma-hosted-migrations-transition.md`](fuma-hosted-migrations-transition.md) — hosted PostgreSQL migration checksums and historical evidence.
 - [`fuma-hosted-staff-auth.md`](fuma-hosted-staff-auth.md) — current mounted hosted staff boundary that the centralized auth-host architecture must supersede through its owning tasks.
 - [`architecture-tests.md`](architecture-tests.md) — catalog of enforced repository architecture gates.
 - `package.json`, `apps/studio/package.json`, and root `bun.lock` — current workspace orchestration and dependency authority.
-- `apps/studio/server/db/migrations-pg.ts`, `apps/studio/server/db/migrations-sqlite.ts` — relocated immutable historical migration sources.
+- `apps/studio/server/db/migrations-pg.ts` — relocated immutable historical migration source.
 - `apps/studio/server/fuma/db/migrations/` — relocated additive hosted migration stream.
 - Enforced workspace gate: `apps/studio/src/__tests__/architecture/fuma-workspace-public-web-architecture.test.ts`.
 
@@ -314,7 +313,7 @@ Primary-agent verification after the mechanical `apps/studio` move:
 - The repository root is the private Bun workspace/orchestration package; `apps/studio` is `@fuma/studio`. Root commands dispatch with `bun --cwd=apps/studio`, while root-owned lint and workspace tooling retain explicit root dependencies.
 - `bun install --frozen-lockfile` passed, and a second frozen lock-only pass left `bun.lock` byte-for-byte unchanged. The lock audit found no upgrades to pre-existing resolutions; workspace re-resolution only downgraded/deduplicated existing ESLint transitive entries. No app-local lockfile was created. The tracked `vendor/pixel-art-icons/bun.lock` predates WEB-002 and remains preserved as non-authoritative metadata in the vendored source snapshot; root `bun.lock` is the sole workspace install authority.
 - Focused workspace and migration integration: **131 passed, 1 environment-gated live-PostgreSQL skip, 0 failed, 384 assertions** across the workspace policy, relocation baseline, FUMA-001 platform policy, paired historical migrations, and hosted transition history. The canonical two-gate rerun separately passed **78 tests, 0 failed, 149 assertions**.
-- Historical sources now live at `apps/studio/server/db/migrations-pg.ts` and `apps/studio/server/db/migrations-sqlite.ts`; their SHA-256 values remain `428010a428294c6b434956eb5e00aba682b7359107eb4fbf1732d8dac774cf34` and `e5ae1d091f5b385ef55e4a8928e5f60e223a6a5094df3132f69f8aa7404ad150`. Hosted history remains contiguous through `000009_tenant_keys`, with canonical checksums unchanged.
+- The historical source now lives at `apps/studio/server/db/migrations-pg.ts`; its SHA-256 is enforced by the workspace migration baseline. Hosted history remains contiguous through `000009_tenant_keys`, with canonical checksums unchanged.
 - `bun run lint` passed for `apps/studio` plus root `tooling`.
 - The relocated production Vite build passed with **2,046 modules** after Studio declared the already-locked React Compiler Babel peer directly. The complete root `bun run build` dispatches correctly but TypeScript is currently blocked by an unrelated untracked hosted-auth lane at `apps/studio/server/auth/hosted/auth.ts` (`BetterAuthPlugin` incompatibility); WEB-002 did not modify that implementation.
 - Final primary `bun test`: **6,897 passed, 6 environment-gated skips, 29 failed across 6,932 tests**. All 34 relocation regressions from the first post-move run were eliminated. The remaining result is the exact 25-failure pre-move baseline plus four failures/errors from the same unrelated untracked Better Auth lane (one FUMA-013 named failure and three module-load errors).
@@ -323,11 +322,11 @@ Primary-agent verification after the mechanical `apps/studio` move:
 
 ### FUMA-WEB-003 self-host parity gate — 2026-07-25
 
-`apps/studio/src/__tests__/architecture/fuma-self-host-parity.test.ts` is the deterministic post-move authority for the self-host facade. It locks root-to-Studio commands, Docker build/runtime copies and `WORKDIR`, SQLite/PostgreSQL selection, all four Compose layers, durable database/uploads/published/TLS state, healthchecks, immutable relocated historical migration hashes, and release-bundle membership. The relocated Studio build is copied to the stable image static root `/app/dist`; Compose, Railway, Render, and generated install instructions retain that external contract. TLS bundles include the root `Caddyfile` required by `compose.tls.yml`.
+`apps/studio/src/__tests__/architecture/fuma-self-host-parity.test.ts` is the deterministic post-move authority for the self-host facade. It locks root-to-Studio commands, image build/runtime copies and `WORKDIR`, PostgreSQL selection, the production/TLS Compose layers, durable database/uploads/published/TLS state, healthchecks, immutable relocated historical migration hashes, and release-bundle membership. The relocated Studio build is copied to the stable image static root `/app/dist`; Compose, Railway, Render, and generated install instructions retain that external contract. TLS bundles include the root `Caddyfile` required by `compose.tls.yml`.
 
 The gate is structural and side-effect free: it does not start containers or mutate a database. Existing database migration/integration and publisher tests remain the behavioral evidence for applying historical upgrades and serving published output; this gate prevents the relocation facade from selecting a different database history or placing durable files outside mounted volumes.
 
-`tooling/selfHostSmoke.ts` is the executable release-candidate proof. Its TypeBox-validated `--dry-run` command plan is covered by `tooling/selfHostSmoke.test.ts` without Docker; an explicit operator run consumes an already-built image and release bundle, then exercises isolated SQLite and PostgreSQL Compose projects through health, restart, forced image replacement, persistent DB/upload/published-path markers, and additive `schema_migrations` checks. `docs/deployment/self-host-smoke-harness.md` defines the command and cleanup contract.
+`tooling/selfHostSmoke.ts` is the executable release-candidate proof. Its TypeBox-validated `--dry-run` command plan is covered by `tooling/selfHostSmoke.test.ts` without Docker; an explicit operator run consumes an already-built image and release bundle, then exercises an isolated PostgreSQL Compose project through health, restart, forced image replacement, persistent DB/upload/published-path markers, and additive `schema_migrations` checks. `docs/deployment/self-host-smoke-harness.md` defines the command and cleanup contract.
 
 
 Primary-agent acceptance executed the harness against locally built `instatic:fuma-web-003` and `.tmp/release/instatic-0.0.11-fuma-web-003-release-bundle.tar.gz`. Both isolated dialect projects passed health, static/admin serving, restart, forced same-image recreation, and persistence checks with **20 historical migrations per dialect**; database, upload, and published markers survived. The harness then left zero matching containers, volumes, or networks. The final focused gate passed **39 tests, 0 failures, 211 assertions**; root `bun run build` passed TypeScript plus the 2,046-module Vite build, and root lint passed. Live execution also closed three image-only seams that static checks could not prove: Studio-local isolated production dependencies, Better Auth's package-scoped Zod 4 resolution, and explicit `HOST=0.0.0.0` container binding while local defaults remain loopback-only.

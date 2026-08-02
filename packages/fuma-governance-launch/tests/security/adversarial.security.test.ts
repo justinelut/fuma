@@ -29,7 +29,7 @@ describe('FUMA-082 adversarial security, privacy, and abuse', () => {
   it('denies app/customer access to internal console routes', () => {
     const registry = new PlatformConsoleRegistry()
     registry.register({ contributionId: 'support', ownerTicket: 'FUMA-072', routes: ['/internal/support'], requiredAuthorities: ['internal.support.read'] })
-    expect(() => registry.authorize('/internal/support', { actorId: 'customer-a', host: 'app.fuma.co.ke', authorities: new Set(['internal.support.read']), stepUpAt: null, protectedOwner: false })).toThrow('admin-host')
+    expect(() => registry.authorize('/internal/support', { actorId: 'customer-a', host: 'app.trimly.co.ke', authorities: new Set(['internal.support.read']), stepUpAt: null, protectedOwner: false })).toThrow('admin-host')
   })
 
   it('rejects Ghost credentials, session material, and oversized hidden source fields', async () => {

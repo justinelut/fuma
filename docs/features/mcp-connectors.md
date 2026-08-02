@@ -131,7 +131,7 @@ claude mcp add instatic --transport http http://localhost:3000/_instatic/mcp \
 
 ## Data model
 
-`ai_mcp_connectors` (migration `018` plus additive expiry migration `019`, PG + SQLite parity):
+`ai_mcp_connectors` (PostgreSQL migration `018` plus additive expiry migration `019`):
 
 | column | notes |
 |---|---|

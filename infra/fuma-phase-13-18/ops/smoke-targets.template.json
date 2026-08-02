@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "targets": [
-    { "name": "public-apex", "url": "https://fuma.co.ke/", "expectedStatus": 200, "mustContain": "Fuma", "cookiesAllowed": false },
-    { "name": "identity", "url": "https://auth.fuma.co.ke/", "expectedStatus": 200, "mustContain": "Sign", "cookiesAllowed": true },
-    { "name": "customer-app", "url": "https://app.fuma.co.ke/", "expectedStatus": 200, "mustContain": "Fuma", "cookiesAllowed": true },
-    { "name": "internal-console", "url": "https://admin.fuma.co.ke/", "expectedStatus": 200, "mustContain": "Fuma", "cookiesAllowed": true }
+    { "name": "public-apex", "url": "https://trimly.co.ke/", "expectedStatus": 200, "mustContain": "Fuma", "cookiesAllowed": false },
+    { "name": "identity", "url": "https://auth.trimly.co.ke/", "expectedStatus": 200, "mustContain": "Sign", "cookiesAllowed": true },
+    { "name": "customer-app", "url": "https://app.trimly.co.ke/", "expectedStatus": 200, "mustContain": "Fuma", "cookiesAllowed": true },
+    { "name": "internal-console", "url": "https://admin.trimly.co.ke/", "expectedStatus": 200, "mustContain": "Fuma", "cookiesAllowed": true }
   ],
   "requiredSeparateTests": ["www redirect", "unknown host denial", "two allocated tenant hosts", "reserved tenant denial", "verified custom host", "public web independent rollback"]
 }

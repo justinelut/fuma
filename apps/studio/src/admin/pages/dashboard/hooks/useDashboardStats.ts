@@ -14,8 +14,7 @@
  *   • `usePluginsStats()`      — Plugins widget (one scan of
  *                                  `installed_plugins`)
  *   • `useStorageStats()`      — Storage widget (media bytes + plugin
- *                                  dir size + database file/db size +
- *                                  the active dialect label)
+ *                                  directory size + PostgreSQL database size)
  *   • `usePublishLineupStats()`— Publish Lineup widget (three small
  *                                  range queries)
  *   • `useRecentActivityStats()`— Activity widget (a 50-row audit-events
@@ -157,9 +156,8 @@ type DashboardPublishLineupStats = Static<typeof DashboardPublishLineupStatsSche
 /**
  * Storage widget payload. Mirrors `StorageStats` on the server (see
  * `server/handlers/cms/dashboard.ts`). All byte counts are raw integers;
- * the widget formats them with the `formatSize` helper. `dialect` powers
- * the "SQLite" / "Postgres" label the widget shows in its caption so
- * operators can see at a glance which adapter is in use.
+ * the widget formats them with the `formatSize` helper. `dialect` is the
+ * PostgreSQL runtime invariant returned by the server.
  *
  * Media is split into `imageBytes` / `videoBytes` / `documentBytes` by
  * mime-type prefix on the server; anything that isn't `image/*` or
@@ -173,7 +171,7 @@ const DashboardStorageStatsSchema = looseObject({
   pluginBytes: Type.Number(),
   databaseBytes: Type.Number(),
   totalBytes: Type.Number(),
-  dialect: Type.Union([Type.Literal('sqlite'), Type.Literal('postgres')]),
+  dialect: Type.Literal('postgres'),
 })
 type DashboardStorageStats = Static<typeof DashboardStorageStatsSchema>
 
@@ -236,7 +234,7 @@ export function usePluginsStats(): DashboardPluginsStats | null {
 /**
  * Storage widget. One mime-bucketed sum over `media_assets.size_bytes`
  * (image / video / other) + an `fs.stat` walk of `<uploadsDir>/plugins/`
- * + a dialect-aware database size query.
+ * + a PostgreSQL database-size query.
  */
 export function useStorageStats(): DashboardStorageStats | null {
   return useDashboardEndpoint('storage', DashboardStorageStatsSchema)

@@ -8,8 +8,7 @@ import type { Migration } from './runMigrations'
  * case". The 19 incremental migrations that built this schema during
  * development have been collapsed into one `001_baseline` representing the
  * final state. New schema work appends a new migration in the usual way
- * (`002_<change>`, etc.); the parity test gates IDs between this file and
- * `migrations-sqlite.ts`.
+ * (`002_<change>`, etc.); this file is the sole canonical database stream.
  *
  * Order within the baseline is dictated by FK dependencies:
  *
@@ -1051,9 +1050,8 @@ export const pgMigrations: Migration[] = [
     // monotonically increasing sequence number. One column serves conflict
     // detection (stored seq > client base seq), O(delta) reconnect
     // reconciliation (rows where seq > cursor), and event ordering.
-    // `site_sync_state` is the single-row counter (dialect-neutral: a plain
-    // row bumped with `set seq = seq + 1 returning seq` inside the save
-    // transaction — kept as a row, not a PG sequence, for SQLite parity).
+    // `site_sync_state` is the single-row counter: a plain row bumped with
+    // `set seq = seq + 1 returning seq` inside the save transaction.
     id: '020_site_sync_sequence',
     sql: `
       alter table data_rows add column seq bigint not null default 0;

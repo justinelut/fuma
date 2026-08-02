@@ -38,7 +38,7 @@ const publicAccess: SiteApplicationAccess = { member: false, paid: false, member
 const memberAccess: SiteApplicationAccess = { member: true, paid: false, memberSource: 'registered', segmentIds: [] }
 const paidAccess: SiteApplicationAccess = { member: true, paid: true, memberSource: 'paid', segmentIds: [] }
 function render(root: RuntimeNode, access: SiteApplicationAccess = publicAccess) {
-  return renderToStaticMarkup(<RuntimeTree route={route(root)} host="lawyer.fuma.co.ke" ownerKey="lawyer-owner" siteId="lawyer-site" applicationAccess={access} />)
+  return renderToStaticMarkup(<RuntimeTree route={route(root)} host="lawyer.trimly.co.ke" ownerKey="lawyer-owner" siteId="lawyer-site" applicationAccess={access} />)
 }
 
 describe('FUMA-SITE-006 owned Lawyer runtime components', () => {
@@ -84,14 +84,14 @@ describe('FUMA-SITE-006 owned Lawyer runtime components', () => {
     const artifact = route(root)
     const response = {
       schemaVersion: 1 as const, contractVersion: '1.0.0' as const, sourceSnapshotHashSha256: hash('d'),
-      cacheIdentity: { host: 'lawyer.fuma.co.ke', platformId: 'fuma-platform', organizationId: 'lawyer-org', workspaceId: 'lawyer-workspace', siteId: 'lawyer-site', ownerKey: 'lawyer-owner', ownerGeneration: 1, releaseId: 'lawyer-release', releaseHashSha256: hash('1'), route: '/article/fixture', canonicalQuery: '', audience: { kind: 'public' as const, memberId: null, accessFingerprintSha256: hash('0') }, runtimeDeploymentVersion: '1.0.0', componentRegistryVersion: '1.0.0', rolloutPolicyVersion: 1 },
+      cacheIdentity: { host: 'lawyer.trimly.co.ke', platformId: 'fuma-platform', organizationId: 'lawyer-org', workspaceId: 'lawyer-workspace', siteId: 'lawyer-site', ownerKey: 'lawyer-owner', ownerGeneration: 1, releaseId: 'lawyer-release', releaseHashSha256: hash('1'), route: '/article/fixture', canonicalQuery: '', audience: { kind: 'public' as const, memberId: null, accessFingerprintSha256: hash('0') }, runtimeDeploymentVersion: '1.0.0', componentRegistryVersion: '1.0.0', rolloutPolicyVersion: 1 },
       application: { schemaVersion: 1 as const, cacheIdentity: undefined as never, member: { authenticated: false as const, memberIdentityId: null, memberId: null, sessionId: null, displayName: null }, snapshot: { version: 0, cart: { items: [] }, booking: { selections: [] }, account: null }, access: publicAccess, cachePolicy: 'public' as const },
       delivery: { selected: 'react' as const, reason: 'policy' as const, policy: { route: '/article/fixture', target: 'react' as const, shadow: 'off' as const, fallback: 'deny' as const, legacyReleaseId: null, version: 1 }, shadowParity: 'not-run' as const, legacy: null }, routeArtifact: artifact,
     }
     response.application.cacheIdentity = response.cacheIdentity
     const html = renderToStaticMarkup(<ApplicationStateProvider><RuntimeDocument response={response} /></ApplicationStateProvider>)
     expect(html).toContain('<title>Fixture analysis</title>')
-    expect(html).toContain('<link rel="canonical" href="https://lawyer.fuma.co.ke/article/fixture"')
+    expect(html).toContain('<link rel="canonical" href="https://lawyer.trimly.co.ke/article/fixture"')
     expect(html).toContain('data-fuma-application-site')
     expect(html).toContain('data-fuma-audience="public"')
   })

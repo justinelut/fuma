@@ -5,6 +5,10 @@ import { PlatformCheckoutRouteContent } from '../fuma/billing'
 import { QuotaSelfServiceRouteContent } from '../fuma/usage'
 import { McpScopedRouteContent } from '../fuma/mcp'
 import { ComponentCatalogRouteContent } from '../fuma/components'
+import { SupportOperationsRouteContent, type SupportClientTarget } from '../fuma/supportOperations'
+import { ExpertDiscoveryRouteContent } from '../fuma/expertDiscovery'
+import { PaidHandoffRouteContent } from '../fuma/paidHandoff'
+import { CustomerCapabilityDashboardRouteContent, PlatformCapabilityInventoryRouteContent } from '../fuma/aiCapabilities'
 import {
   HostedProfileEditorSurface,
   type HostedProfileEditorRenderAdapter,
@@ -61,6 +65,54 @@ function validateContextCatalog(value: unknown): CatalogValidation {
     : { kind: 'invalid' }
 }
 
+function internalSupportTarget(pathname: string, catalog: AccessibleContextCatalog): SupportClientTarget | null {
+  const match = /^\/admin\/organizations\/([^/]+)\/workspaces\/([^/]+)\/sites\/([^/]+)\/internal\/support(?:\/.*)?$/.exec(pathname)
+  if (!match) return null
+  try {
+    const target = { organizationId: decodeURIComponent(match[1]!), workspaceId: decodeURIComponent(match[2]!), siteId: decodeURIComponent(match[3]!) }
+    const exact = catalog.sites.some((site) => site.id === target.siteId && site.organizationId === target.organizationId && site.workspaceId === target.workspaceId && site.status === 'active')
+    return exact ? Object.freeze(target) : null
+  } catch { return null }
+}
+
+function internalExpertTarget(pathname: string, catalog: AccessibleContextCatalog): SupportClientTarget | null {
+  const match = /^\/admin\/organizations\/([^/]+)\/workspaces\/([^/]+)\/sites\/([^/]+)\/internal\/experts(?:\/.*)?$/.exec(pathname)
+  if (!match) return null
+  try {
+    const target = { organizationId: decodeURIComponent(match[1]!), workspaceId: decodeURIComponent(match[2]!), siteId: decodeURIComponent(match[3]!) }
+    return catalog.sites.some((site) => site.id === target.siteId && site.organizationId === target.organizationId && site.workspaceId === target.workspaceId && site.status === 'active') ? Object.freeze(target) : null
+  } catch { return null }
+}
+
+
+function internalPaidHandoffTarget(pathname: string, catalog: AccessibleContextCatalog): SupportClientTarget | null {
+  const match = /^\/admin\/organizations\/([^/]+)\/workspaces\/([^/]+)\/sites\/([^/]+)\/internal\/transfers(?:\/.*)?$/.exec(pathname)
+  if (!match) return null
+  try {
+    const target = { organizationId: decodeURIComponent(match[1]!), workspaceId: decodeURIComponent(match[2]!), siteId: decodeURIComponent(match[3]!) }
+    return catalog.sites.some((site) => site.id === target.siteId && site.organizationId === target.organizationId && site.workspaceId === target.workspaceId && site.status === 'active') ? Object.freeze(target) : null
+  } catch { return null }
+}
+
+function internalCapabilityTarget(pathname: string, catalog: AccessibleContextCatalog): SupportClientTarget | null {
+  const match = /^\/admin\/organizations\/([^/]+)\/workspaces\/([^/]+)\/sites\/([^/]+)\/internal\/ai-capabilities(?:\/.*)?$/.exec(pathname)
+  if (!match) return null
+  try {
+    const target = {
+      organizationId: decodeURIComponent(match[1]!),
+      workspaceId: decodeURIComponent(match[2]!),
+      siteId: decodeURIComponent(match[3]!),
+    }
+    return catalog.sites.some((site) => site.id === target.siteId
+      && site.organizationId === target.organizationId
+      && site.workspaceId === target.workspaceId
+      && site.status === 'active')
+      ? Object.freeze(target)
+      : null
+  } catch {
+    return null
+  }
+}
 export function HostedStaffShell({
   session,
   pathname = '/admin',
@@ -73,6 +125,18 @@ export function HostedStaffShell({
   const [signingOut, setSigningOut] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const catalogValidation = validateContextCatalog(contextCatalog)
+  const supportTarget = catalogValidation.kind === 'valid'
+    ? internalSupportTarget(pathname, catalogValidation.catalog)
+    : null
+  const expertTarget = catalogValidation.kind === 'valid'
+    ? internalExpertTarget(pathname, catalogValidation.catalog)
+    : null
+  const paidHandoffTarget = catalogValidation.kind === 'valid'
+    ? internalPaidHandoffTarget(pathname, catalogValidation.catalog)
+    : null
+  const capabilityTarget = catalogValidation.kind === 'valid'
+    ? internalCapabilityTarget(pathname, catalogValidation.catalog)
+    : null
 
   async function signOut(): Promise<void> {
     if (signingOut) return
@@ -110,11 +174,33 @@ export function HostedStaffShell({
         <p className={styles.copy}>
           Manage the security of your hosted staff identity and active devices.
         </p>
+        {currentSession.session.impersonatedBy ? (
+          <div className={styles.supportBanner} role="alert">
+            <strong>Support session active</strong>
+            <span>Actions are performed as this account by {currentSession.session.impersonatedBy} and are audited.</span>
+          </div>
+        ) : null}
         {error && <p className={panelStyles.error} role="alert">{error}</p>}
         <HostedStaffSecurity session={currentSession} onSessionChange={setCurrentSession} />
       </section>
 
       {catalogValidation.kind === 'valid' ? (
+        supportTarget ? (
+          <SupportOperationsRouteContent
+            target={supportTarget}
+            pathname={pathname}
+            impersonatedBy={currentSession.session.impersonatedBy ?? null}
+          />
+        ) : expertTarget ? (
+          <ExpertDiscoveryRouteContent target={expertTarget} />
+        ) : paidHandoffTarget ? (
+          <PaidHandoffRouteContent target={paidHandoffTarget} />
+        ) : capabilityTarget ? (
+          <PlatformCapabilityInventoryRouteContent
+            target={capabilityTarget}
+            impersonatedBy={currentSession.session.impersonatedBy ?? null}
+          />
+        ) : (
         <FumaScopedShell
           catalog={catalogValidation.catalog}
           pathname={pathname}
@@ -136,6 +222,7 @@ export function HostedStaffShell({
                   />
                 )}
               />
+              <CustomerCapabilityDashboardRouteContent shell={shell} />
               <HostedProfileEditorSurface
                 shell={shell}
                 permissionDecisions={permissionDecisions}
@@ -144,6 +231,7 @@ export function HostedStaffShell({
             </>
           )}
         </FumaScopedShell>
+        )
       ) : (
         <section
           className={`${panelStyles.panel} ${styles.shell}`}

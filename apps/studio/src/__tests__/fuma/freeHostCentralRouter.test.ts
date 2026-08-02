@@ -19,18 +19,18 @@ describe('FUMA-050 central server Host composition', () => {
         return new Response('host-owned', { status: 209 })
       },
     }
-    const response = await handleServerRequest(request('tenant-a.fuma.co.ke', '/admin'), {
+    const response = await handleServerRequest(request('tenant-a.trimly.co.ke', '/admin'), {
       db: {} as never,
       freeHostPublic,
     })
     expect(response.status).toBe(209)
     expect(await response.text()).toBe('host-owned')
-    expect(seen).toEqual(['tenant-a.fuma.co.ke'])
+    expect(seen).toEqual(['tenant-a.trimly.co.ke'])
   })
 
   it('does not expose a legacy default site on the hosted product Host', async () => {
     let calls = 0
-    const response = await handleServerRequest(request('app.fuma.co.ke', '/'), {
+    const response = await handleServerRequest(request('app.trimly.co.ke', '/'), {
       db: new Proxy({}, {
         get() { throw new Error('legacy database fallback reached') },
       }) as never,

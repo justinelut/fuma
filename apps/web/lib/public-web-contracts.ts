@@ -1,5 +1,6 @@
 export { ContactRequestSchema, type ContactRequest } from '@fuma/public-contracts'
 import { Type, type Static } from '@sinclair/typebox'
+import { FUMA_WEB_DEPLOYMENT } from './deployment-profile'
 
 const Slug = Type.String({
   minLength: 1,
@@ -70,8 +71,8 @@ export type ConsentPreference = Static<typeof ConsentPreferenceSchema>
 
 export const LaunchConfigSchema = Type.Object({
   canonicalOrigin: Type.String({ pattern: '^https://[^/]+$' }),
-  appOrigin: Type.Literal('https://app.fuma.co.ke'),
-  statusOrigin: Type.Literal('https://status.fuma.co.ke'),
+  appOrigin: Type.Literal(FUMA_WEB_DEPLOYMENT.origins.product),
+  statusOrigin: Type.Literal(FUMA_WEB_DEPLOYMENT.origins.status),
 }, { additionalProperties: false })
 
 export const PublicWebVitalSchema = Type.Object({
@@ -106,12 +107,3 @@ export const PublicClaimSchema = Type.Object({
   evidence: Type.String({ minLength: 3, maxLength: 240 }),
 }, { additionalProperties: false })
 export const PublicClaimInventorySchema = Type.Array(PublicClaimSchema, { minItems: 1, maxItems: 100 })
-
-export const PublicWebBudgetsSchema = Type.Object({
-  javascriptBytes: Type.Integer({ minimum: 1, maximum: 250_000 }),
-  imageBytesPerRoute: Type.Integer({ minimum: 1, maximum: 500_000 }),
-  fontBytes: Type.Integer({ minimum: 1, maximum: 150_000 }),
-  lcpMilliseconds: Type.Integer({ minimum: 1, maximum: 2_500 }),
-  cls: Type.Number({ minimum: 0, maximum: 0.1 }),
-  inpMilliseconds: Type.Integer({ minimum: 1, maximum: 200 }),
-}, { additionalProperties: false })

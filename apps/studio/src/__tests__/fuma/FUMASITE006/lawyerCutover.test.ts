@@ -14,7 +14,7 @@ const digest = async (value: string | Uint8Array): Promise<string> => createHash
 const legacyHtml = '<main><article><h1>Retained Lawyer article</h1></article></main>'
 const semanticHash = createHash('sha256').update(legacyHtml).digest('hex')
 const binding: SiteRuntimeExactBinding = Object.freeze({
-  host: 'lawyer.fuma.co.ke', platformId: 'fuma-platform', organizationId: 'lawyer-org', workspaceId: 'lawyer-workspace', siteId: 'lawyer-site', ownerKey: 'lawyer-owner', ownerGeneration: 1, releaseId: 'lawyer-react-1', releaseHashSha256: 'a'.repeat(64),
+  host: 'lawyer.trimly.co.ke', platformId: 'fuma-platform', organizationId: 'lawyer-org', workspaceId: 'lawyer-workspace', siteId: 'lawyer-site', ownerKey: 'lawyer-owner', ownerGeneration: 1, releaseId: 'lawyer-react-1', releaseHashSha256: 'a'.repeat(64),
 })
 function artifact(route: string, hash = semanticHash): RuntimeRouteArtifact {
   return { route: { route, semanticHtmlPath: '/article.html' }, artifactReferences: [{ role: 'semantic-html', logicalPath: '/article.html', contentHashSha256: hash }] } as RuntimeRouteArtifact

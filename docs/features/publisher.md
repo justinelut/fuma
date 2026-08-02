@@ -415,8 +415,8 @@ publishDraftSite (server/publish/publishSite.ts)
     ├─→ build runtime scripts + runtime package importmap
     ├─→ build EVERYTHING expensive first, outside any transaction — dependency
     │     cache (`bun install`), importmap, per-page esbuild runtime builds.
-    │     The SQLite adapter serializes all transactions through one chain, so
-    │     this work inside the transaction would stall every concurrent write.
+    │     Keep this work outside the PostgreSQL transaction so locks are held
+    │     only for the short persistence phase.
     ├─→ short transaction: write the SiteDocument ONCE into site_snapshots
     │     (content hash stamped for the publish-status check); each page's
     │     data_row_versions row references it via site_snapshot_id + carries

@@ -16,7 +16,7 @@ const database = withHashedSessionTokens(drizzleAdapter(drizzle(schemaClient), {
 }))
 
 export const auth = betterAuth(createCompatibilityAuthOptions(database, {
-  baseURL: 'https://app.fuma.co.ke',
+  baseURL: 'https://app.trimly.co.ke',
   secret: 'fuma-010-schema-generation-only-secret-at-least-32-characters',
   secureCookies: true,
 }, { create: async () => {} }))

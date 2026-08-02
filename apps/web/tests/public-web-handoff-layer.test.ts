@@ -53,9 +53,9 @@ describe('public-to-app handoff layer', () => {
       { config, fetchImpl },
     )
     expect(result).toEqual({
-      redirectUrl: 'https://app.fuma.co.ke/resume?intent=fixture_intent_0123456789abcdef0123456789&correlation=fixture_correlation_0123456789abcdef',
+      redirectUrl: 'https://app.trimly.co.ke/resume?intent=fixture_intent_0123456789abcdef0123456789&correlation=fixture_correlation_0123456789abcdef',
     })
-    expect(safeAppResumeUrl(result?.redirectUrl)?.origin).toBe('https://app.fuma.co.ke')
+    expect(safeAppResumeUrl(result?.redirectUrl)?.origin).toBe('https://app.trimly.co.ke')
   })
 
   test('fails closed for expired, malformed, redirected, credentialed or extra-parameter targets', async () => {
@@ -70,9 +70,9 @@ describe('public-to-app handoff layer', () => {
 
     for (const target of [
       'https://attacker.test/resume?intent=fixture_intent_0123456789abcdef0123456789&correlation=fixture_correlation_0123456789abcdef',
-      'https://user:pass@app.fuma.co.ke/resume?intent=fixture_intent_0123456789abcdef0123456789&correlation=fixture_correlation_0123456789abcdef',
-      'https://app.fuma.co.ke/resume?intent=fixture_intent_0123456789abcdef0123456789&correlation=fixture_correlation_0123456789abcdef&redirect=https://attacker.test',
-      'https://app.fuma.co.ke/other?intent=fixture_intent_0123456789abcdef0123456789&correlation=fixture_correlation_0123456789abcdef',
+      'https://user:pass@app.trimly.co.ke/resume?intent=fixture_intent_0123456789abcdef0123456789&correlation=fixture_correlation_0123456789abcdef',
+      'https://app.trimly.co.ke/resume?intent=fixture_intent_0123456789abcdef0123456789&correlation=fixture_correlation_0123456789abcdef&redirect=https://attacker.test',
+      'https://app.trimly.co.ke/other?intent=fixture_intent_0123456789abcdef0123456789&correlation=fixture_correlation_0123456789abcdef',
     ]) expect(safeAppResumeUrl(target)).toBeNull()
   })
 })

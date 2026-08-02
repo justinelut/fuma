@@ -9,8 +9,8 @@
  *   willAdd     = bundle rows whose id does NOT exist locally
  *   currentLocal = count of rows currently in the local DB for this table
  *
- * Each test uses a fresh in-memory SQLite database. Auth is seeded directly
- * via repositories.
+ * Each test uses an isolated PostgreSQL schema. Auth is seeded directly via
+ * repositories.
  *
  * @see server/handlers/cms/importPreview.ts
  * @see src/core/data/bundleSchema.ts
@@ -18,9 +18,7 @@
  */
 
 import { describe, test, expect } from 'bun:test'
-import { createSqliteClient } from '../../../server/db/sqlite'
-import { runMigrations } from '../../../server/db/runMigrations'
-import { sqliteMigrations } from '../../../server/db/migrations-sqlite'
+import { createTestDatabase } from '../../../server/db/testDatabase'
 import { saveDraftSite } from '../../../server/repositories/site'
 import { SELF_HOST_SITE_ID } from '../../../server/selfHost'
 import { createUser } from '../../../server/repositories/users'
@@ -150,8 +148,7 @@ function makePreviewRequest(cookie: string, bundle: unknown): Request {
 
 describe('handleImportPreviewRoute — empty local + non-empty bundle', () => {
   test('willReplace=0, all bundle rows are willAdd', async () => {
-    const db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    const { db: db } = await createTestDatabase('cmsTransferPreview')
     const cookie = await seedAuth(db)
 
     const bundle = {
@@ -185,8 +182,7 @@ describe('handleImportPreviewRoute — empty local + non-empty bundle', () => {
 
 describe('handleImportPreviewRoute — 2 of 5 local rows overlap with bundle', () => {
   test('willReplace=2 for the overlapping rows', async () => {
-    const db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    const { db: db } = await createTestDatabase('cmsTransferPreview')
     const cookie = await seedAuth(db)
 
     // Seed 5 posts locally — 2 of them will share IDs with the bundle
@@ -228,8 +224,7 @@ describe('handleImportPreviewRoute — 2 of 5 local rows overlap with bundle', (
 
 describe('handleImportPreviewRoute — row slug conflicts', () => {
   test('suggests a slug that is free locally and within the incoming bundle', async () => {
-    const db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    const { db: db } = await createTestDatabase('cmsTransferPreview')
     const cookie = await seedAuth(db)
 
     await createDataRow(db, { tableId: 'posts', cells: { title: 'Local', slug: 'shared' }, slug: 'shared' })
@@ -261,8 +256,7 @@ describe('handleImportPreviewRoute — row slug conflicts', () => {
 
 describe('handleImportPreviewRoute — bundle table not present locally', () => {
   test('currentLocal=0 for a table that exists only in the bundle', async () => {
-    const db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    const { db: db } = await createTestDatabase('cmsTransferPreview')
     const cookie = await seedAuth(db)
 
     // 'custom-xyz' does not exist in the local DB
@@ -292,8 +286,7 @@ describe('handleImportPreviewRoute — bundle table not present locally', () => 
 
 describe('handleImportPreviewRoute — totals.mediaEmbedded', () => {
   test('mediaEmbedded=true when bundle has media array', async () => {
-    const db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    const { db: db } = await createTestDatabase('cmsTransferPreview')
     const cookie = await seedAuth(db)
 
     const fakeMedia = [
@@ -355,8 +348,7 @@ describe('handleImportPreviewRoute — totals.mediaEmbedded', () => {
   })
 
   test('mediaEmbedded=false when bundle has no media field', async () => {
-    const db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    const { db: db } = await createTestDatabase('cmsTransferPreview')
     const cookie = await seedAuth(db)
 
     const bundle = {
@@ -379,8 +371,7 @@ describe('handleImportPreviewRoute — totals.mediaEmbedded', () => {
 
 describe('handleImportPreviewRoute — meta fields', () => {
   test('meta reflects the bundle exportedAt and sourceSiteName', async () => {
-    const db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    const { db: db } = await createTestDatabase('cmsTransferPreview')
     const cookie = await seedAuth(db)
 
     const exportedAt = '2026-05-19T10:00:00.000Z'
@@ -403,8 +394,7 @@ describe('handleImportPreviewRoute — meta fields', () => {
   })
 
   test('sourceSiteName is null when absent from bundle', async () => {
-    const db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    const { db: db } = await createTestDatabase('cmsTransferPreview')
     const cookie = await seedAuth(db)
 
     const bundle = {
@@ -426,8 +416,7 @@ describe('handleImportPreviewRoute — meta fields', () => {
 
 describe('handleImportPreviewRoute — totals.rows', () => {
   test('totals.rows equals bundle.rows.length', async () => {
-    const db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    const { db: db } = await createTestDatabase('cmsTransferPreview')
     const cookie = await seedAuth(db)
 
     const bundle = {
@@ -452,8 +441,7 @@ describe('handleImportPreviewRoute — totals.rows', () => {
 
 describe('handleImportPreviewRoute — auth', () => {
   test('returns 401 when no session cookie', async () => {
-    const db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    const { db: db } = await createTestDatabase('cmsTransferPreview')
     await seedAuth(db)
 
     const bundle = { schemaVersion: 1, exportedAt: new Date().toISOString(), tables: [], rows: [] }

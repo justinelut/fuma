@@ -37,8 +37,8 @@ test('public contract demo and BFF fail safely through the Blyss HTTPS host', as
   const demo = await page.goto('/contract-demo')
   expect(demo?.status()).toBe(200)
   await expect(page).toHaveURL('https://3002.blyss.co.ke/contract-demo')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Server-owned product facts')
-  await expect(page.getByRole('status')).toContainText('temporarily unavailable')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('What’s available in Fuma')
+  await expect(page.getByRole('status')).toContainText('Product information is temporarily unavailable')
   expect(runtimeErrors).toEqual([])
 
   const bff = await request.get('/api/public/v1/product-facts?limit=6', {

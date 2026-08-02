@@ -16,7 +16,7 @@ import type { SiteRuntimeCacheIdentity } from '../../../server/fuma/siteRuntime/
 
 const at = '2026-07-30T12:00:00.000Z'
 const binding: SiteRuntimeExactBinding = Object.freeze({
-  host: 'alpha.fuma.co.ke', platformId: 'platform', organizationId: 'org-a', workspaceId: 'workspace-a', siteId: 'site-a',
+  host: 'alpha.trimly.co.ke', platformId: 'platform', organizationId: 'org-a', workspaceId: 'workspace-a', siteId: 'site-a',
   ownerKey: 'owner-a', ownerGeneration: 3, releaseId: 'release-react', releaseHashSha256: 'a'.repeat(64),
 })
 const audience = Object.freeze({ kind: 'member' as const, memberId: 'member-a', accessFingerprintSha256: 'f'.repeat(64) })

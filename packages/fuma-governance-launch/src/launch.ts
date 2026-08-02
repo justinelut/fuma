@@ -1,3 +1,4 @@
+import { FUMA_GOVERNANCE_DEPLOYMENT } from './deployment'
 import {
   LaunchGateSchema,
   PairedReleaseManifestSchema,
@@ -81,7 +82,13 @@ export type DeploySmokeEvidence = Readonly<{
 
 export function authorizePromotion(releaseValue: unknown, evidence: DeploySmokeEvidence): PairedReleaseManifest {
   const release = verifyPairedRelease(releaseValue)
-  const requiredHosts = ['fuma.co.ke', 'auth.fuma.co.ke', 'app.fuma.co.ke', 'admin.fuma.co.ke', '*.fuma.co.ke']
+  const requiredHosts = [
+    FUMA_GOVERNANCE_DEPLOYMENT.hosts.public,
+    FUMA_GOVERNANCE_DEPLOYMENT.hosts.auth,
+    FUMA_GOVERNANCE_DEPLOYMENT.hosts.product,
+    FUMA_GOVERNANCE_DEPLOYMENT.hosts.console,
+    FUMA_GOVERNANCE_DEPLOYMENT.tenantWildcard,
+  ]
   const timings = [evidence.backupAgeSeconds, evidence.rpoSeconds, evidence.rtoSeconds, evidence.observedRestoreSeconds]
   if (evidence.releaseSourceSha !== release.sourceSha || evidence.migrationHighWaterMark !== release.migrationHighWaterMark || requiredHosts.some((host) => !evidence.exactHosts.includes(host)) || !evidence.unknownHostDenied || !evidence.parentDomainCookieAbsent || !timings.every((value) => Number.isSafeInteger(value) && value >= 0) || evidence.rpoSeconds <= 0 || evidence.rtoSeconds <= 0 || evidence.backupAgeSeconds > evidence.rpoSeconds || evidence.observedRestoreSeconds > evidence.rtoSeconds || !/^[a-f0-9]{64}$/.test(evidence.restoreCountsHashSha256) || !/^[a-f0-9]{64}$/.test(evidence.restoreObjectsHashSha256)) throw new LaunchPolicyError('promotion-blocked', 'Migration, host, backup, or restore evidence blocks promotion.')
   return release
@@ -144,7 +151,7 @@ export function validateCapacityEconomics(evidence: CapacityEvidence): { grossMa
 }
 
 export type PilotEvidence = Readonly<{
-  sqliteTransitionHashMatched: boolean
+  postgresMigrationHashMatched: boolean
   ghostManifestHashMatched: boolean
   lawyerInventoryComplete: boolean
   immutableGrandfatheredContract: boolean
@@ -157,7 +164,7 @@ export type PilotEvidence = Readonly<{
 }>
 
 export function acceptPilot(evidence: PilotEvidence): PilotEvidence {
-  if (!evidence.sqliteTransitionHashMatched || !evidence.ghostManifestHashMatched || !evidence.lawyerInventoryComplete || !evidence.immutableGrandfatheredContract || !evidence.ociEmailActive || !evidence.routeMemberAccessParity || !evidence.providerPaymentsReconciled || !evidence.rollbackRestoredHash || evidence.severityOneOpen !== 0 || new Set(evidence.signedBy).size < 2) throw new LaunchPolicyError('pilot-denied', 'Migration, Lawyer pilot, or rollback evidence is incomplete.')
+  if (!evidence.postgresMigrationHashMatched || !evidence.ghostManifestHashMatched || !evidence.lawyerInventoryComplete || !evidence.immutableGrandfatheredContract || !evidence.ociEmailActive || !evidence.routeMemberAccessParity || !evidence.providerPaymentsReconciled || !evidence.rollbackRestoredHash || evidence.severityOneOpen !== 0 || new Set(evidence.signedBy).size < 2) throw new LaunchPolicyError('pilot-denied', 'Migration, Lawyer pilot, or rollback evidence is incomplete.')
   return Object.freeze(structuredClone(evidence))
 }
 

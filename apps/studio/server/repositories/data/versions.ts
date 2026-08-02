@@ -10,8 +10,8 @@
 import type { DbClient } from '../../db/client'
 
 /**
- * Next `version_number` for a row: `max(existing) + 1`, or `1` when the row has
- * no versions yet. Dialect-naive ANSI SQL — `coalesce` + `max`, no Postgres-isms.
+ * Next `version_number` for a row: PostgreSQL `max(existing) + 1`, or `1`
+ * when the row has no versions yet.
  */
 export async function nextDataRowVersionNumber(db: DbClient, rowId: string): Promise<number> {
   const { rows } = await db<{ next_version: number }>`

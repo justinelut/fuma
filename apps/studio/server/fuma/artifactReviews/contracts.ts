@@ -160,6 +160,15 @@ export const DecideArtifactReviewCommandSchema = Type.Object({
   reason: Type.String({ minLength: 1, maxLength: 2_000 }),
   decidedAt: Timestamp,
 }, { additionalProperties: false })
+
+export const ArtifactReviewInvalidationSchema = Type.Object({
+  resource: Type.Union([Type.Literal('plugins'), Type.Literal('components')]),
+  packageId: Id,
+  exactVersion: Version,
+  reason: Type.Union([Type.Literal('approved'), Type.Literal('revoked')]),
+  changedAt: Timestamp,
+}, { additionalProperties: false })
+export type ArtifactReviewInvalidation = Static<typeof ArtifactReviewInvalidationSchema>
 export const RevokeArtifactReviewCommandSchema = ArtifactReviewRevocationSchema
 
 export const PrivateDeclarativeComponentPolicySchema = Type.Object({

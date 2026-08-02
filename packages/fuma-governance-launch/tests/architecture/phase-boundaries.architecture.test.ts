@@ -62,7 +62,7 @@ describe('FUMA-063..085 and TRACKER-086 architecture boundary', () => {
   it('requires digest images, exact host routes, no default ingress, and no plaintext Secret manifest', () => {
     const infra = files(join(ROOT, 'infra/fuma-phase-13-18')).map((path) => readFileSync(path, 'utf8')).join('\n')
     expect(infra).toContain('@sha256:REQUIRED_DIGEST')
-    for (const host of ['fuma.co.ke', 'auth.fuma.co.ke', 'app.fuma.co.ke', 'admin.fuma.co.ke']) expect(infra).toContain(host)
+    for (const host of ['trimly.co.ke', 'auth.trimly.co.ke', 'app.trimly.co.ke', 'admin.trimly.co.ke']) expect(infra).toContain(host)
     expect(infra).toContain('No default route exists')
     expect(infra).toContain('single-node-no-host-ha')
     expect(infra).toContain('cloudflare-approved-ranges-only')

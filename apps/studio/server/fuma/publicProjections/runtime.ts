@@ -2,8 +2,20 @@ import type { DbClient } from '../../db/client'
 import { FumaRedisCoordination, BunRedisDriver } from '../redis'
 import { PublicProjectionAuthorityCatalog } from './authority'
 import { createPublicProjectionBoundary, type PublicProjectionBoundary } from './boundary'
-import { ConfiguredPublicContactSink, readPublicContactSinkConfig } from './contact'
+import {
+  ConfiguredPublicContactSink,
+  DurablePublicContactRoutingAuthority,
+  PostgresPublicContactReceiptRepository,
+  readPublicContactSinkConfig,
+  type PublicContactRoutingAuthority,
+} from './contact'
 import { readPrivateProjectionConfig } from './config'
+import type { PublicHandoffIssuer } from '../publicHandoff'
+import {
+  ConfiguredPublicStatusProjectionAuthority,
+  readPublicStatusAuthorityConfig,
+  type PublicStatusProjectionAuthority,
+} from './status'
 import { createHostedPublicProjectionAuthorityCatalog } from './registeredAuthorities'
 
 export type HostedPublicProjectionRuntime = Readonly<{
@@ -17,6 +29,9 @@ export type HostedPublicProjectionRuntimeInput = Readonly<{
   env?: Readonly<Record<string, unknown>>
   authority?: PublicProjectionAuthorityCatalog
   coordination?: FumaRedisCoordination
+  contact?: PublicContactRoutingAuthority
+  status?: PublicStatusProjectionAuthority
+  handoff?: PublicHandoffIssuer
 }>
 
 export async function createHostedPublicProjectionRuntime(
@@ -25,7 +40,18 @@ export async function createHostedPublicProjectionRuntime(
   const env = input.env ?? process.env
   const config = readPrivateProjectionConfig(env)
   const contactConfig = readPublicContactSinkConfig(env)
-  const contact = contactConfig ? new ConfiguredPublicContactSink(contactConfig) : undefined
+  const statusConfig = readPublicStatusAuthorityConfig(env)
+  const contact = input.contact ?? (contactConfig
+    ? new DurablePublicContactRoutingAuthority({
+        repository: new PostgresPublicContactReceiptRepository(input.db),
+        sink: new ConfiguredPublicContactSink(contactConfig),
+        retentionDays: contactConfig.retentionDays,
+        retentionPolicyVersion: contactConfig.retentionPolicyVersion,
+      })
+    : undefined)
+  const status = input.status ?? (statusConfig
+    ? new ConfiguredPublicStatusProjectionAuthority(statusConfig)
+    : undefined)
   const authority = input.authority ?? createHostedPublicProjectionAuthorityCatalog(input.db)
   const coordination = input.coordination ?? new FumaRedisCoordination({
     namespace: config.redisNamespace,
@@ -38,6 +64,8 @@ export async function createHostedPublicProjectionRuntime(
     authority,
     coordination,
     ...(contact ? { contact } : {}),
+    ...(status ? { status } : {}),
+    ...(input.handoff ? { handoff: input.handoff } : {}),
   })
   return Object.freeze({
     boundary,

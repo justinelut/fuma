@@ -1,18 +1,28 @@
 import { SQL } from 'bun'
 import type { DbClient, DbResult } from './client'
 
-export function createPostgresClient(connectionString: string): DbClient {
-  const sql = new SQL(connectionString)
-  return wrapSql(sql)
+export function createPostgresClient(
+  connectionString: string,
+  options: Readonly<{ max?: number; idleTimeout?: number }> = {},
+): DbClient {
+  const sql = options.max === undefined && options.idleTimeout === undefined
+    ? new SQL(connectionString)
+    : new SQL({
+        url: connectionString,
+        max: options.max,
+        idleTimeout: options.idleTimeout,
+      })
+  return Object.assign(wrapSql(sql), {
+    close: async () => { await sql.close() },
+  })
 }
 
 /**
- * Walk every column in a returned row and normalize dialect-specific values:
+ * Walk every column in a returned row and normalize PostgreSQL driver values:
  *
- * - Date instances become ISO 8601 strings, matching SQLite timestamp reads.
- * - String-valued `*_json` columns are JSON.parsed, matching SQLite's TEXT
- *   JSON hydration and covering PG columns that intentionally store JSON in
- *   text rather than jsonb.
+ * - Date instances become ISO 8601 strings for stable repository results.
+ * - String-valued `*_json` columns are JSON.parsed for columns that
+ *   intentionally store JSON in text rather than jsonb.
  */
 export function normalizePostgresRow<Row>(row: Row): Row {
   if (row === null || typeof row !== 'object' || Array.isArray(row)) return row
@@ -39,9 +49,9 @@ export function normalizePostgresRow<Row>(row: Row): Row {
  * for SELECT / RETURNING it equals the number of returned rows, and for a
  * non-RETURNING UPDATE / DELETE / INSERT it is the number of *affected* rows
  * (which PostgreSQL streams as a CommandComplete tag, not as data rows — so
- * `result.length` is 0 there). Using `.count` makes `rowCount` mean the same
- * thing as the SQLite adapter's `info.changes`. Falls back to `length` if the
- * property is ever absent.
+ * `result.length` is 0 there). Using `.count` gives `rowCount` consistent
+ * affected-or-returned semantics. It falls back to `length` if the property is
+ * ever absent.
  */
 function resultRowCount<Row>(result: Row[]): number {
   const count = (result as { count?: unknown }).count

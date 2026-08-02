@@ -6,6 +6,13 @@ import type {
 } from '@fuma/public-contracts'
 
 export const PUBLIC_CONSENT_STORAGE_KEY = 'fuma_public_consent_v1'
+export type PublicConsentChoice = 'essential' | 'optional'
+type ConsentStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
+
+type ConsentPreference = Readonly<{
+  available: boolean
+  choice: PublicConsentChoice | null
+}>
 
 const SOURCE_ROUTE_CLASS: Readonly<Record<PublicHandoffRequest['source'], PublicRouteClass>> = Object.freeze({
   direct: 'company',
@@ -57,6 +64,53 @@ export function consentStateFromSession(raw: string | null): PublicConsentState 
   return 'not_required'
 }
 
+export function readConsentPreference(storage: ConsentStorage): ConsentPreference {
+  try {
+    const raw = storage.getItem(PUBLIC_CONSENT_STORAGE_KEY)
+    const state = consentStateFromSession(raw)
+    if (state === 'granted') return Object.freeze({ available: true, choice: 'optional' })
+    if (state === 'denied') return Object.freeze({ available: true, choice: 'essential' })
+    if (raw !== null) storage.removeItem(PUBLIC_CONSENT_STORAGE_KEY)
+    return Object.freeze({ available: true, choice: null })
+  } catch {
+    return Object.freeze({ available: false, choice: null })
+  }
+}
+
+export function persistConsentPreference(storage: ConsentStorage, choice: PublicConsentChoice, updatedAt: string): boolean {
+  try {
+    storage.setItem(PUBLIC_CONSENT_STORAGE_KEY, JSON.stringify({ version: 1, choice, updatedAt }))
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function clearConsentPreference(storage: ConsentStorage): boolean {
+  try {
+    storage.removeItem(PUBLIC_CONSENT_STORAGE_KEY)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function sendOptionalAcquisition(
+  event: PublicAcquisitionEvent,
+  consent: PublicConsentState,
+  fetchImpl: typeof fetch = fetch,
+): boolean {
+  if (!shouldSendOptionalAcquisition(consent)) return false
+  void fetchImpl('/api/events', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(event),
+    credentials: 'omit',
+    keepalive: true,
+  }).catch(() => undefined)
+  return true
+}
+
 export function handoffStartedEvent(
   intent: PublicHandoffRequest,
   correlation: string,
@@ -73,4 +127,8 @@ export function handoffStartedEvent(
     ...(intent.kind === 'choose_plan' ? { planId: intent.planId } : {}),
     ...(intent.kind === 'use_template' ? { templateId: intent.templateId } : {}),
   }
+}
+
+export function shouldSendOptionalAcquisition(consent: PublicConsentState): boolean {
+  return consent === 'granted'
 }

@@ -69,9 +69,10 @@ describe('FUMA-069 reviewed customer-payment plugin architecture', () => {
     expect(service).not.toMatch(/new ScopedPaystackTransport|class .*Ledger|ingestWebhook\(/)
   })
 
-  test('registers one additive migration at the canonical high-water mark', () => {
+  test('registers one additive migration in the canonical sequence', () => {
     const ids = hostedMigrations.map(({ id }) => id)
-    expect(ids.slice(-5)).toEqual([
+    const sequenceStart = ids.indexOf('000071_artifact_review_marketplace')
+    expect(ids.slice(sequenceStart, sequenceStart + 5)).toEqual([
       '000071_artifact_review_marketplace',
       '000072_site_runtime_application',
       '000073_customer_payment_plugin',

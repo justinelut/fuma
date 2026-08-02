@@ -1,6 +1,7 @@
 'use client'
 
 import { useId, useRef, useState } from 'react'
+import Link from 'next/link'
 
 import { Button } from '@/components/ui/button'
 import { CONTACT_NOTICE_VERSION } from '@/lib/contact-boundary'
@@ -31,29 +32,30 @@ export function ContactForm({ kind = 'general', expertId }: ContactFormProps) {
   const descriptionId = useId()
   const feedbackId = useId()
 
-  return <form className="mt-8 grid gap-5 rounded-xl border bg-card p-5 sm:p-7" aria-describedby={`${descriptionId} ${feedbackId}`} onSubmit={async (event) => {
+  return <form className="mt-8 grid min-w-0 gap-5 rounded-xl border bg-card p-5 sm:p-7 [&>*]:min-w-0 [&_button]:max-w-full [&_button]:whitespace-normal [&_input]:min-w-0 [&_input]:w-full [&_textarea]:min-w-0 [&_textarea]:w-full" aria-busy={state === 'busy'} aria-describedby={`${descriptionId} ${feedbackId}`} onSubmit={async (event) => {
     event.preventDefault()
     setState('busy')
-    const form = new FormData(event.currentTarget)
-    replayToken.current ??= crypto.randomUUID().replaceAll('-', '')
-    const body = {
-      kind,
-      name: form.get('name'),
-      email: form.get('email'),
-      message: form.get('message'),
-      website: form.get('website'),
-      startedAt: startedAt.current,
-      consentVersion: CONTACT_NOTICE_VERSION,
-      replayToken: replayToken.current,
-      ...(kind === 'expert_inquiry' ? { expertId } : {}),
-    }
     try {
+      const form = new FormData(event.currentTarget)
+      replayToken.current ??= crypto.randomUUID().replaceAll('-', '')
+      const body = {
+        kind,
+        name: form.get('name'),
+        email: form.get('email'),
+        message: form.get('message'),
+        website: form.get('website'),
+        startedAt: startedAt.current,
+        consentVersion: CONTACT_NOTICE_VERSION,
+        replayToken: replayToken.current,
+        ...(kind === 'expert_inquiry' ? { expertId } : {}),
+      }
       const response = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
         credentials: 'omit',
         redirect: 'error',
+        signal: AbortSignal.timeout(10_000),
       })
       setState(response.status === 202
         ? 'sent'
@@ -79,7 +81,7 @@ export function ContactForm({ kind = 'general', expertId }: ContactFormProps) {
     <label className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">Leave this field empty
       <input name="website" tabIndex={-1} autoComplete="off" />
     </label>
-    <p className="text-sm leading-6 text-muted-foreground">By sending, you ask Fuma to process your name, reply address, message, and limited anti-abuse data for this request under the <a className="underline underline-offset-4" href="/legal/privacy">privacy notice effective 26 July 2026</a>. Do not send passwords, secret keys, identity documents, payment details, or sensitive personal information.</p>
+    <p className="text-sm leading-6 text-muted-foreground">By sending, you ask Fuma to process your name, reply address, message, and limited anti-abuse data for this request under the <Link className="underline underline-offset-4" href="/legal/privacy">privacy notice effective 26 July 2026</Link>. Do not send passwords, secret keys, identity documents, payment details, or sensitive personal information.</p>
     <Button type="submit" size="lg" disabled={state === 'busy' || state === 'sent'} className="min-h-11 w-fit">
       {state === 'busy' ? 'Sending…' : state === 'sent' ? 'Request accepted' : 'Send request'}
     </Button>

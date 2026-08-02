@@ -23,8 +23,8 @@
  *   - the site-global sync seq: response seq strictly increases and is
  *     stamped on written AND deleted rows.
  *
- * Runs against a real isolated SQLite DB through the established capability
- * harness (`createCapabilityTestHarness` → `createTestDb`): migrations
+ * Runs against an isolated PostgreSQL schema through the established
+ * capability harness (`createCapabilityTestHarness` → `createTestDb`): migrations
  * applied, owner user + stepped-up session seeded via the real setup/login
  * endpoints, requests dispatched through `handleCmsRequest`.
  */

@@ -66,14 +66,19 @@ describe('core acquisition page contracts', () => {
     })
   }
 
-  test('Website and Publication media are responsive, labelled illustrations rather than availability evidence', () => {
+  test('Website and Publication media are labelled real product captures rather than availability evidence', () => {
     for (const Page of [WebsitePage, PublicationPage]) {
       const html = renderToStaticMarkup(<Page />)
+      // Product imagery is now real captures of the running Studio rather than a hand-drawn SVG
+      // mockup, so this asserts the enduring intent: every shot is a labelled figure, sourced from
+      // the committed product captures, and never implies live availability or customer content.
       expect(html).toContain('<figure')
-      expect(html).toContain('role="img"')
-      expect(html).toContain('viewBox="0 0 1200 620"')
       expect(html).toContain('<figcaption')
-      expect(html).toContain('Illustrative interface; no customer content or live availability is implied.')
+      expect(html).toContain('src="/product/')
+      for (const shot of html.matchAll(/<img[^>]*src="\/product\/[^>]*>/g)) {
+        expect(shot[0]).toMatch(/alt="[^"]+"/)
+      }
+      expect(html).not.toMatch(/\b(uptime|99\.9|always online|guaranteed availability)\b/i)
     }
   })
 })

@@ -1,12 +1,7 @@
 # Local-development Postgres service.
 #
-# Used by `bun run dev` when DATABASE_URL points at Postgres — the dev script
-# brings this service up automatically with `docker compose up -d postgres`.
-# You usually do NOT need to run anything from this file by hand.
-#
-# By default, `bun run dev` uses SQLite (no Docker). Set
-# `DATABASE_URL=postgres://...` in your environment if you want to develop
-# against the Postgres mode instead.
+# `bun run dev` brings this service up automatically when the canonical local
+# PostgreSQL URL is used. Set DATABASE_URL to use an existing PostgreSQL server.
 #
 # For a fully-containerized stack (closer to production), use:
 #   docker compose -f compose.prod.yml -f compose.build.yml up --build

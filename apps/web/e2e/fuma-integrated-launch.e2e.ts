@@ -5,7 +5,7 @@ test('public web remains cookie-free and exposes safe degradation only', async (
   expect(response?.url()).toMatch(/^https:\/\/3002\.blyss\.co\.ke\//)
   const cookies = await page.context().cookies()
   expect(cookies.every(({ domain }) => domain === '3002.blyss.co.ke')).toBe(true)
-  expect(cookies.some(({ domain }) => domain === '.fuma.co.ke')).toBe(false)
+  expect(cookies.some(({ domain }) => domain === '.trimly.co.ke')).toBe(false)
   await expect(page.locator('body')).not.toContainText(/(?:DATABASE_URL|PAYSTACK_SECRET|CLOUDFLARE_API_TOKEN|BEGIN PRIVATE KEY)/)
 })
 

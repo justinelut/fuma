@@ -1,3 +1,4 @@
+import { FUMA_GOVERNANCE_DEPLOYMENT } from './deployment'
 import { Buffer } from 'node:buffer'
 import {
   BreakGlassRequestSchema,
@@ -34,7 +35,7 @@ export type InternalAuthority = Readonly<{ actorId: string; host: string; author
 
 export function authorizeConsoleQuery(value: unknown, authority: InternalAuthority): ConsoleQuery {
   const query = parseStrict(ConsoleQuerySchema, value, 'console.query')
-  if (authority.host !== 'admin.fuma.co.ke' || !authority.authorities.has('internal.console.read')) throw new OperationsPolicyError('authority-denied', 'Platform console read authority denied.')
+  if (authority.host !== FUMA_GOVERNANCE_DEPLOYMENT.hosts.console || !authority.authorities.has('internal.console.read')) throw new OperationsPolicyError('authority-denied', 'Platform console read authority denied.')
   return query
 }
 
@@ -71,14 +72,14 @@ export class PlatformConsoleRegistry {
   }
 
   authorize(path: string, authority: InternalAuthority): ConsoleContribution {
-    if (authority.host !== 'admin.fuma.co.ke') throw new OperationsPolicyError('host-denied', 'Platform console is admin-host only.')
+    if (authority.host !== FUMA_GOVERNANCE_DEPLOYMENT.hosts.console) throw new OperationsPolicyError('host-denied', 'Platform console is admin-host only.')
     const contribution = [...this.#contributions.values()].find(({ routes }) => routes.includes(path))
     if (!contribution || contribution.requiredAuthorities.some((required) => !authority.authorities.has(required))) throw new OperationsPolicyError('authority-denied', 'Internal console authority denied.')
     return structuredClone(contribution)
   }
 
   action(actionId: string, authority: InternalAuthority, now: Date): ConsoleActionDelegate {
-    if (authority.host !== 'admin.fuma.co.ke') throw new OperationsPolicyError('host-denied', 'Platform console is admin-host only.')
+    if (authority.host !== FUMA_GOVERNANCE_DEPLOYMENT.hosts.console) throw new OperationsPolicyError('host-denied', 'Platform console is admin-host only.')
     const delegate = this.#actionDelegates.get(actionId)
     const steppedUpAt = authority.stepUpAt === null ? Number.NaN : Date.parse(authority.stepUpAt)
     const freshStepUp = Number.isFinite(steppedUpAt) && now.getTime() >= steppedUpAt && now.getTime() - steppedUpAt <= 5 * 60_000
@@ -201,7 +202,7 @@ export function beginSupportSession(value: unknown, authority: InternalAuthority
   const startedAt = Date.parse(session.startedAt)
   const expiresAt = Date.parse(session.expiresAt)
   const steppedUp = Number.isFinite(authorityStepUp) && authority.stepUpAt === session.stepUpAt && now.getTime() - authorityStepUp >= 0 && now.getTime() - authorityStepUp <= 5 * 60_000
-  if (authority.host !== 'admin.fuma.co.ke' || !authority.authorities.has('internal.support.impersonate') || authority.protectedOwner || !steppedUp || session.staffActorId !== authority.actorId || session.targetProtected || session.nested || startedAt > now.getTime() || now.getTime() - startedAt > 60_000 || expiresAt <= now.getTime() || expiresAt - startedAt > 30 * 60_000) throw new OperationsPolicyError('support-denied', 'Bounded support session policy denied.')
+  if (authority.host !== FUMA_GOVERNANCE_DEPLOYMENT.hosts.console || !authority.authorities.has('internal.support.impersonate') || authority.protectedOwner || !steppedUp || session.staffActorId !== authority.actorId || session.targetProtected || session.nested || startedAt > now.getTime() || now.getTime() - startedAt > 60_000 || expiresAt <= now.getTime() || expiresAt - startedAt > 30 * 60_000) throw new OperationsPolicyError('support-denied', 'Bounded support session policy denied.')
   return session
 }
 
@@ -209,7 +210,7 @@ export function approveBreakGlass(value: unknown, input: { authority: InternalAu
   const request = parseStrict(BreakGlassRequestSchema, value, 'break-glass.request')
   const [first, second] = request.approverIds
   const steppedUp = input.authority.stepUpAt !== null && input.now.getTime() - Date.parse(input.authority.stepUpAt) >= 0 && input.now.getTime() - Date.parse(input.authority.stepUpAt) <= 5 * 60_000
-  if (!input.isolatedChannel || !steppedUp || input.authority.host !== 'admin.fuma.co.ke' || !input.authority.authorities.has('internal.break-glass.approve') || !first || !second || first === second || !request.approverIds.includes(input.authority.actorId) || !input.approvedActorIds.has(first) || !input.approvedActorIds.has(second) || Date.parse(request.expiresAt) <= input.now.getTime() || Date.parse(request.expiresAt) - input.now.getTime() > 15 * 60_000) throw new OperationsPolicyError('break-glass-denied', 'Break-glass requires an isolated, live, dual-approver workflow.')
+  if (!input.isolatedChannel || !steppedUp || input.authority.host !== FUMA_GOVERNANCE_DEPLOYMENT.hosts.console || !input.authority.authorities.has('internal.break-glass.approve') || !first || !second || first === second || !request.approverIds.includes(input.authority.actorId) || !input.approvedActorIds.has(first) || !input.approvedActorIds.has(second) || Date.parse(request.expiresAt) <= input.now.getTime() || Date.parse(request.expiresAt) - input.now.getTime() > 15 * 60_000) throw new OperationsPolicyError('break-glass-denied', 'Break-glass requires an isolated, live, dual-approver workflow.')
   return request
 }
 

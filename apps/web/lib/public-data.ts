@@ -1,8 +1,10 @@
 import type {
-  PublicComponentsEnvelope, PublicExpertsEnvelope, PublicPluginsEnvelope, PublicPricingCatalogEnvelope, PublicPricingDisplayPlan, PublicProductFactsEnvelope,
+  PublicComponent, PublicComponentsEnvelope, PublicExpert, PublicExpertsEnvelope, PublicPlugin, PublicPluginsEnvelope,
+  PublicPricingCatalogEnvelope, PublicPricingDisplayPlan, PublicProductFactsEnvelope, PublicShowcase,
   PublicShowcasesEnvelope, PublicTemplatesEnvelope, PublicProjectionResource,
 } from '@fuma/public-contracts'
 import { fetchPublicProjection } from './public-projections'
+import { FUMA_WEB_DEPLOYMENT } from './deployment-profile'
 
 export type PublicEnvelopeMap = {
   'product-facts': PublicProductFactsEnvelope
@@ -21,6 +23,24 @@ export async function readPublicData<R extends PublicProjectionResource>(resourc
   try { response = await fetchPublicProjection(resource, query) } catch { return null }
   if (!response.ok) return null
   try { return await response.json() as PublicEnvelopeMap[R] } catch { return null }
+}
+
+export type PublicDiscoveryItemMap = {
+  showcases: PublicShowcase
+  experts: PublicExpert
+  plugins: PublicPlugin
+  components: PublicComponent
+}
+
+/** Exact detail reads are authority-filtered by slug; Web never list-scans or retains a withdrawn record. */
+export async function readPublicItem<R extends keyof PublicDiscoveryItemMap>(
+  resource: R,
+  slug: string,
+): Promise<PublicDiscoveryItemMap[R] | null> {
+  if (!/^[a-z0-9](?:[a-z0-9-]{0,94}[a-z0-9])?$/.test(slug)) return null
+  const envelope = await readPublicData(resource, { slug, limit: 1 })
+  if (!envelope || envelope.data.items.length !== 1 || envelope.data.items[0]?.slug !== slug) return null
+  return envelope.data.items[0] as PublicDiscoveryItemMap[R]
 }
 
 export function visiblePricing(envelope: PublicPricingCatalogEnvelope | null, now = new Date()): PublicPricingCatalogEnvelope['data']['items'] {
@@ -79,5 +99,5 @@ export function pricingPlanIntentHref(plan: PublicPricingDisplayPlan, effectiveV
 }
 
 export function isImmutableTemplatePreview(raw: string): boolean {
-  try { const url = new URL(raw); return url.protocol === 'https:' && url.hostname === 'templates.preview.fuma.co.ke' && /^\/releases\/[a-z0-9](?:[a-z0-9._-]{0,94}[a-z0-9])?\/$/.test(url.pathname) && !url.username && !url.password && !url.search && !url.hash } catch { return false }
+  try { const url = new URL(raw); return url.protocol === 'https:' && url.hostname === FUMA_WEB_DEPLOYMENT.hosts.templatePreview && /^\/releases\/[a-z0-9](?:[a-z0-9._-]{0,94}[a-z0-9])?\/$/.test(url.pathname) && !url.username && !url.password && !url.search && !url.hash } catch { return false }
 }

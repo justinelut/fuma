@@ -7,9 +7,7 @@
 import { describe, expect, it, beforeEach } from 'bun:test'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { createSqliteClient } from '../../db/sqlite'
-import { sqliteMigrations } from '../../db/migrations-sqlite'
-import { runMigrations } from '../../db/runMigrations'
+import { createTestDatabase } from '../../db/testDatabase'
 import type { DbClient } from '../../db/client'
 import { resolveBridgeToolResult } from '../runtime'
 import { buildMcpServer } from './server'
@@ -40,8 +38,7 @@ async function readUntil(
 
 let db: DbClient
 beforeEach(async () => {
-  db = createSqliteClient(':memory:')
-  await runMigrations(db, sqliteMigrations)
+  db = (await createTestDatabase('imageForwarding')).db
   await db`
     insert into users (id, email, email_normalized, display_name, password_hash, role_id)
     values ('u1', 'u1@example.com', 'u1@example.com', 'User One', 'x', 'owner')

@@ -5,7 +5,7 @@ Scenario rows for the ⌘K / Ctrl+K command palette, following the
 per-run logging.
 
 **Default environment:** same as the core lifecycle — `bun run dev` with
-`DATABASE_URL=sqlite:./.tmp/e2e-agent.db`.
+`DATABASE_URL=postgres://instatic:instatic@127.0.0.1:5433/instatic_test`.
 
 All scenarios in this file assume the user is **logged in** as the site owner
 unless stated otherwise. Priority codes follow `docs/e2e/feature-matrix.md`.

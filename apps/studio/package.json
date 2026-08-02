@@ -25,7 +25,6 @@
     "e2e:dev": "bun run scripts/e2e-dev.ts",
     "db:drop": "bun run scripts/db-drop.ts",
     "fuma:migrate": "bun run scripts/fuma-migrate.ts",
-    "fuma:transition": "bun run scripts/fuma-transition.ts",
     "start": "bun run scripts/start.ts",
     "fuma:web": "FUMA_ROLE=web bun run server/fuma/runtime/web.ts",
     "fuma:worker": "FUMA_ROLE=worker bun run server/fuma/runtime/worker.ts",

@@ -9,7 +9,10 @@ export async function POST(request: Request): Promise<Response> {
   if (!isSameOriginPublicRequest(request)) {
     return new Response(null, { status: 404, headers: NO_STORE_HEADERS })
   }
-  if (BOT_USER_AGENT.test(request.headers.get('user-agent') ?? '') || request.headers.has('x-fuma-staff')) {
+  const globalPrivacyControl = request.headers.get('sec-gpc') === '1'
+  const doNotTrack = request.headers.get('dnt') === '1'
+  const filteredTraffic = BOT_USER_AGENT.test(request.headers.get('user-agent') ?? '') || request.headers.has('x-fuma-staff')
+  if (globalPrivacyControl || doNotTrack || filteredTraffic) {
     return new Response(null, { status: 202, headers: NO_STORE_HEADERS })
   }
 
@@ -21,6 +24,10 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'invalid_request' }, { status: 400, headers: NO_STORE_HEADERS })
   }
 
-  await collectAcquisition(parsed.value)
+  await collectAcquisition(parsed.value, {
+    globalPrivacyControl: false,
+    doNotTrack: false,
+    traffic: 'human',
+  })
   return new Response(null, { status: 202, headers: NO_STORE_HEADERS })
 }

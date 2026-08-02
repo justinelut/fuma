@@ -73,8 +73,8 @@ export async function readPluginsStats(db: DbClient): Promise<PluginsStats> {
 
 /**
  * Collapse `enabled` × `lifecycle_status` into the single state value
- * the widget renders as a dot color. SQLite returns booleans as 0/1
- * integers; Postgres returns proper booleans — handle both.
+ * the widget renders as a dot color. PostgreSQL returns a boolean; the numeric
+ * check remains defensive for mocked rows.
  */
 function computeRowState(
   enabled: boolean | number,
@@ -97,10 +97,8 @@ function computeRowState(
  *   - the manifest has no `assetBasePath` (broken / dev plugin), or
  *   - the column value is not a parseable JSON object.
  *
- * The SQLite adapter auto-parses `*_json` strings on read, so the
- * value normally arrives as an object on both dialects. The defensive
- * `JSON.parse` covers the edge case of a corrupted row that the
- * SQLite adapter handed back as the raw string.
+ * PostgreSQL normally returns `manifest_json` jsonb as an object. The defensive
+ * `JSON.parse` also tolerates legacy or mocked rows represented as strings.
  */
 function resolveManifestIconUrl(manifestJson: unknown): string | null {
   let manifest: unknown = manifestJson

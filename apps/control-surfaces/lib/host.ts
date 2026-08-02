@@ -2,13 +2,14 @@ import { timingSafeEqual } from 'node:crypto'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import type { InternalAuthority } from '../../../packages/fuma-governance-launch/src'
+import { FUMA_CONTROL_DEPLOYMENT } from './deployment-profile'
 
 export type ControlRealm = 'app' | 'admin'
 
 export async function requireControlRealm(realm: ControlRealm): Promise<void> {
   const requestHeaders = await headers()
   const host = requestHeaders.get('host')?.split(':')[0]?.toLowerCase() ?? ''
-  const expected = realm === 'admin' ? 'admin.fuma.co.ke' : 'app.fuma.co.ke'
+  const expected = realm === 'admin' ? FUMA_CONTROL_DEPLOYMENT.hosts.console : FUMA_CONTROL_DEPLOYMENT.hosts.product
   const directAcceptanceHost = process.env.NODE_ENV !== 'production' && host === '5174.blyss.co.ke'
   const attestedAcceptanceProxy = process.env.FUMA_BLYSS_ACCEPTANCE_PROXY === '1'
     && host === '127.0.0.1'
@@ -44,7 +45,7 @@ export async function requireInternalConsoleAuthority(): Promise<InternalAuthori
   if (process.env.NODE_ENV !== 'production' && (host === '5174.blyss.co.ke' || attestedAcceptanceProxy)) {
     return Object.freeze({
       actorId: 'blyss-acceptance-reader',
-      host: 'admin.fuma.co.ke',
+      host: FUMA_CONTROL_DEPLOYMENT.hosts.console,
       authorities: new Set(['internal.console.read']),
       stepUpAt: null,
       protectedOwner: false,
@@ -60,7 +61,7 @@ export async function requireInternalConsoleAuthority(): Promise<InternalAuthori
     || authorities.some((value) => !/^internal\.[a-z0-9.:-]+$/.test(value))) notFound()
   return Object.freeze({
     actorId,
-    host: 'admin.fuma.co.ke',
+    host: FUMA_CONTROL_DEPLOYMENT.hosts.console,
     authorities: new Set(authorities),
     stepUpAt: requestHeaders.get('x-fuma-step-up-at'),
     protectedOwner: requestHeaders.get('x-fuma-protected-owner') === '1',

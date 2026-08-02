@@ -389,6 +389,30 @@ describe('SiteImportModal — global modal state', () => {
 // 2 — Render: initial drop step
 // ---------------------------------------------------------------------------
 
+describe('SiteImportModal — Next.js source compatibility', () => {
+  it('normalizes a browser folder root and analyzes it before any import mutation', async () => {
+    const packageFile = new File([JSON.stringify({ dependencies: { next: '16.2.9', react: '19.2.5', 'react-dom': '19.2.5' } })], 'package.json', { type: 'application/json' })
+    const pageFile = new File(['export default function Page() { return <main>Portable</main> }\n'], 'page.tsx', { type: 'text/typescript' })
+    Object.defineProperty(packageFile, 'webkitRelativePath', { value: 'portable-project/package.json' })
+    Object.defineProperty(pageFile, 'webkitRelativePath', { value: 'portable-project/app/page.tsx' })
+    renderSiteImportModal()
+
+    fireEvent.drop(screen.getByLabelText(/drop site files/i), {
+      dataTransfer: { files: [packageFile, pageFile] },
+    })
+    await screen.findByText('Import, adapt, commit, and export')
+    expect(screen.getByText('portable-project')).toBeDefined()
+    fireEvent.change(screen.getByLabelText('Organization'), { target: { value: 'org-1' } })
+    fireEvent.change(screen.getByLabelText('Workspace'), { target: { value: 'workspace-1' } })
+    fireEvent.change(screen.getByLabelText('Site'), { target: { value: 'site-1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Analyze local source' }))
+
+    await screen.findByText('Static source compatible')
+    expect(screen.getByText('1 routes · 1 modules · 0 assets · 0 interactions')).toBeDefined()
+    expect(screen.getByText(/Package managers, scripts, configuration plugins/)).toBeDefined()
+  })
+})
+
 describe('SiteImportModal — render', () => {
   it('renders the initial drop-step dialog when opened', () => {
     const site = makeSite()

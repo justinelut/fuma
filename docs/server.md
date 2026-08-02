@@ -12,7 +12,7 @@ The server is a single `Bun.serve` process that boots the DB, runs migrations, a
 - **Router:** `server/router.ts` — ordered route table, first-match wins. Each route is a `tryServeX(req, runtime, url, pathname)` function returning `Response | null`.
 - **CMS API:** every `/admin/api/cms/*` request goes through `server/handlers/cms/index.ts`, which runs a CSRF origin check and dispatches to per-resource handler groups.
 - **Auth:** session cookie (`SESSION_COOKIE_NAME`) → `findUserBySessionHash` → `requireCapability(req, db, 'site.read')`. Every state-changing handler starts with one of these guards.
-- **DB:** one `DbClient` interface (`server/db/client.ts`) — tagged-template callable returning `{ rows, rowCount }`. Two adapters: `postgres.ts` (via `Bun.sql`) and `sqlite.ts` (via `bun:sqlite`). Selected by `DATABASE_URL`.
+- **DB:** one `DbClient` interface (`server/db/client.ts`) — tagged-template callable returning `{ rows, rowCount }`. The supported adapter is `postgres.ts` via `Bun.sql`; `DATABASE_URL` must use a PostgreSQL scheme.
 - **Repositories** (`server/repositories/`) hold all SQL. Handlers never write SQL directly.
 - **Plugins:** `server/plugins/runtime.ts` activates installed plugins at boot. Server entrypoints run in per-plugin Bun workers that host QuickJS-WASM (`server/plugins/pluginWorker.ts`, `server/plugins/host/workerPool.ts`, `server/plugins/quickjs/vm.ts`); module packs use `server/plugins/modulePackVm.ts` for server-side evaluation.
 - **Published pages and content rows** are served by `tryServePublicRoute`, which delegates resolution + render to `server/publish/publicRouter.ts`. A warm Layer B cache entry is served before any DB work; on a miss the live render reads the published `SiteDocument` from `site_snapshots` (stored once per publish, referenced by `data_row_versions.site_snapshot_id`, memoised per publish version). Uploads + admin SPA assets are served from disk by `tryServeUpload` and `tryServeStaticAsset`.
@@ -28,11 +28,10 @@ server/index.ts
     │
     ├─→ createDbClient(DATABASE_URL)         ← server/db/index.ts
     │     │
-    │     ├─ DATABASE_URL=sqlite:... | file:... | *.db  → createSqliteClient
-    │     └─ DATABASE_URL=postgres://...  | postgresql://...  → createPostgresClient
+    │     └─ DATABASE_URL=postgres://... | postgresql://... → createPostgresClient
     │
     ├─→ runMigrations(db, migrations)        ← server/db/runMigrations.ts
-    │     (selects migrations-pg.ts OR migrations-sqlite.ts based on dialect)
+    │     (runs the PostgreSQL migration stream)
     │
     ├─→ syncSystemRoles(db)                  ← force-resets Owner capabilities every boot
     ├─→ mediaStorageRegistry.configureLocalDisk({ uploadsDir })   ← register local-disk media adapter
@@ -302,8 +301,7 @@ join users …` SELECT (the column list lives once in `USER_JOINED_COLUMNS`,
 shared with the `users` repository). It then touches `sessions.last_seen_at`,
 but that write is **debounced** to at most once per session per ~30s via an
 in-memory tracker — the idle timeout is 30 days, so up-to-30s staleness is
-irrelevant, and the hot per-request write (WAL-serialized on SQLite, a hot-row
-lock on Postgres) is gone.
+irrelevant, and the hot per-request write (a hot-row lock on PostgreSQL) is gone.
 
 **Resolve the session once per request.** A handler calls exactly one of
 `requireAuthenticatedUser` / `requireCapability` / `requireAnyCapability` to get
@@ -368,9 +366,9 @@ All SQL lives in `server/repositories/`. Each file owns one resource:
 
 ### Repository rules
 
-1. **Repositories are dialect-naive.** They use ANSI-standard SQL only. The five Postgres-isms (`now()` in DML, `::int`, `::jsonb`, `any($N::...)`, `distinct on`) are banned in any file that imports `DbClient`. Gated by `db-postgres-isms.test.ts`.
+1. **Repositories bind every value.** Use the `DbClient` tagged-template API for query values; never concatenate untrusted data into SQL.
 
-2. **JSON columns end in `_json`.** The SQLite adapter auto-parses `*_json` strings on read and auto-stringifies plain objects on write — so repository code does the same `${jsObject}` interpolation regardless of dialect. Gated by `db-json-column-naming.test.ts`. See [docs/reference/database-dialects.md](reference/database-dialects.md).
+2. **JSON columns end in `_json`.** PostgreSQL stores them as `jsonb`, and persisted values are validated with TypeBox at application boundaries. Gated by `db-json-column-naming.test.ts`. See [docs/reference/database-dialects.md](reference/database-dialects.md).
 
 3. **Repositories return typed rows.** Use `Row` generics on `db<Row>` calls so handlers don't `as Foo` results.
 
@@ -385,7 +383,7 @@ All SQL lives in `server/repositories/`. Each file owns one resource:
 `server/db/client.ts`:
 
 ```ts
-export type Dialect = 'postgres' | 'sqlite'
+export type Dialect = 'postgres'
 
 export interface DbClient {
   <Row = Record<string, unknown>>(
@@ -409,30 +407,23 @@ export interface DbResult<Row> {
 const { rows } = await db<{ id: string }>`select id from users where email = ${email}`
 ```
 
-Interpolations are bound as parameters in both dialects (`$1, $2, …` on PG; `?` on SQLite). The SQLite adapter additionally converts plain objects and arrays to JSON strings at bind time, so:
+Interpolations are bound as PostgreSQL parameters (`$1, $2, …`). Objects written to `jsonb` columns are passed directly:
 
 ```ts
 await db`insert into site (id, settings_json) values (${id}, ${settings})`
 //                                                             ▲
-//                                            JS object becomes JSON in SQLite, JSONB in PG
+//                                            JS object is bound to PostgreSQL JSONB
 ```
 
 Same code, both engines.
 
-### The two adapters
+### PostgreSQL adapter
 
-- **`server/db/postgres.ts`** wraps `Bun.sql` (native Bun Postgres client). `rowCount` is read from `result.count` (Bun's CommandComplete affected-row count) rather than `result.length`, which is always 0 for non-RETURNING writes.
-- **`server/db/sqlite.ts`** wraps `bun:sqlite`, with four custom behaviors:
-  1. `toBindable(value)` converts JS values (objects, dates, booleans, `Uint8Array`) to SQLite-bindable types.
-  2. On read, any column ending in `_json` whose value is a non-empty string is auto-`JSON.parse`d.
-  3. On boot, PRAGMAs are set: `journal_mode = WAL`, `foreign_keys = ON`, `synchronous = NORMAL`, `busy_timeout = 5000`.
-  4. Transaction serialization: concurrent `db.transaction()` calls are queued via a promise chain so `BEGIN` is never issued while another transaction is open on the single shared connection. This prevents "cannot start a transaction within a transaction" errors when transaction callbacks `await` async work.
-
-Both adapters return the same `DbResult<Row>` shape, so callers never branch on dialect.
+**`server/db/postgres.ts`** wraps `Bun.sql`. `rowCount` is read from `result.count` (PostgreSQL's CommandComplete affected-row count) rather than `result.length`, which is zero for non-RETURNING writes. Returned timestamps and JSON values are normalized at the adapter boundary.
 
 ### Migrations
 
-`server/db/migrations-pg.ts` and `server/db/migrations-sqlite.ts` hold the per-dialect migration list. Each migration is `{ id, label, statements: string[] }`. The two lists must have **identical IDs in the same order** — gated by `migration-parity.test.ts`. The PG version uses `jsonb`, `timestamptz`, `bigint`, `boolean`, `distinct on`; the SQLite version uses `text`, `text`, `integer`, `integer`, and window-function rewrites.
+`server/db/migrations-pg.ts` holds the forward-only PostgreSQL migration list. Each migration has an immutable ID and PostgreSQL-native schema statements.
 
 `server/db/runMigrations.ts` runs the migrations idempotently at boot, tracking applied IDs in a `_migrations` table.
 
@@ -450,9 +441,9 @@ await withSchedulerLeaderLock(db, LOCK_KEY, '[my-scheduler]', async () => {
 
 `withSchedulerLeaderLock` issues `pg_try_advisory_lock(lockKey)` — returning the lock immediately or not at all. If this instance wins, it runs `fn` and releases the lock in a `finally` block. If another instance holds the lock, it returns `undefined` and the body is skipped.
 
-Each tick loop passes its own distinct `lockKey` so the plugin scheduler and the publish scheduler don't contend with each other. On SQLite (single-instance by definition) the module catches the "no such function" error and returns a no-op sentinel — the body always runs.
+Each tick loop passes its own distinct `lockKey` so the plugin scheduler and the publish scheduler do not contend with each other.
 
-The lock is **released between ticks**, so a crashed leader hands off naturally at the next interval. Tested by `server/db/__tests__/advisoryLock.test.ts` (unit, with a fake DbClient) and `server/__tests__/schedulers-advisory-lock.test.ts` (integration, against a real SQLite client).
+The lock is **released between ticks**, so a crashed leader hands off naturally at the next interval. Tested by the advisory-lock unit and PostgreSQL integration coverage.
 
 ---
 
@@ -579,7 +570,7 @@ Three static handlers, in order:
 
 3. **If new SQL is needed,** add the function to the matching `server/repositories/<resource>.ts`. Do not write SQL inside the handler.
 
-4. **If new persisted shape is involved,** add the migration to both `migrations-pg.ts` and `migrations-sqlite.ts` with the same ID. JSON columns end in `_json`. Run `bun test src/__tests__/architecture/migration-parity.test.ts` and `db-json-column-naming.test.ts` to confirm.
+4. **If new persisted shape is involved,** add a forward-only migration to `migrations-pg.ts`. JSON columns end in `_json`. Run the focused migration and JSON-column architecture gates.
 
 5. **If client-side calls the endpoint,** add a TypeBox response schema (in `src/core/persistence/responseSchemas.ts` for CMS endpoints, or alongside the caller) and fetch via the canonical `apiRequest(path, { schema })` from `@core/http`. Persistence-layer functions that inject their own `fetch` validate via `readEnvelope`.
 
@@ -612,7 +603,7 @@ See [docs/reference/typebox-patterns.md](reference/typebox-patterns.md) for boun
 - [docs/architecture.md](architecture.md) — system overview
 - [docs/editor.md](editor.md) — what the admin / editor frontends do
 - [docs/features/plugin-system.md](features/plugin-system.md) — plugin runtime details
-- [docs/reference/database-dialects.md](reference/database-dialects.md) — PG vs SQLite rules
+- [docs/reference/database-dialects.md](reference/database-dialects.md) — PostgreSQL architecture rules
 - [docs/reference/typebox-patterns.md](reference/typebox-patterns.md) — boundary validation
 - Source-of-truth files:
   - `server/index.ts` — entrypoint and boot
@@ -625,8 +616,8 @@ See [docs/reference/typebox-patterns.md](reference/typebox-patterns.md) for boun
   - `server/auth/authz.ts` — `requireCapability` and friends
   - `server/db/client.ts` — `DbClient` interface
   - `server/db/index.ts` — adapter selection
-  - `server/db/postgres.ts`, `server/db/sqlite.ts` — adapters
-  - `server/db/migrations-pg.ts`, `server/db/migrations-sqlite.ts` — schemas
+  - `server/db/postgres.ts` — adapter
+  - `server/db/migrations-pg.ts` — schema migrations
 - Gate tests:
   - `src/__tests__/architecture/db-postgres-isms.test.ts`
   - `src/__tests__/architecture/db-json-column-naming.test.ts`

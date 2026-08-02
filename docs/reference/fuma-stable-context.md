@@ -15,7 +15,7 @@ This reference describes how hosted admin URLs select an organization, workspace
 - `fuma-scoped-context-v1` stores only the last ready selection. Stale, corrupt, suspended, archived, missing, and invitation resolutions do not become authority.
 - FUMA-021 now provides the immutable server request/job context in `server/fuma/context/`. The browser catalog projection is still an optional TypeBox-checked composition seam; production defaults to an empty catalog until a production scoped-repository adapter supplies that projection.
 - `FumaScopedShell` composes profile-neutral navigation/onboarding, renders `FumaContextSwitchers`, and exposes a read-only managed-client view only when the authorized catalog contains managed workspace links. React does not branch on Website or Publication IDs.
-- Managed-client rows open normal canonical site contexts. Custom offers, internal grants, billing, pricing, quotas, payment, and transfer recovery remain outside the app view and belong to `admin.fuma.co.ke` owners.
+- Managed-client rows open normal canonical site contexts. Custom offers, internal grants, billing, pricing, quotas, payment, and transfer recovery remain outside the app view and belong to `admin.trimly.co.ke` owners.
 - This integration mounts no server handlers and reads no caller-supplied headers.
 
 ## Route shape
@@ -101,7 +101,7 @@ A Website-to-Publication change is a site selection followed by registry composi
 
 `composeManagedClientsView(...)` in `src/core/fuma/managedClients.ts` projects only sites already present in that authorized catalog. Active sites receive canonical `buildScopedAdminUrl(...)` targets; archived workspaces/sites remain visible as unavailable metadata and never receive an open target. `FumaManagedClientsView` in `src/admin/fuma/FumaManagedClientsView.tsx` renders the projection at the scoped `/admin/managed-clients` suffix. Its links enter normal Website/Publication contexts, so managed work uses the same shell and editor seams as any other site.
 
-The intended destination is informational and does not imply ownership or transfer eligibility. The app view has no mutation controls or fields for private offers, platform-internal grants, billing, pricing, quota proposals, payment state, or transfer recovery. Those operations remain `admin.fuma.co.ke` concerns and are not part of the FUMA-018 catalog or UI contract. FUMA-021 replaces the injected authorized catalog seam; FUMA-018 does not add a browser-trusted managed classification or mount a server handler.
+The intended destination is informational and does not imply ownership or transfer eligibility. The app view has no mutation controls or fields for private offers, platform-internal grants, billing, pricing, quota proposals, payment state, or transfer recovery. Those operations remain `admin.trimly.co.ke` concerns and are not part of the FUMA-018 catalog or UI contract. FUMA-021 replaces the injected authorized catalog seam; FUMA-018 does not add a browser-trusted managed classification or mount a server handler.
 
 ## Public API
 

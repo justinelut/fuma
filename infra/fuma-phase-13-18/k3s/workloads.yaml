@@ -19,10 +19,7 @@ kind: ConfigMap
 metadata: { name: runtime-config, namespace: fuma }
 data:
   FUMA_HOSTED: "true"
-  FUMA_PUBLIC_HOST: fuma.co.ke
-  FUMA_AUTH_HOST: auth.fuma.co.ke
-  FUMA_APP_HOST: app.fuma.co.ke
-  FUMA_ADMIN_HOST: admin.fuma.co.ke
+  FUMA_DEPLOYMENT_ROOT_DOMAIN: trimly.co.ke
   FUMA_LOCALE: en-KE
   FUMA_CURRENCY: KES
   FUMA_TIMEZONE: Africa/Nairobi
@@ -99,7 +96,7 @@ metadata: { name: public-web-config, namespace: fuma }
 data:
   FUMA_PUBLIC_PROJECTION_INTERNAL_ORIGIN: "http://runtime-web.fuma.svc.cluster.local"
   FUMA_PUBLIC_PROJECTION_TIMEOUT_MS: "3000"
-  FUMA_PUBLIC_WEB_HOSTS: "fuma.co.ke,www.fuma.co.ke,3002.blyss.co.ke"
+  FUMA_DEPLOYMENT_ROOT_DOMAIN: "trimly.co.ke"
   FUMA_WEB_REVISION: "REQUIRED_SOURCE_SHA"
 ---
 apiVersion: apps/v1
@@ -119,8 +116,8 @@ spec:
           image: ghcr.io/corebunch/fuma-web@sha256:REQUIRED_DIGEST
           ports: [{ name: http, containerPort: 3002 }]
           envFrom: [{ configMapRef: { name: public-web-config } }, { secretRef: { name: fuma-public-web-secrets } }]
-          readinessProbe: { httpGet: { path: /, port: http, httpHeaders: [{ name: Host, value: fuma.co.ke }] }, initialDelaySeconds: 5, periodSeconds: 5 }
-          livenessProbe: { httpGet: { path: /, port: http, httpHeaders: [{ name: Host, value: fuma.co.ke }] }, initialDelaySeconds: 20, periodSeconds: 10 }
+          readinessProbe: { httpGet: { path: /, port: http, httpHeaders: [{ name: Host, value: trimly.co.ke }] }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe: { httpGet: { path: /, port: http, httpHeaders: [{ name: Host, value: trimly.co.ke }] }, initialDelaySeconds: 20, periodSeconds: 10 }
           resources: { requests: { cpu: 150m, memory: 256Mi }, limits: { cpu: "1", memory: 768Mi } }
           securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: ["ALL"] } }
           volumeMounts: [{ name: tmp, mountPath: /tmp }]
@@ -157,8 +154,9 @@ spec:
           image: ghcr.io/corebunch/fuma-control-surfaces@sha256:REQUIRED_DIGEST
           ports: [{ name: http, containerPort: 3010 }]
           env:
+            - { name: FUMA_DEPLOYMENT_ROOT_DOMAIN, value: "trimly.co.ke" }
             - { name: FUMA_PRIVATE_RUNTIME_ORIGIN, value: "http://runtime-web.fuma.svc.cluster.local" }
-          readinessProbe: { httpGet: { path: /, port: http, httpHeaders: [{ name: Host, value: app.fuma.co.ke }] }, initialDelaySeconds: 5, periodSeconds: 5 }
+          readinessProbe: { httpGet: { path: /, port: http, httpHeaders: [{ name: Host, value: app.trimly.co.ke }] }, initialDelaySeconds: 5, periodSeconds: 5 }
           resources: { requests: { cpu: 100m, memory: 192Mi }, limits: { cpu: "1", memory: 512Mi } }
           securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: ["ALL"] } }
           volumeMounts: [{ name: tmp, mountPath: /tmp }]

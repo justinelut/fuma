@@ -13,7 +13,6 @@ body:
     attributes:
       label: Target
       options:
-        - Docker Compose with SQLite
         - Docker Compose with Postgres
         - Railway
         - Render

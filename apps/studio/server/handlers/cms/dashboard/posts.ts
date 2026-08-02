@@ -64,12 +64,9 @@ export async function readPostsStats(
  * post-processes the rows into a dense [28]-array so the front-end can
  * render bars without conditional gaps.
  *
- * We deliberately pull every published row in the window and bin
- * client-side because portable date-truncation SQL is dialect-painful
- * (Postgres `::text` cast is forbidden by the `db-postgres-isms`
- * architecture gate, and SQLite stores timestamps as strings already) and,
- * critically, the day boundary depends on the viewer's timezone — which the
- * database can't know. Cardinality is bounded by the trailing-28-day window
+ * We deliberately pull every published row in the window and bin client-side
+ * because the day boundary depends on the viewer's timezone, which the database
+ * cannot infer. Cardinality is bounded by the trailing-28-day window
  * times the table count — comfortably under any reasonable per-day publish
  * rate.
  */

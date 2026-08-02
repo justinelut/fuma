@@ -26,6 +26,7 @@ import { mediaStorageRegistry } from '@core/plugins/mediaStorageRegistry'
 import type { HostedStaffAuthBoundary } from './auth/hosted/routes'
 import type { FumaScopedRouteBoundary } from './fuma/context'
 import type { PublicProjectionBoundary } from './fuma/publicProjections'
+import type { PublicHandoffAppBoundary } from './fuma/publicHandoff'
 import type { PublicationPublicBoundary } from './fuma/publication'
 import type { MemberAuthBoundary, MemberImportBoundary } from './fuma/memberIdentity'
 import { tryServeMemberAuth, tryServeMemberImports } from './fuma/memberIdentity/routerBoundary'
@@ -44,6 +45,7 @@ export interface ServerRuntime {
   db: DbClient
   hostedStaffAuth?: HostedStaffAuthBoundary
   publicProjections?: PublicProjectionBoundary
+  publicHandoff?: PublicHandoffAppBoundary
   publicationPublic?: PublicationPublicBoundary
   freeHostPublic?: FreeHostPublicBoundary
   memberAuth?: MemberAuthBoundary
@@ -53,11 +55,7 @@ export interface ServerRuntime {
   mcpAuthority?: McpNativeHttpAuthority
   staticDir?: string
   uploadsDir?: string
-  /**
-   * The raw `DATABASE_URL` the server booted with — forwarded down to
-   * CMS handlers that need to resolve the on-disk SQLite file (e.g. the
-   * storage dashboard widget).
-   */
+  /** PostgreSQL URL forwarded to CMS handlers that query database metrics. */
   databaseUrl?: string
 }
 
@@ -116,6 +114,10 @@ export async function handleServerRequest(
   if (runtime.freeHostPublic && pathname !== '/health') {
     const publicHostResponse = await runtime.freeHostPublic.route(req)
     if (publicHostResponse) return publicHostResponse
+  }
+  if (runtime.publicHandoff?.handles(req)) {
+    const handoffResponse = await runtime.publicHandoff.handle(req)
+    if (handoffResponse) return handoffResponse
   }
   const hostedSurface = pathname === '/admin'
     || pathname.startsWith('/admin/')

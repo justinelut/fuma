@@ -2,8 +2,8 @@
  * Shared constants for the automated Playwright E2E suite.
  *
  * The Playwright `webServer` (`scripts/e2e-dev.ts`) resets the disposable
- * `.tmp/e2e-*` database once per run and then serves a single shared stack:
- * one admin origin, one public origin, one SQLite database. Every spec runs
+ * PostgreSQL schema once per run and then serves a single shared stack: one
+ * admin origin, one public origin, and one PostgreSQL schema. Every spec runs
  * serially against that shared state (`workers: 1`), so these constants are the
  * single source of truth for the suite identities and origins.
  */

@@ -79,9 +79,7 @@ export async function prefetchMediaAssets(
 
   // `collectMediaPaths` already returns a Set, so the paths are unique.
   const pathsToFetch = [...paths]
-  const placeholders = pathsToFetch.map((_, i) =>
-    db.dialect === 'postgres' ? `$${i + 1}` : '?'
-  ).join(', ')
+  const placeholders = pathsToFetch.map((_, index) => `$${index + 1}`).join(', ')
   // Bespoke batched-by-`public_path` SELECT (the render path resolves by stored
   // URL, not asset id, and legitimately skips the folder-id join). It maps
   // through the SAME canonical `mapMediaAssetRow` as the repository, so the

@@ -245,11 +245,10 @@ export async function getUsageByModel(
 /**
  * Daily rollup, bucketed into the VIEWER's calendar day.
  *
- * The day key is computed in JS rather than SQL — same convention as the
- * dashboard's posts histogram (`readPostsHistogram`) — because portable
- * date-truncation SQL is dialect-painful (PG `::text` is banned by the
- * `db-postgres-isms` gate) and, critically, the bucket boundary depends on
- * the operator's timezone, which the database doesn't know. A chat at
+ * The day key is computed in JavaScript rather than PostgreSQL, following the
+ * dashboard's posts histogram (`readPostsHistogram`), because the bucket
+ * boundary depends on the operator's timezone, which the database does not
+ * know. A chat at
  * 23:30 local sits on a different calendar day than the UTC instant suggests,
  * so SQL-side `substr(created_at, 1, 10)` (UTC date) put it on the wrong bar.
  *

@@ -1,7 +1,9 @@
+import { FUMA_WEB_DEPLOYMENT } from './deployment-profile'
+
 const BLYSS_ORIGIN_HOST = '127.0.0.1'
 const BLYSS_PUBLIC_HOST = '3002.blyss.co.ke'
 
-export const PUBLIC_WEB_HOSTS = Object.freeze(['fuma.co.ke', BLYSS_PUBLIC_HOST] as const)
+export const PUBLIC_WEB_HOSTS = Object.freeze([FUMA_WEB_DEPLOYMENT.hosts.public, BLYSS_PUBLIC_HOST] as const)
 
 export function normalizedPublicHost(raw: string): string {
   return raw.trim().toLowerCase().replace(/\.$/, '').split(':')[0] ?? ''

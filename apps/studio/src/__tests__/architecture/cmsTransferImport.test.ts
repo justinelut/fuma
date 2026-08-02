@@ -7,7 +7,7 @@
  *   merge-add       — insert only new rows (skip collisions).
  *   merge-overwrite — upsert all rows (replace on collision, add new, keep local-only).
  *
- * Each strategy gets its own describe block with a fresh in-memory SQLite DB.
+ * Each strategy gets its own describe block with an isolated PostgreSQL schema.
  * Auth is seeded directly via repositories.
  *
  * @see server/handlers/cms/import.ts
@@ -16,9 +16,7 @@
  */
 
 import { describe, test, expect, beforeAll } from 'bun:test'
-import { createSqliteClient } from '../../../server/db/sqlite'
-import { runMigrations } from '../../../server/db/runMigrations'
-import { sqliteMigrations } from '../../../server/db/migrations-sqlite'
+import { createTestDatabase } from '../../../server/db/testDatabase'
 import { saveDraftSite, getDraftSite } from '../../../server/repositories/site'
 import { SELF_HOST_SITE_ID } from '../../../server/selfHost'
 import { createUser } from '../../../server/repositories/users'
@@ -180,8 +178,7 @@ describe('handleImportRoute — strategy: replace', () => {
   let localOnlyId: string
 
   beforeAll(async () => {
-    db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    db = (await createTestDatabase('cmsTransferImport')).db
     cookie = await seedAuth(db)
 
     // Seed 2 local posts: one that OVERLAPS with the bundle (overlapId),
@@ -269,8 +266,7 @@ describe('handleImportRoute — strategy: merge-add', () => {
   let localOnlyId: string
 
   beforeAll(async () => {
-    db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    db = (await createTestDatabase('cmsTransferImport')).db
     cookie = await seedAuth(db)
 
     const overlap = await createDataRow(db, {
@@ -354,8 +350,7 @@ describe('handleImportRoute — strategy: merge-overwrite', () => {
   let localOnlyId: string
 
   beforeAll(async () => {
-    db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    db = (await createTestDatabase('cmsTransferImport')).db
     cookie = await seedAuth(db)
 
     const overlap = await createDataRow(db, {
@@ -440,8 +435,7 @@ describe('handleImportRoute — strategy: merge-overwrite', () => {
 
 describe('handleImportRoute — invalid strategy', () => {
   test('returns 400 for unrecognized strategy', async () => {
-    const db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    const { db: db } = await createTestDatabase('cmsTransferImport')
     const cookie = await seedAuth(db)
 
     const bundle = { schemaVersion: 1, exportedAt: new Date().toISOString(), tables: [], rows: [] }
@@ -458,8 +452,7 @@ describe('handleImportRoute — invalid strategy', () => {
 
 describe('handleImportRoute — auth', () => {
   test('returns 401 when no session cookie', async () => {
-    const db = createSqliteClient(':memory:')
-    await runMigrations(db, sqliteMigrations)
+    const { db: db } = await createTestDatabase('cmsTransferImport')
     await seedAuth(db)
 
     const bundle = { schemaVersion: 1, exportedAt: new Date().toISOString(), tables: [], rows: [] }

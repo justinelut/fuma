@@ -9,7 +9,7 @@ import { createHostedStaffAuthBoundary } from '../../../server/auth/hosted/route
 import { AUTH_MODEL_NAMES } from '../../../server/auth/hosted/schemaManifest'
 import { withHashedSessionTokens } from '../../../server/auth/hosted/sessionTokenAdapter'
 
-const ORIGIN = 'https://app.fuma.co.ke'
+const ORIGIN = 'https://app.trimly.co.ke'
 const SECRET = 'fuma-012-integration-secret-with-at-least-32-characters'
 const EMAIL = 'staff@fuma.example'
 const PASSWORD = 'Fuma-staff-password-123!'
@@ -198,7 +198,7 @@ describe('FUMA-012 same-origin hosted staff auth', () => {
     expect(hostMismatch.status).toBe(404)
     expect(setCookies(hostMismatch)).toHaveLength(0)
 
-    for (const host of ['customer.example', 'fuma.co.ke']) {
+    for (const host of ['customer.example', 'trimly.co.ke']) {
       const wrongHost = await dispatch(boundary, authRequest(
         `https://${host}/api/auth/get-session`,
         {},

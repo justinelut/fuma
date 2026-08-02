@@ -30,7 +30,7 @@ The site module persists profile assignments in `fuma_sites`, validates them thr
 | `server/fuma/sites/legacyBootstrap.ts` | One-time exact-ID legacy ownership bootstrap |
 | `server/fuma/sites/schemaManifest.ts` | Hosted schema authority manifest |
 
-The hosted table is created by `server/fuma/db/migrations/000006_sites.ts`. Its primary key and foreign keys retain the complete organization/workspace/site scope. The historical migration sources in `server/db/migrations-pg.ts` and `server/db/migrations-sqlite.ts` remain immutable.
+The hosted table is created by `server/fuma/db/migrations/000006_sites.ts`. Its primary key and foreign keys retain the complete organization/workspace/site scope. The historical migration sources remain immutable.
 
 ## Normal lifecycle
 

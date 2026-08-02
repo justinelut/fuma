@@ -1,7 +1,7 @@
 /**
  * Plugin scheduled jobs — persistence layer.
  *
- * Two tables (see `migrations-{pg,sqlite}.ts` → `002_plugin_schedules`):
+ * Two tables (see `migrations-pg.ts` → `002_plugin_schedules`):
  *
  *   `plugin_schedules`     — one row per (plugin_id, schedule_id), holds the
  *                            cadence + lock + last-run state. The scheduler
@@ -14,10 +14,9 @@
  *                            ~200 per (plugin_id, schedule_id) — bounded
  *                            growth without TTL infrastructure).
  *
- * Repository functions follow the dialect-naive rules in CLAUDE.md: only
- * ANSI-standard SQL, no `now()` in DML, no `::int` / `::jsonb` casts, no
- * `distinct on`, no `any($N::...)`. The architecture gate
- * `db-postgres-isms.test.ts` enforces this.
+ * Repository functions use parameterized PostgreSQL through the shared
+ * `DbClient`; timestamps are supplied by callers so scheduling decisions remain
+ * deterministic in tests.
  */
 import type { DbClient } from '../db/client'
 import { isoDate, isoDateOrNull } from '@core/utils/isoDate'
@@ -253,7 +252,7 @@ export async function disablePluginSchedule(
  *
  * `claimed_at` is stamped by `upsertPluginSchedule` on every register, so
  * "claimed since activation start" is exactly "re-registered this pass".
- * ISO-8601 strings compare correctly as text in both dialects.
+ * ISO-8601 inputs bind cleanly to PostgreSQL timestamp columns.
  */
 export async function disableSchedulesNotReclaimedSince(
   db: DbClient,
@@ -333,7 +332,7 @@ export async function selectDueSchedules(
  *
  * The `running_token = null` precondition is what makes this safe across
  * HA instances: only ONE UPDATE statement can transition the token from
- * null to a fresh value because Postgres + SQLite both serialize row
+ * null to a fresh value because PostgreSQL serializes conflicting row
  * updates.
  *
  * Requires `enabled` (a cancelled schedule can never fire) but deliberately
@@ -526,8 +525,7 @@ export async function trimScheduleRunHistory(
   keepPerSchedule = 200,
 ): Promise<void> {
   // Two-step: pick the per-group cutoff timestamp, then delete older rows
-  // within each group. ANSI-standard subquery, dialect-naive — works on
-  // both Postgres and SQLite.
+  // within each group using one PostgreSQL statement.
   await db`
     delete from plugin_schedule_runs
     where id in (

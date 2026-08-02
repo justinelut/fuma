@@ -68,7 +68,7 @@ describe('governance control-surface boundaries', () => {
     expect(catalog).toContain('Explicit permission grant')
     expect(catalog).toContain('Review or signature authority is unavailable. Installation is disabled.')
     expect(route).toContain("runtime !== RuntimeOrigin")
-    expect(route).toContain("host: 'app.fuma.co.ke'")
+    expect(route).toContain('host: FUMA_CONTROL_DEPLOYMENT.hosts.product')
     expect(route).toContain("path[0] !== 'organizations'")
     expect(route).toContain("path[6] === 'marketplace'")
     expect(route).toContain("path[9] === 'install'")

@@ -1,3 +1,4 @@
+import { FUMA_DEFAULT_DEPLOYMENT_PROFILE } from '../../packages/brand/src/index'
 import { Type, type Static } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 import {
@@ -59,10 +60,10 @@ const WorkspaceBoundaryPolicySchema = Type.Object({
     Type.Literal('public-contracts'),
   ]),
   hosts: Type.Object({
-    public: Type.Literal('fuma.co.ke'),
-    auth: Type.Literal('auth.fuma.co.ke'),
-    product: Type.Literal('app.fuma.co.ke'),
-    console: Type.Literal('admin.fuma.co.ke'),
+    public: Type.Literal(FUMA_DEFAULT_DEPLOYMENT_PROFILE.hosts.public),
+    auth: Type.Literal(FUMA_DEFAULT_DEPLOYMENT_PROFILE.hosts.auth),
+    product: Type.Literal(FUMA_DEFAULT_DEPLOYMENT_PROFILE.hosts.product),
+    console: Type.Literal(FUMA_DEFAULT_DEPLOYMENT_PROFILE.hosts.console),
   }, { additionalProperties: false }),
   reservedTenantNames: Type.Tuple([
     Type.Literal('auth'),
@@ -82,10 +83,10 @@ export const FUMA_WORKSPACE_BOUNDARY_POLICY: WorkspaceBoundaryPolicy = Object.fr
   apps: ['studio', 'web'],
   leafPackages: ['brand', 'design-tokens', 'public-contracts'],
   hosts: {
-    public: 'fuma.co.ke',
-    auth: 'auth.fuma.co.ke',
-    product: 'app.fuma.co.ke',
-    console: 'admin.fuma.co.ke',
+    public: FUMA_DEFAULT_DEPLOYMENT_PROFILE.hosts.public,
+    auth: FUMA_DEFAULT_DEPLOYMENT_PROFILE.hosts.auth,
+    product: FUMA_DEFAULT_DEPLOYMENT_PROFILE.hosts.product,
+    console: FUMA_DEFAULT_DEPLOYMENT_PROFILE.hosts.console,
   },
   reservedTenantNames: ['auth', 'app', 'www', 'api', 'admin', 'status', 'support', 'mail'],
 })
@@ -138,9 +139,9 @@ const HARDCODED_TRUTH_FIELD = /^(?:price|amount|monthlyPrice|annualPrice|monthly
 const PRIVATE_COMMERCIAL_FIELD = /^(?:paystackPlanId|providerPlanId|providerPriceId|providerId|providerCost|costMinor|margin|grossMargin|internalEntitlements?|grandfatheredContract|privateOffer|paymentState|transferState|cogs)$/i
 const UNKNOWN_FALLBACK_FIELD = /^(?:unknownHostFallback|defaultHost|defaultSite|fallbackHost|fallbackSite)$/i
 const STAFF_COOKIE_NAMES = new Map([
-  ['__Host-fuma_auth', 'auth.fuma.co.ke'],
-  ['__Host-fuma_app', 'app.fuma.co.ke'],
-  ['__Host-fuma_admin', 'admin.fuma.co.ke'],
+  ['__Host-fuma_auth', FUMA_DEFAULT_DEPLOYMENT_PROFILE.hosts.auth],
+  ['__Host-fuma_app', FUMA_DEFAULT_DEPLOYMENT_PROFILE.hosts.product],
+  ['__Host-fuma_admin', FUMA_DEFAULT_DEPLOYMENT_PROFILE.hosts.console],
 ])
 const DIRECT_AUTHORITY_DEPENDENCIES = new Set([
   'better-auth', '@better-auth/drizzle-adapter', 'postgres', 'drizzle-orm', 'redis', 'ioredis', 'minio',
@@ -165,6 +166,10 @@ function lineAt(source: string, offset: number): number {
 
 function addFinding(context: AuditContext, ruleId: WorkspaceBoundaryRuleId, path: string, detail: string, line = 1): void {
   context.findings.push({ ruleId, path, line, detail })
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function readRegularFile(path: string): string {
@@ -449,7 +454,7 @@ function semanticFindings(context: AuditContext, file: CollectedFile, sourceFile
     const hasAuthHost = stringLiterals.has(context.policy.hosts.auth)
     const hasWrongHost = [context.policy.hosts.public, context.policy.hosts.product, context.policy.hosts.console]
       .some((host) => stringLiterals.has(host))
-    if (!hasAuthHost || hasWrongHost) addFinding(context, 'better-auth-host', file.path, 'Better Auth may only mount on auth.fuma.co.ke.')
+    if (!hasAuthHost || hasWrongHost) addFinding(context, 'better-auth-host', file.path, `Better Auth may only mount on ${context.policy.hosts.auth}.`)
   }
 
   const visit = (node: ts.Node): void => {
@@ -516,9 +521,12 @@ function semanticFindings(context: AuditContext, file: CollectedFile, sourceFile
 function scopedTextFindings(context: AuditContext, file: CollectedFile, source: string): void {
   const runtimeScope = /^(?:apps|packages|infra)\//.test(file.path)
   if (!runtimeScope) return
-  const apiIndex = source.indexOf('api.fuma.co.ke')
-  if (apiIndex >= 0) addFinding(context, 'public-api-host', file.path, 'Public api.fuma.co.ke is forbidden at launch.', lineAt(source, apiIndex))
-  const domainMatch = /(?:\bDomain\s*=\s*\.?fuma\.co\.ke\b|\bdomain\s*:\s*['"]\.?fuma\.co\.ke['"]|FUMA_COOKIE_DOMAIN|\bsharedCookie\b)/i.exec(source)
+  const publicApiHost = `api.${context.policy.hosts.public}`
+  const apiIndex = source.indexOf(publicApiHost)
+  if (apiIndex >= 0) addFinding(context, 'public-api-host', file.path, `Public ${publicApiHost} is forbidden at launch.`, lineAt(source, apiIndex))
+  const escapedRoot = escapeRegex(context.policy.hosts.public)
+  const domainPattern = new RegExp(`(?:\\bDomain\\s*=\\s*\\.?${escapedRoot}\\b|\\bdomain\\s*:\\s*['"]\\.?${escapedRoot}['"]|FUMA_COOKIE_DOMAIN|\\bsharedCookie\\b)`, 'i')
+  const domainMatch = domainPattern.exec(source)
   if (domainMatch) addFinding(context, 'shared-cookie', file.path, 'Sessions must be distinct host-only cookies with no parent Domain.', lineAt(source, domainMatch.index))
   if (file.path.startsWith('apps/web/')) {
     const credentialMatch = /(?:headers\s*:\s*(?:request|req)\.headers|(?:cookie|authorization)['"]?\s*:\s*(?:request|req)\.headers(?:\.get)?)/i.exec(source)

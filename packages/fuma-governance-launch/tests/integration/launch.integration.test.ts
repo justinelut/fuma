@@ -21,7 +21,7 @@ describe('FUMA-078 immutable ARM64 paired release', () => {
 
 describe('FUMA-079/080 Oracle routing, migration, backup, restore, smoke', () => {
   it('blocks promotion without exact hosts, cookie isolation, current backup, and signed-RTO restore', () => {
-    const evidence = { releaseSourceSha: hash, migrationHighWaterMark: '000044_publication_lifecycle_metadata', exactHosts: ['fuma.co.ke', 'auth.fuma.co.ke', 'app.fuma.co.ke', 'admin.fuma.co.ke', '*.fuma.co.ke'], unknownHostDenied: true, parentDomainCookieAbsent: true, backupAgeSeconds: 1_000, restoreCountsHashSha256: hash, restoreObjectsHashSha256: hash, rpoSeconds: 21_600, rtoSeconds: 7_200, observedRestoreSeconds: 3_000 }
+    const evidence = { releaseSourceSha: hash, migrationHighWaterMark: '000044_publication_lifecycle_metadata', exactHosts: ['trimly.co.ke', 'auth.trimly.co.ke', 'app.trimly.co.ke', 'admin.trimly.co.ke', '*.trimly.co.ke'], unknownHostDenied: true, parentDomainCookieAbsent: true, backupAgeSeconds: 1_000, restoreCountsHashSha256: hash, restoreObjectsHashSha256: hash, rpoSeconds: 21_600, rtoSeconds: 7_200, observedRestoreSeconds: 3_000 }
     expect(authorizePromotion(release, evidence).sourceSha).toBe(hash)
     expect(() => authorizePromotion(release, { ...evidence, unknownHostDenied: false })).toThrow('blocks promotion')
   })
@@ -50,8 +50,8 @@ describe('FUMA-085 unified launch and TRACKER-086 public-web seam', () => {
     expect(decideLaunch({ ...gate, approvals: approvals.slice(0, 5) })).toBe('abort')
   })
   it('binds private projections and independent public rollback to the paired SHA', () => {
-    const seam = { releaseSourceSha: hash, runtimeProjectionVersion: 3, webContractVersion: 3, privateRuntimeAudience: 'fuma-public-web', canonicalHost: 'fuma.co.ke', canaryPercent: 10, publicRollbackIndependent: true, productTenantContinuityRequired: true }
-    expect(verifyPublicWebDeploymentSeam(seam, release).canonicalHost).toBe('fuma.co.ke')
+    const seam = { releaseSourceSha: hash, runtimeProjectionVersion: 3, webContractVersion: 3, privateRuntimeAudience: 'fuma-public-web', canonicalHost: 'trimly.co.ke', canaryPercent: 10, publicRollbackIndependent: true, productTenantContinuityRequired: true }
+    expect(verifyPublicWebDeploymentSeam(seam, release).canonicalHost).toBe('trimly.co.ke')
     expect(() => verifyPublicWebDeploymentSeam({ ...seam, releaseSourceSha: 'd'.repeat(64) }, release)).toThrow('incompatible')
   })
 })

@@ -97,9 +97,8 @@ interface DueScheduledRow {
  * `publishDataRow(...)` on each result.
  *
  * NOT atomic — two concurrent leader instances could read the same
- * batch. The publish-scheduler tick relies on the host-level leader
- * lock (`pg_try_advisory_lock` in PG, single-process for SQLite) to
- * ensure only one instance ticks at a time.
+ * batch. The publish-scheduler tick relies on PostgreSQL
+ * `pg_try_advisory_lock` to ensure only one instance ticks at a time.
  */
 export async function listDuePublishSchedules(
   db: DbClient,

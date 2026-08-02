@@ -1,4 +1,5 @@
 import { Value } from '@core/utils/typeboxHelpers'
+import { FUMA_DEFAULT_DEPLOYMENT_PROFILE } from '@fuma/brand'
 import { DomainService, assertDomainState, type DomainRecord } from '../domains/service'
 import { DomainScopeSchema, sameDomainScope, type CertificateState, type DomainDesiredState, type DomainObservedState, type DomainScope } from '../domains/contracts'
 import { type CloudflareSaasAdapter, FakeCloudflareSaasAdapter } from './adapter'
@@ -97,15 +98,26 @@ export class CloudflareSaasReconciler {
   readonly #domains: CloudflareDomainTransitionPort
   readonly #repository: CloudflareStateRepository
   readonly #now: () => Date
-  constructor(adapter: CloudflareSaasAdapter, domains: CloudflareDomainTransitionPort, repository: CloudflareStateRepository = new MemoryCloudflareStateRepository(), now: () => Date = () => new Date()) {
-    this.#adapter = adapter; this.#domains = domains; this.#repository = repository; this.#now = now
+  readonly #customerRoutingHost: string
+  constructor(
+    adapter: CloudflareSaasAdapter,
+    domains: CloudflareDomainTransitionPort,
+    repository: CloudflareStateRepository = new MemoryCloudflareStateRepository(),
+    now: () => Date = () => new Date(),
+    customerRoutingHost: string = FUMA_DEFAULT_DEPLOYMENT_PROFILE.hosts.customerRouting,
+  ) {
+    this.#adapter = adapter
+    this.#domains = domains
+    this.#repository = repository
+    this.#now = now
+    this.#customerRoutingHost = customerRoutingHost
   }
 
   instructions(hostnameInput: string, providerInput: CloudflareHostname): readonly DnsInstruction[] {
     const hostname = hostnameInput.toLowerCase()
     const provider = exactProviderState(hostname, providerInput)
     const records: readonly DnsInstruction[] = [
-      { type: 'CNAME', name: hostname, value: 'customers.fuma.co.ke', purpose: 'routing' },
+      { type: 'CNAME', name: hostname, value: this.#customerRoutingHost, purpose: 'routing' },
       ...provider.ownershipRecords, ...provider.validationRecords,
     ]
     const unique = new Map<string, DnsInstruction>()

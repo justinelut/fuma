@@ -5,8 +5,8 @@
   "deployment": "infra/public-web/deployment.yaml",
   "edge": "infra/public-web/traefik.public-web.yml",
   "alerts": "infra/public-web/alerts.yaml",
-  "canonicalHost": "fuma.co.ke",
-  "redirectHost": "www.fuma.co.ke",
+  "canonicalHost": "trimly.co.ke",
+  "redirectHost": "www.trimly.co.ke",
   "reservedWildcardOwner": "tenant-release-runtime",
   "privateDependencies": ["studio-internal.service", "redis coordination through Studio"],
   "rollbackScope": "public-web image digest only"

@@ -155,7 +155,7 @@ function owner(overrides: Partial<StoredUser> = {}): StoredUser {
   return {
     id: 'user-protected-owner',
     name: 'Protected Owner',
-    email: '  Owner@Fuma.Co.Ke ',
+    email: '  Owner@Trimly.Co.Ke ',
     passwordHash: 'preserved-argon2id-hash',
     role: 'member',
     banned: true,
@@ -180,8 +180,8 @@ describe('FUMA-014 organization bootstrap', () => {
     const repository = new InMemoryOrganizationBootstrapRepository([owner()])
     const bootstrap = service(repository)
 
-    const first = await bootstrap.bootstrap({ protectedOwnerEmail: ' OWNER@fuma.co.ke ' })
-    const second = await bootstrap.bootstrap({ protectedOwnerEmail: 'owner@fuma.co.ke' })
+    const first = await bootstrap.bootstrap({ protectedOwnerEmail: ' OWNER@trimly.co.ke ' })
+    const second = await bootstrap.bootstrap({ protectedOwnerEmail: 'owner@trimly.co.ke' })
 
     expect(second).toEqual(first)
     expect(first).toEqual({
@@ -206,7 +206,7 @@ describe('FUMA-014 organization bootstrap', () => {
     expect(protectedOwner).toMatchObject({
       id: 'user-protected-owner',
       name: 'Protected Owner',
-      email: '  Owner@Fuma.Co.Ke ',
+      email: '  Owner@Trimly.Co.Ke ',
       passwordHash: 'preserved-argon2id-hash',
       role: 'admin',
       banned: false,
@@ -230,15 +230,15 @@ describe('FUMA-014 organization bootstrap', () => {
 
   it('fails closed when the normalized protected-owner email is absent or ambiguous', async () => {
     const missing = new InMemoryOrganizationBootstrapRepository([])
-    await expect(service(missing).bootstrap({ protectedOwnerEmail: 'owner@fuma.co.ke' }))
+    await expect(service(missing).bootstrap({ protectedOwnerEmail: 'owner@trimly.co.ke' }))
       .rejects.toEqual(expectBootstrapError('owner-missing'))
     expect(missing.state.organizations.size).toBe(0)
 
     const ambiguous = new InMemoryOrganizationBootstrapRepository([
       owner({ id: 'owner-a' }),
-      owner({ id: 'owner-b', email: 'owner@FUMA.CO.KE' }),
+      owner({ id: 'owner-b', email: 'owner@TRIMLY.CO.KE' }),
     ])
-    await expect(service(ambiguous).bootstrap({ protectedOwnerEmail: ' owner@fuma.co.ke ' }))
+    await expect(service(ambiguous).bootstrap({ protectedOwnerEmail: ' owner@trimly.co.ke ' }))
       .rejects.toEqual(expectBootstrapError('owner-ambiguous'))
     expect(ambiguous.state.organizations.size).toBe(0)
   })
@@ -252,7 +252,7 @@ describe('FUMA-014 organization bootstrap', () => {
       slug: 'fuma-platform',
     })
 
-    await expect(service(repository).bootstrap({ protectedOwnerEmail: 'owner@fuma.co.ke' }))
+    await expect(service(repository).bootstrap({ protectedOwnerEmail: 'owner@trimly.co.ke' }))
       .rejects.toEqual(expectBootstrapError('platform-conflict'))
     expect(repository.state.users[0]).toEqual(initialOwner)
     expect(repository.state.memberships.size).toBe(0)
@@ -288,7 +288,7 @@ describe('FUMA-014 organization bootstrap', () => {
     for (const arrangeConflict of cases) {
       const repository = new InMemoryOrganizationBootstrapRepository([owner()])
       arrangeConflict(repository)
-      await expect(service(repository).bootstrap({ protectedOwnerEmail: 'owner@fuma.co.ke' }))
+      await expect(service(repository).bootstrap({ protectedOwnerEmail: 'owner@trimly.co.ke' }))
         .rejects.toEqual(expectBootstrapError('platform-conflict'))
       expect(repository.state.receipts.size).toBeLessThanOrEqual(1)
     }

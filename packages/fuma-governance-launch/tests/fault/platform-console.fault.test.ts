@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import { PlatformConsoleRegistry, PlatformConsoleService, type InternalAuthority, type PlatformConsoleReadSource } from '../../src'
 
-const reader: InternalAuthority = { actorId: 'staff-reader', host: 'admin.fuma.co.ke', authorities: new Set(['internal.console.read']), stepUpAt: null, protectedOwner: false }
-const writer: InternalAuthority = { actorId: 'staff-writer', host: 'admin.fuma.co.ke', authorities: new Set(['internal.console.write', 'internal.jobs.retry']), stepUpAt: '2026-07-29T11:59:00.000Z', protectedOwner: false }
+const reader: InternalAuthority = { actorId: 'staff-reader', host: 'admin.trimly.co.ke', authorities: new Set(['internal.console.read']), stepUpAt: null, protectedOwner: false }
+const writer: InternalAuthority = { actorId: 'staff-writer', host: 'admin.trimly.co.ke', authorities: new Set(['internal.console.write', 'internal.jobs.retry']), stepUpAt: '2026-07-29T11:59:00.000Z', protectedOwner: false }
 const now = () => new Date('2026-07-29T12:00:00.000Z')
 
 describe('FUMA-071 console fault containment', () => {
