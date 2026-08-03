@@ -132,6 +132,24 @@ const DashboardPostsStatsSchema = looseObject({
 })
 type DashboardPostsStats = Static<typeof DashboardPostsStatsSchema>
 
+const DashboardCollectionSummarySchema = looseObject({
+  slug: Type.String(),
+  name: Type.String(),
+  shape: Type.Union([Type.Literal('content'), Type.Literal('records')]),
+  rows: Type.Number(),
+  system: Type.Boolean(),
+})
+export type DashboardCollectionSummary = Static<typeof DashboardCollectionSummarySchema>
+
+const DashboardCollectionsStatsSchema = looseObject({
+  total: Type.Number(),
+  content: Type.Number(),
+  records: Type.Number(),
+  totalRows: Type.Number(),
+  collections: Type.Array(DashboardCollectionSummarySchema),
+})
+type DashboardCollectionsStats = Static<typeof DashboardCollectionsStatsSchema>
+
 const DashboardMediaStatsSchema = looseObject({
   count: Type.Number(),
   totalBytes: Type.Number(),
@@ -224,6 +242,14 @@ export function usePostsStats(): DashboardPostsStats | null {
 /** Media widget. Totals + 16 most-recent image thumbnails. */
 export function useMediaStats(): DashboardMediaStats | null {
   return useDashboardEndpoint('media', DashboardMediaStatsSchema)
+}
+
+/**
+ * Collections widget. One grouped scan of `data_tables` joined to live
+ * `data_rows`, so a freshly provisioned but still-empty collection appears.
+ */
+export function useCollectionsStats(): DashboardCollectionsStats | null {
+  return useDashboardEndpoint('collections', DashboardCollectionsStatsSchema)
 }
 
 /** Plugins widget. One scan of `installed_plugins`. */
