@@ -55,6 +55,30 @@ export interface PostsStats {
 }
 
 // ---------------------------------------------------------------------------
+// Collections
+// ---------------------------------------------------------------------------
+
+/** One operator-managed collection in the universal store. */
+export interface CollectionSummary {
+  slug: string
+  name: string
+  /** `content` is a routable post type; `records` is a plain data grid. */
+  shape: 'content' | 'records'
+  rows: number
+  /** True for Fuma-owned collections an operator cannot restructure. */
+  system: boolean
+}
+
+export interface CollectionsStats {
+  total: number
+  content: number
+  records: number
+  totalRows: number
+  /** Busiest collections first, bounded for the widget. */
+  collections: CollectionSummary[]
+}
+
+// ---------------------------------------------------------------------------
 // Media
 // ---------------------------------------------------------------------------
 

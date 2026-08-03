@@ -3,6 +3,7 @@
  *
  *   GET /admin/api/cms/dashboard/pages
  *   GET /admin/api/cms/dashboard/posts
+ *   GET /admin/api/cms/dashboard/collections
  *   GET /admin/api/cms/dashboard/media
  *   GET /admin/api/cms/dashboard/plugins
  *   GET /admin/api/cms/dashboard/storage
@@ -45,6 +46,7 @@ import { CMS_API_PREFIX, type CmsHandlerOptions } from '../shared'
 import { resolveTimeZone } from '../../../time'
 import { readPagesStats } from './pages'
 import { readPostsStats } from './posts'
+import { readCollectionsStats } from './collections'
 import { readMediaStats } from './media'
 import { readPluginsStats } from './plugins'
 import { readPublishLineup } from './publishLineup'
@@ -103,6 +105,9 @@ interface DashboardEndpoint {
 const DASHBOARD_READERS: Record<string, DashboardEndpoint> = {
   'pages':          { reader: readPagesStats,     capability: null },
   'posts':          { reader: readPostsStats,     capability: null },
+  // Collection names and row counts are model shape, not row content, so the
+  // gate matches pages/posts rather than the data-write capability.
+  'collections':    { reader: readCollectionsStats, capability: null },
   'media':          { reader: readMediaStats,     capability: 'media.read' },
   'plugins':        { reader: readPluginsStats,   capability: 'plugins.read' },
   'storage':        { reader: readStorageStats,   capability: null },

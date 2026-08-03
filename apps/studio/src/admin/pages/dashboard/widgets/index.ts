@@ -11,6 +11,7 @@
  */
 import { ActivityWidget } from './ActivityWidget'
 import { AiUsageWidget } from './AiUsageWidget'
+import { CollectionsWidget } from './CollectionsWidget'
 import { DomainWidget } from './DomainWidget'
 import { MediaWidget } from './MediaWidget'
 import { PagesWidget } from './PagesWidget'
@@ -69,6 +70,19 @@ export function registerFirstPartyDashboardWidgets(): void {
     defaultSize: 3,
     tint: 'peach',
     render: PostsWidget,
+  })
+
+  // Surfaces the content model itself, so operators can see what Site AI or
+  // the Data workspace has provisioned and how much lives in each collection.
+  dashboardWidgetRegistry.register({
+    id: 'collections',
+    ownerId: 'core',
+    name: 'Collections',
+    description: 'Content model + entries',
+    icon: DatabaseSolidIcon,
+    defaultSize: 6,
+    tint: 'mint',
+    render: CollectionsWidget,
   })
 
   dashboardWidgetRegistry.register({
