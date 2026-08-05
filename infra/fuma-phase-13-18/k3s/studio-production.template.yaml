@@ -371,10 +371,21 @@ spec:
       priority: 100
       middlewares: [{ name: studio-security-headers }]
       services: [{ name: fuma-studio, port: 80 }]
+  tls:
+    certResolver: le
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: fuma-tenant-wildcard
+  namespace: fuma
+spec:
+  entryPoints: [websecure]
+  routes:
     - match: HostRegexp(`[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.__FUMA_ESCAPED_ROOT_DOMAIN__`)
       kind: Rule
       priority: 10
       middlewares: [{ name: studio-security-headers }]
       services: [{ name: fuma-studio, port: 80 }]
   tls:
-    certResolver: le
+    secretName: fuma-tenant-wildcard-tls
