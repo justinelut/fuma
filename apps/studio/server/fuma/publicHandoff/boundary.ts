@@ -294,7 +294,7 @@ export function createPublicHandoffAppBoundary(input: PublicHandoffAppBoundaryIn
         const value = queryValue(url, AppHandoffStartQuerySchema) as AppHandoffStartQuery | null
         if (!value) return safeFailure(null)
         const session = await input.resolveIdentitySession(request.headers)
-        if (!session) return loginPage(value, 'sign-in', '', input.googleAuthEnabled ?? false)
+        if (!session) return loginPage(value, await input.service.loginMode(value), '', input.googleAuthEnabled ?? false)
         if (session.impersonatedBy !== null) return safeFailure(null)
         const code = await input.service.authorize(value, session.userId, session.sessionId)
         return redirect(fixedUrl(input.appOrigin, APP_RESUME_PATH, { code: code.code, state: code.state }))

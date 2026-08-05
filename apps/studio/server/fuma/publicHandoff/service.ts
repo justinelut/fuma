@@ -73,6 +73,12 @@ export class PublicHandoffService {
     })
   }
 
+  async loginMode(value: unknown): Promise<'sign-up' | 'sign-in'> {
+    const query = parseHandoffValue(AppHandoffStartQuerySchema, value, 'App handoff start') as AppHandoffStartQuery
+    const intent = await this.#repository.readIntent({ tokenHash: await sha256(query.intent), correlation: query.correlation, now: instant(this.#clock).toISOString() })
+    return intent.request.kind === 'sign_up' ? 'sign-up' : 'sign-in'
+  }
+
   async authorize(value: unknown, userId: string, identitySessionId: string): Promise<IssuedAppAuthCode> {
     const query = parseHandoffValue(AppHandoffStartQuerySchema, value, 'App handoff start') as AppHandoffStartQuery
     if (!userId || userId.length > 255 || !identitySessionId || identitySessionId.length > 255) throw new TypeError('Authenticated identity session is invalid.')
