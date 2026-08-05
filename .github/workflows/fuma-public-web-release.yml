@@ -79,3 +79,11 @@ jobs:
             echo "- tag: \`${{ steps.tag.outputs.tag }}\`"
             echo "- digest: \`${{ steps.build.outputs.digest }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy published public Web image
+    needs: build
+    uses: ./.github/workflows/fuma-public-web-deploy.yml
+    with:
+      image_tag: ${{ needs.build.outputs.tag }}
+    secrets: inherit

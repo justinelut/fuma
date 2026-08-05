@@ -1,6 +1,12 @@
 name: Fuma Studio deploy
 
 on:
+  workflow_call:
+    inputs:
+      image_tag:
+        description: Published fuma-runtime tag to deploy (7-character commit SHA)
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       image_tag:
