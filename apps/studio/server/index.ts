@@ -42,7 +42,12 @@ import {
   TEMPLATE_PREVIEW_HOST,
 } from './fuma/publicTemplates'
 import { createHostedPaystackRuntime } from './fuma/paystack/runtime'
-import { createHostedEntitlementRuntime, readHostedKesCostConversion } from './fuma/entitlements'
+import {
+  createHostedEntitlementAdminRuntime,
+  createHostedEntitlementRuntime,
+  readEntitlementControlRuntimeSecret,
+  readHostedKesCostConversion,
+} from './fuma/entitlements'
 import { createHostedPlatformCheckoutRuntime } from './fuma/checkout'
 import { createHostedPlatformBillingRuntime } from './fuma/billing'
 import { createHostedMcpProductionRuntime, readHostedAiByokMetadataKey } from './fuma/mcp/productionRuntime'
@@ -51,6 +56,7 @@ import { createArtifactMarketplaceScopedRoutes, createHostedArtifactReviewRuntim
 import { createQuotaRuntime } from './fuma/quotas'
 import { createHostedComponentCatalogRuntime } from './fuma/componentCatalog'
 import { createHostedCapabilityDashboardRuntime } from './fuma/aiCapabilityDashboard'
+import { createPlatformConsoleBoundary } from './fuma/platformConsole/boundary'
 import { AuditService, PostgresAuditRepository } from './fuma/audit'
 import { createHostedMeteringRuntime } from './fuma/metering'
 import { createHostedNextSourceRuntime, readHostedNextSourceGitHubConfig } from './fuma/nextSource'
@@ -172,6 +178,17 @@ const hostedStaffAuthRuntime = hostedFumaConfig
       } : {}),
     })
   })()
+  : undefined
+const controlRuntimeSecret = hostedFumaConfig ? readEntitlementControlRuntimeSecret() : undefined
+const platformConsoleBoundary = hostedStaffAuthRuntime && hostedFumaConfig && controlRuntimeSecret
+  ? createPlatformConsoleBoundary({
+    db,
+    resolveSession: hostedStaffAuthRuntime.resolveSession,
+    protectedOwnerEmail: hostedFumaConfig.protectedOwner.email,
+    runtimeSecret: controlRuntimeSecret,
+    consoleHost: hostedFumaConfig.hosts.console,
+    productHost: hostedFumaConfig.hosts.product,
+  })
   : undefined
 const hostedSupportOperationsRuntime = hostedFumaConfig && hostedStaffAuthRuntime
   ? (() => {
@@ -537,6 +554,17 @@ const entitlementRuntime = hostedKesCostConversion
     costConversionVersion: hostedKesCostConversion.version,
   })
   : undefined
+const entitlementAdminRuntime = entitlementRuntime && hostedStaffAuthRuntime && hostedFumaConfig && controlRuntimeSecret
+  ? createHostedEntitlementAdminRuntime({
+    db,
+    entitlementServiceFor: entitlementRuntime.serviceFor,
+    hostedStaffAuth: hostedStaffAuthRuntime,
+    protectedOwnerEmail: hostedFumaConfig.protectedOwner.email,
+    consoleHost: hostedFumaConfig.hosts.console,
+    productHost: hostedFumaConfig.hosts.product,
+    runtimeSecret: controlRuntimeSecret,
+  })
+  : undefined
 const platformCheckoutRuntime = hostedFumaConfig
   && paystackRuntime
   && entitlementRuntime
@@ -731,6 +759,8 @@ const server = Bun.serve<PublicationSocketData>({
         memberAuth: memberIdentityRuntime?.boundary,
         memberImports: memberImportBoundary,
         paystackWebhooks: platformBillingRuntime?.webhooks ?? paystackRuntime?.webhooks,
+        entitlementAdmin: entitlementAdminRuntime?.boundary,
+        platformConsole: platformConsoleBoundary,
         fumaScopedApi,
         mcpAuthority: hostedMcpRuntime?.nativeHttpAuthority,
       })

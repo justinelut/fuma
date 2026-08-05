@@ -1,6 +1,10 @@
 import { SQL } from 'bun'
 import type { DbClient, DbResult } from './client'
 
+type BunTransactionSql = SQL & Readonly<{
+  savepoint<T>(callback: (sql: SQL) => Promise<T>): Promise<T>
+}>
+
 export function createPostgresClient(
   connectionString: string,
   options: Readonly<{ max?: number; idleTimeout?: number }> = {},
@@ -58,7 +62,7 @@ function resultRowCount<Row>(result: Row[]): number {
   return typeof count === 'number' ? count : result.length
 }
 
-function wrapSql(sql: SQL): DbClient {
+function wrapSql(sql: SQL, insideTransaction = false): DbClient {
   const fn = (async <Row = Record<string, unknown>>(
     strings: TemplateStringsArray,
     ...values: unknown[]
@@ -78,7 +82,12 @@ function wrapSql(sql: SQL): DbClient {
   }
 
   fn.transaction = async <T>(cb: (tx: DbClient) => Promise<T>): Promise<T> => {
-    return await sql.begin(async (txSql) => cb(wrapSql(txSql as unknown as SQL)))
+    if (insideTransaction) {
+      return await (sql as BunTransactionSql).savepoint(async (txSql: SQL) => (
+        await cb(wrapSql(txSql, true))
+      ))
+    }
+    return await sql.begin(async (txSql) => cb(wrapSql(txSql as unknown as SQL, true)))
   }
 
   return Object.assign(fn, { dialect: 'postgres' as const })

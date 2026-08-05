@@ -101,6 +101,41 @@ function exactEconomics(left: CustomOffer, right: CustomOffer): boolean {
     === evidenceSha256({ recurring: right.recurringEconomics, setup: right.setupEconomics })
 }
 
+function exactOfferDefinition(left: CustomOffer, right: CustomOffer): boolean {
+  const withoutLifecycle = (offer: CustomOffer) => ({
+    ...offer,
+    state: null,
+    issuedAt: null,
+    acceptedAt: null,
+  })
+  return evidenceSha256(withoutLifecycle(left)) === evidenceSha256(withoutLifecycle(right))
+}
+
+function exactOfferDraft(offer: CustomOffer, draft: CustomOfferDraft): boolean {
+  const definition: CustomOfferDraft = {
+    offerId: offer.offerId,
+    version: offer.version,
+    destinationOrganizationId: offer.destinationOrganizationId,
+    destinationWorkspaceId: offer.destinationWorkspaceId,
+    siteId: offer.siteId,
+    currency: offer.currency,
+    recurringAmountMinor: offer.recurringAmountMinor,
+    cadence: offer.cadence,
+    setupFeeMinor: offer.setupFeeMinor,
+    quotas: offer.quotas,
+    workloadAssumptions: offer.workloadAssumptions,
+    setupWorkloadAssumptions: offer.setupWorkloadAssumptions,
+    termsHash: offer.termsHash,
+    effectiveAt: offer.effectiveAt,
+    expiresAt: offer.expiresAt,
+    renewalAt: offer.renewalAt,
+    renewalPolicy: offer.renewalPolicy,
+    discount: offer.discount,
+    replaces: offer.replaces,
+  }
+  return evidenceSha256(definition) === evidenceSha256(draft)
+}
+
 export type EntitlementDecision = Readonly<{
   organizationId: string
   source: 'platform-internal' | 'public-contract' | 'private-contract' | 'grandfathered' | 'none'
@@ -152,6 +187,19 @@ export class EntitlementService {
     try {
       if (!Value.Check(PriceBookDraftSchema, raw)) throw new EntitlementError('invalid', 'Price book failed strict TypeBox validation.')
       const draft = Object.freeze(structuredClone(raw)) as PriceBookDraft
+      const existingBook = await this.#repository.exactPriceBook(draft.version)
+      if (existingBook) {
+        const existingDraft = {
+          version: existingBook.version,
+          currency: existingBook.currency,
+          effectiveAt: existingBook.effectiveAt,
+          plans: existingBook.plans.map(({ economics: _economics, ...plan }) => plan),
+        }
+        if (evidenceSha256(existingDraft) !== evidenceSha256(draft)) {
+          throw new EntitlementError('immutable', 'Published price-book versions are immutable.')
+        }
+        return existingBook
+      }
       const seen = new Set<string>()
       const pairs = new Map<string, PlanDefinition[]>()
       const priced = []
@@ -181,6 +229,14 @@ export class EntitlementService {
         plans: Object.freeze(priced), publicJson,
       })
       if (!Value.Check(PriceBookSchema, book)) throw new EntitlementError('invalid', 'Price book snapshot failed strict validation.')
+      const existing = await this.#repository.exactPriceBook(book.version)
+      if (existing) {
+        const exactReplay = Object.freeze({ ...book, publishedAt: existing.publishedAt })
+        if (evidenceSha256(existing) !== evidenceSha256(exactReplay)) {
+          throw new EntitlementError('immutable', 'Published price-book versions are immutable.')
+        }
+        return existing
+      }
       return await this.#repository.publishPriceBook(book)
     } catch (error) { return entitlementError(error) }
   }
@@ -189,6 +245,11 @@ export class EntitlementService {
     try {
       if (!Value.Check(CustomOfferDraftSchema, raw)) throw new EntitlementError('invalid', 'Custom offer draft failed strict TypeBox validation.')
       const input = Object.freeze(structuredClone(raw)) as CustomOfferDraft
+      const existing = await this.#repository.exactOffer(input.offerId, input.version)
+      if (existing) {
+        if (!exactOfferDraft(existing, input)) throw new EntitlementError('immutable', 'Issued offer versions are immutable.')
+        return existing
+      }
       assertFiniteQuotas(input.quotas)
       assertWindow(input.effectiveAt, input.expiresAt, input.renewalAt)
       assertDiscount(input)
@@ -217,7 +278,11 @@ export class EntitlementService {
     try {
       if (!Value.Check(CustomOfferSchema, raw)) throw new EntitlementError('invalid', 'Offer failed strict validation.')
       const offer = Object.freeze(structuredClone(raw)) as CustomOffer
-      if (offer.state !== 'draft' || offer.issuedAt !== null || offer.acceptedAt !== null) throw new EntitlementError('immutable', 'Only an exact draft can be issued.')
+      if (offer.state !== 'draft' || offer.issuedAt !== null || offer.acceptedAt !== null) {
+        const existing = await this.#repository.exactOffer(offer.offerId, offer.version)
+        if (existing && evidenceSha256(existing) === evidenceSha256(offer)) return existing
+        throw new EntitlementError('immutable', 'Only an exact draft or exact stored replay can be issued.')
+      }
       if (instant(offer.expiresAt, 'Offer expiry') <= this.#now().getTime()) throw new EntitlementError('expired', 'Offer already expired.')
       await this.#destinations.assertProvisional({ organizationId: offer.destinationOrganizationId, workspaceId: offer.destinationWorkspaceId, siteId: offer.siteId })
       const reproposed = await this.propose({
@@ -229,6 +294,13 @@ export class EntitlementService {
         renewalPolicy: offer.renewalPolicy, discount: offer.discount, replaces: offer.replaces,
       })
       if (!exactEconomics(offer, reproposed)) throw new EntitlementError('margin', 'Offer economics changed after proposal.')
+      const existing = await this.#repository.exactOffer(offer.offerId, offer.version)
+      if (existing) {
+        if (!exactOfferDefinition(existing, reproposed)) {
+          throw new EntitlementError('immutable', 'Issued offer versions are immutable.')
+        }
+        return existing
+      }
       return await this.#repository.issueOffer(Object.freeze({ ...offer, state: 'issued', issuedAt: this.#now().toISOString() }))
     } catch (error) { return entitlementError(error) }
   }
