@@ -171,6 +171,18 @@ describe('FUMA-012 same-origin hosted staff auth', () => {
     expect(await existing.text()).toBe(await missing.text())
   }, 20_000)
 
+
+  it('accepts exact-host requests behind the trusted HTTPS-terminating proxy', () => {
+    const { boundary } = fixture()
+    const proxied = authRequest('http://app.trimly.co.ke/api/auth/get-session', {
+      headers: { 'x-forwarded-proto': 'https' },
+    }, { host: 'app.trimly.co.ke' })
+    const insecure = authRequest('http://app.trimly.co.ke/api/auth/get-session', {
+      headers: { 'x-forwarded-proto': 'http' },
+    }, { host: 'app.trimly.co.ke' })
+    expect(boundary.handlesProductRequest(proxied)).toBe(true)
+    expect(boundary.handlesProductRequest(insecure)).toBe(false)
+  })
   it('denies hostile origins, Host mismatches, customer hosts, marketing hosts, and deferred endpoint surfaces', async () => {
     const { boundary, database } = fixture()
     const beforeUsers = database[AUTH_MODEL_NAMES.user]!.length
