@@ -1,0 +1,83 @@
+name: Reconcile Fuma wildcard DNS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuma-wildcard-dns-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      FUMA_ENV_SECRET: ${{ secrets.FUMA_ENV_SECRET }}
+      SERVER_IP: ${{ secrets.SERVER_IP }}
+      ROOT_DOMAIN: ${{ vars.FUMA_DEPLOYMENT_ROOT_DOMAIN }}
+    steps:
+      - name: Reconcile wildcard record and verify public TLS
+        shell: bash
+        run: |
+          set -euo pipefail
+          env_file="$(mktemp)"
+          record_file="$(mktemp)"
+          response_file="$(mktemp)"
+          body_file="$(mktemp)"
+          cleanup() { rm -f "$env_file" "$record_file" "$response_file" "$body_file"; }
+          trap cleanup EXIT
+          printf '%s\n' "$FUMA_ENV_SECRET" > "$env_file"
+          chmod 600 "$env_file"
+          value() { grep -m1 "^$1=" "$env_file" | cut -d= -f2-; }
+          zone_id="$(value FUMA_CLOUDFLARE_ZONE_ID)"
+          api_token="$(value FUMA_CLOUDFLARE_API_TOKEN)"
+          if [ -z "$zone_id" ] || [ -z "$api_token" ] || [ -z "$SERVER_IP" ] || [ -z "$ROOT_DOMAIN" ]; then
+            echo '::error::Wildcard DNS reconciliation requires zone, token, server IP, and root domain.'
+            exit 1
+          fi
+          api="https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records"
+          name="*.$ROOT_DOMAIN"
+          encoded_name="$(printf '%s' "$name" | jq -sRr @uri)"
+          curl -fsS --retry 3 --max-time 30 -H "Authorization: Bearer $api_token" -H 'Accept: application/json' "$api?type=A&name=$encoded_name" > "$record_file"
+          if [ "$(jq '.success == true and (.result|length) == 1' "$record_file")" != true ]; then
+            echo '::error::Expected exactly one authoritative wildcard A record.'
+            exit 1
+          fi
+          record_id="$(jq -r '.result[0].id' "$record_file")"
+          content="$(jq -r '.result[0].content' "$record_file")"
+          prior_proxied="$(jq -r '.result[0].proxied' "$record_file")"
+          if [ "$content" != "$SERVER_IP" ]; then
+            echo '::error::Wildcard record does not target the reviewed production server.'
+            exit 1
+          fi
+          echo "wildcard record verified: type=A target=reviewed-server proxied=$prior_proxied"
+          if [ "$prior_proxied" != true ]; then
+            rollback() {
+              echo 'verification failed; restoring wildcard record to DNS-only'
+              curl -fsS --retry 3 --max-time 30 -X PATCH -H "Authorization: Bearer $api_token" -H 'Content-Type: application/json' --data '{"proxied":false}' "$api/$record_id" >/dev/null || true
+            }
+            trap rollback ERR
+            curl -fsS --retry 3 --max-time 30 -X PATCH -H "Authorization: Bearer $api_token" -H 'Content-Type: application/json' --data '{"proxied":true}' "$api/$record_id" > "$response_file"
+            if [ "$(jq '.success == true and .result.proxied == true' "$response_file")" != true ]; then
+              echo '::error::Cloudflare rejected wildcard proxy activation.'
+              exit 1
+            fi
+          fi
+          probe="fuma-tls-probe-${GITHUB_RUN_ID}.$ROOT_DOMAIN"
+          accepted=0
+          for attempt in $(seq 1 60); do
+            code="$(curl -sS --max-time 20 -o "$body_file" -w '%{http_code}' "https://$probe/" 2>/dev/null || true)"
+            if [ "$code" = 404 ] && grep -Fq 'Host not found.' "$body_file"; then accepted=1; break; fi
+            sleep 5
+          done
+          if [ "$accepted" != 1 ]; then
+            echo '::error::Wildcard public TLS or application host denial did not converge.'
+            exit 1
+          fi
+          curl -fsS --retry 3 --max-time 30 -H "Authorization: Bearer $api_token" -H 'Accept: application/json' "$api?type=A&name=$encoded_name" > "$record_file"
+          test "$(jq -r '.result[0].proxied' "$record_file")" = true
+          trap - ERR
+          echo "wildcard proxy active; verified HTTPS 404 from the application host authority"
