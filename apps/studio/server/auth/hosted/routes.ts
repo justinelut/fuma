@@ -267,7 +267,10 @@ export function createHostedStaffAuthBoundary(
     const securityFailure = await enforceAdminSecurity(request, endpoint, security)
     if (securityFailure) return securityFailure
 
-    const response = await input.auth.handler(request)
+    const externalRequest = url.origin === origin
+      ? request
+      : new Request(new URL(`${url.pathname}${url.search}`, origin), request)
+    const response = await input.auth.handler(externalRequest)
     if (!cookiesAreSafe(response, input.cookieName, input.secureCookies)) {
       console.error('[hosted-auth] Better Auth emitted an unsafe staff cookie')
       return jsonError('Internal server error', 500)
