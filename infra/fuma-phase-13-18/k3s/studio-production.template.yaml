@@ -187,13 +187,15 @@ metadata:
   name: fuma-migrate
   namespace: fuma
 spec:
+  # Apply suspended so the deploy can wait for PostgreSQL and align the
+  # persisted role password before the first migration connection attempt.
+  suspend: true
   # No ttlSecondsAfterFinished: the deploy deletes and recreates this Job each
-  # run, and a TTL shorter than the rollout wait would garbage-collect a
-  # finished Job mid-wait, making `kubectl wait` fail on a vanished object.
-  backoffLimit: 3
+  # run, and retaining failed pods preserves actionable migration logs.
+  backoffLimit: 2
   template:
     spec:
-      restartPolicy: OnFailure
+      restartPolicy: Never
       imagePullSecrets: [{ name: ghcr-secret }]
       containers:
         - name: migrate
