@@ -2,6 +2,12 @@ name: Reconcile Fuma wildcard DNS
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Reconciliation direction
+        required: true
+        type: choice
+        options: [enable, disable]
 
 permissions:
   contents: read
@@ -18,6 +24,7 @@ jobs:
       FUMA_ENV_SECRET: ${{ secrets.FUMA_ENV_SECRET }}
       SERVER_IP: ${{ secrets.SERVER_IP }}
       ROOT_DOMAIN: ${{ vars.FUMA_DEPLOYMENT_ROOT_DOMAIN }}
+      MODE: ${{ inputs.mode }}
     steps:
       - name: Reconcile wildcard record and verify public TLS
         shell: bash
@@ -54,6 +61,15 @@ jobs:
             exit 1
           fi
           echo "wildcard record verified: type=A target=reviewed-server proxied=$prior_proxied"
+          if [ "$MODE" = disable ]; then
+            if [ "$prior_proxied" = true ]; then
+              curl -fsS --retry 3 --max-time 30 -X PATCH -H "Authorization: Bearer $api_token" -H 'Content-Type: application/json' --data '{"proxied":false}' "$api/$record_id" > "$response_file"
+              test "$(jq '.success == true and .result.proxied == false' "$response_file")" = true
+            fi
+            echo 'wildcard record restored to DNS-only state'
+            exit 0
+          fi
+          if [ "$MODE" != enable ]; then echo '::error::Unsupported reconciliation mode.'; exit 1; fi
           if [ "$prior_proxied" != true ]; then
             rollback() {
               echo 'verification failed; restoring wildcard record to DNS-only'
@@ -75,6 +91,8 @@ jobs:
           done
           if [ "$accepted" != 1 ]; then
             echo '::error::Wildcard public TLS or application host denial did not converge.'
+            rollback
+            trap - ERR
             exit 1
           fi
           curl -fsS --retry 3 --max-time 30 -H "Authorization: Bearer $api_token" -H 'Accept: application/json' "$api?type=A&name=$encoded_name" > "$record_file"
