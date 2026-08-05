@@ -68,11 +68,12 @@ jobs:
           GHCR_USERNAME: ${{ github.actor }}
           GHCR_PULL_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO_OWNER: ${{ github.repository_owner }}
+          FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN: ${{ secrets.FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN }}
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: IMAGE_TAG,GHCR_USERNAME,GHCR_PULL_TOKEN,REPO_OWNER
+          envs: IMAGE_TAG,GHCR_USERNAME,GHCR_PULL_TOKEN,REPO_OWNER,FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN
           command_timeout: 15m
           script: |
             set -e
@@ -85,6 +86,11 @@ jobs:
               --docker-server=ghcr.io \
               --docker-username="$GHCR_USERNAME" \
               --docker-password="$GHCR_PULL_TOKEN" \
+              --dry-run=client -o yaml | sudo kubectl apply -f -
+
+            test -n "$FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN"
+            sudo kubectl create secret generic public-web-secrets -n $NS \
+              --from-literal=FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN="$FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN" \
               --dry-run=client -o yaml | sudo kubectl apply -f -
 
             sudo kubectl apply -f /opt/fuma/k8s-public-web.yaml
