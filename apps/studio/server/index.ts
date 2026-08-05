@@ -503,7 +503,14 @@ const freeHostRuntime = hostedFumaConfig
 const paystackRuntime = hostedFumaConfig
   ? createHostedPaystackRuntime({ db, config: hostedFumaConfig })
   : undefined
-const hostedKesCostConversion = hostedFumaConfig ? readHostedKesCostConversion() : undefined
+const hostedKesCostConfigured = Boolean(
+  process.env.FUMA_KES_FX_VERSION?.trim()
+  && process.env.FUMA_KES_MINOR_NUMERATOR?.trim()
+  && process.env.FUMA_USD_MICROS_DENOMINATOR?.trim(),
+)
+const hostedKesCostConversion = hostedFumaConfig && hostedKesCostConfigured
+  ? readHostedKesCostConversion()
+  : undefined
 const entitlementRuntime = hostedKesCostConversion
   ? createHostedEntitlementRuntime({
     db,
