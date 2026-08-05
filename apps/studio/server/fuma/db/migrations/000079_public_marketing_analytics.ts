@@ -1,6 +1,6 @@
 import type { HostedMigration } from '../migrationPolicy'
 
-/** FUMA-WEB-016 candidate. Intentionally unregistered until candidate 000078 is finalized. */
+/** FUMA-WEB-016 finalized additive public-marketing analytics authority. */
 export const publicMarketingAnalyticsMigration: HostedMigration = Object.freeze({
   id: '000079_public_marketing_analytics',
   description: 'Add privacy-minimized public marketing events and aggregates',

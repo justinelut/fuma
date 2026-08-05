@@ -1,11 +1,6 @@
 import type { HostedMigration } from '../migrationPolicy'
 
-/**
- * FUMA-WEB-014 durable metadata-only contact routing authority.
- *
- * This candidate intentionally remains outside the shared migration registry
- * until the conductor serializes accepted 000078 and 000079 work.
- */
+/** FUMA-WEB-014 finalized durable metadata-only contact routing authority. */
 export const publicTrustAuthorityMigration: HostedMigration = Object.freeze({
   id: '000080_public_trust_authority',
   description: 'Add durable public contact routing receipt authority',
