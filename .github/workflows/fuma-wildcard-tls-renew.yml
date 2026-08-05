@@ -21,6 +21,7 @@ jobs:
       ROOT_DOMAIN: ${{ vars.FUMA_DEPLOYMENT_ROOT_DOMAIN }}
     steps:
       - name: Issue wildcard certificate with DNS-01
+        id: issue
         shell: bash
         run: |
           set -euo pipefail
@@ -55,41 +56,35 @@ jobs:
           chmod 600 wildcard-tls/privkey.pem
           openssl x509 -in wildcard-tls/fullchain.pem -noout -checkend 2592000
           openssl x509 -in wildcard-tls/fullchain.pem -noout -ext subjectAltName | grep -Fq "DNS:*.$ROOT_DOMAIN"
-
-      - name: Prepare TLS directory
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ubuntu
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            sudo mkdir -p /opt/fuma/tls
-            sudo chown ubuntu:ubuntu /opt/fuma/tls
-            sudo chmod 700 /opt/fuma/tls
-
-      - name: Copy wildcard certificate
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ubuntu
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: wildcard-tls/fullchain.pem,wildcard-tls/privkey.pem
-          target: /opt/fuma/tls/
-          strip_components: 1
+          cert_b64="$(base64 -w0 wildcard-tls/fullchain.pem)"
+          key_b64="$(base64 -w0 wildcard-tls/privkey.pem)"
+          echo "::add-mask::$key_b64"
+          echo "cert_b64=$cert_b64" >> "$GITHUB_OUTPUT"
+          echo "key_b64=$key_b64" >> "$GITHUB_OUTPUT"
 
       - name: Install wildcard TLS secret
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          TLS_CERT_B64: ${{ steps.issue.outputs.cert_b64 }}
+          TLS_KEY_B64: ${{ steps.issue.outputs.key_b64 }}
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: TLS_CERT_B64,TLS_KEY_B64
           script: |
             set -e
             export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+            work="$(mktemp -d)"
+            cleanup() { sudo rm -rf "$work"; }
+            trap cleanup EXIT
+            umask 077
+            printf '%s' "$TLS_CERT_B64" | base64 -d > "$work/fullchain.pem"
+            printf '%s' "$TLS_KEY_B64" | base64 -d > "$work/privkey.pem"
+            openssl x509 -in "$work/fullchain.pem" -noout -checkend 2592000
             sudo kubectl create namespace fuma 2>/dev/null || true
             sudo kubectl -n fuma create secret tls fuma-tenant-wildcard-tls \
-              --cert=/opt/fuma/tls/fullchain.pem \
-              --key=/opt/fuma/tls/privkey.pem \
+              --cert="$work/fullchain.pem" \
+              --key="$work/privkey.pem" \
               --dry-run=client -o yaml | sudo kubectl apply -f -
-            sudo rm -f /opt/fuma/tls/fullchain.pem /opt/fuma/tls/privkey.pem
             sudo kubectl -n fuma get secret fuma-tenant-wildcard-tls -o jsonpath='{.type}' | grep -Fx 'kubernetes.io/tls'
