@@ -39,6 +39,15 @@ interface RuntimeControlComponentOptions {
   log: FumaRuntimeEventLogger
 }
 
+export function runtimeControlHostname(
+  env: Readonly<Record<string, unknown>> = process.env,
+): '127.0.0.1' | '0.0.0.0' {
+  const value = env.FUMA_HEALTH_HOST
+  if (value === undefined) return '127.0.0.1'
+  if (value === '127.0.0.1' || value === '0.0.0.0') return value
+  throw new TypeError('FUMA_HEALTH_HOST must be 127.0.0.1 or 0.0.0.0.')
+}
+
 function healthBody(context: FumaRuntimeContext): FumaRuntimeHealth {
   const snapshot = context.snapshot()
   return {
@@ -67,7 +76,7 @@ export function createRuntimeControlComponent(options: RuntimeControlComponentOp
     id: options.id,
     start(context) {
       const server = Bun.serve({
-        hostname: '127.0.0.1',
+        hostname: runtimeControlHostname(),
         port: options.port,
         fetch(request) {
           const pathname = new URL(request.url).pathname

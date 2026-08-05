@@ -236,6 +236,7 @@ spec:
           env:
             - { name: FUMA_ROLE, value: "web" }
             - { name: FUMA_HOSTED, value: "true" }
+            - { name: FUMA_HEALTH_HOST, value: "0.0.0.0" }
             - { name: FUMA_WEB_REVISION, value: "__FUMA_SOURCE_SHA__" }
           resources:
             requests: { memory: 512Mi, cpu: 200m }
@@ -283,6 +284,7 @@ spec:
           env:
             - { name: FUMA_ROLE, value: "worker" }
             - { name: FUMA_HOSTED, value: "true" }
+            - { name: FUMA_HEALTH_HOST, value: "0.0.0.0" }
           resources:
             requests: { memory: 384Mi, cpu: 100m }
             limits: { memory: 1Gi }
@@ -309,6 +311,7 @@ spec:
           env:
             - { name: FUMA_ROLE, value: "scheduler" }
             - { name: FUMA_HOSTED, value: "true" }
+            - { name: FUMA_HEALTH_HOST, value: "0.0.0.0" }
           resources:
             requests: { memory: 256Mi, cpu: 100m }
             limits: { memory: 768Mi }
