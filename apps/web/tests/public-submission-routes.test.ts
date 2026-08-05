@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { isSameOriginPublicRequest } from '../lib/public-request'
 import { POST as contact } from '../app/api/contact/route'
 import { POST as events } from '../app/api/events/route'
 import { POST as handoff } from '../app/api/handoff/route'
@@ -25,6 +26,18 @@ function expectNoStore(response: Response): void {
 }
 
 describe('public submission routes', () => {
+  test('accepts exact public origin behind forwarded HTTPS and rejects forwarded HTTP', () => {
+    const proxied = new Request('http://trimly.co.ke/api/handoff', {
+      method: 'POST',
+      headers: { host: 'trimly.co.ke', origin: 'https://trimly.co.ke', 'x-forwarded-proto': 'https' },
+    })
+    const insecure = new Request('http://trimly.co.ke/api/handoff', {
+      method: 'POST',
+      headers: { host: 'trimly.co.ke', origin: 'https://trimly.co.ke', 'x-forwarded-proto': 'http' },
+    })
+    expect(isSameOriginPublicRequest(proxied)).toBe(true)
+    expect(isSameOriginPublicRequest(insecure)).toBe(false)
+  })
   test('reject cross-origin and non-JSON requests without private calls', async () => {
     for (const [path, handler] of [
       ['/api/handoff', handoff],
