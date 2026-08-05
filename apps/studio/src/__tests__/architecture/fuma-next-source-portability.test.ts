@@ -104,4 +104,12 @@ describe('FUMA-077 generic Next.js source portability architecture', () => {
     expect(bindings).toContain('Current Publication contracts do not model episodes/audio enclosures.')
     expect(bindings).not.toContain("podcast: ['publication.content']")
   })
+
+  test('keeps GitHub App import inert until both exact credentials are configured', () => {
+    const server = read('apps/studio/server/index.ts')
+    expect(server).toContain('process.env.FUMA_GITHUB_APP_ID?.trim()')
+    expect(server).toContain('&& process.env.FUMA_GITHUB_APP_PRIVATE_KEY_PEM?.trim()')
+    expect(server).toContain('...(nextSourceGithubConfigured')
+    expect(server).not.toContain("hostedFumaConfig.environment === 'production' || nextSourceGithubConfigured")
+  })
 })
