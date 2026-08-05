@@ -66,3 +66,15 @@ export class OciEmailDeliveryAdapter implements OciEmailDeliveryProvider {
     return Object.freeze({ providerMessageId: parsed.value.messageId })
   }
 }
+
+/**
+ * Preserves the OCI-only publication port while making absent configuration
+ * explicit. Submission always fails before request signing or network access.
+ */
+export class UnavailableOciEmailDeliveryAdapter implements OciEmailDeliveryProvider {
+  readonly kind = 'oci-email-delivery' as const
+
+  async submit(_input: Parameters<OciEmailDeliveryProvider['submit']>[0]): Promise<Readonly<{ providerMessageId: string }>> {
+    throw new OciEmailDeliveryError('OCI Email Delivery is disabled because it is not configured.')
+  }
+}

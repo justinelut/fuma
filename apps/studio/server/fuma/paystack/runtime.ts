@@ -54,7 +54,7 @@ export function createHostedPaystackRuntime(input: HostedPaystackRuntimeInput): 
   registry: PaystackPurposeRegistry
   ledger: PostgresPaystackLedger
   platformBilling: ScopedPaystackTransport
-  customerMerchant: ScopedPaystackTransport
+  customerMerchant: ScopedPaystackTransport | null
   webhooks: PaystackWebhookBoundary
 }> {
   const registry = input.registry ?? new PaystackPurposeRegistry()
@@ -68,13 +68,15 @@ export function createHostedPaystackRuntime(input: HostedPaystackRuntimeInput): 
     registry,
     { providerBaseUrl },
   )
-  const customerMerchant = new ScopedPaystackTransport(
-    input.config.paystack.customerMerchant,
-    http,
-    ledger,
-    registry,
-    { providerBaseUrl },
-  )
+  const customerMerchant = input.config.paystack.customerMerchant === null
+    ? null
+    : new ScopedPaystackTransport(
+      input.config.paystack.customerMerchant,
+      http,
+      ledger,
+      registry,
+      { providerBaseUrl },
+    )
   return Object.freeze({
     registry,
     ledger,

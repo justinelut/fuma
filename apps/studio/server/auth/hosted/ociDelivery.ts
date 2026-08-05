@@ -20,8 +20,29 @@ function safeUrl(value: string, linkHost: string): string {
   return url.toString()
 }
 
+type HostedAuthOciConfig = Omit<Pick<FumaConfig, 'environment' | 'hosts' | 'ociEmail'>, 'ociEmail'> & Readonly<{
+  ociEmail: FumaConfig['ociEmail'] | null
+}>
+
+export class HostedAuthEmailDeliveryUnavailableError extends Error {
+  constructor() {
+    super('Hosted auth email delivery is disabled because OCI Email Delivery is not configured.')
+    this.name = 'HostedAuthEmailDeliveryUnavailableError'
+  }
+}
+
+export function createHostedAuthUnavailableDelivery(): HostedAuthDelivery {
+  const unavailable = async (): Promise<void> => {
+    throw new HostedAuthEmailDeliveryUnavailableError()
+  }
+  return Object.freeze({
+    sendVerification: unavailable,
+    sendPasswordReset: unavailable,
+  })
+}
+
 export function createHostedAuthOciDelivery(input: Readonly<{
-  config: Pick<FumaConfig, 'environment' | 'hosts' | 'ociEmail'>
+  config: HostedAuthOciConfig
   now?: () => Date
   fetchImpl?: typeof fetch
   provider?: Pick<OciEmailDeliveryProvider, 'submit'>
@@ -29,6 +50,9 @@ export function createHostedAuthOciDelivery(input: Readonly<{
   audience?: 'staff' | 'account'
 }>): HostedAuthDelivery {
   if (input.config.environment !== 'production') throw new TypeError('OCI hosted auth delivery is production-only.')
+  const ociEmail = input.config.ociEmail
+  if (ociEmail === null) return createHostedAuthUnavailableDelivery()
+
   const now = input.now ?? (() => new Date())
   const linkHost = input.linkHost ?? input.config.hosts.product
   const parsedLinkOrigin = new URL(`https://${linkHost}`)
@@ -37,10 +61,10 @@ export function createHostedAuthOciDelivery(input: Readonly<{
   }
   const audience = input.audience ?? 'staff'
   const provider = input.provider ?? new OciEmailDeliveryAdapter({
-    region: input.config.ociEmail.region,
-    compartmentId: input.config.ociEmail.compartmentId,
-    approvedSender: input.config.ociEmail.approvedSender,
-    signer: new OciRsaRequestSigner({ ...input.config.ociEmail, now }),
+    region: ociEmail.region,
+    compartmentId: ociEmail.compartmentId,
+    approvedSender: ociEmail.approvedSender,
+    signer: new OciRsaRequestSigner({ ...ociEmail, now }),
     ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
   })
 
@@ -56,9 +80,9 @@ export function createHostedAuthOciDelivery(input: Readonly<{
     await provider.submit({
       idempotencyKey: createHash('sha256').update(JSON.stringify([kind, message.email.trim().toLowerCase(), url])).digest('hex'),
       recipient: message.email,
-      senderEmail: input.config.ociEmail.approvedSender,
+      senderEmail: ociEmail.approvedSender,
       senderName: 'Fuma',
-      replyToEmail: input.config.ociEmail.approvedSender,
+      replyToEmail: ociEmail.approvedSender,
       subject,
       html,
       text,

@@ -50,7 +50,7 @@ export type PaystackRawWebhookHandler = (
 
 export type PaystackWebhookBoundaryInput = Readonly<{
   platformBilling: ScopedPaystackTransport
-  customerMerchant: ScopedPaystackTransport
+  customerMerchant?: ScopedPaystackTransport | null
   platformBillingHandler?: PaystackRawWebhookHandler
 }>
 
@@ -72,23 +72,27 @@ export class PaystackWebhookBoundary {
     if (input.platformBilling.scope !== 'platform_billing') {
       throw new TypeError('Platform Paystack webhook route requires platform_billing credentials.')
     }
-    if (input.customerMerchant.scope !== 'customer_merchant') {
+    if (input.customerMerchant && input.customerMerchant.scope !== 'customer_merchant') {
       throw new TypeError('Customer Paystack webhook route requires customer_merchant credentials.')
     }
-    if (input.platformBilling === input.customerMerchant) {
+    if (input.customerMerchant && input.platformBilling === input.customerMerchant) {
       throw new TypeError('Paystack credential scopes require separate transport instances.')
     }
-    this.#routes = new Map([
+    const routes: Array<readonly [string, BoundWebhookRoute]> = [
       [PAYSTACK_WEBHOOK_PATHS.platform_billing, Object.freeze({
         transport: input.platformBilling,
         handle: input.platformBillingHandler
           ?? ((raw, signature) => input.platformBilling.ingestWebhook(raw, signature)),
       })],
-      [PAYSTACK_WEBHOOK_PATHS.customer_merchant, Object.freeze({
+    ]
+    if (input.customerMerchant) routes.push([
+      PAYSTACK_WEBHOOK_PATHS.customer_merchant,
+      Object.freeze({
         transport: input.customerMerchant,
-        handle: (raw, signature) => input.customerMerchant.ingestWebhook(raw, signature),
-      })],
+        handle: (raw, signature) => input.customerMerchant!.ingestWebhook(raw, signature),
+      }),
     ])
+    this.#routes = new Map(routes)
   }
 
   handles(request: Request): boolean {
