@@ -56,6 +56,7 @@ import { createArtifactMarketplaceScopedRoutes, createHostedArtifactReviewRuntim
 import { createQuotaRuntime } from './fuma/quotas'
 import { createHostedComponentCatalogRuntime } from './fuma/componentCatalog'
 import { createHostedCapabilityDashboardRuntime } from './fuma/aiCapabilityDashboard'
+import { createHostedBookingRuntime } from './fuma/bookings'
 import { createPlatformConsoleBoundary } from './fuma/platformConsole/boundary'
 import { AuditService, PostgresAuditRepository } from './fuma/audit'
 import { createHostedMeteringRuntime } from './fuma/metering'
@@ -611,6 +612,7 @@ const hostedCapabilityDashboardRuntime = hostedComponentCatalogRuntime && hosted
     }),
   })
   : undefined
+const bookingsRuntime = hostedFumaConfig ? createHostedBookingRuntime({ db }) : undefined
 const fumaScopedApi = createHostedFumaScopedApi({
   db,
   hostedStaffAuth: hostedStaffAuthRuntime,
@@ -623,6 +625,7 @@ const fumaScopedApi = createHostedFumaScopedApi({
   ...(hostedSupportOperationsRuntime ? { supportRoutes: hostedSupportOperationsRuntime.scopedRoutes } : {}),
   ...(hostedExpertDiscoveryRuntime ? { expertRoutes: hostedExpertDiscoveryRuntime.scopedRoutes } : {}),
   ...(hostedCapabilityDashboardRuntime ? { capabilityDashboardRoutes: hostedCapabilityDashboardRuntime.scopedRoutes } : {}),
+  ...(bookingsRuntime ? { bookingRoutes: bookingsRuntime.scopedRoutes } : {}),
   ...(hostedNextSourceRuntime ? { nextSourceRoutes: hostedNextSourceRuntime.scopedRoutes } : {}),
 })
 const memberImportBoundary = memberIdentityRuntime && hostedStaffAuthRuntime && fumaScopedApi

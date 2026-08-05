@@ -9,6 +9,7 @@ import { SupportOperationsRouteContent, type SupportClientTarget } from '../fuma
 import { ExpertDiscoveryRouteContent } from '../fuma/expertDiscovery'
 import { PaidHandoffRouteContent } from '../fuma/paidHandoff'
 import { CustomerCapabilityDashboardRouteContent, PlatformCapabilityInventoryRouteContent } from '../fuma/aiCapabilities'
+import { BookingsRouteContent, bookingsAdminRegistry } from '../fuma/bookings'
 import {
   HostedProfileEditorSurface,
   type HostedProfileEditorRenderAdapter,
@@ -202,6 +203,7 @@ export function HostedStaffShell({
           />
         ) : (
         <FumaScopedShell
+          registry={bookingsAdminRegistry}
           catalog={catalogValidation.catalog}
           pathname={pathname}
           actorLabel={currentSession.user.name}
@@ -223,6 +225,7 @@ export function HostedStaffShell({
                 )}
               />
               <CustomerCapabilityDashboardRouteContent shell={shell} />
+              <BookingsRouteContent shell={shell} />
               <HostedProfileEditorSurface
                 shell={shell}
                 permissionDecisions={permissionDecisions}
