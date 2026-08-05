@@ -50,7 +50,9 @@ spec:
           image: __FUMA_PUBLIC_WEB_IMAGE__
           imagePullPolicy: IfNotPresent
           ports: [{ name: http, containerPort: 3002 }]
-          envFrom: [{ configMapRef: { name: public-web-config } }]
+          envFrom:
+            - { configMapRef: { name: public-web-config } }
+            - { secretRef: { name: public-web-secrets } }
           startupProbe:
             httpGet:
               path: /api/health

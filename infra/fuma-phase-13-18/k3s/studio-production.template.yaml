@@ -239,6 +239,8 @@ spec:
             - { name: HOST, value: "0.0.0.0" }
             - { name: PORT, value: "3101" }
             - { name: STATIC_DIR, value: "/workspace/apps/studio/dist" }
+            - { name: FUMA_PUBLIC_PROJECTION_INTERNAL_HOST, value: "runtime-web.fuma.svc.cluster.local" }
+            - { name: FUMA_REDIS_NAMESPACE, value: "fuma-production" }
             - { name: FUMA_WEB_REVISION, value: "__FUMA_SOURCE_SHA__" }
           resources:
             requests: { memory: 512Mi, cpu: 200m }
@@ -258,6 +260,17 @@ apiVersion: v1
 kind: Service
 metadata:
   name: fuma-studio
+  namespace: fuma
+spec:
+  selector: { app: fuma-studio }
+  ports: [{ name: http, port: 80, targetPort: http }]
+---
+# Stable private alias consumed by public Web. It is cluster-only and has no
+# IngressRoute or external DNS name.
+apiVersion: v1
+kind: Service
+metadata:
+  name: runtime-web
   namespace: fuma
 spec:
   selector: { app: fuma-studio }
