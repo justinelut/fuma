@@ -160,7 +160,7 @@ export class PostgresSiteRuntimeAuthority {
       with exact_host as (
         select free.host, free.platform_id, free.organization_id, free.workspace_id,
           free.site_id, free.owner_key, free.owner_generation
-        from fuma_free_hosts free
+        from fuma_free_hosts_v2 free
         where free.host = ${host}
           and free.state = 'active'
           and free.canonical_host is null

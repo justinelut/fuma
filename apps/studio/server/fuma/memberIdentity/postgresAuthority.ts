@@ -28,7 +28,7 @@ export class PostgresMemberSiteAuthority implements MemberSiteAuthority {
       where owner.state='active' and owner.transfer_id is null and owner.transfer_lock_id is null and owner.transfer_fence is null
         and site.status='active'
         and (
-          exists (select 1 from fuma_free_hosts free where free.host=${hostname} and free.state='active'
+          exists (select 1 from fuma_free_hosts_v2 free where free.host=${hostname} and free.state='active'
             and free.platform_id=owner.platform_id and free.organization_id=owner.organization_id and free.workspace_id=owner.workspace_id
             and free.site_id=owner.site_id and free.owner_key=owner.owner_key)
           or exists (select 1 from fuma_domains domain where domain.hostname=${hostname} and domain.desired='active'

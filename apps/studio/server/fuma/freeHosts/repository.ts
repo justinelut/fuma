@@ -117,7 +117,7 @@ export class PostgresFreeHostRepository implements FreeHostRepository, ActiveRel
         `
         if (owner.rows.length !== 1) throw new FreeHostError('stale-authority', 'Current owner generation denied.')
         const result = await db`
-          insert into fuma_free_hosts (
+          insert into fuma_free_hosts_v2 (
             host, label, platform_id, owner_key, organization_id, workspace_id,
             site_id, owner_generation, state, canonical_host, allocation_version,
             created_at, state_updated_at
@@ -141,7 +141,7 @@ export class PostgresFreeHostRepository implements FreeHostRepository, ActiveRel
       const result = await db<FreeHostRow>`
         select host, label, platform_id, organization_id, workspace_id, site_id,
           owner_key, owner_generation, state, canonical_host, allocation_version, created_at
-        from fuma_free_hosts where host = ${host}
+        from fuma_free_hosts_v2 where host = ${host}
       `
       return result.rows[0] ? mapRecord(result.rows[0]) : null
     })
@@ -157,7 +157,7 @@ export class PostgresFreeHostRepository implements FreeHostRepository, ActiveRel
       const current = await db<FreeHostRow>`
         select host, label, platform_id, organization_id, workspace_id, site_id,
           owner_key, owner_generation, state, canonical_host, allocation_version, created_at
-        from fuma_free_hosts where host = ${input.host} for update
+        from fuma_free_hosts_v2 where host = ${input.host} for update
       `
       const record = current.rows[0] ? mapRecord(current.rows[0]) : null
       if (!record || record.version !== input.expectedVersion || !sameAuthority(record, input.authority)) return null
@@ -177,7 +177,7 @@ export class PostgresFreeHostRepository implements FreeHostRepository, ActiveRel
       `
       if (owner.rows.length !== 1) return null
       const updated = await db<FreeHostRow>`
-        update fuma_free_hosts set state = ${input.state},
+        update fuma_free_hosts_v2 set state = ${input.state},
           allocation_version = allocation_version + 1,
           state_updated_at = current_timestamp
         where host = ${record.host} and allocation_version = ${record.version}
@@ -192,7 +192,7 @@ export class PostgresFreeHostRepository implements FreeHostRepository, ActiveRel
     return await this.#db.transaction(async (db) => {
       const result = await db<ActiveReleaseRow>`
       select pointer.release_id, release.manifest_json
-      from fuma_free_hosts free_host
+      from fuma_free_hosts_v2 free_host
       join fuma_tenant_owner_keys owner
         on owner.platform_id = free_host.platform_id
         and owner.owner_key = free_host.owner_key

@@ -173,7 +173,7 @@ export class PostgresEdgeHostAuthority implements EdgeHostAuthority {
   async exact(scope: FumaRepositoryScope): Promise<string> {
     const result = await this.#db<{ host: string }>`
       select free_host.host
-      from fuma_free_hosts free_host
+      from fuma_free_hosts_v2 free_host
       join fuma_tenant_owner_keys owner
         on owner.platform_id = free_host.platform_id
        and owner.owner_key = free_host.owner_key

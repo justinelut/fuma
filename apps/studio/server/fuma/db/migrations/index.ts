@@ -77,6 +77,12 @@ import { componentCatalogAuthorityMigration } from './000075_component_catalog_a
 import { supportOperationsAuthorityMigration } from './000076_support_operations_authority'
 import { publicHandoffAuthorityMigration } from './000077_public_handoff_authority'
 import { nextSourcePortabilityAuthorityMigration } from './000078_next_source_portability_authority'
+import { publicMarketingAnalyticsMigration } from './000079_public_marketing_analytics'
+import { publicTrustAuthorityMigration } from './000080_public_trust_authority'
+import { bookingsAuthorityMigration } from './000081_bookings_authority'
+import { freeHostRootDomainPortabilityMigration } from './000082_free_host_root_domain_portability'
+import { publicationMembershipTiersMigration } from './000083_publication_membership_tiers'
+import { transferObjectCheckpointMigration } from './000084_transfer_object_checkpoints'
 
 export const hostedMigrations = Object.freeze([
   transitionBookkeepingMigration,
@@ -157,6 +163,12 @@ export const hostedMigrations = Object.freeze([
   supportOperationsAuthorityMigration,
   publicHandoffAuthorityMigration,
   nextSourcePortabilityAuthorityMigration,
+  publicMarketingAnalyticsMigration,
+  publicTrustAuthorityMigration,
+  bookingsAuthorityMigration,
+  freeHostRootDomainPortabilityMigration,
+  publicationMembershipTiersMigration,
+  transferObjectCheckpointMigration,
 ])
 
 export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
@@ -243,7 +255,13 @@ export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Obje
   '000075_component_catalog_authority': '760f409e118eaffcd72323ffd2f70aaf008bbde3e732e3372afcaf8e64657f61',
   '000076_support_operations_authority': 'bafa690ed6e28b161036b235d55c098534e61af929c31824f35a6541ae5ce60e',
   '000077_public_handoff_authority': 'fb257b84c2e44b65212ef5227845c50524887248fb10732a6ec46a4b7dd53015',
-  '000078_next_source_portability_authority': HOSTED_MIGRATION_CHECKSUM_SENTINEL,
+  '000078_next_source_portability_authority': '053a62f35b7abbe5c98d4264c31bf745e7db199b250ce2ff2cf38642de3cc6cf',
+  '000079_public_marketing_analytics': '3221aba9a73de2b16c48f90e87b796c083854694a7400452cdb1c8a2e647652e',
+  '000080_public_trust_authority': '9d3fbbe099e0c43816b677e78cbea9ba41d393bdc574dcb4d66ec85fd0fbde74',
+  '000081_bookings_authority': '8072f216cf1214198c4e6ed9ee8e434f78bdbcee4079058d7bbe0a5291a2821d',
+  '000082_free_host_root_domain_portability': '7ab618b889dbed53775ec1453a7924804f0b76b143dbbac44418ce55099ac793',
+  '000083_publication_membership_tiers': '9275c9dc4efbd4b9585054992e1e06ecef66ccacee6ec4371d50553d66972a3e',
+  '000084_transfer_object_checkpoints': '968aad0ae1e7547d43e51a47c24bbd3eb050f7b8ebdddd40d113bd7d5bca0fab',
 })
 
 const firstUnappliedMigration = hostedMigrations.findIndex(({ id }) => (
