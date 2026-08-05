@@ -7,6 +7,10 @@ if [ "$#" -gt 0 ]; then
 fi
 
 case "$command_name" in
+  studio)
+    export FUMA_ROLE=web
+    exec bun --cwd=apps/studio run server/index.ts "$@"
+    ;;
   web|worker|scheduler)
     export FUMA_ROLE="$command_name"
     exec bun --cwd=apps/studio run "fuma:$command_name" "$@"

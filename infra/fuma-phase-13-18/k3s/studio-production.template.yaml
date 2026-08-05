@@ -230,24 +230,26 @@ spec:
       containers:
         - name: studio
           image: __FUMA_RUNTIME_IMAGE__
-          args: ["web"]
+          args: ["studio"]
           ports: [{ name: http, containerPort: 3101 }]
           envFrom: [{ secretRef: { name: fuma-secrets } }]
           env:
             - { name: FUMA_ROLE, value: "web" }
             - { name: FUMA_HOSTED, value: "true" }
-            - { name: FUMA_HEALTH_HOST, value: "0.0.0.0" }
+            - { name: HOST, value: "0.0.0.0" }
+            - { name: PORT, value: "3101" }
+            - { name: STATIC_DIR, value: "/workspace/apps/studio/dist" }
             - { name: FUMA_WEB_REVISION, value: "__FUMA_SOURCE_SHA__" }
           resources:
             requests: { memory: 512Mi, cpu: 200m }
             limits: { memory: 1536Mi }
           readinessProbe:
-            httpGet: { path: /healthz, port: http }
+            httpGet: { path: /health, port: http }
             initialDelaySeconds: 15
             periodSeconds: 10
             failureThreshold: 12
           livenessProbe:
-            httpGet: { path: /healthz, port: http }
+            httpGet: { path: /health, port: http }
             initialDelaySeconds: 60
             periodSeconds: 20
             failureThreshold: 3

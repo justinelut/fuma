@@ -259,8 +259,8 @@ jobs:
             echo "════════════ in-cluster health ════════════"
             sudo kubectl -n $NS run studio-health-$RANDOM --rm -i --restart=Never \
               --image=curlimages/curl:latest --command -- \
-              curl -sS -o /dev/null -w 'in-cluster /healthz -> %{http_code}\n' \
-              --max-time 15 http://fuma-studio.fuma.svc.cluster.local/healthz
+              curl -sS -o /dev/null -w 'in-cluster /health -> %{http_code}\n' \
+              --max-time 15 http://fuma-studio.fuma.svc.cluster.local/health
 
       - name: Public HTTPS smoke test
         env:
@@ -281,7 +281,7 @@ jobs:
           fi
 
           for host in app auth admin; do
-            url="https://$host.$FUMA_DEPLOYMENT_ROOT_DOMAIN/healthz"
+            url="https://$host.$FUMA_DEPLOYMENT_ROOT_DOMAIN/health"
             code=000
             for attempt in $(seq 1 30); do
               code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$url" || echo 000)"
