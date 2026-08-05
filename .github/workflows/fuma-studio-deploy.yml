@@ -146,12 +146,15 @@ jobs:
           IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
           set -euo pipefail
+          escaped_root_domain="$(printf '%s' "$FUMA_DEPLOYMENT_ROOT_DOMAIN" | sed 's/\./\\\\./g')"
           sed \
+            -e "s|__FUMA_ESCAPED_ROOT_DOMAIN__|$escaped_root_domain|g" \
             -e "s|__FUMA_ROOT_DOMAIN__|$FUMA_DEPLOYMENT_ROOT_DOMAIN|g" \
             -e "s|__FUMA_RUNTIME_IMAGE__|ghcr.io/${{ github.repository_owner }}/fuma-runtime:$IMAGE_TAG|g" \
             -e "s|__FUMA_SOURCE_SHA__|$GITHUB_SHA|g" \
             infra/fuma-phase-13-18/k3s/studio-production.template.yaml > k8s/_staged/studio.yaml
           grep -Fq "Host(\`app.$FUMA_DEPLOYMENT_ROOT_DOMAIN\`)" k8s/_staged/studio.yaml
+          grep -Fq 'HostRegexp(' k8s/_staged/studio.yaml
           ! grep -q '__FUMA_' k8s/_staged/studio.yaml
           chmod 644 k8s/_staged/studio.yaml
 
