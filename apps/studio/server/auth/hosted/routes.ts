@@ -19,6 +19,7 @@ const TargetSessionBodySchema = Type.Object({
 const ALLOWED_ENDPOINTS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
   ['/sign-up/email', new Set(['POST'])],
   ['/sign-in/email', new Set(['POST'])],
+  ['/sign-in/social', new Set(['POST'])],
   ['/sign-out', new Set(['POST'])],
   ['/get-session', new Set(['GET'])],
   ['/send-verification-email', new Set(['POST'])],
@@ -115,6 +116,7 @@ function endpointFor(pathname: string): string {
 function endpointIsAllowed(pathname: string, method: string): boolean {
   const endpoint = endpointFor(pathname)
   if (ALLOWED_ENDPOINTS.get(endpoint)?.has(method)) return true
+  if (method === 'GET' && /^\/callback\/(?:google|github)$/.test(endpoint)) return true
   return method === 'GET' && /^\/reset-password\/[^/]+$/.test(endpoint)
 }
 

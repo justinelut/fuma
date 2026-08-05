@@ -502,6 +502,8 @@ const freeHostRuntime = hostedFumaConfig
     db,
     config: hostedFumaConfig,
     objectAccessSigningSecret: requiredFumaObjectSigningSecret(),
+    controlHosts: [process.env.FUMA_PUBLIC_PROJECTION_INTERNAL_HOST?.trim()]
+      .filter((value): value is string => Boolean(value)),
     ...(releaseObjectStorage ? { storage: releaseObjectStorage } : {}),
     ...(edgeRuntime ? { edge: edgeRuntime.boundary } : {}),
     extensions: [dynamicPublicationPublic, publicationAnalyticsPublic].filter((value) => value !== undefined),
