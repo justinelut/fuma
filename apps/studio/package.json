@@ -67,6 +67,7 @@
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.6.25",
     "@fuma/brand": "workspace:*",
+    "@fuma/governance-launch": "workspace:*",
     "@fuma/public-contracts": "workspace:*",
     "@codemirror/lang-css": "^6.3.1",
     "@codemirror/lang-html": "^6.4.11",
