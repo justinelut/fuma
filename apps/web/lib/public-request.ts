@@ -1,5 +1,10 @@
 import { effectivePublicHost, isBlyssAcceptanceProxy, isKnownPublicHost, normalizedPublicHost } from './public-host'
 
+function effectiveRequestProtocol(request: Request, url: URL): string {
+  const forwarded = request.headers.get('x-forwarded-proto')?.split(',', 1)[0]?.trim().toLowerCase()
+  return forwarded === 'https' || forwarded === 'http' ? `${forwarded}:` : url.protocol
+}
+
 export function isPublicWebRequest(request: Request): boolean {
   let url: URL
   try {
@@ -12,7 +17,7 @@ export function isPublicWebRequest(request: Request): boolean {
   const acceptanceProxy = isBlyssAcceptanceProxy(request.headers, receivedHost)
   const host = effectivePublicHost(request.headers, urlHost)
   return isKnownPublicHost(host)
-    && (acceptanceProxy || (url.protocol === 'https:' && receivedHost === urlHost))
+    && (acceptanceProxy || (effectiveRequestProtocol(request, url) === 'https:' && receivedHost === urlHost))
 }
 
 export function isSameOriginPublicRequest(request: Request): boolean {
