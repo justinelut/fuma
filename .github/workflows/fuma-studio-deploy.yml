@@ -30,6 +30,7 @@ jobs:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
           FUMA_OBJECT_ACCESS_SIGNING_SECRET: ${{ secrets.FUMA_OBJECT_ACCESS_SIGNING_SECRET }}
           FUMA_AI_BYOK_METADATA_KEY: ${{ secrets.FUMA_AI_BYOK_METADATA_KEY }}
           FUMA_EXPERT_INQUIRY_KEY: ${{ secrets.FUMA_EXPERT_INQUIRY_KEY }}
@@ -65,6 +66,7 @@ jobs:
           inject FUMA_ENV production
           inject FUMA_HOSTED true
           inject FUMA_DEPLOYMENT_ROOT_DOMAIN "$FUMA_DEPLOYMENT_ROOT_DOMAIN"
+          inject BETTER_AUTH_SECRET "${BETTER_AUTH_SECRET:-}"
           inject FUMA_OBJECT_ACCESS_SIGNING_SECRET "${FUMA_OBJECT_ACCESS_SIGNING_SECRET:-}"
           inject FUMA_AI_BYOK_METADATA_KEY "${FUMA_AI_BYOK_METADATA_KEY:-}"
           inject FUMA_EXPERT_INQUIRY_KEY "${FUMA_EXPERT_INQUIRY_KEY:-}"
@@ -106,6 +108,7 @@ jobs:
           check_class 'Redis' FUMA_REDIS_URL
           check_class 'MinIO' FUMA_MINIO_ENDPOINT FUMA_MINIO_ACCESS_KEY_ID FUMA_MINIO_SECRET_ACCESS_KEY FUMA_MINIO_BUCKET
           check_class 'Publication unsubscribe signing' FUMA_PUBLICATION_UNSUBSCRIBE_SIGNING_SECRET
+          check_class 'Better Auth session signing' BETTER_AUTH_SECRET
           check_class 'Object access signing' FUMA_OBJECT_ACCESS_SIGNING_SECRET
           check_class 'AI BYOK metadata encryption' FUMA_AI_BYOK_METADATA_KEY
           check_class 'Expert inquiry encryption' FUMA_EXPERT_INQUIRY_KEY
