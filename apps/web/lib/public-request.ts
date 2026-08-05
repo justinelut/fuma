@@ -24,16 +24,14 @@ export function isSameOriginPublicRequest(request: Request): boolean {
   try {
     const requestUrl = new URL(request.url)
     const origin = new URL(request.headers.get('origin') ?? 'invalid:')
-    const receivedHost = normalizedPublicHost(request.headers.get('host') ?? requestUrl.hostname)
-    const acceptanceProxy = isBlyssAcceptanceProxy(request.headers, receivedHost)
     const expectedHost = effectivePublicHost(request.headers, requestUrl.hostname)
     const forwarded = request.headers.get('x-forwarded-proto')?.split(',', 1)[0]?.trim().toLowerCase()
     if (forwarded === 'http') return false
-    return isKnownPublicHost(expectedHost)
-      && (acceptanceProxy || receivedHost === normalizedPublicHost(requestUrl.hostname))
+    return request.headers.get('host') !== null
+      && isKnownPublicHost(expectedHost)
       && origin.protocol === 'https:'
       && normalizedPublicHost(origin.hostname) === expectedHost
-      && (acceptanceProxy ? origin.port === '' : origin.port === requestUrl.port)
+      && origin.port === ''
       && origin.username === ''
       && origin.password === ''
   } catch {

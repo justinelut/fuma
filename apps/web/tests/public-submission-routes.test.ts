@@ -39,8 +39,13 @@ describe('public submission routes', () => {
       method: 'POST',
       headers: { host: 'trimly.co.ke', origin: 'https://trimly.co.ke' },
     })
+    const internallyRewritten = new Request('http://127.0.0.1:3002/api/handoff', {
+      method: 'POST',
+      headers: { host: 'trimly.co.ke', origin: 'https://trimly.co.ke' },
+    })
     expect(isSameOriginPublicRequest(proxied)).toBe(true)
     expect(isSameOriginPublicRequest(proxiedWithoutProtocol)).toBe(true)
+    expect(isSameOriginPublicRequest(internallyRewritten)).toBe(true)
     expect(isSameOriginPublicRequest(insecure)).toBe(false)
   })
   test('reject cross-origin and non-JSON requests without private calls', async () => {
