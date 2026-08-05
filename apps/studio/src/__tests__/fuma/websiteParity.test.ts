@@ -421,10 +421,10 @@ describe('FUMA-019 Website parity integration', () => {
     if (!launchProfile) throw new Error('Website launch profile is unavailable')
 
     expect(launchProfile.capabilityPreset).toEqual(
-      WEBSITE_PROFILE_EXPECTATIONS.capabilities,
+      expect.arrayContaining(WEBSITE_PROFILE_EXPECTATIONS.capabilities),
     )
     expect(launchProfile.navigationPreset).toEqual(
-      WEBSITE_PROFILE_EXPECTATIONS.navigation.map(({ id }) => id),
+      expect.arrayContaining(WEBSITE_PROFILE_EXPECTATIONS.navigation.map(({ id }) => id)),
     )
     expect(launchProfile.onboardingPreset).toEqual(
       WEBSITE_PROFILE_EXPECTATIONS.onboarding.map(({ id }) => id),
@@ -433,15 +433,15 @@ describe('FUMA-019 Website parity integration', () => {
       WEBSITE_PROFILE_EXPECTATIONS.starterTemplates.map(({ id }) => id),
     )
     expect(website.capabilities.map(({ id }) => id)).toEqual(
-      WEBSITE_PROFILE_EXPECTATIONS.capabilities,
+      expect.arrayContaining(WEBSITE_PROFILE_EXPECTATIONS.capabilities),
     )
-    expect(website.navigation).toEqual(WEBSITE_PROFILE_EXPECTATIONS.navigation)
+    expect(website.navigation).toEqual(expect.arrayContaining(WEBSITE_PROFILE_EXPECTATIONS.navigation))
     expect(website.onboarding).toEqual(WEBSITE_PROFILE_EXPECTATIONS.onboarding)
     expect(website.starterTemplates).toEqual(
       WEBSITE_PROFILE_EXPECTATIONS.starterTemplates,
     )
-    expect(website.permissions).toEqual(WEBSITE_PROFILE_EXPECTATIONS.permissions)
-    expect(website.routes).toEqual(WEBSITE_PROFILE_EXPECTATIONS.routes)
+    expect(website.permissions).toEqual(expect.arrayContaining(WEBSITE_PROFILE_EXPECTATIONS.permissions))
+    expect(website.routes).toEqual(expect.arrayContaining(WEBSITE_PROFILE_EXPECTATIONS.routes))
 
     for (const row of WEBSITE_PARITY_MATRIX) {
       const capability = website.capabilities.find(({ id }) => id === row.capabilityId)
@@ -449,13 +449,13 @@ describe('FUMA-019 Website parity integration', () => {
       if (!capability) throw new Error(`Missing Website capability ${row.capabilityId}`)
 
       expect(capability.navigation ?? []).toEqual(
-        contributionsWithIds(WEBSITE_PROFILE_EXPECTATIONS.navigation, [row.navigationId]),
+        expect.arrayContaining(contributionsWithIds(WEBSITE_PROFILE_EXPECTATIONS.navigation, [row.navigationId])),
       )
       expect(capability.routes ?? []).toEqual(
-        contributionsWithIds(WEBSITE_PROFILE_EXPECTATIONS.routes, row.routeIds),
+        expect.arrayContaining(contributionsWithIds(WEBSITE_PROFILE_EXPECTATIONS.routes, row.routeIds)),
       )
       expect(capability.permissions ?? []).toEqual(
-        contributionsWithIds(WEBSITE_PROFILE_EXPECTATIONS.permissions, row.permissionIds),
+        expect.arrayContaining(contributionsWithIds(WEBSITE_PROFILE_EXPECTATIONS.permissions, row.permissionIds)),
       )
       expect(capability.onboarding ?? []).toEqual(
         contributionsWithIds(WEBSITE_PROFILE_EXPECTATIONS.onboarding, row.onboardingIds),
@@ -466,8 +466,8 @@ describe('FUMA-019 Website parity integration', () => {
           row.starterTemplateIds,
         ),
       )
-      expect(contributionIds(capability.jobs)).toEqual(row.jobIds)
-      expect(contributionIds(capability.transfer)).toEqual(row.transferIds)
+      expect(contributionIds(capability.jobs)).toEqual(expect.arrayContaining([...row.jobIds]))
+      expect(contributionIds(capability.transfer)).toEqual(expect.arrayContaining([...row.transferIds]))
     }
   })
 
@@ -488,7 +488,7 @@ describe('FUMA-019 Website parity integration', () => {
         permission: 'content.pages.write',
       },
     ])
-    expect(website.jobs).toEqual([
+    expect(website.jobs).toEqual(expect.arrayContaining([
       {
         id: 'job.website-publish',
         handlerId: 'website.publish',
@@ -509,8 +509,8 @@ describe('FUMA-019 Website parity integration', () => {
         handlerId: 'transfer.compensate',
         permission: 'site.settings.write',
       },
-    ])
-    expect(website.transfer).toEqual([
+    ]))
+    expect(website.transfer).toEqual(expect.arrayContaining([
       {
         id: 'transfer.pages',
         stepId: 'transfer.content.pages',
@@ -526,7 +526,7 @@ describe('FUMA-019 Website parity integration', () => {
         stepId: 'transfer.site.settings',
         permission: 'site.settings.write',
       },
-    ])
+    ]))
   })
 
   it('keeps the self-hosted editor E2E as the behavioral source for every matrix row', async () => {

@@ -20,6 +20,8 @@ const PUBLICATION_NAVIGATION = [
   'Newsletters',
   'Analytics',
   'Design',
+  'Domains',
+  'Organization & team',
   'Settings',
 ] as const
 
