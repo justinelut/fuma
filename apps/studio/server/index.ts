@@ -139,6 +139,11 @@ if (fumaHosted) {
 }
 const hostedFumaConfig = fumaHosted ? readFumaConfig() : undefined
 const hostedStaffSecret = hostedFumaConfig ? readHostedAuthSecret() : undefined
+const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim()
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim()
+const hostedSocialProviders = googleClientId && googleClientSecret
+  ? Object.freeze({ google: Object.freeze({ clientId: googleClientId, clientSecret: googleClientSecret }) })
+  : undefined
 const hostedStaffAuthRuntime = hostedFumaConfig
   ? (() => {
     const fumaConfig = hostedFumaConfig
@@ -155,6 +160,7 @@ const hostedStaffAuthRuntime = hostedFumaConfig
       cookieName: fumaConfig.staffCookie.name,
       secret: hostedStaffSecret!,
       delivery,
+      ...(hostedSocialProviders ? { socialProviders: hostedSocialProviders } : {}),
     })
   })()
   : undefined
@@ -236,6 +242,7 @@ const centralIdentityAuthRuntime = hostedFumaConfig && hostedStaffSecret && host
       cookieName: hostedFumaConfig.staffCookie.secure ? AUTH_HANDOFF_SESSION_COOKIE : 'fuma_auth',
       secret: hostedStaffSecret,
       delivery,
+      ...(hostedSocialProviders ? { socialProviders: hostedSocialProviders } : {}),
     })
   })()
   : undefined
