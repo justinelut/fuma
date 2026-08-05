@@ -15,7 +15,7 @@ export const publicationSchedulingAccessMigration: HostedMigration = Object.free
   id: '000048_publication_scheduling_access',
   description: 'Add exact-scope Publication schedules and digest-only preview token authority',
   sql: `
-    create table fuma_publication_schedules (${scopeColumns},
+    create table fuma_publication_schedules_v2 (${scopeColumns},
       schedule_id text not null,
       content_id text not null,
       action text not null check (action in ('publish','unpublish')),
@@ -37,11 +37,11 @@ export const publicationSchedulingAccessMigration: HostedMigration = Object.free
       check ((state='claimed')=(claimed_by is not null and claim_expires_at is not null)),
       check ((state in ('completed','superseded','cancelled'))=(completed_at is not null))
     );
-    create index fuma_publication_schedules_due_idx
-      on fuma_publication_schedules (${scopeKeys}, due_at, schedule_id)
+    create index fuma_publication_schedules_v2_due_idx
+      on fuma_publication_schedules_v2 (${scopeKeys}, due_at, schedule_id)
       where state in ('pending','claimed');
-    create unique index fuma_publication_schedules_active_action_idx
-      on fuma_publication_schedules (${scopeKeys}, content_id, action)
+    create unique index fuma_publication_schedules_v2_active_action_idx
+      on fuma_publication_schedules_v2 (${scopeKeys}, content_id, action)
       where state in ('pending','claimed');
 
     create table fuma_publication_preview_tokens (${scopeColumns},
