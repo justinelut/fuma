@@ -21,14 +21,17 @@ export function isPublicWebRequest(request: Request): boolean {
 }
 
 export function isSameOriginPublicRequest(request: Request): boolean {
-  if (!isPublicWebRequest(request)) return false
   try {
     const requestUrl = new URL(request.url)
     const origin = new URL(request.headers.get('origin') ?? 'invalid:')
     const receivedHost = normalizedPublicHost(request.headers.get('host') ?? requestUrl.hostname)
     const acceptanceProxy = isBlyssAcceptanceProxy(request.headers, receivedHost)
     const expectedHost = effectivePublicHost(request.headers, requestUrl.hostname)
-    return origin.protocol === 'https:'
+    const forwarded = request.headers.get('x-forwarded-proto')?.split(',', 1)[0]?.trim().toLowerCase()
+    if (forwarded === 'http') return false
+    return isKnownPublicHost(expectedHost)
+      && (acceptanceProxy || receivedHost === normalizedPublicHost(requestUrl.hostname))
+      && origin.protocol === 'https:'
       && normalizedPublicHost(origin.hostname) === expectedHost
       && (acceptanceProxy ? origin.port === '' : origin.port === requestUrl.port)
       && origin.username === ''

@@ -35,7 +35,12 @@ describe('public submission routes', () => {
       method: 'POST',
       headers: { host: 'trimly.co.ke', origin: 'https://trimly.co.ke', 'x-forwarded-proto': 'http' },
     })
+    const proxiedWithoutProtocol = new Request('http://trimly.co.ke/api/handoff', {
+      method: 'POST',
+      headers: { host: 'trimly.co.ke', origin: 'https://trimly.co.ke' },
+    })
     expect(isSameOriginPublicRequest(proxied)).toBe(true)
+    expect(isSameOriginPublicRequest(proxiedWithoutProtocol)).toBe(true)
     expect(isSameOriginPublicRequest(insecure)).toBe(false)
   })
   test('reject cross-origin and non-JSON requests without private calls', async () => {
