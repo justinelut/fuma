@@ -1,4 +1,4 @@
-import type { AiByokCredential, AiCreditAccount, AiCreditLot, AiCreditReservation, AiCreditSettlement } from './contracts'
+import { sameAiCreditScope, type AiByokCredential, type AiCreditAccount, type AiCreditLot, type AiCreditReservation, type AiCreditScope, type AiCreditSettlement } from './contracts'
 import { AiCreditRepositoryError, type AiCreditRepository, type AiCreditSnapshot, type AiCreditWriteOutcome } from './repository'
 
 const same = (left: unknown, right: unknown): boolean => JSON.stringify(left) === JSON.stringify(right)
@@ -33,7 +33,11 @@ export class MemoryAiCreditRepository implements AiCreditRepository {
   async snapshot(accountId: string): Promise<AiCreditSnapshot | null> {
     const account = this.accounts.get(accountId)
     if (!account) return null
-    return Object.freeze({ account: clone(account), lots: [...this.lots.values()].filter((v) => v.accountId === accountId).map(clone), reservations: [...this.reservations.values()].filter((v) => v.accountId === accountId).map(clone), settlements: [...this.settlements.values()].filter((v) => this.reservations.get(v.reservationId)?.accountId === accountId).map(clone), credentials: [...this.credentials.values()].filter((v) => v.scope.siteId === account.scope.siteId).map(clone) })
+    return Object.freeze({ account: clone(account), lots: [...this.lots.values()].filter((v) => v.accountId === accountId).map(clone), reservations: [...this.reservations.values()].filter((v) => v.accountId === accountId).map(clone), settlements: [...this.settlements.values()].filter((v) => this.reservations.get(v.reservationId)?.accountId === accountId).map(clone), credentials: [...this.credentials.values()].filter((v) => sameAiCreditScope(v.scope, account.scope)).map(clone) })
+  }
+  async snapshotForScope(scope: AiCreditScope): Promise<AiCreditSnapshot | null> {
+    const account = [...this.accounts.values()].find((value) => sameAiCreditScope(value.scope, scope))
+    return account ? await this.snapshot(account.accountId) : null
   }
   async reservation(id: string) { return clone(this.reservations.get(id) ?? null) }
   async credential(id: string) { return clone(this.credentials.get(id) ?? null) }

@@ -128,6 +128,32 @@ export const AiCreditAccountViewSchema = Type.Object({
 }, { additionalProperties: false })
 export type AiCreditAccountView = Readonly<Omit<Static<typeof AiCreditAccountViewSchema>, 'credentials'> & { credentials: readonly AiByokCredentialView[] }>
 
+export const AiCreditLedgerEntrySchema = Type.Object({
+  entryId: Id,
+  entryType: Type.Union([Type.Literal('grant'), Type.Literal('purchase'), Type.Literal('usage')]),
+  state: Type.Union([
+    Type.Literal('available'), Type.Literal('partially-used'), Type.Literal('used'),
+    Type.Literal('expired'), Type.Literal('reserved'), Type.Literal('settled'),
+    Type.Literal('released'), Type.Literal('refunded'),
+  ]),
+  amountMicros: Micros, remainingMicros: Micros,
+  mode: Type.Union([AiTurnModeSchema, Type.Null()]),
+  providerId: Type.Union([Id, Type.Null()]), modelId: Type.Union([Id, Type.Null()]),
+  inputTokens: Type.Union([Micros, Type.Null()]), outputTokens: Type.Union([Micros, Type.Null()]),
+  occurredAt: Timestamp, resolvedAt: Type.Union([Timestamp, Type.Null()]),
+  expiresAt: Type.Union([Timestamp, Type.Null()]),
+}, { additionalProperties: false })
+export type AiCreditLedgerEntry = Readonly<Static<typeof AiCreditLedgerEntrySchema>>
+
+export const AiCreditLedgerViewSchema = Type.Object({
+  account: AiCreditAccountViewSchema,
+  entries: Type.Array(AiCreditLedgerEntrySchema, { maxItems: 10_000 }),
+}, { additionalProperties: false })
+export type AiCreditLedgerView = Readonly<{
+  account: AiCreditAccountView
+  entries: readonly AiCreditLedgerEntry[]
+}>
+
 export class AiCreditContractError extends Error {
   override readonly name = 'AiCreditContractError'
   readonly boundary: string

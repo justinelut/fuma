@@ -19,6 +19,7 @@ export type HostedPublicationRuntime=Readonly<{
   graph:ReturnType<typeof createFumaPublicationServiceGraph>
   publicBoundary:PublicationPublicBoundary
   jobs:FumaJobService
+  oci: OciEmailDeliveryAdapter | UnavailableOciEmailDeliveryAdapter
   jobHandlers:Readonly<Record<string,FumaScopedJobHandler>>
   close:()=>Promise<void>
 }>
@@ -50,5 +51,5 @@ export async function createHostedPublicationRuntime(input:Readonly<{db:DbClient
     ? new DenyPublicationProviderEventVerifier()
     : new HmacPublicationProviderEventVerifier(ociEmail.eventVerificationSecret)
   const publicBoundary=new PublicationPublicBoundary({signer:tokenSigner,deliverability:graph.deliverability,authority:new PostgresPublicationPublicAuthority(input.db),verifier,engagement:{signer:engagementSigner,control:graph.deliverabilityControls},redis,now})
-  return Object.freeze({graph,publicBoundary,jobs,jobHandlers:createPublicationJobHandlers(graph,now),close:async()=>{await Promise.all([readyQueue.close(),redis.close()])}})
+  return Object.freeze({graph,publicBoundary,jobs,oci,jobHandlers:createPublicationJobHandlers(graph,now),close:async()=>{await Promise.all([readyQueue.close(),redis.close()])}})
 }

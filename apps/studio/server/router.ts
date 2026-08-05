@@ -35,6 +35,8 @@ import type { PaystackWebhookBoundary } from './fuma/paystack/boundary'
 import type { EntitlementAdminBoundary } from './fuma/entitlements'
 import type { PlatformConsoleBoundary } from './fuma/platformConsole/boundary'
 import type { PublicMarketingAnalyticsAdminBoundary } from './fuma/publicAnalytics/adminBoundary'
+import type { HostedSiteOnboardingBoundary } from './fuma/onboarding'
+import type { WorkspaceManagementBoundary } from './fuma/workspaces/managementBoundary'
 import {
   invalidateLegacyStaffCookie,
   isLegacyHostedAuthPath,
@@ -57,6 +59,8 @@ export interface ServerRuntime {
   entitlementAdmin?: EntitlementAdminBoundary
   platformConsole?: PlatformConsoleBoundary
   publicMarketingAnalyticsAdmin?: PublicMarketingAnalyticsAdminBoundary
+  hostedSiteOnboarding?: HostedSiteOnboardingBoundary
+  workspaceManagement?: WorkspaceManagementBoundary
   fumaScopedApi?: FumaScopedRouteBoundary
   mcpAuthority?: McpNativeHttpAuthority
   staticDir?: string
@@ -92,6 +96,8 @@ const routes: readonly RouteHandler[] = [
   tryServeEntitlementAdmin,
   tryServePlatformConsole,
   tryServePublicMarketingAnalyticsAdmin,
+  tryServeHostedSiteOnboarding,
+  tryServeWorkspaceManagement,
   // Hosted scoped routes own `/api/fuma` completely. Keep this before the
   // legacy CMS dispatcher so hosted requests cannot enter self-host routing.
   tryServeFumaScopedApi,
@@ -184,6 +190,16 @@ async function tryServePlatformConsole(req: Request, runtime: ServerRuntime): Pr
 async function tryServePublicMarketingAnalyticsAdmin(req: Request, runtime: ServerRuntime): Promise<Response | null> {
   if (!runtime.publicMarketingAnalyticsAdmin?.handles(req)) return null
   return await runtime.publicMarketingAnalyticsAdmin.handle(req)
+}
+
+async function tryServeHostedSiteOnboarding(req: Request, runtime: ServerRuntime): Promise<Response | null> {
+  if (!runtime.hostedSiteOnboarding?.handles(req)) return null
+  return await runtime.hostedSiteOnboarding.handle(req)
+}
+
+async function tryServeWorkspaceManagement(req: Request, runtime: ServerRuntime): Promise<Response | null> {
+  if (!runtime.workspaceManagement?.handles(req)) return null
+  return await runtime.workspaceManagement.handle(req)
 }
 
 function tryServeHealth(_req: Request, _runtime: ServerRuntime, _url: URL, pathname: string): Response | null {

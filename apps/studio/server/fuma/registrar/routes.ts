@@ -12,6 +12,7 @@ import {
   RegistrarSearchRequestSchema,
 } from './contracts'
 import { RegistrarWorkflow, RegistrarWorkflowError } from './workflow'
+import type { RegistrarStepUpIssuer } from './productionStepUp'
 
 const ErrorSchema = Type.Object({ error: Type.String({ minLength: 1, maxLength: 500 }) }, { additionalProperties: false })
 const ReceiptSchema = Type.Union([RegistrarPurchaseReceiptSchema, RegistrarRenewalReceiptSchema])
@@ -45,6 +46,7 @@ function scope(input: FumaScopedRouteHandlerInput): DomainScope {
 export function createRegistrarScopedRouteDeclarations(
   workflow: RegistrarWorkflow,
   repository: Pick<import('./workflow').RegistrarWorkflowRepository, 'registrations'>,
+  stepUpIssuer?: RegistrarStepUpIssuer,
 ): readonly FumaScopedRouteDeclaration[] {
   const declaration = (
     method: FumaScopedRouteDeclaration['method'], path: string, permission: string,
@@ -61,12 +63,18 @@ export function createRegistrarScopedRouteDeclarations(
     declaration('POST', '/settings/domains/registrar/purchase', 'site.settings.write', async (input) => {
       const body = await readValidatedBody(input.request, ConfirmedRegistrarPurchaseSchema)
       if (!body) return response(ErrorSchema, { error: 'Registrar purchase confirmation is invalid.' }, 400)
-      return response(RegistrarPurchaseReceiptSchema, await workflow.purchase(scope(input), body), 201)
+      const stepUpProof = stepUpIssuer
+        ? await stepUpIssuer.issue(input, `registrar-purchase:${body.quoteId}:${body.expectedTermsHash}`)
+        : body.stepUpProof
+      return response(RegistrarPurchaseReceiptSchema, await workflow.purchase(scope(input), { ...body, stepUpProof }), 201)
     }),
     declaration('POST', '/settings/domains/registrar/renew', 'site.settings.write', async (input) => {
       const body = await readValidatedBody(input.request, ConfirmedRegistrarRenewalSchema)
       if (!body) return response(ErrorSchema, { error: 'Registrar renewal confirmation is invalid.' }, 400)
-      return response(RegistrarRenewalReceiptSchema, await workflow.renew(scope(input), body), 201)
+      const stepUpProof = stepUpIssuer
+        ? await stepUpIssuer.issue(input, `registrar-renew:${body.registrationId}:${body.expectedPreviousExpiresAt}:${body.expectedTermsHash}`)
+        : body.stepUpProof
+      return response(RegistrarRenewalReceiptSchema, await workflow.renew(scope(input), { ...body, stepUpProof }), 201)
     }),
     declaration('POST', '/settings/domains/registrar/operations/:operationId/reconcile', 'site.settings.write', async (input) =>
       response(ReceiptSchema, await workflow.reconcile(scope(input), input.params.operationId))),

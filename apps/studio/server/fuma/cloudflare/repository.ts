@@ -141,7 +141,10 @@ export class PostgresCloudflareStateRepository implements CloudflareStateReposit
       const prior = await this.byOperationWith(db, scope, record.lastOperationId)
       if (prior) return canonical(prior) === canonical(record) ? 'duplicate' : 'conflict'
       const inserted = await db`insert into fuma_cloudflare_hostname_authority_v2(platform_id,organization_id,workspace_id,site_id,owner_key,owner_generation,owner_state,transfer_fence,profile_id,domain_id,hostname,provider_hostname_id,lifecycle,provider_status,ssl_status,ownership_verified,instructions_json,diagnostics_json,version,reconcile_fence,last_event_sequence,last_operation_id,last_operation_sha256,created_at,updated_at) values(${record.platformId},${record.organizationId},${record.workspaceId},${record.siteId},${record.ownerKey},${record.generation},${record.state},${record.transferFence},${record.profileId},${record.domainId},${record.hostname},${record.providerHostnameId},${record.lifecycle},${record.providerStatus},${record.sslStatus},${record.ownershipVerified},${JSON.stringify(record.instructions)}::text::jsonb,${JSON.stringify(record.diagnostics)}::text::jsonb,${record.version},${record.reconcileFence},${record.lastEventSequence},${record.lastOperationId},${record.lastOperationSha256},${record.createdAt},${record.updatedAt}) on conflict do nothing`
-      if (inserted.rowCount !== 1) return 'conflict'
+      if (inserted.rowCount !== 1) {
+        const winner = await this.byOperationWith(db, scope, record.lastOperationId)
+        return winner && canonical(winner) === canonical(record) ? 'duplicate' : 'conflict'
+      }
       await this.insertOperation(db, record)
       return 'applied'
     })
@@ -154,7 +157,10 @@ export class PostgresCloudflareStateRepository implements CloudflareStateReposit
       const prior = await this.byOperationWith(db, scope, next.lastOperationId)
       if (prior) return canonical(prior) === canonical(next) ? 'duplicate' : 'conflict'
       const updated = await db`update fuma_cloudflare_hostname_authority_v2 set lifecycle=${next.lifecycle},provider_status=${next.providerStatus},ssl_status=${next.sslStatus},ownership_verified=${next.ownershipVerified},instructions_json=${JSON.stringify(next.instructions)}::text::jsonb,diagnostics_json=${JSON.stringify(next.diagnostics)}::text::jsonb,version=${next.version},reconcile_fence=${next.reconcileFence},last_event_sequence=${next.lastEventSequence},last_operation_id=${next.lastOperationId},last_operation_sha256=${next.lastOperationSha256},updated_at=${next.updatedAt} where platform_id=${scope.platformId} and organization_id=${scope.organizationId} and workspace_id=${scope.workspaceId} and site_id=${scope.siteId} and owner_key=${scope.ownerKey} and owner_generation=${scope.generation} and owner_state=${scope.state} and transfer_fence is not distinct from ${scope.transferFence} and profile_id=${scope.profileId} and domain_id=${current.domainId} and version=${current.version} and reconcile_fence=${current.reconcileFence} and last_operation_id=${current.lastOperationId} and last_operation_sha256=${current.lastOperationSha256}`
-      if (updated.rowCount !== 1) return 'conflict'
+      if (updated.rowCount !== 1) {
+        const winner = await this.byOperationWith(db, scope, next.lastOperationId)
+        return winner && canonical(winner) === canonical(next) ? 'duplicate' : 'conflict'
+      }
       await this.insertOperation(db, next)
       return 'applied'
     })

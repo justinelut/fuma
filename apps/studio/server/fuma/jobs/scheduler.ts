@@ -4,12 +4,25 @@ import type { FumaJobAdmissionPolicy } from './contracts'
 import type { FumaJobReadyQueue } from './readyQueue'
 import type { FumaJobRepository } from './repository'
 
+export type FumaRecurringJobProducerResult = Readonly<{
+  attempted: number
+  created: number
+}>
+
+export interface FumaRecurringJobProducer {
+  readonly id: string
+  readonly intervalMs: number
+  bucket(at: Date): string
+  produce(at: Date): Promise<FumaRecurringJobProducerResult>
+}
+
 export interface FumaJobSchedulerOptions {
   repository: FumaJobRepository
   readyQueue: FumaJobReadyQueue
   coordination: FumaRedisCoordination
   admission: FumaJobAdmissionPolicy
   schedulerId: string
+  producers?: readonly FumaRecurringJobProducer[]
   leaseMs?: number
   batchSize?: number
   now?: () => Date
@@ -21,9 +34,11 @@ export class FumaJobScheduler {
   readonly #coordination: FumaRedisCoordination
   readonly #admission: FumaJobAdmissionPolicy
   readonly #schedulerId: string
+  readonly #producers: readonly FumaRecurringJobProducer[]
   readonly #leaseMs: number
   readonly #batchSize: number
   readonly #now: () => Date
+  readonly #completedProducerBuckets = new Map<string, string>()
 
   constructor(options: FumaJobSchedulerOptions) {
     this.#repository = options.repository
@@ -31,6 +46,7 @@ export class FumaJobScheduler {
     this.#coordination = options.coordination
     this.#admission = options.admission
     this.#schedulerId = options.schedulerId
+    this.#producers = Object.freeze([...(options.producers ?? [])])
     this.#leaseMs = options.leaseMs ?? 10_000
     this.#batchSize = options.batchSize ?? 100
     this.#now = options.now ?? (() => new Date())
@@ -57,6 +73,31 @@ export class FumaJobScheduler {
         } catch (error) {
           console.warn('[fuma:jobs] scheduled Redis enqueue failed; worker reconciliation will recover:', error)
         }
+      } finally {
+        await this.#coordination.releaseLease(lease)
+      }
+    }
+    return enqueued + await this.#runRecurringProducers(now)
+  }
+
+  async #runRecurringProducers(now: Date): Promise<number> {
+    let enqueued = 0
+    for (const producer of this.#producers) {
+      const bucket = producer.bucket(now)
+      if (this.#completedProducerBuckets.get(producer.id) === bucket) continue
+      const lease = await this.#coordination.acquireLease({
+        resource: `durable-job-producer:${producer.id}:${bucket}`,
+        ownerId: this.#schedulerId,
+        acquisitionId: `${this.#schedulerId}:${producer.id}:${bucket}`,
+        ttlMs: this.#leaseMs,
+      })
+      if (!lease) continue
+      try {
+        const result = await producer.produce(now)
+        enqueued += result.created
+        this.#completedProducerBuckets.set(producer.id, bucket)
+      } catch (error) {
+        console.error(`[fuma:jobs] recurring producer ${producer.id} failed:`, error)
       } finally {
         await this.#coordination.releaseLease(lease)
       }

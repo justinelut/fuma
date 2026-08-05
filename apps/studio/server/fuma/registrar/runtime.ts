@@ -12,6 +12,7 @@ export type HostedRegistrarRuntimeInput = Readonly<{
   provider: AuthorizedRegistrarProvider
   domains: Pick<DomainService, 'create'>
   stepUp: StepUpAuthority
+  stepUpIssuer?: import('./productionStepUp').RegistrarStepUpIssuer
   entitled: ConstructorParameters<typeof RegistrarWorkflow>[0]['entitled']
   authority: DomainCredentialAuthority
   credentialId: string
@@ -43,7 +44,7 @@ export function createHostedRegistrarRuntime(input: HostedRegistrarRuntimeInput)
     repository,
     workflow,
     onboarding,
-    scopedRoutes: createRegistrarScopedRouteDeclarations(workflow, repository),
+    scopedRoutes: createRegistrarScopedRouteDeclarations(workflow, repository, input.stepUpIssuer),
     jobs: registrarJobRegistration(workflow),
   })
 }

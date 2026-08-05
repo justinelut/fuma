@@ -16,6 +16,7 @@ import {
   createPostgresHostedAuth,
   createPostgresHostedIdentityAuth,
   type HostedAuthDelivery,
+  type HostedOrganizationLifecycle,
   type HostedResolvedSession,
   type HostedSocialProviders,
 } from './auth'
@@ -30,6 +31,7 @@ export type HostedStaffAuthRuntimeInput = Readonly<{
   secret: string
   delivery: HostedAuthDelivery
   socialProviders?: HostedSocialProviders
+  organizationLifecycle?: HostedOrganizationLifecycle
   reconcileProtectedOwner?: (email: string) => Promise<void>
 }>
 
@@ -66,6 +68,7 @@ export type HostedFumaScopedApiInput = Readonly<{
   publicationRoutes?: readonly FumaScopedRouteDeclaration[]
   checkoutRoutes?: readonly FumaScopedRouteDeclaration[]
   quotaRoutes?: readonly FumaScopedRouteDeclaration[]
+  domainRoutes?: readonly FumaScopedRouteDeclaration[]
   mcpRoutes?: readonly FumaScopedRouteDeclaration[]
   marketplaceRoutes?: readonly FumaScopedRouteDeclaration[]
   aiPaymentSetupRoutes?: readonly FumaScopedRouteDeclaration[]
@@ -128,6 +131,7 @@ export function createHostedStaffAuthRuntime(
     cookieName: input.cookieName,
     delivery: input.delivery,
     ...(input.socialProviders ? { socialProviders: input.socialProviders } : {}),
+    ...(input.organizationLifecycle ? { organizationLifecycle: input.organizationLifecycle } : {}),
   })
   const resolveSession = async (headers: Headers) => {
     const session = await postgres.resolveSession(headers)
@@ -142,6 +146,7 @@ export function createHostedStaffAuthRuntime(
     origin,
     cookieName: input.cookieName,
     secureCookies: input.secureCookies,
+    organizationEndpoints: input.organizationLifecycle !== undefined,
     security: {
       freshSessionSeconds: FUMA_STAFF_FRESH_SESSION_SECONDS,
       protectedOwnerEmail: input.protectedOwnerEmail,
@@ -195,6 +200,7 @@ export function createHostedFumaScopedApi(
     ...(input.publicationRoutes??[]),
     ...(input.checkoutRoutes ?? []),
     ...(input.quotaRoutes ?? []),
+    ...(input.domainRoutes ?? []),
     ...(input.mcpRoutes ?? []),
     ...(input.marketplaceRoutes ?? []),
     ...(input.aiPaymentSetupRoutes ?? []),

@@ -1,4 +1,4 @@
-import type { AiByokCredential, AiCreditAccount, AiCreditLot, AiCreditReservation, AiCreditSettlement } from './contracts'
+import type { AiByokCredential, AiCreditAccount, AiCreditLot, AiCreditReservation, AiCreditScope, AiCreditSettlement } from './contracts'
 
 export type AiCreditSnapshot = Readonly<{
   account: AiCreditAccount
@@ -11,6 +11,7 @@ export type AiCreditWriteOutcome<T> = Readonly<{ duplicate: boolean; value: T }>
 
 export interface AiCreditRepository {
   snapshot(accountId: string): Promise<AiCreditSnapshot | null>
+  snapshotForScope(scope: AiCreditScope): Promise<AiCreditSnapshot | null>
   reservation(reservationId: string): Promise<AiCreditReservation | null>
   credential(credentialId: string): Promise<AiByokCredential | null>
   credit(input: Readonly<{ account: AiCreditAccount; lot: AiCreditLot; expectedVersion: number | null }>): Promise<AiCreditWriteOutcome<AiCreditAccount>>

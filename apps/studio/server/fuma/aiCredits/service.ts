@@ -6,7 +6,8 @@ import {
   parseAiCreditContract, sameAiCreditScope,
   type AiByokCredential, type AiByokCredentialView, type AiCatalogQuoteEvidence,
   type AiCreditAccount, type AiCreditAccountView, type AiCreditAudience,
-  type AiCreditReservation, type AiCreditSettlement,
+  type AiCreditLedgerEntry, type AiCreditLedgerView, type AiCreditReservation,
+  type AiCreditScope, type AiCreditSettlement,
 } from './contracts'
 import { AiCreditRepositoryError, type AiCreditRepository } from './repository'
 
@@ -138,13 +139,65 @@ export class AiCreditService {
     const metadata = await this.#cipher.decrypt(value.envelope, credentialAad(value.credentialId, value.scope.ownerGeneration))
     return Object.freeze({ credentialId: value.credentialId, providerId: value.providerId, displayLabel: metadata.displayLabel, state: value.state, version: value.version, keyCurrent: value.envelope.keyId === this.#cipher.keyId, createdAt: value.createdAt, updatedAt: value.updatedAt })
   }
-  async view(accountId: string): Promise<AiCreditAccountView> {
-    const snapshot = await this.#repository.snapshot(accountId); if (!snapshot) throw new AiCreditServiceError('scope', 'Credit account unavailable.')
-    const at = this.#now().getTime(); const unexpired = snapshot.lots.filter((v) => v.expiresAt === null || Date.parse(v.expiresAt) > at).reduce((sum, v) => sum + v.remainingMicros, 0)
+  async #accountView(snapshot: Awaited<ReturnType<AiCreditRepository['snapshot']>> & {}): Promise<AiCreditAccountView> {
+    const at = this.#now().getTime()
+    const unexpired = snapshot.lots.filter((value) => value.expiresAt === null || Date.parse(value.expiresAt) > at).reduce((sum, value) => sum + value.remainingMicros, 0)
     const availableMicros = Math.max(0, Math.min(unexpired - snapshot.account.reservedMicros, snapshot.account.budgetMicros - snapshot.account.spentMicros - snapshot.account.reservedMicros))
     const credentials: AiByokCredentialView[] = []
     for (const value of snapshot.credentials) credentials.push(await this.#credentialView(value))
-    return Object.freeze({ accountId, balanceMicros: snapshot.account.balanceMicros, reservedMicros: snapshot.account.reservedMicros, spentMicros: snapshot.account.spentMicros, budgetMicros: snapshot.account.budgetMicros, availableMicros, version: snapshot.account.version, credentials: Object.freeze(credentials) })
+    return Object.freeze({ accountId: snapshot.account.accountId, balanceMicros: snapshot.account.balanceMicros, reservedMicros: snapshot.account.reservedMicros, spentMicros: snapshot.account.spentMicros, budgetMicros: snapshot.account.budgetMicros, availableMicros, version: snapshot.account.version, credentials: Object.freeze(credentials) })
+  }
+  async view(accountId: string): Promise<AiCreditAccountView> {
+    const snapshot = await this.#repository.snapshot(accountId)
+    if (!snapshot) throw new AiCreditServiceError('scope', 'Credit account unavailable.')
+    return await this.#accountView(snapshot)
+  }
+  async ledger(scope: AiCreditScope): Promise<AiCreditLedgerView> {
+    const snapshot = await this.#repository.snapshotForScope(scope)
+    if (!snapshot || !sameAiCreditScope(snapshot.account.scope, scope)) throw new AiCreditServiceError('scope', 'Credit account unavailable.')
+    const at = this.#now().getTime()
+    const lotEntries: AiCreditLedgerEntry[] = snapshot.lots.map((lot) => ({
+      entryId: lot.lotId,
+      entryType: lot.kind,
+      state: lot.expiresAt !== null && Date.parse(lot.expiresAt) <= at
+        ? 'expired'
+        : lot.remainingMicros === 0
+          ? 'used'
+          : lot.remainingMicros === lot.amountMicros ? 'available' : 'partially-used',
+      amountMicros: lot.amountMicros,
+      remainingMicros: lot.remainingMicros,
+      mode: null,
+      providerId: null,
+      modelId: null,
+      inputTokens: null,
+      outputTokens: null,
+      occurredAt: lot.createdAt,
+      resolvedAt: null,
+      expiresAt: lot.expiresAt,
+    }))
+    const settlementByReservation = new Map(snapshot.settlements.map((value) => [value.reservationId, value]))
+    const usageEntries: AiCreditLedgerEntry[] = snapshot.reservations.map((reservation) => {
+      const settlement = settlementByReservation.get(reservation.reservationId)
+      return {
+        entryId: reservation.reservationId,
+        entryType: 'usage',
+        state: reservation.state,
+        amountMicros: settlement?.chargedMicros ?? reservation.reservedMicros,
+        remainingMicros: 0,
+        mode: reservation.mode,
+        providerId: reservation.quote.providerId,
+        modelId: reservation.quote.modelId,
+        inputTokens: settlement?.inputTokens ?? null,
+        outputTokens: settlement?.outputTokens ?? null,
+        occurredAt: settlement?.createdAt ?? reservation.createdAt,
+        resolvedAt: reservation.resolvedAt,
+        expiresAt: reservation.expiresAt,
+      }
+    })
+    const entries = [...lotEntries, ...usageEntries]
+      .toSorted((left, right) => right.occurredAt.localeCompare(left.occurredAt) || left.entryId.localeCompare(right.entryId))
+      .slice(0, 10_000)
+    return Object.freeze({ account: await this.#accountView(snapshot), entries: Object.freeze(entries) })
   }
 }
 export const credentialAad = (credentialId: string, generation: number): string => `fuma-ai-byok:v1:${credentialId}:${generation}`

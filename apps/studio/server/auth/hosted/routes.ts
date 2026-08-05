@@ -46,6 +46,10 @@ const ALLOWED_ENDPOINTS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
   ['/admin/remove-user', new Set(['POST'])],
 ])
 
+const ORGANIZATION_ENDPOINTS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  ['/organization/create', new Set(['POST'])], ['/organization/check-slug', new Set(['POST'])], ['/organization/list', new Set(['GET'])], ['/organization/get-full-organization', new Set(['GET'])], ['/organization/update', new Set(['POST'])], ['/organization/invite-member', new Set(['POST'])], ['/organization/list-invitations', new Set(['GET'])], ['/organization/cancel-invitation', new Set(['POST'])], ['/organization/accept-invitation', new Set(['POST'])], ['/organization/reject-invitation', new Set(['POST'])], ['/organization/list-members', new Set(['GET'])], ['/organization/update-member-role', new Set(['POST'])], ['/organization/remove-member', new Set(['POST'])], ['/organization/set-active', new Set(['POST'])],
+])
+
 const FRESH_ADMIN_ENDPOINTS = new Set([
   '/admin/ban-user',
   '/admin/unban-user',
@@ -96,6 +100,7 @@ export type HostedStaffAuthBoundaryInput = Readonly<{
   origin: string
   cookieName: string
   secureCookies: boolean
+  organizationEndpoints?: boolean
   security?: HostedStaffSecurityPolicy
 }>
 
@@ -113,9 +118,10 @@ function endpointFor(pathname: string): string {
   return pathname.slice(AUTH_PREFIX.length) || '/'
 }
 
-function endpointIsAllowed(pathname: string, method: string): boolean {
+function endpointIsAllowed(pathname: string, method: string, organizationEndpoints: boolean): boolean {
   const endpoint = endpointFor(pathname)
   if (ALLOWED_ENDPOINTS.get(endpoint)?.has(method)) return true
+  if (organizationEndpoints && ORGANIZATION_ENDPOINTS.get(endpoint)?.has(method)) return true
   if (method === 'GET' && /^\/callback\/(?:google|github)$/.test(endpoint)) return true
   return method === 'GET' && /^\/reset-password\/[^/]+$/.test(endpoint)
 }
@@ -258,7 +264,7 @@ export function createHostedStaffAuthBoundary(
     if (!handlesProductRequest(request)) return jsonError('Not found', 404)
 
     const method = request.method.toUpperCase()
-    if (!endpointIsAllowed(url.pathname, method)) return jsonError('Not found', 404)
+    if (!endpointIsAllowed(url.pathname, method, input.organizationEndpoints === true)) return jsonError('Not found', 404)
     if (MUTATING_METHODS.has(method) && request.headers.get('origin') !== origin) {
       return jsonError('Origin not allowed', 403)
     }
@@ -267,10 +273,9 @@ export function createHostedStaffAuthBoundary(
     const securityFailure = await enforceAdminSecurity(request, endpoint, security)
     if (securityFailure) return securityFailure
 
-    const externalRequest = url.origin === origin
-      ? request
-      : new Request(new URL(`${url.pathname}${url.search}`, origin), request)
-    const response = await input.auth.handler(externalRequest)
+    const response = url.origin === origin
+      ? await input.auth.handler(request)
+      : await input.auth.handler(new Request(new URL(`${url.pathname}${url.search}`, origin), request))
     if (!cookiesAreSafe(response, input.cookieName, input.secureCookies)) {
       console.error('[hosted-auth] Better Auth emitted an unsafe staff cookie')
       return jsonError('Internal server error', 500)

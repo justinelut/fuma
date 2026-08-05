@@ -25,10 +25,19 @@ import {
   type FumaRepositoryScopeOwnerKeyAuthority,
 } from '../tenancy/repositoryScope'
 import { PostgresFumaRepositoryScopeOwnerKeyAuthority } from '../tenancy/ownerKeyAuthority'
+import { PLATFORM_ORGANIZATION_ID } from '../organizations/contracts'
+import { resolvePublicMarketingAnalyticsSchemaSentinel } from '../publicAnalytics/runtime'
 import type { FumaJobAdmissionPolicy, FumaJobJsonValue } from './contracts'
 import { RedisFumaJobReadyQueue, type FumaJobReadyQueue } from './readyQueue'
 import { PostgresFumaJobRepository, type FumaJobRepository } from './repository'
-import { FumaJobScheduler, createFumaJobSchedulerComponent } from './scheduler'
+import {
+  createRecurringJobProducers,
+  PostgresRecurringCustomerPaymentSource,
+  PostgresRecurringCloudflareSource,
+  PostgresRecurringPublicationSiteSource,
+} from './runtime/composition'
+import { FumaJobScheduler, createFumaJobSchedulerComponent, type FumaRecurringJobProducer } from './scheduler'
+import { FumaJobService } from './service'
 import {
   FumaJobWorker,
   createFumaJobWorkerComponent,
@@ -293,6 +302,7 @@ export interface FumaJobIntegrationOptions {
   db?: DbClient
   admission?: FumaJobAdmissionPolicy
   handlers?: Readonly<Record<string, FumaScopedJobHandler>>
+  recurringProducers?: readonly FumaRecurringJobProducer[]
   jobAuthority?: FumaJobContextAuthority
   ownerKeys?: FumaRepositoryScopeOwnerKeyAuthority
   siteRepositories?: FumaScopedSiteRepositoryFactory
@@ -411,12 +421,29 @@ export function createFumaJobSchedulerComponentFactory(options: FumaJobIntegrati
       async start(context: FumaRuntimeContext) {
         const deps = await dependencies(options, true)
         await Promise.all([deps.readyQueue.connect(), deps.coordination!.connect()])
+        const admission = options.admission ?? DEFAULT_ADMISSION
+        const producers = options.recurringProducers ?? (deps.db
+          ? createRecurringJobProducers({
+              jobs: new FumaJobService({
+                repository: deps.repository,
+                readyQueue: deps.readyQueue,
+                admission,
+                ...(options.now ? { now: options.now } : {}),
+              }),
+              publicationSites: new PostgresRecurringPublicationSiteSource(deps.db),
+              customerPayments: new PostgresRecurringCustomerPaymentSource(deps.db),
+              cloudflare: new PostgresRecurringCloudflareSource(deps.db),
+              publicMarketingRetentionEnabled: await resolvePublicMarketingAnalyticsSchemaSentinel(deps.db) !== undefined,
+              protectedOrganizationId: PLATFORM_ORGANIZATION_ID,
+            })
+          : [])
         const scheduler = new FumaJobScheduler({
           repository: deps.repository,
           readyQueue: deps.readyQueue,
           coordination: deps.coordination!,
-          admission: options.admission ?? DEFAULT_ADMISSION,
+          admission,
           schedulerId: options.instanceId ?? `scheduler-${crypto.randomUUID()}`,
+          producers,
           now: options.now,
         })
         const handle = await createFumaJobSchedulerComponent(scheduler).start(context)

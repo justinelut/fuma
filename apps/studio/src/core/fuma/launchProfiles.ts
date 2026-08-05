@@ -46,6 +46,21 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
     routes: [{ id: 'route.data', method: 'GET', path: '/admin/data', permission: 'website.data.read' }],
   },
   {
+    id: 'site.collections',
+    permissions: [
+      {
+        id: 'site.collections.read',
+        label: 'View collections',
+        description: 'View site-owned structured collection schemas.',
+      },
+      {
+        id: 'site.collections.write',
+        label: 'Change collection schemas',
+        description: 'Create collections and add fields through reviewed owner-confirmed operations.',
+      },
+    ],
+  },
+  {
     id: 'website.media',
     navigation: [{ id: 'nav.media', order: 50, label: 'Media', path: '/admin/media', permission: 'website.media.read' }],
     onboarding: [{
@@ -81,8 +96,29 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
     transfer: [{ id: 'transfer.design', stepId: 'transfer.design.assets', permission: 'website.design.write' }],
   },
   {
+    id: 'ai.chat',
+    permissions: [{
+      id: 'ai.chat',
+      label: 'Use Site AI',
+      description: 'Use approved AI models and read-only tools for this site.',
+    }],
+  },
+  {
+    id: 'ai.tools.write',
+    dependsOn: ['ai.chat'],
+    permissions: [{
+      id: 'ai.tools.write',
+      label: 'Let Site AI edit',
+      description: 'Allow reviewed Site AI tools to change this site under receipt authority.',
+    }],
+  },
+  {
     id: 'site.settings',
-    navigation: [{ id: 'nav.settings', order: 90, label: 'Settings', path: '/admin/settings', permission: 'site.settings.read' }],
+    navigation: [
+      { id: 'nav.domains', order: 85, label: 'Domains', path: '/admin/settings/domains', permission: 'site.settings.read' },
+      { id: 'nav.team', order: 86, label: 'Organization & team', path: '/admin/settings/team', permission: 'site.settings.read' },
+      { id: 'nav.settings', order: 90, label: 'Settings', path: '/admin/settings', permission: 'site.settings.read' },
+    ],
     onboarding: [{
       id: 'onboarding.identity',
       order: 10,
@@ -93,14 +129,25 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
       { id: 'site.settings.read', label: 'View settings', description: 'View site settings.' },
       { id: 'site.settings.write', label: 'Edit settings', description: 'Edit site settings.' },
     ],
-    routes: [{ id: 'route.settings', method: 'GET', path: '/admin/settings', permission: 'site.settings.read' }],
+    routes: [
+      { id: 'route.domains', method: 'GET', path: '/admin/settings/domains', permission: 'site.settings.read' },
+      { id: 'route.organization-management', method: 'GET', path: '/admin/settings/team', permission: 'site.settings.read' },
+      { id: 'route.settings', method: 'GET', path: '/admin/settings', permission: 'site.settings.read' },
+    ],
     jobs: [
+      { id: 'job.cloudflare-reconcile', handlerId: 'fuma.cloudflare-reconcile', permission: 'site.settings.write' },
+      { id: 'job.registrar-purchase', handlerId: 'fuma.registrar-purchase', permission: 'site.settings.write' },
+      { id: 'job.registrar-renew', handlerId: 'fuma.registrar-renew', permission: 'site.settings.write' },
+      { id: 'job.domain-transfer', handlerId: 'fuma.domain-transfer', permission: 'site.settings.write' },
       { id: 'job.transfer-execute', handlerId: 'transfer.execute', permission: 'site.settings.write' },
       { id: 'job.transfer-resume', handlerId: 'transfer.resume', permission: 'site.settings.write' },
       { id: 'job.transfer-compensate', handlerId: 'transfer.compensate', permission: 'site.settings.write' },
     ],
     transfer: [
       { id: 'transfer.settings', stepId: 'transfer.site.settings', permission: 'site.settings.write' },
+      { id: 'transfer.ai-byok', stepId: 'ai-credit-byok-rekey-detach', permission: 'site.settings.write' },
+      { id: 'transfer.mcp', stepId: 'mcp-connector-rescope-revoke', permission: 'site.settings.write' },
+      { id: 'transfer.domain-outcome', stepId: 'domain-outcome', permission: 'site.settings.write' },
     ],
   },
   {
@@ -125,6 +172,10 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
     routes: [
       { id: 'route.posts.list', method: 'GET', path: '/admin/posts', permission: 'publication.posts.read' },
       { id: 'route.posts.write', method: 'POST', path: '/admin/posts', permission: 'publication.posts.write' },
+    ],
+    jobs: [
+      { id: 'job.publication-revision-retention', handlerId: 'publication.revision-retention', permission: 'publication.posts.write' },
+      { id: 'job.publication-revision-gc', handlerId: 'publication.revision-gc', permission: 'publication.posts.write' },
     ],
     transfer: [{ id: 'transfer.posts', stepId: 'transfer.publication.posts', permission: 'publication.posts.write' }],
   },
@@ -172,7 +223,10 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
       { id: 'route.members', method: 'GET', path: '/admin/members', permission: 'publication.members.read' },
       { id: 'route.members.write', method: 'POST', path: '/admin/members', permission: 'publication.members.write' },
     ],
-    transfer: [{ id: 'transfer.members', stepId: 'transfer.publication.members', permission: 'publication.members.read' }],
+    transfer: [
+      { id: 'transfer.members', stepId: 'transfer.publication.members', permission: 'publication.members.read' },
+      { id: 'transfer.customer-merchant-credentials', stepId: 'customer-merchant-credentials', permission: 'publication.members.write' },
+    ],
   },
   {
     id: 'publication.newsletters',
@@ -211,6 +265,7 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
     navigation: [{ id: 'nav.publication-analytics', order: 70, label: 'Analytics', path: '/admin/publication-analytics', permission: 'publication.analytics.read' }],
     permissions: [{ id: 'publication.analytics.read', label: 'View publication analytics', description: 'View publication readership summaries.' }],
     routes: [{ id: 'route.publication-analytics', method: 'GET', path: '/admin/publication-analytics', permission: 'publication.analytics.read' }],
+    jobs: [{ id: 'job.publication-analytics-retention', handlerId: 'publication.analytics-retention', permission: 'publication.analytics.read' }],
   },
 ]
 
@@ -223,9 +278,12 @@ export const LAUNCH_PROFILES: readonly ProductProfile[] = [
       'website.content',
       'content.pages',
       'website.data',
+      'site.collections',
       'website.media',
       'website.analytics',
       'website.design',
+      'ai.chat',
+      'ai.tools.write',
       'site.settings',
     ],
     navigationPreset: [
@@ -236,6 +294,8 @@ export const LAUNCH_PROFILES: readonly ProductProfile[] = [
       'nav.media',
       'nav.website-analytics',
       'nav.design',
+      'nav.domains',
+      'nav.team',
       'nav.settings',
     ],
     onboardingPreset: ['onboarding.identity', 'onboarding.design', 'onboarding.pages', 'onboarding.media'],
@@ -248,6 +308,7 @@ export const LAUNCH_PROFILES: readonly ProductProfile[] = [
     capabilityPreset: [
       'site.home',
       'publication.editorial',
+      'site.collections',
       'publication.editorial.schedule',
       'publication.tags',
       'publication.members',
@@ -255,6 +316,8 @@ export const LAUNCH_PROFILES: readonly ProductProfile[] = [
       'publication.newsletters.send',
       'publication.analytics',
       'website.design',
+      'ai.chat',
+      'ai.tools.write',
       'site.settings',
     ],
     navigationPreset: [
@@ -266,6 +329,8 @@ export const LAUNCH_PROFILES: readonly ProductProfile[] = [
       'nav.newsletters',
       'nav.publication-analytics',
       'nav.design',
+      'nav.domains',
+      'nav.team',
       'nav.settings',
     ],
     navigationSections: [{
