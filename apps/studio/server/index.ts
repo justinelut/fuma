@@ -327,7 +327,10 @@ const nextSourceObjectStorage = hostedFumaConfig
   })
   : undefined
 const hostedMeteringRuntime = hostedFumaConfig ? createHostedMeteringRuntime({ db }) : undefined
-const nextSourceGithubConfigured = Boolean(process.env.FUMA_GITHUB_APP_ID?.trim() || process.env.FUMA_GITHUB_APP_PRIVATE_KEY_PEM?.trim())
+const nextSourceGithubConfigured = Boolean(
+  process.env.FUMA_GITHUB_APP_ID?.trim()
+  && process.env.FUMA_GITHUB_APP_PRIVATE_KEY_PEM?.trim(),
+)
 const hostedNextSourceRuntime = hostedFumaConfig && hostedStaffAuthRuntime && nextSourceObjectStorage && releaseObjectStorage && hostedMeteringRuntime
   ? createHostedNextSourceRuntime({
     db,
@@ -335,7 +338,7 @@ const hostedNextSourceRuntime = hostedFumaConfig && hostedStaffAuthRuntime && ne
     releaseStorage: releaseObjectStorage,
     metering: hostedMeteringRuntime.collector,
     resolveSession: hostedStaffAuthRuntime.resolveSession,
-    ...(hostedFumaConfig.environment === 'production' || nextSourceGithubConfigured
+    ...(nextSourceGithubConfigured
       ? { githubConfig: readHostedNextSourceGitHubConfig() }
       : {}),
   })
