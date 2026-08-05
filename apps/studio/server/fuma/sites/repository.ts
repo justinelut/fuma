@@ -198,7 +198,7 @@ class PostgresSiteTransaction implements SiteRepositoryTransaction {
 
   async insert(record: SiteRecord): Promise<SiteRecord> {
     this.#assertRecordCoordinates(record)
-    const capabilityOverridesJson = JSON.stringify(record.capabilityOverrides)
+    const capabilityOverridesJson = { ...record.capabilityOverrides }
     const { rows } = await this.#db<SiteRow>`
       insert into fuma_sites (
         organization_id, workspace_id, id, slug, name, status, profile_id,
@@ -217,7 +217,7 @@ class PostgresSiteTransaction implements SiteRepositoryTransaction {
 
   async update(record: SiteRecord): Promise<SiteRecord> {
     this.#assertRecordCoordinates(record)
-    const capabilityOverridesJson = JSON.stringify(record.capabilityOverrides)
+    const capabilityOverridesJson = { ...record.capabilityOverrides }
     const { rows } = await this.#db<SiteRow>`
       update fuma_sites
       set slug = ${record.slug}, name = ${record.name}, status = ${record.status},

@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { FumaScopedShell } from '../fuma/FumaScopedShell'
+import { HostedSiteOnboarding } from '../fuma/HostedSiteOnboarding'
 import { PublicationRouteContent } from '../fuma/publication'
+import { DomainsRouteContent } from '../fuma/domains'
+import { OrganizationManagementRouteContent } from '../fuma/organizationManagement'
+import { CreditsLedgerRouteContent, creditsAdminRegistry } from '../fuma/credits'
 import { PlatformCheckoutRouteContent } from '../fuma/billing'
 import { QuotaSelfServiceRouteContent } from '../fuma/usage'
 import { McpScopedRouteContent } from '../fuma/mcp'
@@ -9,7 +13,7 @@ import { SupportOperationsRouteContent, type SupportClientTarget } from '../fuma
 import { ExpertDiscoveryRouteContent } from '../fuma/expertDiscovery'
 import { PaidHandoffRouteContent } from '../fuma/paidHandoff'
 import { CustomerCapabilityDashboardRouteContent, PlatformCapabilityInventoryRouteContent } from '../fuma/aiCapabilities'
-import { BookingsRouteContent, bookingsAdminRegistry } from '../fuma/bookings'
+import { BookingsRouteContent } from '../fuma/bookings'
 import {
   HostedProfileEditorSurface,
   type HostedProfileEditorRenderAdapter,
@@ -186,7 +190,9 @@ export function HostedStaffShell({
       </section>
 
       {catalogValidation.kind === 'valid' ? (
-        supportTarget ? (
+        catalogValidation.catalog.sites.length === 0 && !currentSession.session.impersonatedBy ? (
+          <HostedSiteOnboarding catalog={catalogValidation.catalog} />
+        ) : supportTarget ? (
           <SupportOperationsRouteContent
             target={supportTarget}
             pathname={pathname}
@@ -203,7 +209,7 @@ export function HostedStaffShell({
           />
         ) : (
         <FumaScopedShell
-          registry={bookingsAdminRegistry}
+          registry={creditsAdminRegistry}
           catalog={catalogValidation.catalog}
           pathname={pathname}
           actorLabel={currentSession.user.name}
@@ -212,6 +218,9 @@ export function HostedStaffShell({
           {(shell) => (
             <>
               <PublicationRouteContent shell={shell} permissionDecisions={permissionDecisions} />
+              <CreditsLedgerRouteContent shell={shell} />
+              <DomainsRouteContent shell={shell} permissionDecisions={permissionDecisions} />
+              <OrganizationManagementRouteContent shell={shell} />
               <ComponentCatalogRouteContent shell={shell} permissionDecisions={permissionDecisions} />
               <McpScopedRouteContent shell={shell} permissionDecisions={permissionDecisions} />
               <QuotaSelfServiceRouteContent

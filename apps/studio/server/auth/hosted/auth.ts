@@ -47,6 +47,11 @@ export type HostedSocialProviders = Readonly<{
   github?: HostedSocialProviderCredential
 }>
 
+export type HostedOrganizationLifecycle = Readonly<{
+  beforeCreate(input: Readonly<{ organization: Readonly<{ name?: string; slug?: string; logo?: string | null; metadata?: Record<string, unknown> }>; user: Readonly<{ id: string }> }>): Promise<void | Readonly<{ data: Record<string, unknown> }>>
+  afterCreate(input: Readonly<{ organization: Readonly<{ id: string; name: string; slug: string }>; member: Readonly<{ organizationId: string; userId: string; role: string }>; user: Readonly<{ id: string }> }>): Promise<void>
+}>
+
 export const HOSTED_SOCIAL_PROVIDER_IDS = Object.freeze(['google', 'github'] as const)
 export type HostedSocialProviderId = typeof HOSTED_SOCIAL_PROVIDER_IDS[number]
 
@@ -57,6 +62,7 @@ export type HostedAuthInput = Readonly<{
   cookieName?: string
   delivery?: HostedAuthDelivery
   socialProviders?: HostedSocialProviders
+  organizationLifecycle?: HostedOrganizationLifecycle
 }>
 
 function usableCredential(value: HostedSocialProviderCredential | undefined): HostedSocialProviderCredential | null {
@@ -256,6 +262,10 @@ export function createHostedAuthOptions(
           member: { modelName: AUTH_MODEL_NAMES.member },
           invitation: { modelName: AUTH_MODEL_NAMES.invitation },
         },
+        organizationHooks: input.organizationLifecycle ? {
+          beforeCreateOrganization: async ({ organization, user }) => await input.organizationLifecycle!.beforeCreate({ organization, user: { id: user.id } }),
+          afterCreateOrganization: async ({ organization, member, user }) => { await input.organizationLifecycle!.afterCreate({ organization: { id: organization.id, name: organization.name, slug: organization.slug }, member: { organizationId: member.organizationId, userId: member.userId, role: member.role }, user: { id: user.id } }) },
+        } : undefined,
       }),
       // Better Auth 1.6.25's admin factory narrows `user.email` while its
       // exported BetterAuthPlugin hook type makes that field optional. Runtime

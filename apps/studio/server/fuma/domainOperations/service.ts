@@ -125,8 +125,8 @@ export class DomainOperationsService {
     exactScope(scope, choice.source)
     if (choice.source.platformId !== choice.destination.platformId || choice.source.siteId !== choice.destination.siteId
       || (choice.source.organizationId === choice.destination.organizationId && choice.source.workspaceId === choice.destination.workspaceId)
-      || choice.source.ownerKey === choice.destination.ownerKey || choice.destination.generation <= choice.source.generation) {
-      throw new DomainOperationError('scope', 'Site-transfer domain choice requires the exact new owner generation for the same site.')
+      || choice.source.ownerKey !== choice.destination.ownerKey || choice.destination.generation !== choice.source.generation + 1) {
+      throw new DomainOperationError('scope', 'Site-transfer domain choice requires the stable owner key at its next generation for the same site.')
     }
     const settings = await this.#requiredSettings(scope, choice.domainId)
     return await this.#repository.recordDomainChoice(choice, settings)

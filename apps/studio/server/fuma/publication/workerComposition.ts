@@ -7,6 +7,18 @@ import {
 } from '../checkout'
 import { createHostedPaystackRuntime } from '../paystack/runtime'
 import { createQuotaRuntime } from '../quotas'
+import { createHostedEntitlementRuntime, readHostedKesCostConversion } from '../entitlements'
+import { createHostedDomainRuntime, readHostedDomainCredentialKeyring } from '../domains/runtime'
+import { createHostedCloudflareRuntime } from '../cloudflare/runtime'
+import { createHostedRegistrarRuntime } from '../registrar/runtime'
+import { FetchRegistrarGatewayHttpClient, RegistrarGatewayAdapter } from '../registrar/productionGateway'
+import { readHostedRegistrarConfig } from '../registrar/config'
+import { platformCredentialAuthority } from '../domains/contracts'
+import { createHostedDomainOperationsRuntime } from '../domainOperations/runtime'
+import { AesGcmRegistrarAuthCodeVault } from '../domainOperations/authCodeVault'
+import { PostgresDomainOperationsRepository } from '../domainOperations/postgres'
+import { RegistrarTransferGatewayAdapter } from '../domainOperations/productionRegistrarTransfer'
+import { CloudflareCustomerDnsDetachPort, OciRegistrarAuthCodeDelivery, PostgresDomainAutomationCredentialPort, PostgresDomainOutcomeEffects, PostgresDomainOutcomeOwnerAuthority, ProductionDomainDnsObserver } from '../domainOperations/productionAdapters'
 import { readFumaConfig } from '../config'
 import { createFumaJobWorkerComponentFactory } from '../jobs'
 import { AnonymousEdgeVisitorAuthority, createHostedEdgeRuntime, PublicationAccessEdgeHoleResolver } from '../edgeDelivery'
@@ -57,12 +69,51 @@ export function createPublicationWorkerComponentFactory(
         await Promise.all(HOSTED_COST_BASELINE_V1.map((input) => metering.costs.append(input)))
         await metering.costs.assertComplete()
         const quota = createQuotaRuntime({ db })
+        const domainWorkerConfigured = typeof env.FUMA_KES_FX_VERSION === 'string'
+          && typeof env.FUMA_KES_MINOR_NUMERATOR === 'string'
+          && typeof env.FUMA_USD_MICROS_DENOMINATOR === 'string'
+          && typeof env.FUMA_DOMAIN_CREDENTIAL_ACTIVE_KEY_ID === 'string'
+          && typeof env.FUMA_DOMAIN_CREDENTIAL_KEYRING === 'string'
+        let cloudflare: ReturnType<typeof createHostedCloudflareRuntime> | undefined
+        let domains: Awaited<ReturnType<typeof createHostedDomainRuntime>> | undefined
+        let entitlements: ReturnType<typeof createHostedEntitlementRuntime> | undefined
+        if (domainWorkerConfigured) {
+          const kes = readHostedKesCostConversion(env)
+          entitlements = createHostedEntitlementRuntime({ db, usdMicrosToKesMinor: kes.convert, costConversionVersion: kes.version })
+          const keyring = readHostedDomainCredentialKeyring(env as Readonly<Record<string, string | undefined>>)
+          domains = await (async () => {
+            try {
+              return await createHostedDomainRuntime({ db, keyring, provider: Object.freeze({ async execute(): Promise<never> { throw new TypeError('Generic domain credential operations require an explicit provider adapter.') } }), entitlements: entitlements!.service, quotas: quota.service, metering: metering.service })
+            } finally { for (const entry of keyring.keys) entry.bytes.fill(0) }
+          })()
+          cloudflare = createHostedCloudflareRuntime({ db, config, domains })
+        }
         const publication = await createHostedPublicationRuntime({
           db,
           config,
           objectAccessSigningSecret: requiredObjectSigningSecret(env),
           campaignQuota: quota.campaign,
         })
+        let registrar: ReturnType<typeof createHostedRegistrarRuntime> | undefined
+        let domainOperations: ReturnType<typeof createHostedDomainOperationsRuntime> | undefined
+        let registrarProvider: RegistrarGatewayAdapter | undefined
+        let transferProvider: RegistrarTransferGatewayAdapter | undefined
+        const registrarConfig = readHostedRegistrarConfig(env)
+        if (registrarConfig && config.ociEmail && domains && cloudflare && entitlements) {
+          const authority = platformCredentialAuthority('fuma')
+          const token = new TextEncoder().encode(registrarConfig.apiToken)
+          const fingerprint = new Bun.CryptoHasher('sha256').update(token).digest('hex')
+          const current = await domains.repository.credentialExact(authority, registrarConfig.credentialId)
+          if (!current) await domains.service.storeCredential({ credentialId: registrarConfig.credentialId, authority, plaintext: token, createdAt: registrarConfig.credentialCreatedAt })
+          else if (current.state !== 'active' || current.fingerprintSha256 !== fingerprint) { token.fill(0); throw new TypeError('Registrar credential rotation requires an explicit reviewed domain credential rotation.') }
+          const http = new FetchRegistrarGatewayHttpClient()
+          registrarProvider = new RegistrarGatewayAdapter({ origin: registrarConfig.gatewayOrigin, token, http })
+          transferProvider = new RegistrarTransferGatewayAdapter({ origin: registrarConfig.gatewayOrigin, token, http })
+          token.fill(0)
+          registrar = createHostedRegistrarRuntime({ db, provider: registrarProvider, domains: domains.service, stepUp: { async consume() { return false } }, entitled: async (scope) => (await entitlements!.service.evaluate(scope.organizationId)).source !== 'none', authority, credentialId: registrarConfig.credentialId })
+          const operationsRepository = new PostgresDomainOperationsRepository(db)
+          domainOperations = createHostedDomainOperationsRuntime({ db, dns: new ProductionDomainDnsObserver({ cloudflare: cloudflare.reconciler }), automation: new PostgresDomainAutomationCredentialPort(domains.repository), registrar: transferProvider, delivery: new OciRegistrarAuthCodeDelivery({ db, oci: publication.oci, senderEmail: config.ociEmail.approvedSender }), authCodes: new AesGcmRegistrarAuthCodeVault(domains.keys), detach: new CloudflareCustomerDnsDetachPort({ cloudflare: cloudflare.reconciler, domains: domains.repository }), owner: new PostgresDomainOutcomeOwnerAuthority(db), effects: new PostgresDomainOutcomeEffects(operationsRepository) })
+        }
         const publishing = createPostgresPublishReleaseComposition({
           db,
           config,
@@ -87,6 +138,9 @@ export function createPublicationWorkerComponentFactory(
           ...metering.jobs,
           ...billing.jobs,
           ...quota.jobs,
+          ...(cloudflare?.jobs ?? {}),
+          ...(registrar?.jobs ?? {}),
+          ...(domainOperations?.jobs ?? {}),
           'publication.newsletter-send': withNewsletterMetering(newsletterHandler, metering.collector),
           'fuma.publish-release': withPublishMetering(publishHandler, metering.collector),
         })
@@ -106,6 +160,9 @@ export function createPublicationWorkerComponentFactory(
           beginDrain: () => handle?.beginDrain?.(),
           async stop() {
             await handle?.stop?.()
+            registrarProvider?.close()
+            transferProvider?.close()
+            cloudflare?.close()
             edge.cache.close()
             await publication.close()
           },

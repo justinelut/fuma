@@ -1,0 +1,89 @@
+.onboarding {
+  display: grid;
+  grid-template-columns: minmax(16rem, .85fr) minmax(20rem, 1.15fr);
+  width: min(68rem, calc(100% - 2rem));
+  margin: 2rem auto;
+  overflow: hidden;
+  border: 1px solid var(--border-color, #d7dce3);
+  border-radius: 1rem;
+  background: var(--surface-primary, #fff);
+  box-shadow: 0 1.5rem 4rem rgb(18 28 45 / 9%);
+}
+
+.intro {
+  padding: clamp(1.5rem, 4vw, 3.5rem);
+  color: #f7fbff;
+  background:
+    linear-gradient(145deg, rgb(15 43 67 / 96%), rgb(26 80 97 / 96%)),
+    repeating-linear-gradient(120deg, transparent 0 2.5rem, rgb(255 255 255 / 5%) 2.5rem 2.6rem);
+}
+
+.eyebrow {
+  margin: 0 0 .75rem;
+  color: #8ce4d5;
+  font-size: .72rem;
+  font-weight: 750;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.intro h2 {
+  max-width: 14ch;
+  margin: 0;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  line-height: 1.02;
+  letter-spacing: -.045em;
+}
+
+.intro > p:not(.eyebrow) { max-width: 34rem; color: rgb(247 251 255 / 76%); line-height: 1.6; }
+.rail { display: grid; gap: .15rem; margin: 2.5rem 0 0; padding: 0; list-style: none; }
+.rail li { display: grid; grid-template-columns: 2rem 1fr; padding: .8rem 0; border-top: 1px solid rgb(255 255 255 / 15%); }
+.rail li > span { grid-row: 1 / 3; color: #8ce4d5; font-family: ui-monospace, monospace; font-size: .8rem; }
+.rail strong { font-size: .9rem; }
+.rail small { color: rgb(247 251 255 / 60%); }
+
+.form { display: grid; align-content: center; gap: 1.1rem; padding: clamp(1.5rem, 4vw, 3.5rem); }
+.form label, .form legend, .selectedOrganization span { color: var(--text-secondary, #526071); font-size: .78rem; font-weight: 650; }
+.form input:not([type='radio']), .form select {
+  width: 100%;
+  min-height: 2.75rem;
+  margin-top: .4rem;
+  padding: .65rem .75rem;
+  border: 1px solid var(--border-color, #cbd3dc);
+  border-radius: .55rem;
+  color: var(--text-primary, #142132);
+  background: var(--surface-primary, #fff);
+}
+.form input:focus-visible, .form select:focus-visible, .profile:focus-within, .profileActive:focus-within {
+  outline: 3px solid rgb(36 153 141 / 28%);
+  outline-offset: 2px;
+  border-color: #24998d;
+}
+.form fieldset { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; margin: 0; padding: 0; border: 0; }
+.form legend { grid-column: 1 / -1; margin-bottom: .4rem; }
+.profile, .profileActive { display: grid; grid-template-columns: 1.25rem 1fr; gap: .2rem .5rem; padding: .85rem; border: 1px solid var(--border-color, #cbd3dc); border-radius: .7rem; cursor: pointer; }
+.profileActive { border-color: #24998d; background: rgb(36 153 141 / 8%); box-shadow: inset 0 0 0 1px #24998d; }
+.profile input, .profileActive input { grid-row: 1 / 3; align-self: start; margin-top: .15rem; accent-color: #197d74; }
+.profile strong, .profileActive strong { color: var(--text-primary, #142132); font-size: .9rem; }
+.profile span, .profileActive span { color: var(--text-secondary, #617083); font-size: .76rem; font-weight: 450; line-height: 1.35; }
+.slugInput { display: flex; align-items: center; }
+.slugInput input { border-radius: .55rem 0 0 .55rem !important; }
+.slugInput small { min-height: 2.75rem; margin-top: .4rem; padding: .78rem .7rem; border: 1px solid var(--border-color, #cbd3dc); border-left: 0; border-radius: 0 .55rem .55rem 0; color: var(--text-secondary, #617083); background: var(--surface-secondary, #f5f7fa); white-space: nowrap; }
+.selectedOrganization { display: flex; justify-content: space-between; margin: 0; padding: .7rem .8rem; border-radius: .55rem; background: var(--surface-secondary, #f5f7fa); }
+.selectedOrganization strong { color: var(--text-primary, #142132); }
+.error { margin: 0; color: var(--color-danger, #b42318); font-size: .85rem; }
+
+@media (max-width: 760px) {
+  .onboarding { grid-template-columns: 1fr; width: min(100% - 1rem, 38rem); margin: .5rem auto; }
+  .intro { padding: 1.5rem; }
+  .intro h2 { max-width: 18ch; font-size: 2rem; }
+  .rail { grid-template-columns: repeat(3, 1fr); margin-top: 1.5rem; }
+  .rail li { display: block; padding-right: .5rem; }
+  .rail li > span, .rail strong, .rail small { display: block; }
+  .form { padding: 1.25rem; }
+  .form fieldset { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding * { scroll-behavior: auto; }
+}

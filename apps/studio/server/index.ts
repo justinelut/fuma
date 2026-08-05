@@ -29,7 +29,9 @@ import {
 } from './fuma/publicHandoff'
 import { createHostedSiteRuntimeAuthority, emptyApplicationSnapshot, type SiteRuntimeMemberProjectionPort } from './fuma/siteRuntime'
 import { createHostedFreeHostRuntime, createHostedReleaseObjectStorage, type FreeHostResolution } from './fuma/freeHosts'
-import { OrganizationBootstrapService, PostgresOrganizationBootstrapRepository } from './fuma/organizations'
+import { OrganizationBootstrapService, PostgresOrganizationBootstrapRepository, PostgresCustomerOrganizationLifecycle } from './fuma/organizations'
+import { createHostedSiteOnboardingBoundary, HostedSiteOnboardingService } from './fuma/onboarding'
+import { createWorkspaceManagementBoundary } from './fuma/workspaces/managementBoundary'
 import {
   AnonymousEdgeVisitorAuthority,
   createHostedEdgeRuntime,
@@ -63,6 +65,18 @@ import { createHostedBookingRuntime } from './fuma/bookings'
 import { createPlatformConsoleBoundary } from './fuma/platformConsole/boundary'
 import { AuditService, PostgresAuditRepository } from './fuma/audit'
 import { createHostedMeteringRuntime } from './fuma/metering'
+import { createHostedDomainRuntime, readHostedDomainCredentialKeyring, type HostedDomainCredentialKeyring } from './fuma/domains/runtime'
+import { createHostedCloudflareRuntime } from './fuma/cloudflare/runtime'
+import { createHostedRegistrarRuntime } from './fuma/registrar/runtime'
+import { FetchRegistrarGatewayHttpClient, RegistrarGatewayAdapter } from './fuma/registrar/productionGateway'
+import { BetterAuthRegistrarStepUp } from './fuma/registrar/productionStepUp'
+import { readHostedRegistrarConfig } from './fuma/registrar/config'
+import { platformCredentialAuthority } from './fuma/domains/contracts'
+import { createHostedDomainOperationsRuntime } from './fuma/domainOperations/runtime'
+import { AesGcmRegistrarAuthCodeVault } from './fuma/domainOperations/authCodeVault'
+import { PostgresDomainOperationsRepository } from './fuma/domainOperations/postgres'
+import { RegistrarTransferGatewayAdapter } from './fuma/domainOperations/productionRegistrarTransfer'
+import { CloudflareCustomerDnsDetachPort, OciRegistrarAuthCodeDelivery, PostgresDomainAutomationCredentialPort, PostgresDomainOutcomeEffects, PostgresDomainOutcomeOwnerAuthority, ProductionDomainDnsObserver } from './fuma/domainOperations/productionAdapters'
 import { createHostedNextSourceRuntime, readHostedNextSourceGitHubConfig } from './fuma/nextSource'
 import { createMinioObjectStorage } from './fuma/objectStorage'
 import {
@@ -106,6 +120,14 @@ function requiredFumaObjectSigningSecret(): string {
     throw new TypeError('FUMA_OBJECT_ACCESS_SIGNING_SECRET must contain at least 32 bytes.')
   }
   return value
+}
+
+function hostedDomainCredentialKeyring(environment: 'local' | 'production'): HostedDomainCredentialKeyring {
+  if (environment === 'production'
+    || (process.env.FUMA_DOMAIN_CREDENTIAL_ACTIVE_KEY_ID && process.env.FUMA_DOMAIN_CREDENTIAL_KEYRING)) {
+    return readHostedDomainCredentialKeyring()
+  }
+  return Object.freeze({ activeKeyId: 'local-domain-key-v1', keys: Object.freeze([Object.freeze({ keyId: 'local-domain-key-v1', bytes: new Uint8Array(32).fill(19) })]) })
 }
 
 function memberSessionToken(request: Request): string | null {
@@ -158,6 +180,8 @@ const hostedSocialProviders = googleClientId && googleClientSecret
 const protectedOwnerBootstrap = hostedFumaConfig
   ? new OrganizationBootstrapService({ repository: new PostgresOrganizationBootstrapRepository(db) })
   : undefined
+const customerOrganizationLifecycle = hostedFumaConfig ? new PostgresCustomerOrganizationLifecycle(db) : undefined
+const registrarConfig = hostedFumaConfig ? readHostedRegistrarConfig() : null
 const hostedStaffAuthRuntime = hostedFumaConfig
   ? (() => {
     const fumaConfig = hostedFumaConfig
@@ -175,6 +199,7 @@ const hostedStaffAuthRuntime = hostedFumaConfig
       secret: hostedStaffSecret!,
       delivery,
       ...(hostedSocialProviders ? { socialProviders: hostedSocialProviders } : {}),
+      ...(customerOrganizationLifecycle ? { organizationLifecycle: customerOrganizationLifecycle } : {}),
       ...(protectedOwnerBootstrap ? {
         reconcileProtectedOwner: async () => {
           await protectedOwnerBootstrap.bootstrap({ protectedOwnerEmail: fumaConfig.protectedOwner.email })
@@ -551,6 +576,17 @@ const freeHostRuntime = hostedFumaConfig
     extensions: [dynamicPublicationPublic, publicationAnalyticsPublic].filter((value) => value !== undefined),
   })
   : undefined
+const hostedSiteOnboarding = hostedStaffAuthRuntime && freeHostRuntime && hostedFumaConfig
+  ? createHostedSiteOnboardingBoundary({
+    service: new HostedSiteOnboardingService(db, `.${hostedFumaConfig.hosts.rootDomain}`),
+    resolveSession: hostedStaffAuthRuntime.resolveSession,
+    handlesProductRequest: hostedStaffAuthRuntime.boundary.handlesProductRequest,
+    allowsMutationOrigin: hostedStaffAuthRuntime.allowsMutationOrigin,
+  })
+  : undefined
+const workspaceManagement = hostedStaffAuthRuntime
+  ? createWorkspaceManagementBoundary({ db, resolveSession: hostedStaffAuthRuntime.resolveSession, handlesProductRequest: hostedStaffAuthRuntime.boundary.handlesProductRequest, allowsMutationOrigin: hostedStaffAuthRuntime.allowsMutationOrigin })
+  : undefined
 const paystackRuntime = hostedFumaConfig
   ? createHostedPaystackRuntime({ db, config: hostedFumaConfig })
   : undefined
@@ -568,6 +604,64 @@ const entitlementRuntime = hostedKesCostConversion
     usdMicrosToKesMinor: hostedKesCostConversion.convert,
     costConversionVersion: hostedKesCostConversion.version,
   })
+  : undefined
+const hostedDomainRuntime = hostedFumaConfig && entitlementRuntime && quotaRuntime && hostedMeteringRuntime
+  ? await (async () => {
+    const keyring = hostedDomainCredentialKeyring(hostedFumaConfig.environment)
+    try {
+      return await createHostedDomainRuntime({
+        db,
+        keyring,
+        provider: Object.freeze({ async execute(): Promise<never> { throw new TypeError('Generic domain credential operations require an explicit provider adapter.') } }),
+        entitlements: entitlementRuntime.service,
+        quotas: quotaRuntime.service,
+        metering: hostedMeteringRuntime.service,
+      })
+    } finally { for (const entry of keyring.keys) entry.bytes.fill(0) }
+  })()
+  : undefined
+const hostedCloudflareRuntime = hostedFumaConfig && hostedDomainRuntime
+  ? createHostedCloudflareRuntime({ db, config: hostedFumaConfig, domains: hostedDomainRuntime })
+  : undefined
+const hostedOciEmail = hostedFumaConfig?.ociEmail ?? null
+const hostedDomainCommerce = registrarConfig && hostedOciEmail && hostedDomainRuntime && hostedCloudflareRuntime
+  && hostedStaffAuthRuntime && hostedStaffSecret && entitlementRuntime && publicationRuntime
+  ? await (async () => {
+    const authority = platformCredentialAuthority('fuma')
+    const token = new TextEncoder().encode(registrarConfig.apiToken)
+    const fingerprint = new Bun.CryptoHasher('sha256').update(token).digest('hex')
+    const current = await hostedDomainRuntime.repository.credentialExact(authority, registrarConfig.credentialId)
+    if (!current) {
+      await hostedDomainRuntime.service.storeCredential({ credentialId: registrarConfig.credentialId, authority, plaintext: token, createdAt: registrarConfig.credentialCreatedAt })
+    } else if (current.state !== 'active' || current.fingerprintSha256 !== fingerprint) {
+      token.fill(0)
+      throw new TypeError('Registrar credential rotation requires an explicit reviewed domain credential rotation.')
+    }
+    const http = new FetchRegistrarGatewayHttpClient()
+    const registrarProvider = new RegistrarGatewayAdapter({ origin: registrarConfig.gatewayOrigin, token, http })
+    const transferProvider = new RegistrarTransferGatewayAdapter({ origin: registrarConfig.gatewayOrigin, token, http })
+    token.fill(0)
+    const stepUp = new BetterAuthRegistrarStepUp({ resolveSession: hostedStaffAuthRuntime.resolveSession, secret: new TextEncoder().encode(hostedStaffSecret) })
+    const registrar = createHostedRegistrarRuntime({ db, provider: registrarProvider, domains: hostedDomainRuntime.service, stepUp, stepUpIssuer: stepUp, entitled: async (scope) => (await entitlementRuntime.service.evaluate(scope.organizationId)).source !== 'none', authority, credentialId: registrarConfig.credentialId })
+    const operationsRepository = new PostgresDomainOperationsRepository(db)
+    const operations = createHostedDomainOperationsRuntime({
+      db,
+      dns: new ProductionDomainDnsObserver({ cloudflare: hostedCloudflareRuntime.reconciler }),
+      automation: new PostgresDomainAutomationCredentialPort(hostedDomainRuntime.repository),
+      registrar: transferProvider,
+      delivery: new OciRegistrarAuthCodeDelivery({ db, oci: publicationRuntime.oci, senderEmail: hostedOciEmail.approvedSender }),
+      authCodes: new AesGcmRegistrarAuthCodeVault(hostedDomainRuntime.keys),
+      detach: new CloudflareCustomerDnsDetachPort({ cloudflare: hostedCloudflareRuntime.reconciler, domains: hostedDomainRuntime.repository }),
+      owner: new PostgresDomainOutcomeOwnerAuthority(db),
+      effects: new PostgresDomainOutcomeEffects(operationsRepository),
+    })
+    return Object.freeze({
+      registrar,
+      operations,
+      cloudflareRoutes: hostedCloudflareRuntime.scopedRoutesWithOnboarding(async (scope, domainId, prevalidation, capability) => { await operations.service.onboardCustomerDns(scope, domainId, prevalidation, capability) }),
+      close() { registrarProvider.close(); transferProvider.close(); stepUp.close() },
+    })
+  })()
   : undefined
 const entitlementAdminRuntime = entitlementRuntime && hostedStaffAuthRuntime && hostedFumaConfig && controlRuntimeSecret
   ? createHostedEntitlementAdminRuntime({
@@ -627,12 +721,16 @@ const hostedCapabilityDashboardRuntime = hostedComponentCatalogRuntime && hosted
   })
   : undefined
 const bookingsRuntime = hostedFumaConfig ? createHostedBookingRuntime({ db }) : undefined
+const domainRoutes = hostedDomainCommerce
+  ? Object.freeze([...hostedDomainCommerce.cloudflareRoutes, ...hostedDomainCommerce.registrar.scopedRoutes, ...hostedDomainCommerce.operations.scopedRoutes])
+  : hostedCloudflareRuntime?.scopedRoutes
 const fumaScopedApi = createHostedFumaScopedApi({
   db,
   hostedStaffAuth: hostedStaffAuthRuntime,
   ...(publicationRuntime ? { publicationRoutes: publicationRuntime.graph.scopedRoutes } : {}),
   ...(platformCheckoutRuntime ? { checkoutRoutes: platformCheckoutRuntime.scopedRoutes } : {}),
   ...(quotaRuntime ? { quotaRoutes: quotaRuntime.scopedRoutes } : {}),
+  ...(domainRoutes ? { domainRoutes } : {}),
   ...(hostedMcpRuntime ? { mcpRoutes: hostedMcpRuntime.scopedRoutes } : {}),
   ...(artifactMarketplaceRoutes ? { marketplaceRoutes: artifactMarketplaceRoutes } : {}),
   ...(hostedComponentCatalogRuntime ? { componentCatalogRoutes: hostedComponentCatalogRuntime.scopedRoutes } : {}),
@@ -779,6 +877,8 @@ const server = Bun.serve<PublicationSocketData>({
         entitlementAdmin: entitlementAdminRuntime?.boundary,
         platformConsole: platformConsoleBoundary,
         publicMarketingAnalyticsAdmin,
+        hostedSiteOnboarding,
+        workspaceManagement,
         fumaScopedApi,
         mcpAuthority: hostedMcpRuntime?.nativeHttpAuthority,
       })
@@ -823,6 +923,8 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
       platformBillingRuntime?.close(),
       publicationSockets?.close(),
       hostedStaffAuthRuntime?.close(),
+      hostedDomainCommerce?.close(),
+      hostedCloudflareRuntime?.close(),
       centralIdentityAuthRuntime?.close(),
       publicProjectionRuntime?.close(),
       siteRuntimeAuthority?.close(),

@@ -1,5 +1,5 @@
 import type { DbClient } from '../../db/client'
-import { AiByokCredentialSchema, AiCreditAccountSchema, AiCreditLotSchema, AiCreditReservationSchema, AiCreditSettlementSchema, parseAiCreditContract, type AiByokCredential, type AiCreditAccount, type AiCreditLot, type AiCreditReservation, type AiCreditSettlement } from './contracts'
+import { AiByokCredentialSchema, AiCreditAccountSchema, AiCreditLotSchema, AiCreditReservationSchema, AiCreditSettlementSchema, parseAiCreditContract, type AiByokCredential, type AiCreditAccount, type AiCreditLot, type AiCreditReservation, type AiCreditScope, type AiCreditSettlement } from './contracts'
 import { AiCreditRepositoryError, type AiCreditRepository, type AiCreditSnapshot, type AiCreditWriteOutcome } from './repository'
 
 type Row = Record<string, unknown>
@@ -32,6 +32,15 @@ export class PostgresAiCreditRepository implements AiCreditRepository {
     ])
     if (!a.rows[0]) return null
     return Object.freeze({ account: account(a.rows[0]), lots: Object.freeze(l.rows.map(lot)), reservations: Object.freeze(r.rows.map(reservation)), settlements: Object.freeze(s.rows.map(settlement)), credentials: Object.freeze(c.rows.map(credential)) })
+  }
+  async snapshotForScope(scope: AiCreditScope): Promise<AiCreditSnapshot | null> {
+    const result = await this.db.unsafe<Row>(`
+      select account_id from fuma_ai_credit_accounts_v2
+      where platform_id=$1 and organization_id=$2 and workspace_id=$3 and site_id=$4
+        and owner_key=$5 and owner_generation=$6
+    `, [scope.platformId, scope.organizationId, scope.workspaceId, scope.siteId, scope.ownerKey, scope.ownerGeneration])
+    const accountId = result.rows[0]?.account_id
+    return typeof accountId === 'string' ? await this.snapshot(accountId) : null
   }
   async reservation(id: string) { const result = await this.db.unsafe<Row>(`select ${RESERVATION_COLUMNS} from fuma_ai_credit_reservations_v2 where reservation_id=$1`, [id]); return result.rows[0] ? reservation(result.rows[0]) : null }
   async credential(id: string) { const result = await this.db.unsafe<Row>(`select ${CREDENTIAL_COLUMNS} from fuma_ai_byok_metadata_v2 where credential_id=$1`, [id]); return result.rows[0] ? credential(result.rows[0]) : null }
