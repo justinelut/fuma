@@ -3,7 +3,7 @@ import { request as httpRequest } from 'node:http'
 import { join } from 'node:path'
 import { safeParseJson } from '@core/utils/jsonValidate'
 import type { FumaRuntimeComponentFactory } from '../../../server/fuma/runtime/boot'
-import { FumaRuntimeHealthSchema } from '../../../server/fuma/runtime/health'
+import { FumaRuntimeHealthSchema, runtimeControlHostname } from '../../../server/fuma/runtime/health'
 import { FumaRuntimeLifecycle, type FumaRuntimeRole } from '../../../server/fuma/runtime/lifecycle'
 import {
   FUMA_SCHEDULER_COMPONENTS,
@@ -86,9 +86,15 @@ const ROLE_CASES = [
   ['web', FUMA_WEB_COMPONENTS, startFumaWebRuntime],
   ['worker', FUMA_WORKER_COMPONENTS, startFumaWorkerRuntime],
   ['scheduler', FUMA_SCHEDULER_COMPONENTS, startFumaSchedulerRuntime],
+
 ] as const
 
 describe('FUMA-005 role composition', () => {
+  it('binds health locally by default and only allows the explicit Kubernetes all-interface host', () => {
+    expect(runtimeControlHostname({})).toBe('127.0.0.1')
+    expect(runtimeControlHostname({ FUMA_HEALTH_HOST: '0.0.0.0' })).toBe('0.0.0.0')
+    expect(() => runtimeControlHostname({ FUMA_HEALTH_HOST: 'example.com' })).toThrow('FUMA_HEALTH_HOST')
+  })
   it.each(ROLE_CASES)('%s starts only its owned components', async (role, expectedComponents, start) => {
     const started: string[] = []
     const createComponent: FumaRuntimeComponentFactory = ({ id }) => ({
