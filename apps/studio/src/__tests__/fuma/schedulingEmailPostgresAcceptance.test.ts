@@ -60,7 +60,7 @@ describe('FUMA-036/FUMA-043 live PostgreSQL acceptance', () => {
         await tx`insert into fuma_publication_metadata_authority values ('platform','organization','workspace','site','owner',1,'publication','content-1')`
       })
 
-      await db`insert into fuma_publication_schedules (
+      await db`insert into fuma_publication_schedules_v2 (
         platform_id,organization_id,workspace_id,site_id,owner_key,owner_generation,profile_id,
         schedule_id,content_id,action,expected_workflow_version,due_at,display_timezone,state,
         claim_fence,claimed_by,claim_expires_at,completed_at,created_at
@@ -76,7 +76,7 @@ describe('FUMA-036/FUMA-043 live PostgreSQL acceptance', () => {
         'platform','organization','workspace','site','owner',1,'publication',
         'token-1','content-1',${'a'.repeat(64)},'2040-01-02T03:04:05Z','2040-01-01T03:04:05Z',null,null,0
       )`
-      await rejects(async () => { await db`update fuma_publication_schedules set state='claimed' where schedule_id='schedule-1'` })
+      await rejects(async () => { await db`update fuma_publication_schedules_v2 set state='claimed' where schedule_id='schedule-1'` })
       await rejects(async () => { await db`insert into fuma_publication_preview_tokens (
         platform_id,organization_id,workspace_id,site_id,owner_key,owner_generation,profile_id,
         token_id,content_id,token_digest_sha256,expires_at,created_at,use_count
@@ -118,7 +118,7 @@ describe('FUMA-036/FUMA-043 live PostgreSQL acceptance', () => {
 
       const counts = await db.unsafe<{ schedules: number|string|bigint; versions: number|string|bigint }>(`
         select
-          (select count(*) from fuma_publication_schedules) as schedules,
+          (select count(*) from fuma_publication_schedules_v2) as schedules,
           (select count(*) from fuma_email_settings_versions) as versions
       `)
       expect(Number(counts.rows[0]?.schedules)).toBe(1)

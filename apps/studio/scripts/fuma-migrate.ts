@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
 import { createPostgresClient } from '../server/db/postgres'
+import { pgMigrations } from '../server/db/migrations-pg'
+import { runMigrations } from '../server/db/runMigrations'
 import { hostedMigrations } from '../server/fuma/db/migrations'
 import { nextHostedMigrationId } from '../server/fuma/db/migrationPolicy'
 import { runHostedMigrations } from '../server/fuma/db/hostedMigrationRunner'
@@ -16,8 +18,12 @@ if (nextDescription) {
   const databaseUrl = flagValue('database-url') ?? process.env.DATABASE_URL
   if (!databaseUrl) throw new Error('DATABASE_URL or --database-url is required.')
   const db = createPostgresClient(databaseUrl)
-  const report = await runHostedMigrations(db, {
-    dryRun: process.argv.includes('--dry-run'),
-  })
-  process.stdout.write(`${JSON.stringify(report)}\n`)
+  const dryRun = process.argv.includes('--dry-run')
+  try {
+    if (!dryRun) await runMigrations(db, pgMigrations)
+    const report = await runHostedMigrations(db, { dryRun })
+    process.stdout.write(`${JSON.stringify(report)}\n`)
+  } finally {
+    await db.close?.()
+  }
 }

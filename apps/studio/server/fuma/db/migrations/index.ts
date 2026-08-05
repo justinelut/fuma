@@ -213,7 +213,7 @@ export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Obje
   '000045_paystack_reconciliation': 'eb45811cd1e00907c36ac4a3ee6a113731712220b56c8bb406ff90a021f817d8',
   '000046_editorial_workflow': '11a2c6f4fb4ad620a92d5e0473bc623c5e2e8460e177a5e9270dfc52c21c27d7',
   '000047_member_accounts_access': 'f6ec6be3ce04e68aa1c9d26c29f080d324f9814b0001ae0aef09f814f0c16a2d',
-  '000048_publication_scheduling_access': '91166384501f41690876ada85ddb06b8ea5c842ce1f469e72e3a80414862ecf3',
+  '000048_publication_scheduling_access': 'a885f580e0d87224c149dc195dd746e858ea6f95d5fc7c10b2636e25d13f4e64',
   '000049_email_settings_versions': 'e3280afa67913e9132a1e4ddabff1f77db3ad95c63223cdabc65db4abe7ad8b7',
   '000050_dynamic_publication_templates': '3e3b3c2fe969eddca1063f62a63ada426949623a8110ca23caa5483b1ee1c34b',
   '000051_publication_privacy_analytics': 'a6deae4ed574da8ec0065f92883bcf2a77738d011d2a93b15a8e41a21fbb208e',
