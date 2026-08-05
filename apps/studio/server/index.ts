@@ -369,7 +369,12 @@ const hostedComponentCatalogRuntime = hostedArtifactRuntime && hostedArtifactRev
   ? createHostedComponentCatalogRuntime({ db, artifacts: hostedArtifactRuntime.authority, reviews: hostedArtifactReviewRuntime.service })
   : undefined
 if (hostedComponentCatalogRuntime) configureSiteComponentCatalogPort(new PostgresSiteComponentCatalogPort(db, hostedComponentCatalogRuntime.service))
-const siteRuntimeAuthority = hostedFumaConfig && releaseObjectStorage
+const siteRuntimeConfigured = Boolean(
+  process.env.FUMA_SITE_RUNTIME_PRIVATE_HOST?.trim()
+  && process.env.FUMA_SITE_RUNTIME_SERVICE_TOKEN?.trim()
+  && process.env.FUMA_SITE_RUNTIME_SUPPORTED_DEPLOYMENTS?.trim(),
+)
+const siteRuntimeAuthority = hostedFumaConfig && releaseObjectStorage && siteRuntimeConfigured
   ? await createHostedSiteRuntimeAuthority({
     db,
     storage: releaseObjectStorage,

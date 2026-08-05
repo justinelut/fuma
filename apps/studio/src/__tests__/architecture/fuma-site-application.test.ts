@@ -61,4 +61,14 @@ describe('FUMA-SITE-005 application and compatibility architecture', () => {
     expect(runnableHostedMigrations.map(({ id }) => id)).toContain('000072_site_runtime_application')
     expect(() => assertHostedMigrationManifest(hostedMigrations, HOSTED_MIGRATION_CHECKSUMS)).not.toThrow()
   })
+
+  test('mounts the private site-runtime authority only with complete exact configuration', () => {
+    const server = read('apps/studio/server/index.ts')
+    for (const key of [
+      'FUMA_SITE_RUNTIME_PRIVATE_HOST',
+      'FUMA_SITE_RUNTIME_SERVICE_TOKEN',
+      'FUMA_SITE_RUNTIME_SUPPORTED_DEPLOYMENTS',
+    ]) expect(server).toContain(`process.env.${key}?.trim()`)
+    expect(server).toContain('releaseObjectStorage && siteRuntimeConfigured')
+  })
 })
