@@ -34,6 +34,7 @@ import type { FreeHostPublicBoundary } from './fuma/freeHosts'
 import type { PaystackWebhookBoundary } from './fuma/paystack/boundary'
 import type { EntitlementAdminBoundary } from './fuma/entitlements'
 import type { PlatformConsoleBoundary } from './fuma/platformConsole/boundary'
+import type { PublicMarketingAnalyticsAdminBoundary } from './fuma/publicAnalytics/adminBoundary'
 import {
   invalidateLegacyStaffCookie,
   isLegacyHostedAuthPath,
@@ -55,6 +56,7 @@ export interface ServerRuntime {
   paystackWebhooks?: PaystackWebhookBoundary
   entitlementAdmin?: EntitlementAdminBoundary
   platformConsole?: PlatformConsoleBoundary
+  publicMarketingAnalyticsAdmin?: PublicMarketingAnalyticsAdminBoundary
   fumaScopedApi?: FumaScopedRouteBoundary
   mcpAuthority?: McpNativeHttpAuthority
   staticDir?: string
@@ -89,6 +91,7 @@ const routes: readonly RouteHandler[] = [
   tryServeMemberImports,
   tryServeEntitlementAdmin,
   tryServePlatformConsole,
+  tryServePublicMarketingAnalyticsAdmin,
   // Hosted scoped routes own `/api/fuma` completely. Keep this before the
   // legacy CMS dispatcher so hosted requests cannot enter self-host routing.
   tryServeFumaScopedApi,
@@ -176,6 +179,11 @@ async function tryServeEntitlementAdmin(req: Request, runtime: ServerRuntime): P
 async function tryServePlatformConsole(req: Request, runtime: ServerRuntime): Promise<Response | null> {
   if (!runtime.platformConsole?.handles(req)) return null
   return await runtime.platformConsole.handle(req)
+}
+
+async function tryServePublicMarketingAnalyticsAdmin(req: Request, runtime: ServerRuntime): Promise<Response | null> {
+  if (!runtime.publicMarketingAnalyticsAdmin?.handles(req)) return null
+  return await runtime.publicMarketingAnalyticsAdmin.handle(req)
 }
 
 function tryServeHealth(_req: Request, _runtime: ServerRuntime, _url: URL, pathname: string): Response | null {

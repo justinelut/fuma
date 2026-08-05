@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Type, safeParseValue } from '@core/utils/typeboxHelpers'
 import { Button } from '@ui/components/Button'
 import { DataTable } from '@ui/components/DataTable'
+import { PublicMarketingAnalyticsRouteContent, PUBLIC_MARKETING_ANALYTICS_ADMIN_PATH } from '../publicAnalytics'
 import styles from './PlatformAdminWorkspace.module.css'
 
 const Scalar = Type.Union([Type.String(), Type.Number(), Type.Boolean(), Type.Null()])
@@ -26,7 +27,7 @@ async function json<T>(response: Response, schema: Parameters<typeof safeParseVa
   return parsed.value as T
 }
 
-export default function PlatformAdminWorkspace() {
+export default function PlatformAdminWorkspace({ pathname = '/admin/internal' }: Readonly<{ pathname?: string }>) {
   const [view, setView] = useState<(typeof VIEWS)[number]>('clients')
   const [page, setPage] = useState<ConsolePage | null>(null)
   const [entitlements, setEntitlements] = useState<EntitlementWorkspace | null>(null)
@@ -68,10 +69,14 @@ export default function PlatformAdminWorkspace() {
     finally { setBusy(false) }
   }
 
+  if (pathname === PUBLIC_MARKETING_ANALYTICS_ADMIN_PATH) {
+    return <main className={styles.root}><nav className={styles.tabs} aria-label="Platform administration sections"><a href="/admin/internal">Platform console</a><a href="/admin/dashboard">Customer dashboard</a></nav><PublicMarketingAnalyticsRouteContent pathname={pathname} /></main>
+  }
+
   return <main className={styles.root}>
     <a className={styles.skipLink} href="#platform-content">Skip to platform content</a>
     <header className={styles.header}><div><p className={styles.eyebrow}>Protected owner · Fuma platform</p><h1>Platform administration</h1><p>Operate customers, economics, releases, domains, jobs, AI, and immutable pricing from one authority.</p></div><Button variant="secondary" disabled={busy} onClick={() => void load(view)}>Refresh</Button></header>
-    <nav className={styles.tabs} aria-label="Platform administration sections"><a href="#inventory">Inventory</a><a href="#pricing">Pricing</a><a href="#audit">Audit</a><a href="/admin/dashboard">Customer dashboard</a></nav>
+    <nav className={styles.tabs} aria-label="Platform administration sections"><a href="#inventory">Inventory</a><a href="#pricing">Pricing</a><a href="/admin/internal/marketing-analytics">Acquisition analytics</a><a href="#audit">Audit</a><a href="/admin/dashboard">Customer dashboard</a></nav>
     <p className={styles.status} role="status" aria-live="polite">{status}</p>
     <section id="platform-content" className={styles.layout}>
       <article className={styles.panel} id="inventory"><div className={styles.panelHeader}><div><p className={styles.kicker}>Operations</p><h2>Platform inventory</h2></div><label>View<select value={view} onChange={(event) => setView(event.target.value as typeof view)}>{VIEWS.map((item) => <option key={item} value={item}>{item}</option>)}</select></label></div>
