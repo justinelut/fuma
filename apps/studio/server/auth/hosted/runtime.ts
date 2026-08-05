@@ -74,6 +74,7 @@ export type HostedFumaScopedApiInput = Readonly<{
   expertRoutes?: readonly FumaScopedRouteDeclaration[]
   paidHandoffRoutes?: readonly FumaScopedRouteDeclaration[]
   capabilityDashboardRoutes?: readonly FumaScopedRouteDeclaration[]
+  bookingRoutes?: readonly FumaScopedRouteDeclaration[]
   nextSourceRoutes?: readonly FumaScopedRouteDeclaration[]
 }>
 
@@ -202,6 +203,7 @@ export function createHostedFumaScopedApi(
     ...(input.expertRoutes ?? []),
     ...(input.paidHandoffRoutes ?? []),
     ...(input.capabilityDashboardRoutes ?? []),
+    ...(input.bookingRoutes ?? []),
     ...(input.nextSourceRoutes ?? []),
   ]))
 }
