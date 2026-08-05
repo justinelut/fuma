@@ -19,6 +19,7 @@ import type { PublicHandoffService } from './service'
 const PRIVATE_HANDOFF_PATH = '/_fuma/private/public/v1/handoff'
 const AUTH_AUTHORIZE_PATH = '/handoff/authorize'
 const AUTH_SIGN_IN_PATH = '/handoff/sign-in'
+const AUTH_GOOGLE_PATH = '/handoff/google'
 const AUTH_TWO_FACTOR_PATH = '/handoff/two-factor'
 const AUTH_CANCEL_PATH = '/handoff/cancel'
 const APP_RESUME_PATH = '/resume'
@@ -52,6 +53,11 @@ const AuthContinuationSchema = Type.Object({
   twoFactorRedirect: Type.Optional(Type.Boolean()),
 }, { additionalProperties: true })
 
+
+const SocialAuthorizationSchema = Type.Object({
+  url: Type.String({ minLength: 1, maxLength: 4_096 }),
+  redirect: Type.Optional(Type.Boolean()),
+}, { additionalProperties: true })
 const TwoFactorFormSchema = Type.Object({
   code: Type.String({ pattern: '^[0-9]{6}$' }),
   intent: Type.String({ minLength: 32, maxLength: 128, pattern: '^[A-Za-z0-9_-]+$' }),
@@ -74,6 +80,7 @@ export type PublicHandoffAppBoundaryInput = Readonly<{
   authOrigin: string
   marketingOrigin: string
   secureCookies: boolean
+  googleAuthEnabled?: boolean
   identityAuth: HostedStaffAuthBoundary
   resolveIdentitySession(headers: Headers): Promise<HostedResolvedSession | null>
 }>
@@ -88,10 +95,18 @@ function noStoreHeaders(contentType = 'text/html; charset=utf-8'): Headers {
   })
 }
 
+const HANDOFF_STYLES = String.raw`
+:root{color-scheme:dark;--bg:#000;--fg:#fff;--card:#0a0a0a;--inset:rgba(255,255,255,.025);--muted:rgba(255,255,255,.62);--line:rgba(255,255,255,.12);--line-strong:rgba(255,255,255,.22);--signal:#3f6bff;--signal-bright:#6f92ff;--control:rgba(255,255,255,.07);--control-hover:rgba(255,255,255,.12);--error:#ff8b8b;--shadow:rgba(0,0,0,.72)}
+@media(prefers-color-scheme:light){:root{color-scheme:light;--bg:#f4f5f7;--fg:#101114;--card:#fff;--inset:#f8f9fb;--muted:#5f6672;--line:#dfe2e8;--line-strong:#b8bec9;--signal:#315ee7;--signal-bright:#244dcc;--control:#f0f2f6;--control-hover:#e5e8ef;--error:#a52626;--shadow:rgba(20,27,40,.14)}}
+*{box-sizing:border-box}html{min-height:100%;background:var(--bg)}body{min-height:100vh;margin:0;padding:clamp(1rem,4vw,4rem);display:grid;place-items:center;background:radial-gradient(circle at 12% 8%,color-mix(in srgb,var(--signal) 19%,transparent),transparent 34rem),linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px),var(--bg);background-size:auto,64px 64px,64px 64px;color:var(--fg);font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.shell{width:min(100%,64rem);display:grid;grid-template-columns:minmax(17rem,.78fr) minmax(20rem,1.22fr);overflow:hidden;border:1px solid var(--line);border-radius:1.5rem;background:var(--card);box-shadow:0 28px 90px var(--shadow)}.context{position:relative;display:flex;min-height:38rem;flex-direction:column;justify-content:space-between;padding:clamp(2rem,5vw,3.75rem);border-right:1px solid var(--line);background:linear-gradient(145deg,color-mix(in srgb,var(--signal) 10%,var(--inset)),var(--inset))}.brand{display:flex;align-items:center;gap:.75rem;font-weight:700;letter-spacing:-.02em}.mark{display:grid;width:2rem;height:2rem;place-items:center;border:1px solid color-mix(in srgb,var(--signal-bright) 55%,var(--line));border-radius:.65rem;background:color-mix(in srgb,var(--signal) 18%,transparent);color:var(--signal-bright);font:700 .72rem/1 ui-monospace,SFMono-Regular,monospace}.contextCopy{max-width:19rem}.contextCopy strong{display:block;font-size:clamp(1.8rem,4vw,3rem);font-weight:520;line-height:1.02;letter-spacing:-.055em}.contextCopy p,.privacy{color:var(--muted)}.continuation{display:flex;align-items:center;gap:.7rem;margin-top:2rem;color:var(--muted);font:600 .72rem/1.3 ui-monospace,SFMono-Regular,monospace;text-transform:uppercase;letter-spacing:.09em}.continuation:before{content:"";width:2.25rem;height:2px;background:var(--signal)}.panel{padding:clamp(2rem,6vw,4.5rem);align-self:center}.eyebrow{margin:0 0 .85rem;color:var(--signal-bright);font:700 .7rem/1.2 ui-monospace,SFMono-Regular,monospace;text-transform:uppercase;letter-spacing:.13em}h1{margin:0;font-size:clamp(2.15rem,5vw,3.7rem);font-weight:520;line-height:.98;letter-spacing:-.055em}.lede{max-width:34rem;margin:1.15rem 0 2rem;color:var(--muted);font-size:1rem}.alert{margin:0 0 1rem;padding:.85rem 1rem;border:1px solid color-mix(in srgb,var(--error) 40%,var(--line));border-radius:.75rem;background:color-mix(in srgb,var(--error) 8%,transparent);color:var(--error)}form{margin:0}.fields{display:grid;gap:1rem}label{display:grid;gap:.45rem;color:var(--muted);font-size:.78rem;font-weight:650}input{width:100%;min-height:3rem;padding:.7rem .85rem;border:1px solid var(--line);border-radius:.72rem;outline:none;background:var(--inset);color:var(--fg);font:inherit;transition:border-color .15s,box-shadow .15s}input:focus{border-color:var(--signal-bright);box-shadow:0 0 0 3px color-mix(in srgb,var(--signal) 22%,transparent)}button,.social{display:flex;width:100%;min-height:3rem;align-items:center;justify-content:center;gap:.65rem;border:1px solid var(--line-strong);border-radius:.72rem;padding:.72rem 1rem;color:var(--fg);font:650 .92rem/1 inherit;text-decoration:none;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}.primary{margin-top:1.2rem;border-color:var(--fg);background:var(--fg);color:var(--bg)}.social{background:var(--control)}.secondary{margin-top:.7rem;background:transparent;color:var(--muted)}button:hover,.social:hover{background:var(--control-hover);border-color:var(--line-strong)}.primary:hover{background:color-mix(in srgb,var(--fg) 88%,var(--signal));}.social:active,button:active{transform:translateY(1px)}button:focus-visible,.social:focus-visible{outline:3px solid color-mix(in srgb,var(--signal) 50%,transparent);outline-offset:2px}.googleMark{width:1rem;height:1rem}.divider{display:flex;align-items:center;gap:.8rem;margin:1.3rem 0;color:var(--muted);font-size:.72rem}.divider:before,.divider:after{content:"";height:1px;flex:1;background:var(--line)}.privacy{margin:1.4rem 0 0;font-size:.75rem}.privacy strong{color:var(--fg)}
+@media(max-width:48rem){body{padding:0;background-size:auto,48px 48px,48px 48px}.shell{min-height:100vh;grid-template-columns:1fr;border:0;border-radius:0}.context{min-height:auto;padding:1.35rem 1.5rem;border-right:0;border-bottom:1px solid var(--line)}.contextCopy{display:none}.continuation{margin-top:1.25rem}.panel{width:100%;padding:2.25rem 1.5rem 3rem}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+`
+
 function html(value: string, status = 200, extra?: HeadersInit): Response {
   const headers = noStoreHeaders()
   if (extra) for (const [key, item] of new Headers(extra)) headers.append(key, item)
-  return new Response(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Continue to Fuma</title><style>body{font:16px/1.5 system-ui;max-width:40rem;margin:4rem auto;padding:0 1rem;color:#171717}main{border:1px solid #ddd;border-radius:16px;padding:2rem}label{display:block;margin:.8rem 0}input,button{font:inherit;padding:.7rem;width:100%;box-sizing:border-box}button{margin-top:.7rem;cursor:pointer}.secondary{background:#fff}p{overflow-wrap:anywhere}</style><main>${value}</main></html>`, { status, headers })
+  return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark light"><title>Continue to Fuma</title><style>${HANDOFF_STYLES}</style></head><body><div class="shell"><aside class="context"><div class="brand"><span class="mark" aria-hidden="true">F</span><span>Fuma</span></div><div class="contextCopy"><strong>Keep the work in motion.</strong><p>Your intent stays with you while identity is confirmed, then returns to the exact next step.</p></div><div class="continuation">Secure continuation</div></aside><main class="panel">${value}</main></div></body></html>`, { status, headers })
 }
 
 function escaped(value: string): string {
@@ -177,13 +192,18 @@ function appCookie(name: string, token: string, maxAge: number, secure: boolean)
   return `${name}=${encodeURIComponent(token)}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax${secure ? '; Secure' : ''}`
 }
 
-function loginPage(query: AppHandoffStartQuery, mode: 'sign-in' | 'sign-up', message = ''): Response {
+function loginPage(query: AppHandoffStartQuery, mode: 'sign-in' | 'sign-up', message = '', googleAuthEnabled = false): Response {
   const label = mode === 'sign-up' ? 'Create account' : 'Sign in'
+  const title = mode === 'sign-up' ? 'Create your Fuma account' : 'Welcome back'
   const introduction = mode === 'sign-up'
-    ? 'Create your account to start using Fuma.'
-    : 'Welcome back. Sign in to continue.'
+    ? 'One account for your sites, content, publishing, and team.'
+    : 'Sign in to continue exactly where you left off.'
   const passwordAutocomplete = mode === 'sign-up' ? 'new-password' : 'current-password'
-  return html(`<h1>${label} to Fuma</h1>${message ? `<p role="alert">${escaped(message)}</p>` : ''}<p>${introduction}</p><form method="post" action="${AUTH_SIGN_IN_PATH}"><input type="hidden" name="mode" value="${mode}"><input type="hidden" name="intent" value="${escaped(query.intent)}"><input type="hidden" name="correlation" value="${escaped(query.correlation)}">${mode === 'sign-up' ? '<label>Name<input required autocomplete="name" name="displayName" maxlength="100"></label>' : ''}<label>Email<input required type="email" autocomplete="email" name="email"></label><label>Password<input required type="password" autocomplete="${passwordAutocomplete}" minlength="8" maxlength="128" name="password"></label><button type="submit">${label}</button></form><form method="post" action="${AUTH_CANCEL_PATH}"><input type="hidden" name="kind" value="intent"><input type="hidden" name="intent" value="${escaped(query.intent)}"><input type="hidden" name="correlation" value="${escaped(query.correlation)}"><button class="secondary" type="submit">Cancel</button></form>`)
+  const googleUrl = fixedUrl('https://placeholder.invalid', AUTH_GOOGLE_PATH, { intent: query.intent, correlation: query.correlation }).replace('https://placeholder.invalid', '')
+  const google = googleAuthEnabled
+    ? `<a class="social" href="${escaped(googleUrl)}"><svg class="googleMark" aria-hidden="true" viewBox="0 0 24 24"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.8 3-4.3 3-7.3Z"/><path fill="#34A853" d="M12 22c2.7 0 5-.9 6.6-2.4L15.4 17c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.9A6 6 0 0 1 6.1 12c0-.7.1-1.3.3-1.9V7.5H3.1A10 10 0 0 0 2 12c0 1.6.4 3.1 1.1 4.5l3.3-2.6Z"/><path fill="#EA4335" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.8A9.7 9.7 0 0 0 12 2a10 10 0 0 0-8.9 5.5l3.3 2.6A6 6 0 0 1 12 6Z"/></svg>Continue with Google</a><div class="divider"><span>or continue with email</span></div>`
+    : ''
+  return html(`<p class="eyebrow">Account access</p><h1>${title}</h1><p class="lede">${introduction}</p>${message ? `<p class="alert" role="alert">${escaped(message)}</p>` : ''}${google}<form method="post" action="${AUTH_SIGN_IN_PATH}"><input type="hidden" name="mode" value="${mode}"><input type="hidden" name="intent" value="${escaped(query.intent)}"><input type="hidden" name="correlation" value="${escaped(query.correlation)}"><div class="fields">${mode === 'sign-up' ? '<label><span>Name</span><input required autocomplete="name" name="displayName" maxlength="100"></label>' : ''}<label><span>Email</span><input required type="email" autocomplete="email" name="email"></label><label><span>Password</span><input required type="password" autocomplete="${passwordAutocomplete}" minlength="8" maxlength="128" name="password"></label></div><button class="primary" type="submit">${label}</button></form><form method="post" action="${AUTH_CANCEL_PATH}"><input type="hidden" name="kind" value="intent"><input type="hidden" name="intent" value="${escaped(query.intent)}"><input type="hidden" name="correlation" value="${escaped(query.correlation)}"><button class="secondary" type="submit">Back to Fuma</button></form><p class="privacy"><strong>Private by default.</strong> Sessions stay host-only and your original selection remains opaque.</p>`)
 }
 
 function twoFactorPage(query: AppHandoffStartQuery, message = '', cookies: readonly string[] = []): Response {
@@ -236,7 +256,7 @@ export function createPublicHandoffAppBoundary(input: PublicHandoffAppBoundaryIn
   function handles(request: Request): boolean {
     const path = new URL(request.url).pathname
     return (exactHost(request, input.appOrigin) && [APP_RESUME_PATH, APP_EXCHANGE_PATH, APP_CANCEL_PATH].includes(path))
-      || (exactHost(request, input.authOrigin) && (path === AUTH_AUTHORIZE_PATH || path === AUTH_SIGN_IN_PATH || path === AUTH_TWO_FACTOR_PATH || path === AUTH_CANCEL_PATH || publicIdentityPath(path)))
+      || (exactHost(request, input.authOrigin) && (path === AUTH_AUTHORIZE_PATH || path === AUTH_SIGN_IN_PATH || (input.googleAuthEnabled && path === AUTH_GOOGLE_PATH) || path === AUTH_TWO_FACTOR_PATH || path === AUTH_CANCEL_PATH || publicIdentityPath(path)))
   }
 
   async function handle(request: Request): Promise<Response | null> {
@@ -244,11 +264,37 @@ export function createPublicHandoffAppBoundary(input: PublicHandoffAppBoundaryIn
     const url = new URL(request.url)
     try {
       if (exactHost(request, input.authOrigin) && publicIdentityPath(url.pathname)) return await input.identityAuth.handle(request)
+      if (request.method === 'GET' && url.pathname === AUTH_GOOGLE_PATH && input.googleAuthEnabled) {
+        const value = queryValue(url, AppHandoffStartQuerySchema) as AppHandoffStartQuery | null
+        if (!value) return safeFailure(null)
+        const callbackURL = fixedUrl(input.authOrigin, AUTH_AUTHORIZE_PATH, {
+          intent: value.intent,
+          correlation: value.correlation,
+        })
+        const authorization = await input.identityAuth.handle(new Request(new URL('/api/auth/sign-in/social', input.authOrigin), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', origin: input.authOrigin, host: auth.host },
+          body: JSON.stringify({ provider: 'google', callbackURL }),
+        }))
+        let envelope: unknown = null
+        try { envelope = await authorization?.clone().json() } catch { envelope = null }
+        if (!authorization?.ok || !Value.Check(SocialAuthorizationSchema, envelope)) {
+          return loginPage(value, 'sign-in', 'Google sign-in is temporarily unavailable. Continue with email.', true)
+        }
+        const providerUrl = new URL(envelope.url)
+        if (providerUrl.protocol !== 'https:' || providerUrl.hostname !== 'accounts.google.com'
+          || providerUrl.username || providerUrl.password || providerUrl.pathname !== '/o/oauth2/v2/auth') {
+          return safeFailure(null)
+        }
+        const response = redirect(providerUrl.toString())
+        for (const cookie of responseSetCookies(authorization.headers)) response.headers.append('set-cookie', cookie)
+        return response
+      }
       if (request.method === 'GET' && url.pathname === AUTH_AUTHORIZE_PATH) {
         const value = queryValue(url, AppHandoffStartQuerySchema) as AppHandoffStartQuery | null
         if (!value) return safeFailure(null)
         const session = await input.resolveIdentitySession(request.headers)
-        if (!session) return loginPage(value, 'sign-in')
+        if (!session) return loginPage(value, 'sign-in', '', input.googleAuthEnabled ?? false)
         if (session.impersonatedBy !== null) return safeFailure(null)
         const code = await input.service.authorize(value, session.userId, session.sessionId)
         return redirect(fixedUrl(input.appOrigin, APP_RESUME_PATH, { code: code.code, state: code.state }))
@@ -269,7 +315,7 @@ export function createPublicHandoffAppBoundary(input: PublicHandoffAppBoundaryIn
           }),
         })
         const authenticated = await input.identityAuth.handle(authRequest)
-        if (!authenticated?.ok) return loginPage({ intent: form.intent, correlation: form.correlation }, form.mode, 'Authentication was not accepted. Check your details and try again.')
+        if (!authenticated?.ok) return loginPage({ intent: form.intent, correlation: form.correlation }, form.mode, 'Authentication was not accepted. Check your details and try again.', input.googleAuthEnabled ?? false)
         const headers = new Headers()
         const setCookies = responseSetCookies(authenticated.headers)
         for (const value of setCookies) headers.append('set-cookie', value)

@@ -174,10 +174,15 @@ function identityBoundary(): HostedStaffAuthBoundary {
     host: 'auth.trimly.co.ke',
     cookieName: '__Host-fuma_auth',
     handlesProductRequest: (value) => new URL(value.url).origin === AUTH,
-    handle: async () => new Response(JSON.stringify({ ok: true }), {
-      status: 200,
-      headers: { 'content-type': 'application/json', 'set-cookie': '__Host-fuma_auth=identity; Path=/; Secure; HttpOnly; SameSite=Lax' },
-    }),
+    handle: async (request) => new URL(request.url).pathname === '/api/auth/sign-in/social'
+      ? new Response(JSON.stringify({ url: 'https://accounts.google.com/o/oauth2/v2/auth?client_id=fixture&state=opaque&redirect_uri=https%3A%2F%2Fauth.trimly.co.ke%2Fapi%2Fauth%2Fcallback%2Fgoogle', redirect: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'set-cookie': '__Host-fuma_auth=oauth-state; Path=/; Secure; HttpOnly; SameSite=Lax' },
+      })
+      : new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'set-cookie': '__Host-fuma_auth=identity; Path=/; Secure; HttpOnly; SameSite=Lax' },
+      }),
   }
 }
 
@@ -188,6 +193,7 @@ function boundary(service: PublicHandoffService, authenticated = false) {
     authOrigin: AUTH,
     marketingOrigin: PUBLIC,
     secureCookies: true,
+    googleAuthEnabled: true,
     identityAuth: identityBoundary(),
     resolveIdentitySession: async () => authenticated ? {
       userId: 'user-1', sessionId: 'identity-session', email: 'user@example.invalid', impersonatedBy: null,
@@ -294,9 +300,25 @@ describe('FUMA-WEB-013 host, redirect, cancellation, and cookie isolation', () =
     const signIn = await surface.handle(request(location.toString()))
     expect(signIn?.status).toBe(200)
     const signInHtml = await signIn!.text()
-    expect(signInHtml).toContain('Sign in to Fuma')
-    expect(signInHtml).toContain('Welcome back. Sign in to continue.')
+    expect(signInHtml).toContain('Welcome back')
+    expect(signInHtml).toContain('Sign in to continue exactly where you left off.')
+    expect(signInHtml).toContain('Continue with Google')
+    expect(signInHtml).toContain('prefers-color-scheme:light')
+    expect(signInHtml).toContain('--signal:#3f6bff')
+    expect(signInHtml).toContain('class="secondary"')
+    expect(signInHtml).not.toContain('<script')
     expect(signInHtml).not.toMatch(/public selection stays opaque|secure handoff|product authority|app\.trimly\.co\.ke/i)
+  })
+
+  test('starts Google on the exact provider route and preserves the host-only state cookie', async () => {
+    const h = harness()
+    const issued = await h.service.issue({ kind: 'sign_in', source: 'direct' })
+    const surface = boundary(h.service)
+    const response = await surface.handle(request(`${AUTH}/handoff/google?intent=${issued.intent}&correlation=${issued.correlation}`))
+    expect(response?.status).toBe(303)
+    const location = new URL(response!.headers.get('location')!)
+    expect(location.origin).toBe('https://accounts.google.com')
+    expect(location.pathname).toBe('/o/oauth2/v2/auth')
   })
 
   test('rejects open-redirect additions and never reflects them', async () => {
