@@ -1,0 +1,41 @@
+name: Fuma production diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuma-production-diagnostics
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect exact Fuma runtime pods
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ vars.SSH_USER }}
+          port: ${{ vars.SSH_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 5m
+          script: |
+            set -e
+            export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+            NS=fuma
+            sudo kubectl -n "$NS" get pods,deployments,jobs,services,ingressroutes.traefik.io -o wide
+            for app in fuma-studio fuma-worker fuma-scheduler; do
+              pod="$(sudo kubectl -n "$NS" get pods -l app="$app" --sort-by=.metadata.creationTimestamp -o name | tail -1)"
+              echo "════════ $app newest=$pod ════════"
+              if [ -z "$pod" ]; then continue; fi
+              sudo kubectl -n "$NS" describe "$pod" | tail -80 || true
+              echo "──── current logs ────"
+              sudo kubectl -n "$NS" logs "$pod" --all-containers=true --tail=240 || true
+              echo "──── previous logs ────"
+              sudo kubectl -n "$NS" logs "$pod" --all-containers=true --previous --tail=240 || true
+            done
+            echo "════════ migration history ════════"
+            sudo kubectl -n "$NS" logs job/fuma-migrate --tail=80 || true
