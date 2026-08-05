@@ -39,3 +39,22 @@ jobs:
             done
             echo "════════ migration history ════════"
             sudo kubectl -n "$NS" logs job/fuma-migrate --tail=80 || true
+            echo "════════ protected owner invariants ════════"
+            studio_pod="$(sudo kubectl -n "$NS" get pods -l app=fuma-studio --sort-by=.metadata.creationTimestamp -o name | tail -1)"
+            sudo kubectl -n "$NS" exec "$studio_pod" -- bun -e '
+              import { SQL } from "bun";
+              const db = new SQL(process.env.DATABASE_URL!);
+              const email = process.env.FUMA_PROTECTED_OWNER_EMAIL?.trim().toLowerCase() ?? "";
+              const admin = "admin", platformId = "fuma-platform", platformSlug = "fuma-platform", membershipId = "fuma-platform-owner", ownerRole = "owner", profileKind = "platform", active = "active", bootstrapKey = "fuma-platform-launch-v1";
+              const result = await db`
+                select
+                  exists(select 1 from auth_users where lower(btrim(email))=${email}) "ownerUserExists",
+                  exists(select 1 from auth_users where lower(btrim(email))=${email} and role=${admin} and banned=false) "ownerAdminProtected",
+                  exists(select 1 from auth_organizations where id=${platformId} and slug=${platformSlug}) "platformOrganizationExists",
+                  exists(select 1 from auth_members member join auth_users staff on staff.id=member.user_id where member.id=${membershipId} and member.organization_id=${platformId} and member.role=${ownerRole} and lower(btrim(staff.email))=${email}) "ownerMembershipExists",
+                  exists(select 1 from fuma_organization_profiles where organization_id=${platformId} and kind=${profileKind} and status=${active}) "platformProfileExists",
+                  exists(select 1 from fuma_organization_bootstrap_receipts where bootstrap_key=${bootstrapKey} and organization_id=${platformId}) "bootstrapReceiptExists"
+              `;
+              console.log(JSON.stringify(result[0]));
+              await db.close();
+            '
