@@ -78,3 +78,11 @@ jobs:
             echo "- digest: \`${{ steps.build.outputs.digest }}\`"
             echo "- roles: \`web\`, \`worker\`, \`scheduler\`, \`migration\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy published Studio image
+    needs: build
+    uses: ./.github/workflows/fuma-studio-deploy.yml
+    with:
+      image_tag: ${{ needs.build.outputs.tag }}
+    secrets: inherit
