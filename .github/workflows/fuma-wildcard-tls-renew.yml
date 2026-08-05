@@ -1,0 +1,95 @@
+name: Renew Fuma tenant wildcard TLS
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 1 * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuma-tenant-wildcard-tls
+  cancel-in-progress: false
+
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FUMA_ENV_SECRET: ${{ secrets.FUMA_ENV_SECRET }}
+      ROOT_DOMAIN: ${{ vars.FUMA_DEPLOYMENT_ROOT_DOMAIN }}
+    steps:
+      - name: Issue wildcard certificate with DNS-01
+        shell: bash
+        run: |
+          set -euo pipefail
+          env_file="$(mktemp)"
+          credentials="$(mktemp)"
+          cleanup() { rm -f "$env_file" "$credentials"; }
+          trap cleanup EXIT
+          printf '%s\n' "$FUMA_ENV_SECRET" > "$env_file"
+          chmod 600 "$env_file"
+          token="$(grep -m1 '^FUMA_CLOUDFLARE_API_TOKEN=' "$env_file" | cut -d= -f2-)"
+          if [ -z "$token" ] || [ -z "$ROOT_DOMAIN" ]; then
+            echo '::error::Wildcard certificate issuance requires Cloudflare DNS authority and root domain.'
+            exit 1
+          fi
+          printf 'dns_cloudflare_api_token = %s\n' "$token" > "$credentials"
+          chmod 600 "$credentials"
+          python3 -m venv "$RUNNER_TEMP/certbot"
+          "$RUNNER_TEMP/certbot/bin/pip" install --disable-pip-version-check 'certbot==4.0.0' 'certbot-dns-cloudflare==4.0.0'
+          sudo "$RUNNER_TEMP/certbot/bin/certbot" certonly \
+            --non-interactive \
+            --agree-tos \
+            --register-unsafely-without-email \
+            --dns-cloudflare \
+            --dns-cloudflare-credentials "$credentials" \
+            --dns-cloudflare-propagation-seconds 30 \
+            --cert-name fuma-tenant-wildcard \
+            -d "*.$ROOT_DOMAIN"
+          mkdir -p wildcard-tls
+          sudo cp /etc/letsencrypt/live/fuma-tenant-wildcard/fullchain.pem wildcard-tls/fullchain.pem
+          sudo cp /etc/letsencrypt/live/fuma-tenant-wildcard/privkey.pem wildcard-tls/privkey.pem
+          sudo chown -R "$USER:$USER" wildcard-tls
+          chmod 600 wildcard-tls/privkey.pem
+          openssl x509 -in wildcard-tls/fullchain.pem -noout -checkend 2592000
+          openssl x509 -in wildcard-tls/fullchain.pem -noout -ext subjectAltName | grep -Fq "DNS:*.$ROOT_DOMAIN"
+
+      - name: Prepare TLS directory
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sudo mkdir -p /opt/fuma/tls
+            sudo chown ubuntu:ubuntu /opt/fuma/tls
+            sudo chmod 700 /opt/fuma/tls
+
+      - name: Copy wildcard certificate
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: wildcard-tls/fullchain.pem,wildcard-tls/privkey.pem
+          target: /opt/fuma/tls/
+          strip_components: 1
+
+      - name: Install wildcard TLS secret
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+            sudo kubectl create namespace fuma 2>/dev/null || true
+            sudo kubectl -n fuma create secret tls fuma-tenant-wildcard-tls \
+              --cert=/opt/fuma/tls/fullchain.pem \
+              --key=/opt/fuma/tls/privkey.pem \
+              --dry-run=client -o yaml | sudo kubectl apply -f -
+            sudo rm -f /opt/fuma/tls/fullchain.pem /opt/fuma/tls/privkey.pem
+            sudo kubectl -n fuma get secret fuma-tenant-wildcard-tls -o jsonpath='{.type}' | grep -Fx 'kubernetes.io/tls'
