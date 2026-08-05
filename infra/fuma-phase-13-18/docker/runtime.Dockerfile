@@ -63,6 +63,7 @@ COPY --chown=bun:bun apps/studio/server ./apps/studio/server
 COPY --chown=bun:bun apps/studio/scripts/fuma-email-compatibility-matrix.ts apps/studio/scripts/fuma-email-compatibility-target.ts apps/studio/scripts/fuma-migrate.ts ./apps/studio/scripts/
 COPY --chown=bun:bun apps/studio/src ./apps/studio/src
 COPY --chown=bun:bun packages ./packages
+COPY --chown=bun:bun tooling ./tooling
 COPY --chmod=0555 infra/fuma-phase-13-18/docker/runtime-entrypoint.sh /usr/local/bin/fuma-runtime
 USER bun
 EXPOSE 3101 3102 3103
