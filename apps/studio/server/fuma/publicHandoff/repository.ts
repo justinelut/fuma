@@ -52,6 +52,7 @@ export class PublicHandoffStoreError extends Error {
 
 export interface PublicHandoffRepository {
   issueIntent(input: Readonly<{ tokenHash: string; token: string; correlation: string; request: PublicHandoffRequest; issuedAt: string; expiresAt: string }>): Promise<IssuedPublicIntent>
+  readIntent(input: Readonly<{ tokenHash: string; correlation: string; now: string }>): Promise<StoredPublicIntent>
   authorizeIntent(input: Readonly<{ tokenHash: string; correlation: string; codeHash: string; code: string; state: string; now: string; expiresAt: string; userId: string; identitySessionId: string }>): Promise<IssuedAppAuthCode>
   inspectCode(input: Readonly<{ codeHash: string; state: string; now: string }>): Promise<StoredAppAuthCode>
   consumeCode(input: Readonly<{ codeHash: string; state: string; now: string }>): Promise<StoredAppAuthCode>
@@ -138,6 +139,17 @@ export class PostgresPublicHandoffRepository implements PublicHandoffRepository 
       `
       return Object.freeze({ intent: input.token, correlation: input.correlation, expiresAt: input.expiresAt })
     })
+  }
+
+  async readIntent(input: Parameters<PublicHandoffRepository['readIntent']>[0]): Promise<StoredPublicIntent> {
+    const selected = await this.#db<IntentRow>`
+      select correlation, request_json, issued_at, expires_at, consumed_at, cancelled_at
+      from fuma_public_handoff_intents_v1
+      where token_hash_sha256=${input.tokenHash} and audience=${APP_HANDOFF_AUDIENCE} and callback_path=${APP_HANDOFF_CALLBACK}
+    `
+    if (selected.rows.length !== 1) throw new PublicHandoffStoreError('invalid')
+    assertIntentUsable(selected.rows[0], input.correlation, input.now)
+    return storedIntent(selected.rows[0]!)
   }
 
   authorizeIntent(input: Parameters<PublicHandoffRepository['authorizeIntent']>[0]): Promise<IssuedAppAuthCode> {

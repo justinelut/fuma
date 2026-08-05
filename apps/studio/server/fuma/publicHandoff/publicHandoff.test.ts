@@ -63,6 +63,15 @@ class FakeRepository implements PublicHandoffRepository {
     return { intent: input.token, correlation: input.correlation, expiresAt: input.expiresAt }
   }
 
+  async readIntent(input: Parameters<PublicHandoffRepository['readIntent']>[0]): Promise<StoredPublicIntent> {
+    const intent = this.intents.get(input.tokenHash)
+    if (!intent || intent.value.correlation !== input.correlation) throw new PublicHandoffStoreError('invalid')
+    if (intent.cancelled) throw new PublicHandoffStoreError('cancelled')
+    if (intent.consumed) throw new PublicHandoffStoreError('replayed')
+    if (Date.parse(intent.value.expiresAt) <= Date.parse(input.now)) throw new PublicHandoffStoreError('expired')
+    return intent.value
+  }
+
   async authorizeIntent(input: Parameters<PublicHandoffRepository['authorizeIntent']>[0]): Promise<IssuedAppAuthCode> {
     const intent = this.intents.get(input.tokenHash)
     if (!intent || intent.value.correlation !== input.correlation) throw new PublicHandoffStoreError('invalid')
@@ -310,6 +319,14 @@ describe('FUMA-WEB-013 host, redirect, cancellation, and cookie isolation', () =
     expect(signInHtml).toContain('class="secondary"')
     expect(signInHtml).not.toContain('<script')
     expect(signInHtml).not.toMatch(/public selection stays opaque|secure handoff|product authority|app\.trimly\.co\.ke/i)
+
+    const signUpIssued = await h.service.issue({ kind: 'sign_up', source: 'direct', profile: 'website' })
+    const signUp = await surface.handle(request(`${AUTH}/handoff/authorize?intent=${signUpIssued.intent}&correlation=${signUpIssued.correlation}`))
+    expect(signUp?.status).toBe(200)
+    const signUpHtml = await signUp!.text()
+    expect(signUpHtml).toContain('Create your Fuma account')
+    expect(signUpHtml).toContain('name="displayName"')
+    expect(signUpHtml).toContain('value="sign-up"')
   })
 
   test('starts Google on the exact provider route and preserves the host-only state cookie', async () => {
