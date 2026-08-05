@@ -172,7 +172,7 @@ describe('FUMA-012 same-origin hosted staff auth', () => {
   }, 20_000)
 
 
-  it('accepts exact-host requests behind the trusted HTTPS-terminating proxy', () => {
+  it('accepts exact-host requests behind the trusted HTTPS-terminating proxy', async () => {
     const { boundary } = fixture()
     const proxied = authRequest('http://app.trimly.co.ke/api/auth/get-session', {
       headers: { 'x-forwarded-proto': 'https' },
@@ -182,6 +182,7 @@ describe('FUMA-012 same-origin hosted staff auth', () => {
     }, { host: 'app.trimly.co.ke' })
     expect(boundary.handlesProductRequest(proxied)).toBe(true)
     expect(boundary.handlesProductRequest(insecure)).toBe(false)
+    expect((await dispatch(boundary, proxied)).status).toBe(200)
   })
   it('denies hostile origins, Host mismatches, customer hosts, marketing hosts, and deferred endpoint surfaces', async () => {
     const { boundary, database } = fixture()
