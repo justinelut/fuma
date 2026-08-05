@@ -5,6 +5,7 @@ import { DataTable } from '@ui/components/DataTable'
 import { FormField } from '@ui/components/FormField'
 import { Input } from '@ui/components/Input'
 import type { PublicMarketingAnalyticsHttpClient } from './client'
+import styles from './PublicMarketingAnalyticsDashboard.module.css'
 
 const DAY_MS = 86_400_000
 
@@ -20,7 +21,7 @@ function initialRange(): PublicMarketingRange {
 }
 
 function Metric({ label, value }: Readonly<{ label: string; value: number }>) {
-  return <article className="rounded-lg border p-4"><h3 className="text-sm text-muted-foreground">{label}</h3><strong className="text-2xl">{value.toLocaleString()}</strong></article>
+  return <article className={styles.metric}><h3>{label}</h3><strong>{value.toLocaleString()}</strong></article>
 }
 
 function percent(basisPoints: number): string {
@@ -64,30 +65,30 @@ export function PublicMarketingAnalyticsDashboard({ client }: Props) {
     return () => { active = false }
   }, [client])
 
-  return <section aria-labelledby="marketing-analytics-title" className="space-y-6">
-    <header><p className="text-xs uppercase tracking-widest text-muted-foreground">Platform acquisition</p><h2 id="marketing-analytics-title" className="text-2xl font-semibold">Privacy-preserving funnel</h2><p className="mt-2 text-sm text-muted-foreground">Aggregate first-party measurement only. No IP, URL, referrer, identity, tenant, member, payment, staff, session, or fingerprint data is retained.</p></header>
-    <form aria-label="Marketing analytics date range" className="flex flex-wrap items-end gap-3" onSubmit={(event) => { event.preventDefault(); void load(range) }}>
+  return <section aria-labelledby="marketing-analytics-title" className={styles.root}>
+    <header className={styles.header}><p className={styles.eyebrow}>Platform acquisition</p><h2 id="marketing-analytics-title" className={styles.title}>Privacy-preserving funnel</h2><p className={styles.description}>Aggregate first-party measurement only. No IP, URL, referrer, identity, tenant, member, payment, staff, session, or fingerprint data is retained.</p></header>
+    <form aria-label="Marketing analytics date range" className={styles.rangeForm} onSubmit={(event) => { event.preventDefault(); void load(range) }}>
       <FormField label="From (UTC)" htmlFor="marketing-analytics-from"><Input id="marketing-analytics-from" type="date" required value={range.from} onChange={(event) => setRange((current) => ({ ...current, from: event.target.value }))} /></FormField>
       <FormField label="To, end-exclusive (UTC)" htmlFor="marketing-analytics-to"><Input id="marketing-analytics-to" type="date" required value={range.to} onChange={(event) => setRange((current) => ({ ...current, to: event.target.value }))} /></FormField>
       <Button type="submit" variant="primary" disabled={busy}>Refresh report</Button>
     </form>
-    <p role="status" aria-live="polite">{message}</p>
+    <p className={styles.status} role="status" aria-live="polite">{message}</p>
     {report ? <>
-      <div aria-label="Marketing event totals" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Metric label="Cookieless page views" value={report.totals.pageViews} /><Metric label="Consented handoffs" value={report.totals.handoffs} /><Metric label="First publishes" value={report.totals.publishes} /><Metric label="Paid conversions" value={report.totals.paid} /></div>
-      <DataTable><caption className="text-left font-semibold">Opaque handoff cohort funnel</caption><thead><tr><th scope="col">Stage</th><th scope="col">Reached</th><th scope="col">Previous-stage conversion</th></tr></thead><tbody>
+      <div aria-label="Marketing event totals" className={styles.metricGrid}><Metric label="Cookieless page views" value={report.totals.pageViews} /><Metric label="Consented handoffs" value={report.totals.handoffs} /><Metric label="First publishes" value={report.totals.publishes} /><Metric label="Paid conversions" value={report.totals.paid} /></div>
+      <DataTable><caption className={styles.caption}>Opaque handoff cohort funnel</caption><thead><tr><th scope="col">Stage</th><th scope="col">Reached</th><th scope="col">Previous-stage conversion</th></tr></thead><tbody>
         <tr><th scope="row">Visit / handoff</th><td>{report.funnel.visits}</td><td>—</td></tr>
         <tr><th scope="row">Signup</th><td>{report.funnel.signups}</td><td>{percent(report.conversionBasisPoints.visitToSignup)}</td></tr>
         <tr><th scope="row">Site created</th><td>{report.funnel.sites}</td><td>{percent(report.conversionBasisPoints.signupToSite)}</td></tr>
         <tr><th scope="row">First publish</th><td>{report.funnel.publishes}</td><td>{percent(report.conversionBasisPoints.siteToPublish)}</td></tr>
         <tr><th scope="row">Paid</th><td>{report.funnel.paid}</td><td>{percent(report.conversionBasisPoints.publishToPaid)}</td></tr>
       </tbody></DataTable>
-      <DataTable><caption className="text-left font-semibold">Coarse route classes</caption><thead><tr><th scope="col">Route class</th><th scope="col">Page views</th><th scope="col">Handoffs</th></tr></thead><tbody>
+      <DataTable><caption className={styles.caption}>Coarse route classes</caption><thead><tr><th scope="col">Route class</th><th scope="col">Page views</th><th scope="col">Handoffs</th></tr></thead><tbody>
         {report.routes.map((row) => <tr key={row.routeClass}><th scope="row">{row.routeClass}</th><td>{row.pageViews}</td><td>{row.handoffs}</td></tr>)}
       </tbody></DataTable>
-      <DataTable><caption className="text-left font-semibold">Coarse campaign classes</caption><thead><tr><th scope="col">Campaign class</th><th scope="col">Page views</th><th scope="col">Handoffs</th></tr></thead><tbody>
+      <DataTable><caption className={styles.caption}>Coarse campaign classes</caption><thead><tr><th scope="col">Campaign class</th><th scope="col">Page views</th><th scope="col">Handoffs</th></tr></thead><tbody>
         {report.campaigns.map((row) => <tr key={row.campaignSource}><th scope="row">{row.campaignSource}</th><td>{row.pageViews}</td><td>{row.handoffs}</td></tr>)}
       </tbody></DataTable>
-      <p className="text-sm text-muted-foreground">Raw minimized events and opaque joins expire after {report.retention.rawEventDays} days. Coarse daily aggregates expire after {report.retention.aggregateDays} days. GPC, DNT, bot/internal traffic, and optional events without explicit consent are not stored.</p>
+      <p className={styles.retention}>Raw minimized events and opaque joins expire after {report.retention.rawEventDays} days. Coarse daily aggregates expire after {report.retention.aggregateDays} days. GPC, DNT, bot/internal traffic, and optional events without explicit consent are not stored.</p>
     </> : null}
   </section>
 }
