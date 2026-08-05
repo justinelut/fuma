@@ -30,6 +30,7 @@ export type HostedStaffAuthRuntimeInput = Readonly<{
   secret: string
   delivery: HostedAuthDelivery
   socialProviders?: HostedSocialProviders
+  reconcileProtectedOwner?: (email: string) => Promise<void>
 }>
 
 export type HostedIdentityAuthRuntimeInput = Readonly<{
@@ -127,6 +128,14 @@ export function createHostedStaffAuthRuntime(
     delivery: input.delivery,
     ...(input.socialProviders ? { socialProviders: input.socialProviders } : {}),
   })
+  const resolveSession = async (headers: Headers) => {
+    const session = await postgres.resolveSession(headers)
+    if (session && input.reconcileProtectedOwner
+      && session.email.trim().toLowerCase() === input.protectedOwnerEmail.trim().toLowerCase()) {
+      await input.reconcileProtectedOwner(session.email)
+    }
+    return session
+  }
   const boundary = createHostedStaffAuthBoundary({
     auth: postgres.auth,
     origin,
@@ -135,14 +144,14 @@ export function createHostedStaffAuthRuntime(
     security: {
       freshSessionSeconds: FUMA_STAFF_FRESH_SESSION_SECONDS,
       protectedOwnerEmail: input.protectedOwnerEmail,
-      resolveSession: postgres.resolveSession,
+      resolveSession,
       findUserEmailById: postgres.findUserEmailById,
       findSessionUserIdByToken: postgres.findSessionUserIdByToken,
     },
   })
   return Object.freeze({
     boundary,
-    resolveSession: postgres.resolveSession,
+    resolveSession,
     startSupportImpersonation: postgres.startSupportImpersonation,
     stopSupportImpersonation: postgres.stopSupportImpersonation,
     setSupportModerationBan: postgres.setSupportModerationBan,

@@ -38,6 +38,66 @@
   line-height: 1.5;
 }
 
+.socialGroup {
+  display: grid;
+  gap: var(--space-l);
+  margin-bottom: var(--space-xl);
+}
+
+.socialButton {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-m);
+  width: 100%;
+  padding: var(--space-m) var(--space-l);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--bg-surface-2);
+  color: var(--text-bright);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.socialButton:hover:not(:disabled) {
+  border-color: var(--text-muted);
+  background: var(--bg-surface);
+}
+
+.socialButton:focus-visible {
+  outline: 2px solid var(--accent-1);
+  outline-offset: 2px;
+}
+
+.socialButton:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.googleMark {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-m);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: var(--border);
+}
+
 .links {
   display: flex;
   flex-wrap: wrap;

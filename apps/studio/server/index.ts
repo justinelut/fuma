@@ -26,6 +26,7 @@ import {
 } from './fuma/publicHandoff'
 import { createHostedSiteRuntimeAuthority, emptyApplicationSnapshot, type SiteRuntimeMemberProjectionPort } from './fuma/siteRuntime'
 import { createHostedFreeHostRuntime, createHostedReleaseObjectStorage, type FreeHostResolution } from './fuma/freeHosts'
+import { OrganizationBootstrapService, PostgresOrganizationBootstrapRepository } from './fuma/organizations'
 import {
   AnonymousEdgeVisitorAuthority,
   createHostedEdgeRuntime,
@@ -144,6 +145,9 @@ const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim()
 const hostedSocialProviders = googleClientId && googleClientSecret
   ? Object.freeze({ google: Object.freeze({ clientId: googleClientId, clientSecret: googleClientSecret }) })
   : undefined
+const protectedOwnerBootstrap = hostedFumaConfig
+  ? new OrganizationBootstrapService({ repository: new PostgresOrganizationBootstrapRepository(db) })
+  : undefined
 const hostedStaffAuthRuntime = hostedFumaConfig
   ? (() => {
     const fumaConfig = hostedFumaConfig
@@ -161,6 +165,11 @@ const hostedStaffAuthRuntime = hostedFumaConfig
       secret: hostedStaffSecret!,
       delivery,
       ...(hostedSocialProviders ? { socialProviders: hostedSocialProviders } : {}),
+      ...(protectedOwnerBootstrap ? {
+        reconcileProtectedOwner: async () => {
+          await protectedOwnerBootstrap.bootstrap({ protectedOwnerEmail: fumaConfig.protectedOwner.email })
+        },
+      } : {}),
     })
   })()
   : undefined

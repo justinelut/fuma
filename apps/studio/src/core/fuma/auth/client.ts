@@ -119,6 +119,11 @@ const BackupCodesSchema = Type.Object({
   backupCodes: Type.Array(Type.String()),
 }, { additionalProperties: false })
 
+
+const HostedSocialAuthorizationSchema = Type.Object({
+  url: Type.String({ minLength: 1, maxLength: 4_096 }),
+  redirect: Type.Boolean(),
+}, { additionalProperties: false })
 export const HostedStaffDeviceSessionSchema = Type.Object({
   id: Type.String(),
   token: Type.String(),
@@ -142,6 +147,25 @@ const HostedUserEnvelopeSchema = Type.Object({
 }, { additionalProperties: false })
 
 const AUTH_BASE = '/api/auth'
+
+export async function beginHostedStaffGoogleSignIn(
+  callbackURL: string,
+  fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
+): Promise<string> {
+  const response = await apiRequest(`${AUTH_BASE}/sign-in/social`, {
+    method: 'POST',
+    body: { provider: 'google', callbackURL },
+    schema: HostedSocialAuthorizationSchema,
+    fetchImpl,
+    fallbackMessage: 'Google sign-in could not start',
+  })
+  const url = new URL(response.url)
+  if (url.protocol !== 'https:' || url.hostname !== 'accounts.google.com'
+    || url.username || url.password || url.pathname !== '/o/oauth2/v2/auth') {
+    throw new Error('Google sign-in returned an invalid authorization URL')
+  }
+  return url.toString()
+}
 
 export async function getHostedStaffSession(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
