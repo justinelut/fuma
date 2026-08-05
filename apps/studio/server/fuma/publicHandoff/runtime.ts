@@ -23,6 +23,7 @@ export function createHostedPublicHandoffRuntime(input: Readonly<{
   authHost: string
   marketingHost: string
   secureCookies: boolean
+  googleAuthEnabled?: boolean
 }>): HostedPublicHandoffRuntime {
   const expectedCookie = input.secureCookies ? AUTH_HANDOFF_SESSION_COOKIE : 'fuma_auth'
   if (input.identityAuth.boundary.cookieName !== expectedCookie) {
@@ -40,6 +41,7 @@ export function createHostedPublicHandoffRuntime(input: Readonly<{
     authOrigin: `${protocol}://${input.authHost}`,
     marketingOrigin: `${protocol}://${input.marketingHost}`,
     secureCookies: input.secureCookies,
+    googleAuthEnabled: input.googleAuthEnabled ?? false,
     identityAuth: input.identityAuth.boundary,
     resolveIdentitySession: input.identityAuth.resolveSession,
   })

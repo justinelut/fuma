@@ -266,6 +266,7 @@ const publicHandoffRuntime = hostedFumaConfig && hostedAuthHost && centralIdenti
     authHost: hostedAuthHost,
     marketingHost: hostedFumaConfig.hosts.marketing,
     secureCookies: hostedFumaConfig.staffCookie.secure,
+    googleAuthEnabled: Boolean(hostedSocialProviders?.google),
   })
   : undefined
 const publicProjectionRuntime = fumaHosted
