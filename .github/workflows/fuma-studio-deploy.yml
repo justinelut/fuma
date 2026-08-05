@@ -37,6 +37,7 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN: ${{ secrets.FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN }}
+          FUMA_CONTROL_RUNTIME_SECRET: ${{ secrets.FUMA_CONTROL_RUNTIME_SECRET }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
           FUMA_OBJECT_ACCESS_SIGNING_SECRET: ${{ secrets.FUMA_OBJECT_ACCESS_SIGNING_SECRET }}
           FUMA_AI_BYOK_METADATA_KEY: ${{ secrets.FUMA_AI_BYOK_METADATA_KEY }}
@@ -74,6 +75,7 @@ jobs:
           inject FUMA_HOSTED true
           inject FUMA_DEPLOYMENT_ROOT_DOMAIN "$FUMA_DEPLOYMENT_ROOT_DOMAIN"
           inject FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN "${FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN:-}"
+          inject FUMA_CONTROL_RUNTIME_SECRET "${FUMA_CONTROL_RUNTIME_SECRET:-}"
           inject BETTER_AUTH_SECRET "${BETTER_AUTH_SECRET:-}"
           inject FUMA_OBJECT_ACCESS_SIGNING_SECRET "${FUMA_OBJECT_ACCESS_SIGNING_SECRET:-}"
           inject FUMA_AI_BYOK_METADATA_KEY "${FUMA_AI_BYOK_METADATA_KEY:-}"
@@ -117,6 +119,7 @@ jobs:
           check_class 'MinIO' FUMA_MINIO_ENDPOINT FUMA_MINIO_ACCESS_KEY_ID FUMA_MINIO_SECRET_ACCESS_KEY FUMA_MINIO_BUCKET
           check_class 'Publication unsubscribe signing' FUMA_PUBLICATION_UNSUBSCRIBE_SIGNING_SECRET
           check_class 'Private public projection' FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN
+          check_class 'Protected admin transport' FUMA_CONTROL_RUNTIME_SECRET
           check_class 'Better Auth session signing' BETTER_AUTH_SECRET
           check_class 'Object access signing' FUMA_OBJECT_ACCESS_SIGNING_SECRET
           check_class 'AI BYOK metadata encryption' FUMA_AI_BYOK_METADATA_KEY

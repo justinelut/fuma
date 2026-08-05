@@ -66,6 +66,9 @@ export function AdminRoutes({ hostedContextCatalog }: AdminRoutesProps = {}) {
       <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
       <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
       {hosted ? (
+        <Route path="/admin/internal/*" element={withRouteBoundary(<AdminEntry platformAdmin hostedContextCatalog={hostedContextCatalog} />)} />
+      ) : null}
+      {hosted ? (
         <Route
           path={FUMA_SCOPED_ADMIN_ROUTE}
           element={withRouteBoundary(

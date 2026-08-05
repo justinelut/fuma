@@ -38,6 +38,10 @@ const HostedStaffPreAuth = prewarmedLazy(
   () => import('./preauth/HostedStaffPreAuth').then((module) => ({ default: module.HostedStaffPreAuth })),
   { displayName: 'HostedStaffPreAuth' },
 )
+const PlatformAdminWorkspace = prewarmedLazy(
+  () => import('./fuma/platformAdmin/PlatformAdminWorkspace'),
+  { displayName: 'PlatformAdminWorkspace' },
+)
 const HostedStaffShell = prewarmedLazy(
   () => import('./preauth/HostedStaffShell').then((module) => ({ default: module.HostedStaffShell })),
   { displayName: 'HostedStaffShell' },
@@ -79,6 +83,7 @@ export interface AdminEntryProps {
    * HostedStaffShell validates the value before exposing it to the scoped shell.
    */
   hostedContextCatalog?: unknown
+  platformAdmin?: boolean
 }
 
 function SelfHostedAdminEntry({ section = 'dashboard' }: AdminEntryProps) {
@@ -112,7 +117,7 @@ function SelfHostedAdminEntry({ section = 'dashboard' }: AdminEntryProps) {
   )
 }
 
-function HostedAdminEntry({ hostedContextCatalog }: AdminEntryProps) {
+function HostedAdminEntry({ hostedContextCatalog, platformAdmin = false }: AdminEntryProps) {
   useEditorAppearancePreferences()
   const { pathname } = useLocation()
   const boot = useHostedStaffBoot()
@@ -121,6 +126,7 @@ function HostedAdminEntry({ hostedContextCatalog }: AdminEntryProps) {
   if (boot.status === 'loading') return <AppLoadingScreen />
   const session = authenticated ?? boot.session
   if (session) {
+    if (platformAdmin) return <Suspense fallback={<AppLoadingScreen />}><PlatformAdminWorkspace /></Suspense>
     return (
       <Suspense fallback={<AppLoadingScreen />}>
         <HostedStaffShell

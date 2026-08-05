@@ -32,6 +32,8 @@ import type { MemberAuthBoundary, MemberImportBoundary } from './fuma/memberIden
 import { tryServeMemberAuth, tryServeMemberImports } from './fuma/memberIdentity/routerBoundary'
 import type { FreeHostPublicBoundary } from './fuma/freeHosts'
 import type { PaystackWebhookBoundary } from './fuma/paystack/boundary'
+import type { EntitlementAdminBoundary } from './fuma/entitlements'
+import type { PlatformConsoleBoundary } from './fuma/platformConsole/boundary'
 import {
   invalidateLegacyStaffCookie,
   isLegacyHostedAuthPath,
@@ -51,6 +53,8 @@ export interface ServerRuntime {
   memberAuth?: MemberAuthBoundary
   memberImports?: MemberImportBoundary
   paystackWebhooks?: PaystackWebhookBoundary
+  entitlementAdmin?: EntitlementAdminBoundary
+  platformConsole?: PlatformConsoleBoundary
   fumaScopedApi?: FumaScopedRouteBoundary
   mcpAuthority?: McpNativeHttpAuthority
   staticDir?: string
@@ -83,6 +87,8 @@ const routes: readonly RouteHandler[] = [
   tryServePublicationPublic,
   tryServePaystackWebhooks,
   tryServeMemberImports,
+  tryServeEntitlementAdmin,
+  tryServePlatformConsole,
   // Hosted scoped routes own `/api/fuma` completely. Keep this before the
   // legacy CMS dispatcher so hosted requests cannot enter self-host routing.
   tryServeFumaScopedApi,
@@ -161,6 +167,16 @@ export async function handleServerRequest(
 // Each function checks its own method/path and returns `Response | null`.
 // Order matters — see `routes` above.
 // ---------------------------------------------------------------------------
+
+async function tryServeEntitlementAdmin(req: Request, runtime: ServerRuntime): Promise<Response | null> {
+  if (!runtime.entitlementAdmin?.handles(req)) return null
+  return await runtime.entitlementAdmin.handle(req)
+}
+
+async function tryServePlatformConsole(req: Request, runtime: ServerRuntime): Promise<Response | null> {
+  if (!runtime.platformConsole?.handles(req)) return null
+  return await runtime.platformConsole.handle(req)
+}
 
 function tryServeHealth(_req: Request, _runtime: ServerRuntime, _url: URL, pathname: string): Response | null {
   if (pathname !== '/health') return null

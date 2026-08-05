@@ -37,16 +37,23 @@ export function createHostedEntitlementRuntime(input: Readonly<{
   costConversionVersion: string
   now?: () => Date
 }>) {
-  const repository = new PostgresEntitlementRepository(input.db)
-  const destinations = new PostgresOfferDestinationAuthority(input.db)
-  const catalog = new PostgresProviderCostCatalog(input.db, input.now)
-  const service = new EntitlementService({
-    repository,
-    destinations,
-    catalog,
-    usdMicrosToKesMinor: input.usdMicrosToKesMinor,
-    costConversionVersion: input.costConversionVersion,
-    now: input.now,
+  const compose = (db: DbClient) => {
+    const repository = new PostgresEntitlementRepository(db)
+    const destinations = new PostgresOfferDestinationAuthority(db)
+    const catalog = new PostgresProviderCostCatalog(db, input.now)
+    const service = new EntitlementService({
+      repository,
+      destinations,
+      catalog,
+      usdMicrosToKesMinor: input.usdMicrosToKesMinor,
+      costConversionVersion: input.costConversionVersion,
+      now: input.now,
+    })
+    return Object.freeze({ repository, destinations, catalog, service })
+  }
+  const runtime = compose(input.db)
+  return Object.freeze({
+    ...runtime,
+    serviceFor: (db: DbClient) => compose(db).service,
   })
-  return Object.freeze({ repository, destinations, catalog, service })
 }
