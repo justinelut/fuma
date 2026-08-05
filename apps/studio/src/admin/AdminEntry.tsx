@@ -126,7 +126,7 @@ function HostedAdminEntry({ hostedContextCatalog, platformAdmin = false }: Admin
   if (boot.status === 'loading') return <AppLoadingScreen />
   const session = authenticated ?? boot.session
   if (session) {
-    if (platformAdmin) return <Suspense fallback={<AppLoadingScreen />}><PlatformAdminWorkspace /></Suspense>
+    if (platformAdmin) return <Suspense fallback={<AppLoadingScreen />}><PlatformAdminWorkspace pathname={pathname} /></Suspense>
     return (
       <Suspense fallback={<AppLoadingScreen />}>
         <HostedStaffShell

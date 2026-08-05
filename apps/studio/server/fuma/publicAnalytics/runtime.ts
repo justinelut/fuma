@@ -6,6 +6,21 @@ import { PublicMarketingAnalyticsService } from './service'
 
 export const PUBLIC_MARKETING_ANALYTICS_SCHEMA_SENTINEL = '000079_public_marketing_analytics:applied' as const
 
+
+export async function resolvePublicMarketingAnalyticsSchemaSentinel(
+  db: DbClient,
+): Promise<typeof PUBLIC_MARKETING_ANALYTICS_SCHEMA_SENTINEL | undefined> {
+  if (db.dialect !== 'postgres') return undefined
+  const result = await db<{ events: string | null; daily: string | null }>`
+    select
+      to_regclass('fuma_public_marketing_events_v1')::text events,
+      to_regclass('fuma_public_marketing_daily_v1')::text daily
+  `
+  return result.rows[0]?.events === 'fuma_public_marketing_events_v1'
+    && result.rows[0]?.daily === 'fuma_public_marketing_daily_v1'
+    ? PUBLIC_MARKETING_ANALYTICS_SCHEMA_SENTINEL
+    : undefined
+}
 export type HostedPublicMarketingAnalyticsRuntime = Readonly<{
   service: PublicMarketingAnalyticsService
   boundary: PublicMarketingAnalyticsBoundary

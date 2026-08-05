@@ -20,6 +20,9 @@ import {
   createHostedPublicProjectionAuthorityCatalog,
   createHostedPublicProjectionRuntime,
 } from './fuma/publicProjections'
+import { readPrivateProjectionConfig } from './fuma/publicProjections/config'
+import { createHostedPublicMarketingAnalyticsRuntime, resolvePublicMarketingAnalyticsSchemaSentinel } from './fuma/publicAnalytics/runtime'
+import { createPublicMarketingAnalyticsAdminBoundary } from './fuma/publicAnalytics/adminBoundary'
 import {
   AUTH_HANDOFF_SESSION_COOKIE,
   createHostedPublicHandoffRuntime,
@@ -304,6 +307,17 @@ const publicProjectionRuntime = fumaHosted
   })
   : undefined
 const quotaRuntime = hostedFumaConfig ? createQuotaRuntime({ db }) : undefined
+const publicMarketingAnalyticsRuntime = fumaHosted
+  ? await (async () => {
+    const schemaSentinel = await resolvePublicMarketingAnalyticsSchemaSentinel(db)
+    if (!schemaSentinel) return undefined
+    const privateConfig = readPrivateProjectionConfig()
+    return createHostedPublicMarketingAnalyticsRuntime({ db, privateHost: privateConfig.host, webServiceToken: privateConfig.serviceToken, schemaSentinel })
+  })()
+  : undefined
+const publicMarketingAnalyticsAdmin = publicMarketingAnalyticsRuntime && hostedStaffAuthRuntime && hostedFumaConfig
+  ? createPublicMarketingAnalyticsAdminBoundary({ productHost: hostedFumaConfig.hosts.product, protectedOwnerEmail: hostedFumaConfig.protectedOwner.email, resolveSession: hostedStaffAuthRuntime.resolveSession, service: publicMarketingAnalyticsRuntime.service })
+  : undefined
 const publicationRuntime = hostedFumaConfig
   ? await createHostedPublicationRuntime({
     db,
@@ -764,6 +778,7 @@ const server = Bun.serve<PublicationSocketData>({
         paystackWebhooks: platformBillingRuntime?.webhooks ?? paystackRuntime?.webhooks,
         entitlementAdmin: entitlementAdminRuntime?.boundary,
         platformConsole: platformConsoleBoundary,
+        publicMarketingAnalyticsAdmin,
         fumaScopedApi,
         mcpAuthority: hostedMcpRuntime?.nativeHttpAuthority,
       })
