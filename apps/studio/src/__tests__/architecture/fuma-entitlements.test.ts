@@ -55,6 +55,10 @@ describe('FUMA-054 entitlement architecture', () => {
     expect(runtime).toContain('(usdMicros * numerator + denominator - 1n) / denominator')
     expect(server).toContain('createHostedEntitlementRuntime({')
     expect(server).toContain('costConversionVersion: hostedKesCostConversion.version')
+    expect(server).toContain('process.env.FUMA_KES_FX_VERSION?.trim()')
+    expect(server).toContain('&& process.env.FUMA_KES_MINOR_NUMERATOR?.trim()')
+    expect(server).toContain('&& process.env.FUMA_USD_MICROS_DENOMINATOR?.trim()')
+    expect(server).toContain('hostedFumaConfig && hostedKesCostConfigured')
   })
 
   it('keeps finalized migration 000057 registered, additive, immutable, and lifecycle-exact', () => {
