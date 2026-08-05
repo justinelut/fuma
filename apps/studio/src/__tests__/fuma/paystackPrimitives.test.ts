@@ -402,6 +402,38 @@ describe('FUMA-053 strict shared Paystack primitives', () => {
 })
 
 describe('FUMA-053 centrally mounted bounded webhook authority', () => {
+  it('supports a platform-only route set when customer credentials are absent', async () => {
+    const value = fixture()
+    const boundary = new PaystackWebhookBoundary({ platformBilling: value.platform })
+    const raw = new TextEncoder().encode(JSON.stringify({
+      event: 'provider.future-event',
+      data: { id: 'platform-only-event-1' },
+    }))
+    const platform = await boundary.handle(new Request(
+      `https://app.trimly.co.ke${PAYSTACK_WEBHOOK_PATHS.platform_billing}`,
+      {
+        method: 'POST',
+        headers: { 'x-paystack-signature': signPaystackWebhook(PLATFORM_SECRET, raw) },
+        body: raw,
+      },
+    ))
+    const customer = await boundary.handle(new Request(
+      `https://app.trimly.co.ke${PAYSTACK_WEBHOOK_PATHS.customer_merchant}`,
+      { method: 'POST', body: raw },
+    ))
+
+    expect(platform?.status).toBe(202)
+    expect(customer?.status).toBe(404)
+    expect(boundary.redactedSummary()).toEqual({
+      routes: [PAYSTACK_WEBHOOK_PATHS.platform_billing],
+      scopes: ['platform_billing'],
+      credentials: '[REDACTED]',
+    })
+    expect([...value.ledger.events.keys()]).toEqual([
+      'platform_billing:provider.future-event:platform-only-event-1',
+    ])
+  })
+
   it('keeps explicit platform/customer routes non-oracular and scope isolated', async () => {
     const value = fixture()
     const boundary = new PaystackWebhookBoundary({

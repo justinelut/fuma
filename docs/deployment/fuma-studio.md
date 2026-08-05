@@ -59,18 +59,20 @@ Change `FUMA_PROTECTED_OWNER_EMAIL` if the protected owner should be a different
 
 `FUMA_ENV=production`, `FUMA_HOSTED=true` and `FUMA_DEPLOYMENT_ROOT_DOMAIN` are injected by the workflow, so do not set them by hand. `FUMA_COOKIE_DOMAIN` and `FUMA_COOKIE_HOST_ONLY` must never be set — Fuma staff cookies are host-only and config rejects those keys outright.
 
-### Still required before Studio can boot
+### Required before Studio can boot
 
-Fuma validates fourteen configuration classes **fail-closed** at startup, so the runtime refuses to start until every one is present. Fifteen values remain, and all are real provider credentials that cannot be generated:
+Fuma validates core production configuration **fail-closed** at startup. Provider credentials that are absent remain disabled rather than being replaced with placeholders.
 
 | Class | Keys |
 |---|---|
-| OCI Email Delivery | `FUMA_OCI_EMAIL_REGION`, `FUMA_OCI_EMAIL_TENANCY_ID`, `FUMA_OCI_EMAIL_USER_ID`, `FUMA_OCI_EMAIL_FINGERPRINT`, `FUMA_OCI_EMAIL_PRIVATE_KEY_PEM`, `FUMA_OCI_EMAIL_COMPARTMENT_ID`, `FUMA_OCI_EMAIL_APPROVED_SENDER`, `FUMA_OCI_EVENT_VERIFICATION_SECRET` |
 | Paystack platform billing | `FUMA_PAYSTACK_PLATFORM_PUBLIC_KEY`, `FUMA_PAYSTACK_PLATFORM_SECRET_KEY` |
-| Paystack customer merchant | `FUMA_PAYSTACK_CUSTOMER_PUBLIC_KEY`, `FUMA_PAYSTACK_CUSTOMER_SECRET_KEY` |
 | Fuma-owned Cloudflare | `FUMA_CLOUDFLARE_ACCOUNT_ID`, `FUMA_CLOUDFLARE_ZONE_ID`, `FUMA_CLOUDFLARE_API_TOKEN` |
 
-Add them to `FUMA_ENV_SECRET` alongside the existing lines. The deploy checks all fourteen classes **before** contacting the cluster and prints the exact missing keys grouped by class, so a missing credential never becomes a crash-looping pod.
+The deploy injects the platform Paystack pair from exact repository secrets with those names. Tenant sites bring their own merchant credentials through the encrypted site boundary; there is no required global customer-merchant pair.
+
+### Optional provider classes
+
+OCI Email Delivery is disabled when all eight keys are absent. If any OCI key is supplied, all eight become mandatory and malformed or partial configuration fails closed: `FUMA_OCI_EMAIL_REGION`, `FUMA_OCI_EMAIL_TENANCY_ID`, `FUMA_OCI_EMAIL_USER_ID`, `FUMA_OCI_EMAIL_FINGERPRINT`, `FUMA_OCI_EMAIL_PRIVATE_KEY_PEM`, `FUMA_OCI_EMAIL_COMPARTMENT_ID`, `FUMA_OCI_EMAIL_APPROVED_SENDER`, and `FUMA_OCI_EVENT_VERIFICATION_SECRET`. With email disabled, Google sign-in and normal product use remain available; verification, password-reset email, newsletter test delivery, and campaigns fail explicitly without making a provider request.
 
 ## Provider keys and optional integrations
 
@@ -83,7 +85,7 @@ Separate repository secrets, injected only when present so they stay inert until
 
 Google sign-in activates automatically once both Google values exist: the hosted auth options add the provider only when both are non-blank, pin the callback to `https://auth.<root>/api/auth/callback/google`, and restrict account linking to matching verified emails.
 
-Paystack, OCI Email and Cloudflare are read from configuration rather than an admin form, so they belong in `FUMA_ENV_SECRET` as listed above. AI provider keys are different — those are per-tenant BYOK through the existing AI credits authority and are entered in the app, not here.
+Platform Paystack and optional OCI Email use exact repository secrets injected by the deployment workflow. Cloudflare remains in `FUMA_ENV_SECRET`. Tenant merchant and AI provider credentials are per-tenant BYOK values entered through their existing encrypted app boundaries.
 
 ## Deploy order
 

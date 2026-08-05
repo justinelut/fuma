@@ -57,6 +57,16 @@ describe('FUMA-072 hosted auth OCI delivery', () => {
     await expect(delivery.sendVerification({ email: 'user@example.com', name: 'Customer', url: 'https://admin.trimly.co.ke/api/auth/verify-email?token=opaque' })).rejects.toThrow('configured product HTTPS origin')
   })
 
+  test('boots with OCI email disabled and fails email invocation without provider access', async () => {
+    let calls = 0
+    const delivery = createHostedAuthOciDelivery({
+      config: { ...config, ociEmail: null },
+      provider: { async submit() { calls += 1; return { providerMessageId: 'unexpected' } } },
+    })
+    await expect(delivery.sendVerification({ email: 'user@example.com', name: 'User', url: 'https://admin.trimly.co.ke/verify' })).rejects.toThrow('disabled because OCI Email Delivery is not configured')
+    await expect(delivery.sendPasswordReset({ email: 'user@example.com', name: 'User', url: 'https://admin.trimly.co.ke/reset' })).rejects.toThrow('disabled because OCI Email Delivery is not configured')
+    expect(calls).toBe(0)
+  })
   test('cannot be composed outside production', () => {
     expect(() => createHostedAuthOciDelivery({ config: { ...config, environment: 'local' }, provider: { async submit() { return { providerMessageId: 'unused' } } } })).toThrow('production-only')
   })

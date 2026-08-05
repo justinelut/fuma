@@ -30,6 +30,16 @@ jobs:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          FUMA_PAYSTACK_PLATFORM_PUBLIC_KEY: ${{ secrets.FUMA_PAYSTACK_PLATFORM_PUBLIC_KEY }}
+          FUMA_PAYSTACK_PLATFORM_SECRET_KEY: ${{ secrets.FUMA_PAYSTACK_PLATFORM_SECRET_KEY }}
+          FUMA_OCI_EMAIL_REGION: ${{ secrets.FUMA_OCI_EMAIL_REGION }}
+          FUMA_OCI_EMAIL_TENANCY_ID: ${{ secrets.FUMA_OCI_EMAIL_TENANCY_ID }}
+          FUMA_OCI_EMAIL_USER_ID: ${{ secrets.FUMA_OCI_EMAIL_USER_ID }}
+          FUMA_OCI_EMAIL_FINGERPRINT: ${{ secrets.FUMA_OCI_EMAIL_FINGERPRINT }}
+          FUMA_OCI_EMAIL_PRIVATE_KEY_PEM: ${{ secrets.FUMA_OCI_EMAIL_PRIVATE_KEY_PEM }}
+          FUMA_OCI_EMAIL_COMPARTMENT_ID: ${{ secrets.FUMA_OCI_EMAIL_COMPARTMENT_ID }}
+          FUMA_OCI_EMAIL_APPROVED_SENDER: ${{ secrets.FUMA_OCI_EMAIL_APPROVED_SENDER }}
+          FUMA_OCI_EVENT_VERIFICATION_SECRET: ${{ secrets.FUMA_OCI_EVENT_VERIFICATION_SECRET }}
           IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
           set -euo pipefail
@@ -51,10 +61,27 @@ jobs:
           inject FUMA_ENV production
           inject FUMA_HOSTED true
           inject FUMA_DEPLOYMENT_ROOT_DOMAIN "$FUMA_DEPLOYMENT_ROOT_DOMAIN"
+          inject FUMA_PAYSTACK_PLATFORM_PUBLIC_KEY "${FUMA_PAYSTACK_PLATFORM_PUBLIC_KEY:-}"
+          inject FUMA_PAYSTACK_PLATFORM_SECRET_KEY "${FUMA_PAYSTACK_PLATFORM_SECRET_KEY:-}"
           # Optional integrations: omitted entirely when unset, so they stay inert.
           inject SENTRY_DSN "${SENTRY_DSN:-}"
           inject GOOGLE_CLIENT_ID "${GOOGLE_CLIENT_ID:-}"
           inject GOOGLE_CLIENT_SECRET "${GOOGLE_CLIENT_SECRET:-}"
+
+          # Future exact OCI secrets override the aggregate environment only
+          # when configured. Unset exact secrets preserve any existing values.
+          inject_if_present() {
+            key="$1"; value="$2"
+            if [ -n "$value" ]; then inject "$key" "$value"; fi
+          }
+          inject_if_present FUMA_OCI_EMAIL_REGION "${FUMA_OCI_EMAIL_REGION:-}"
+          inject_if_present FUMA_OCI_EMAIL_TENANCY_ID "${FUMA_OCI_EMAIL_TENANCY_ID:-}"
+          inject_if_present FUMA_OCI_EMAIL_USER_ID "${FUMA_OCI_EMAIL_USER_ID:-}"
+          inject_if_present FUMA_OCI_EMAIL_FINGERPRINT "${FUMA_OCI_EMAIL_FINGERPRINT:-}"
+          inject_if_present FUMA_OCI_EMAIL_PRIVATE_KEY_PEM "${FUMA_OCI_EMAIL_PRIVATE_KEY_PEM:-}"
+          inject_if_present FUMA_OCI_EMAIL_COMPARTMENT_ID "${FUMA_OCI_EMAIL_COMPARTMENT_ID:-}"
+          inject_if_present FUMA_OCI_EMAIL_APPROVED_SENDER "${FUMA_OCI_EMAIL_APPROVED_SENDER:-}"
+          inject_if_present FUMA_OCI_EVENT_VERIFICATION_SECRET "${FUMA_OCI_EVENT_VERIFICATION_SECRET:-}"
 
           # Validate every production class the runtime enforces, so a missing
           # provider credential is reported here instead of crash-looping a pod
@@ -70,13 +97,9 @@ jobs:
           check_class 'PostgreSQL' DATABASE_URL POSTGRES_USER POSTGRES_PASSWORD
           check_class 'Redis' FUMA_REDIS_URL
           check_class 'MinIO' FUMA_MINIO_ENDPOINT FUMA_MINIO_ACCESS_KEY_ID FUMA_MINIO_SECRET_ACCESS_KEY FUMA_MINIO_BUCKET
-          check_class 'OCI Email Delivery' FUMA_OCI_EMAIL_REGION FUMA_OCI_EMAIL_TENANCY_ID FUMA_OCI_EMAIL_USER_ID \
-            FUMA_OCI_EMAIL_FINGERPRINT FUMA_OCI_EMAIL_PRIVATE_KEY_PEM FUMA_OCI_EMAIL_COMPARTMENT_ID \
-            FUMA_OCI_EMAIL_APPROVED_SENDER FUMA_OCI_EVENT_VERIFICATION_SECRET
           check_class 'Publication unsubscribe signing' FUMA_PUBLICATION_UNSUBSCRIBE_SIGNING_SECRET
           check_class 'Paystack provider' FUMA_PAYSTACK_PROVIDER_URL
           check_class 'Paystack platform billing' FUMA_PAYSTACK_PLATFORM_PUBLIC_KEY FUMA_PAYSTACK_PLATFORM_SECRET_KEY
-          check_class 'Paystack customer merchant' FUMA_PAYSTACK_CUSTOMER_PUBLIC_KEY FUMA_PAYSTACK_CUSTOMER_SECRET_KEY
           check_class 'Fuma-owned Cloudflare' FUMA_CLOUDFLARE_ACCOUNT_ID FUMA_CLOUDFLARE_ZONE_ID FUMA_CLOUDFLARE_API_TOKEN
           check_class 'Kenya locale' FUMA_LOCALE FUMA_CURRENCY FUMA_TIME_ZONE
           check_class 'protected owner' FUMA_PROTECTED_OWNER_EMAIL

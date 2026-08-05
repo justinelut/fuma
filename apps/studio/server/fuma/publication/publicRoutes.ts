@@ -33,6 +33,13 @@ export class HmacPublicationProviderEventVerifier implements PublicationProvider
   }
 }
 
+/** Denies every OCI provider event when no verification authority is configured. */
+export class DenyPublicationProviderEventVerifier implements PublicationProviderEventVerifier {
+  async verify(_rawBody: Uint8Array, _headers: Headers): Promise<boolean> {
+    return false
+  }
+}
+
 interface ProviderScopeRow { platform_id:string;organization_id:string;workspace_id:string;site_id:string;owner_key:string;owner_generation:string|number|bigint;profile_id:string }
 
 export interface PublicationPublicAuthority {

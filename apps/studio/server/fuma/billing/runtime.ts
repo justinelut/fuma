@@ -95,7 +95,7 @@ export async function createHostedPlatformBillingRuntime(input: Readonly<{
   db: DbClient
   config: FumaConfig
   platformBilling: ScopedPaystackTransport
-  customerMerchant: ScopedPaystackTransport
+  customerMerchant?: ScopedPaystackTransport | null
   now?: () => Date
 }>) {
   const core = createPlatformBillingRuntime({

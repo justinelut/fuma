@@ -9,7 +9,7 @@ import { applySecurityHeaders } from './securityHeaders'
 import { startConversationPurgeTick } from './ai/boot'
 import { readFumaConfig } from './fuma/config'
 import { createHostedAuthFakeInbox } from './auth/hosted/fakeInbox'
-import { createHostedAuthOciDelivery } from './auth/hosted/ociDelivery'
+import { createHostedAuthOciDelivery, createHostedAuthUnavailableDelivery } from './auth/hosted/ociDelivery'
 import {
   createHostedFumaScopedApi,
   createHostedIdentityAuthRuntime,
@@ -143,7 +143,9 @@ const hostedStaffAuthRuntime = hostedFumaConfig
   ? (() => {
     const fumaConfig = hostedFumaConfig
     const delivery = fumaConfig.environment === 'production'
-      ? createHostedAuthOciDelivery({ config: fumaConfig })
+      ? fumaConfig.ociEmail === null
+        ? createHostedAuthUnavailableDelivery()
+        : createHostedAuthOciDelivery({ config: fumaConfig })
       : createHostedAuthFakeInbox()
     return createHostedStaffAuthRuntime({
       databaseUrl: fumaConfig.database.url,
@@ -223,7 +225,9 @@ const hostedAuthHost = hostedFumaConfig
 const centralIdentityAuthRuntime = hostedFumaConfig && hostedStaffSecret && hostedAuthHost
   ? (() => {
     const delivery = hostedFumaConfig.environment === 'production'
-      ? createHostedAuthOciDelivery({ config: hostedFumaConfig, linkHost: hostedAuthHost, audience: 'account' })
+      ? hostedFumaConfig.ociEmail === null
+        ? createHostedAuthUnavailableDelivery()
+        : createHostedAuthOciDelivery({ config: hostedFumaConfig, linkHost: hostedAuthHost, audience: 'account' })
       : createHostedAuthFakeInbox()
     return createHostedIdentityAuthRuntime({
       databaseUrl: hostedFumaConfig.database.url,

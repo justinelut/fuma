@@ -60,6 +60,17 @@ const CustomerPaystackCredentialsSchema = Type.Object({
   secretKey: RequiredStringSchema,
 }, { additionalProperties: false })
 
+const OciEmailConfigSchema = Type.Object({
+  region: RequiredStringSchema,
+  tenancyId: RequiredStringSchema,
+  userId: RequiredStringSchema,
+  fingerprint: RequiredStringSchema,
+  privateKeyPem: RequiredStringSchema,
+  compartmentId: RequiredStringSchema,
+  approvedSender: EmailSchema,
+  eventVerificationSecret: Type.String({ minLength: 32 }),
+}, { additionalProperties: false })
+
 const StaffCookieSchema = Type.Object({
   name: RequiredStringSchema,
   secure: Type.Boolean(),
@@ -98,23 +109,14 @@ export const FumaConfigSchema = Type.Object({
     secretAccessKey: RequiredStringSchema,
     bucket: RequiredStringSchema,
   }, { additionalProperties: false }),
-  ociEmail: Type.Object({
-    region: RequiredStringSchema,
-    tenancyId: RequiredStringSchema,
-    userId: RequiredStringSchema,
-    fingerprint: RequiredStringSchema,
-    privateKeyPem: RequiredStringSchema,
-    compartmentId: RequiredStringSchema,
-    approvedSender: EmailSchema,
-    eventVerificationSecret: Type.String({ minLength: 32 }),
-  }, { additionalProperties: false }),
+  ociEmail: Type.Union([OciEmailConfigSchema, Type.Null()]),
   publication: Type.Object({
     unsubscribeSigningSecret: Type.String({ minLength: 32 }),
   }, { additionalProperties: false }),
   paystack: Type.Object({
     providerBaseUrl: RequiredStringSchema,
     platformBilling: PlatformPaystackCredentialsSchema,
-    customerMerchant: CustomerPaystackCredentialsSchema,
+    customerMerchant: Type.Union([CustomerPaystackCredentialsSchema, Type.Null()]),
   }, { additionalProperties: false }),
   cloudflare: Type.Object({
     owner: Type.Literal('fuma'),
@@ -143,10 +145,16 @@ export const FumaConfigSummarySchema = Type.Object({
   database: Type.Literal('postgresql'),
   coordination: Type.Literal('redis'),
   objectStorage: Type.Literal('minio'),
-  emailDelivery: Type.Literal('oci-email-delivery'),
-  paymentScopes: Type.Tuple([
-    Type.Literal('platform_billing'),
-    Type.Literal('customer_merchant'),
+  emailDelivery: Type.Union([
+    Type.Literal('oci-email-delivery'),
+    Type.Literal('not-configured'),
+  ]),
+  paymentScopes: Type.Union([
+    Type.Tuple([Type.Literal('platform_billing')]),
+    Type.Tuple([
+      Type.Literal('platform_billing'),
+      Type.Literal('customer_merchant'),
+    ]),
   ]),
   edgeOwner: Type.Literal('fuma'),
   locale: Type.Literal('en-KE'),
@@ -172,16 +180,30 @@ const PRODUCTION_REQUIRED_CLASSES: readonly RequiredClass[] = [
   { name: 'PostgreSQL', variables: ['DATABASE_URL'] },
   { name: 'Redis', variables: ['FUMA_REDIS_URL'] },
   { name: 'MinIO', variables: ['FUMA_MINIO_ENDPOINT', 'FUMA_MINIO_ACCESS_KEY_ID', 'FUMA_MINIO_SECRET_ACCESS_KEY', 'FUMA_MINIO_BUCKET'] },
-  { name: 'OCI Email Delivery', variables: ['FUMA_OCI_EMAIL_REGION', 'FUMA_OCI_EMAIL_TENANCY_ID', 'FUMA_OCI_EMAIL_USER_ID', 'FUMA_OCI_EMAIL_FINGERPRINT', 'FUMA_OCI_EMAIL_PRIVATE_KEY_PEM', 'FUMA_OCI_EMAIL_COMPARTMENT_ID', 'FUMA_OCI_EMAIL_APPROVED_SENDER', 'FUMA_OCI_EVENT_VERIFICATION_SECRET'] },
   { name: 'Publication unsubscribe signing', variables: ['FUMA_PUBLICATION_UNSUBSCRIBE_SIGNING_SECRET'] },
   { name: 'Paystack provider', variables: ['FUMA_PAYSTACK_PROVIDER_URL'] },
   { name: 'Paystack platform billing', variables: ['FUMA_PAYSTACK_PLATFORM_PUBLIC_KEY', 'FUMA_PAYSTACK_PLATFORM_SECRET_KEY'] },
-  { name: 'Paystack customer merchant', variables: ['FUMA_PAYSTACK_CUSTOMER_PUBLIC_KEY', 'FUMA_PAYSTACK_CUSTOMER_SECRET_KEY'] },
   { name: 'Fuma-owned Cloudflare', variables: ['FUMA_CLOUDFLARE_ACCOUNT_ID', 'FUMA_CLOUDFLARE_ZONE_ID', 'FUMA_CLOUDFLARE_API_TOKEN'] },
   { name: 'Kenya locale', variables: ['FUMA_LOCALE', 'FUMA_CURRENCY', 'FUMA_TIME_ZONE'] },
   { name: 'protected owner', variables: ['FUMA_PROTECTED_OWNER_EMAIL'] },
   { name: 'staff cookie policy', variables: ['FUMA_COOKIE_SECURE', 'FUMA_COOKIE_HTTP_ONLY', 'FUMA_COOKIE_SAME_SITE'] },
 ]
+
+const OCI_EMAIL_VARIABLES = Object.freeze([
+  'FUMA_OCI_EMAIL_REGION',
+  'FUMA_OCI_EMAIL_TENANCY_ID',
+  'FUMA_OCI_EMAIL_USER_ID',
+  'FUMA_OCI_EMAIL_FINGERPRINT',
+  'FUMA_OCI_EMAIL_PRIVATE_KEY_PEM',
+  'FUMA_OCI_EMAIL_COMPARTMENT_ID',
+  'FUMA_OCI_EMAIL_APPROVED_SENDER',
+  'FUMA_OCI_EVENT_VERIFICATION_SECRET',
+] as const)
+
+const CUSTOMER_PAYSTACK_VARIABLES = Object.freeze([
+  'FUMA_PAYSTACK_CUSTOMER_PUBLIC_KEY',
+  'FUMA_PAYSTACK_CUSTOMER_SECRET_KEY',
+] as const)
 
 const LOCAL_DEFAULTS: Readonly<Record<string, string>> = Object.freeze({
   FUMA_ROLE: 'web',
@@ -193,20 +215,10 @@ const LOCAL_DEFAULTS: Readonly<Record<string, string>> = Object.freeze({
   FUMA_MINIO_ACCESS_KEY_ID: 'fake-local-minio-access',
   FUMA_MINIO_SECRET_ACCESS_KEY: 'fake-local-minio-secret',
   FUMA_MINIO_BUCKET: 'fuma-local',
-  FUMA_OCI_EMAIL_REGION: 'fake-local-region',
-  FUMA_OCI_EMAIL_TENANCY_ID: 'fake-local-tenancy',
-  FUMA_OCI_EMAIL_USER_ID: 'fake-local-user',
-  FUMA_OCI_EMAIL_FINGERPRINT: 'fake-local-fingerprint',
-  FUMA_OCI_EMAIL_PRIVATE_KEY_PEM: 'fake-local-private-key',
-  FUMA_OCI_EMAIL_COMPARTMENT_ID: 'ocid1.compartment.oc1..fake-local-compartment',
-  FUMA_OCI_EMAIL_APPROVED_SENDER: 'fuma@localhost.invalid',
-  FUMA_OCI_EVENT_VERIFICATION_SECRET: 'fake-local-event-verification-secret-000000000000',
   FUMA_PUBLICATION_UNSUBSCRIBE_SIGNING_SECRET: 'fake-local-unsubscribe-signing-secret-0000000000',
   FUMA_PAYSTACK_PROVIDER_URL: 'https://paystack.test',
   FUMA_PAYSTACK_PLATFORM_PUBLIC_KEY: 'fake-local-platform-public',
   FUMA_PAYSTACK_PLATFORM_SECRET_KEY: 'fake-local-platform-secret',
-  FUMA_PAYSTACK_CUSTOMER_PUBLIC_KEY: 'fake-local-customer-public',
-  FUMA_PAYSTACK_CUSTOMER_SECRET_KEY: 'fake-local-customer-secret',
   FUMA_CLOUDFLARE_ACCOUNT_ID: 'fake-local-cloudflare-account',
   FUMA_CLOUDFLARE_ZONE_ID: 'fake-local-cloudflare-zone',
   FUMA_CLOUDFLARE_API_TOKEN: 'fake-local-cloudflare-token',
@@ -250,6 +262,16 @@ function requiredValue(env: Env, name: string): string {
   const value = optionalString(env, name)
   if (!value) throw invalidConfiguration(name)
   return value
+}
+
+function optionalConfiguredClass<T>(
+  env: Env,
+  variables: readonly string[],
+  read: () => T,
+): T | null {
+  const configuredValues = variables.map((name) => optionalString(env, name))
+  if (configuredValues.every((value) => !value)) return null
+  return read()
 }
 
 function enumValue<T extends string>(value: string, allowed: readonly T[], path: string): T {
@@ -347,6 +369,7 @@ function assertProviderUrl(value: string, policy: ProviderUrlPolicy, path: strin
 }
 
 function assertPaystackScopesDoNotOverlap(config: FumaConfig): void {
+  if (config.paystack.customerMerchant === null) return
   const platformCredentials = new Set([
     config.paystack.platformBilling.publicKey,
     config.paystack.platformBilling.secretKey,
@@ -460,6 +483,26 @@ export function readFumaConfig(env: Env = process.env): FumaConfig {
     }
   }
 
+  const ociEmail = optionalConfiguredClass(source, OCI_EMAIL_VARIABLES, () => ({
+    region: requiredValue(source, 'FUMA_OCI_EMAIL_REGION'),
+    tenancyId: requiredValue(source, 'FUMA_OCI_EMAIL_TENANCY_ID'),
+    userId: requiredValue(source, 'FUMA_OCI_EMAIL_USER_ID'),
+    fingerprint: requiredValue(source, 'FUMA_OCI_EMAIL_FINGERPRINT'),
+    privateKeyPem: requiredValue(source, 'FUMA_OCI_EMAIL_PRIVATE_KEY_PEM'),
+    compartmentId: requiredValue(source, 'FUMA_OCI_EMAIL_COMPARTMENT_ID'),
+    approvedSender: validateValue(
+      EmailSchema,
+      requiredValue(source, 'FUMA_OCI_EMAIL_APPROVED_SENDER'),
+      'FUMA_OCI_EMAIL_APPROVED_SENDER',
+    ),
+    eventVerificationSecret: requiredValue(source, 'FUMA_OCI_EVENT_VERIFICATION_SECRET'),
+  }))
+  const customerMerchant = optionalConfiguredClass(source, CUSTOMER_PAYSTACK_VARIABLES, () => ({
+    scope: 'customer_merchant' as const,
+    publicKey: requiredValue(source, 'FUMA_PAYSTACK_CUSTOMER_PUBLIC_KEY'),
+    secretKey: requiredValue(source, 'FUMA_PAYSTACK_CUSTOMER_SECRET_KEY'),
+  }))
+
   const candidate = {
     environment,
     role: enumValue(requiredValue(source, 'FUMA_ROLE'), ['web', 'worker', 'scheduler'], 'FUMA_ROLE'),
@@ -486,20 +529,7 @@ export function readFumaConfig(env: Env = process.env): FumaConfig {
       secretAccessKey: requiredValue(source, 'FUMA_MINIO_SECRET_ACCESS_KEY'),
       bucket: requiredValue(source, 'FUMA_MINIO_BUCKET'),
     },
-    ociEmail: {
-      region: requiredValue(source, 'FUMA_OCI_EMAIL_REGION'),
-      tenancyId: requiredValue(source, 'FUMA_OCI_EMAIL_TENANCY_ID'),
-      userId: requiredValue(source, 'FUMA_OCI_EMAIL_USER_ID'),
-      fingerprint: requiredValue(source, 'FUMA_OCI_EMAIL_FINGERPRINT'),
-      privateKeyPem: requiredValue(source, 'FUMA_OCI_EMAIL_PRIVATE_KEY_PEM'),
-      compartmentId: requiredValue(source, 'FUMA_OCI_EMAIL_COMPARTMENT_ID'),
-      approvedSender: validateValue(
-        EmailSchema,
-        requiredValue(source, 'FUMA_OCI_EMAIL_APPROVED_SENDER'),
-        'FUMA_OCI_EMAIL_APPROVED_SENDER',
-      ),
-      eventVerificationSecret: requiredValue(source, 'FUMA_OCI_EVENT_VERIFICATION_SECRET'),
-    },
+    ociEmail,
     publication: {
       unsubscribeSigningSecret: requiredValue(source, 'FUMA_PUBLICATION_UNSUBSCRIBE_SIGNING_SECRET'),
     },
@@ -510,11 +540,7 @@ export function readFumaConfig(env: Env = process.env): FumaConfig {
         publicKey: requiredValue(source, 'FUMA_PAYSTACK_PLATFORM_PUBLIC_KEY'),
         secretKey: requiredValue(source, 'FUMA_PAYSTACK_PLATFORM_SECRET_KEY'),
       },
-      customerMerchant: {
-        scope: 'customer_merchant',
-        publicKey: requiredValue(source, 'FUMA_PAYSTACK_CUSTOMER_PUBLIC_KEY'),
-        secretKey: requiredValue(source, 'FUMA_PAYSTACK_CUSTOMER_SECRET_KEY'),
-      },
+      customerMerchant,
     },
     cloudflare: {
       owner: 'fuma',
@@ -562,8 +588,10 @@ export function summarizeFumaConfig(input: unknown): FumaConfigSummary {
     database: config.database.engine,
     coordination: 'redis',
     objectStorage: 'minio',
-    emailDelivery: 'oci-email-delivery',
-    paymentScopes: ['platform_billing', 'customer_merchant'],
+    emailDelivery: config.ociEmail === null ? 'not-configured' : 'oci-email-delivery',
+    paymentScopes: config.paystack.customerMerchant === null
+      ? ['platform_billing']
+      : ['platform_billing', 'customer_merchant'],
     edgeOwner: config.cloudflare.owner,
     locale: config.locale.locale,
     currency: config.locale.currency,

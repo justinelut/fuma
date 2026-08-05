@@ -7,9 +7,9 @@ import { BunRedisDriver, FumaRedisCoordination } from '../redis'
 import { createMinioObjectStorage } from '../objectStorage'
 import { createFumaPublicationServiceGraph } from './composition'
 import { createPublicationJobHandlers } from './jobHandlers'
-import { OciEmailDeliveryAdapter } from './ociEmailDelivery'
+import { OciEmailDeliveryAdapter, UnavailableOciEmailDeliveryAdapter } from './ociEmailDelivery'
 import { OciRsaRequestSigner } from './ociRequestSigner'
-import { HmacPublicationProviderEventVerifier, PostgresPublicationPublicAuthority, PublicationPublicBoundary } from './publicRoutes'
+import { DenyPublicationProviderEventVerifier, HmacPublicationProviderEventVerifier, PostgresPublicationPublicAuthority, PublicationPublicBoundary } from './publicRoutes'
 import type { PublicationIdAuthority, PublicationUnsubscribeLinkIssuer } from './services'
 import type { PublicationRepositoryScope } from './scope'
 import { PublicationUnsubscribeTokenSigner } from './unsubscribeTokens'
@@ -32,7 +32,10 @@ export async function createHostedPublicationRuntime(input:Readonly<{db:DbClient
   const readyQueue=new RedisFumaJobReadyQueue(input.config.redis.url,namespace(input.config.hosts.product));await Promise.all([redis.connect(),readyQueue.connect()])
   const jobs=new FumaJobService({repository:new PostgresFumaJobRepository(input.db),readyQueue,admission:{maxActivePerOrganization:10_000,maxActivePerSite:2_000},now})
   const ids:PublicationIdAuthority=Object.freeze({id:(kind:string)=>`${kind}-${randomUUID()}`,sha256:(value:string)=>createHash('sha256').update(value).digest('hex')})
-  const oci=new OciEmailDeliveryAdapter({region:input.config.ociEmail.region,compartmentId:input.config.ociEmail.compartmentId,approvedSender:input.config.ociEmail.approvedSender,signer:new OciRsaRequestSigner({...input.config.ociEmail,now})})
+  const ociEmail=input.config.environment==='production'?input.config.ociEmail:null
+  const oci=ociEmail===null
+    ? new UnavailableOciEmailDeliveryAdapter()
+    : new OciEmailDeliveryAdapter({region:ociEmail.region,compartmentId:ociEmail.compartmentId,approvedSender:ociEmail.approvedSender,signer:new OciRsaRequestSigner({...ociEmail,now})})
   const tokenSigner=new PublicationUnsubscribeTokenSigner(input.config.publication.unsubscribeSigningSecret)
   const engagementSigner=new PublicationEngagementTokenSigner(input.config.publication.unsubscribeSigningSecret)
   const objectStorage=createMinioObjectStorage({config:input.config.minio,policy:{allowedMimeTypes:['application/json'],maxObjectBytes:100*1024*1024,maxTenantBytes:20*1024*1024*1024},signingSecret:input.objectAccessSigningSecret,accessUrlBase:`https://${input.config.hosts.product}/_fuma/objects`,nowMs:()=>now().getTime()})
@@ -43,6 +46,9 @@ export async function createHostedPublicationRuntime(input:Readonly<{db:DbClient
     },
   })})
   await graph.scheduling.recoverAll()
-  const publicBoundary=new PublicationPublicBoundary({signer:tokenSigner,deliverability:graph.deliverability,authority:new PostgresPublicationPublicAuthority(input.db),verifier:new HmacPublicationProviderEventVerifier(input.config.ociEmail.eventVerificationSecret),engagement:{signer:engagementSigner,control:graph.deliverabilityControls},redis,now})
+  const verifier=ociEmail===null
+    ? new DenyPublicationProviderEventVerifier()
+    : new HmacPublicationProviderEventVerifier(ociEmail.eventVerificationSecret)
+  const publicBoundary=new PublicationPublicBoundary({signer:tokenSigner,deliverability:graph.deliverability,authority:new PostgresPublicationPublicAuthority(input.db),verifier,engagement:{signer:engagementSigner,control:graph.deliverabilityControls},redis,now})
   return Object.freeze({graph,publicBoundary,jobs,jobHandlers:createPublicationJobHandlers(graph,now),close:async()=>{await Promise.all([readyQueue.close(),redis.close()])}})
 }
