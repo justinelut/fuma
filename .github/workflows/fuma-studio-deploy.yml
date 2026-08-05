@@ -215,13 +215,14 @@ jobs:
               fi
             fi
 
-            echo "running migrations"
+            echo "starting migrations after PostgreSQL credential alignment"
+            sudo kubectl patch job fuma-migrate -n $NS --type=merge -p '{"spec":{"suspend":false}}'
             migrated=0
             for attempt in $(seq 1 72); do
               succeeded="$(sudo kubectl -n $NS get job fuma-migrate -o jsonpath='{.status.succeeded}' 2>/dev/null || echo '')"
-              failed="$(sudo kubectl -n $NS get job fuma-migrate -o jsonpath='{.status.failed}' 2>/dev/null || echo '')"
+              terminal_failure="$(sudo kubectl -n $NS get job fuma-migrate -o jsonpath='{range .status.conditions[?(@.type=="Failed")]}{.status}{end}' 2>/dev/null || echo '')"
               if [ "${succeeded:-0}" -ge 1 ] 2>/dev/null; then migrated=1; break; fi
-              if [ "${failed:-0}" -ge 3 ] 2>/dev/null; then break; fi
+              if [ "$terminal_failure" = "True" ]; then break; fi
               sleep 10
             done
             if [ "$migrated" != "1" ]; then
