@@ -17,6 +17,7 @@ RUN bun install --frozen-lockfile
 FROM ${BUN_IMAGE} AS production-deps
 WORKDIR /workspace
 COPY package.json bun.lock ./
+
 COPY apps/studio/package.json apps/studio/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY apps/control-surfaces/package.json apps/control-surfaces/package.json
@@ -26,6 +27,11 @@ COPY packages/public-contracts/package.json packages/public-contracts/package.js
 COPY packages/fuma-governance-launch/package.json packages/fuma-governance-launch/package.json
 COPY vendor vendor
 RUN bun install --frozen-lockfile --production --filter @fuma/studio
+
+FROM workspace-deps AS studio-build
+WORKDIR /workspace
+COPY . .
+RUN bun --cwd=apps/studio run build
 
 FROM ${BUN_IMAGE} AS runtime-base
 ARG SOURCE_SHA
@@ -50,6 +56,7 @@ RUN test -d node_modules/.bun/@sinclair+typebox@0.34.49/node_modules/@sinclair/t
  && mkdir -p node_modules/@sinclair \
  && ln -s ../.bun/@sinclair+typebox@0.34.49/node_modules/@sinclair/typebox node_modules/@sinclair/typebox
 COPY --chown=bun:bun package.json bun.lock tsconfig.base.json ./
+COPY --from=studio-build --chown=bun:bun /workspace/apps/studio/dist ./apps/studio/dist
 COPY --chown=bun:bun .github/workflows/fuma-email-compatibility.yml ./.github/workflows/fuma-email-compatibility.yml
 COPY --chown=bun:bun apps/studio/package.json apps/studio/tsconfig*.json ./apps/studio/
 COPY --chown=bun:bun apps/studio/server ./apps/studio/server
