@@ -53,6 +53,7 @@ export function createHostedFreeHostRuntime(input: Readonly<{
   storage?: TenantObjectStorage
   edge?: FreeHostResolvedEdgeBoundary
   extensions?: readonly FreeHostRouteExtension[]
+  controlHosts?: readonly string[]
   now?: () => Date
 }>): HostedFreeHostRuntime {
   const storage = input.storage ?? createHostedReleaseObjectStorage(input)
@@ -63,7 +64,12 @@ export function createHostedFreeHostRuntime(input: Readonly<{
     boundary: new FreeHostPublicRouter({
       service,
       storage,
-      controlHosts: [input.config.hosts.product, input.config.hosts.auth, input.config.hosts.console],
+      controlHosts: [
+        input.config.hosts.product,
+        input.config.hosts.auth,
+        input.config.hosts.console,
+        ...(input.controlHosts ?? []),
+      ],
       ...(input.extensions ? { extensions: input.extensions } : {}),
       ...(input.edge ? { edge: input.edge } : {}),
     }),

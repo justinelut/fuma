@@ -27,6 +27,7 @@ const APP_CANCEL_PATH = '/resume/cancel'
 const PUBLIC_IDENTITY_PATHS = new Set([
   '/api/auth/sign-up/email',
   '/api/auth/sign-in/email',
+  '/api/auth/sign-in/social',
   '/api/auth/send-verification-email',
   '/api/auth/verify-email',
   '/api/auth/request-password-reset',
@@ -227,7 +228,9 @@ export function createPublicHandoffAppBoundary(input: PublicHandoffAppBoundaryIn
   const appCookieName = input.secureCookies ? APP_HANDOFF_SESSION_COOKIE : 'fuma_app'
 
   function publicIdentityPath(path: string): boolean {
-    return PUBLIC_IDENTITY_PATHS.has(path) || /^\/api\/auth\/reset-password\/[^/]+$/.test(path)
+    return PUBLIC_IDENTITY_PATHS.has(path)
+      || /^\/api\/auth\/callback\/(?:google|github)$/.test(path)
+      || /^\/api\/auth\/reset-password\/[^/]+$/.test(path)
   }
 
   function handles(request: Request): boolean {
