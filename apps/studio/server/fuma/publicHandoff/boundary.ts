@@ -130,7 +130,11 @@ function exactHost(request: Request, origin: string): boolean {
   const expected = new URL(origin)
   const url = new URL(request.url)
   const hostHeader = request.headers.get('host')
-  return url.protocol === expected.protocol
+  const forwardedProtocol = request.headers.get('x-forwarded-proto')?.split(',', 1)[0]?.trim().toLowerCase()
+  const effectiveProtocol = forwardedProtocol === 'https' || forwardedProtocol === 'http'
+    ? `${forwardedProtocol}:`
+    : url.protocol
+  return effectiveProtocol === expected.protocol
     && url.host.toLowerCase() === expected.host.toLowerCase()
     && (hostHeader === null || hostHeader.toLowerCase() === expected.host.toLowerCase())
 }

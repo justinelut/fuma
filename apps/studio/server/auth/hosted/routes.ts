@@ -241,7 +241,13 @@ export function createHostedStaffAuthBoundary(
 
   function handlesProductRequest(request: Request): boolean {
     const url = new URL(request.url)
-    return url.origin === origin && hostHeaderMatches(request, host)
+    const forwardedProtocol = request.headers.get('x-forwarded-proto')?.split(',', 1)[0]?.trim().toLowerCase()
+    const effectiveProtocol = forwardedProtocol === 'https' || forwardedProtocol === 'http'
+      ? `${forwardedProtocol}:`
+      : url.protocol
+    return effectiveProtocol === expected.protocol
+      && url.host.toLowerCase() === host
+      && hostHeaderMatches(request, host)
   }
 
   async function handle(request: Request): Promise<Response | null> {
