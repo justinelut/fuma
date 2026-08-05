@@ -63,7 +63,7 @@ export function createHostedFreeHostRuntime(input: Readonly<{
     boundary: new FreeHostPublicRouter({
       service,
       storage,
-      controlHosts: [input.config.hosts.product],
+      controlHosts: [input.config.hosts.product, input.config.hosts.auth, input.config.hosts.console],
       ...(input.extensions ? { extensions: input.extensions } : {}),
       ...(input.edge ? { edge: input.edge } : {}),
     }),

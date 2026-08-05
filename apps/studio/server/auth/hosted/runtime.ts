@@ -17,6 +17,7 @@ import {
   createPostgresHostedIdentityAuth,
   type HostedAuthDelivery,
   type HostedResolvedSession,
+  type HostedSocialProviders,
 } from './auth'
 import { createHostedStaffAuthBoundary, type HostedStaffAuthBoundary } from './routes'
 
@@ -28,6 +29,7 @@ export type HostedStaffAuthRuntimeInput = Readonly<{
   cookieName: string
   secret: string
   delivery: HostedAuthDelivery
+  socialProviders?: HostedSocialProviders
 }>
 
 export type HostedIdentityAuthRuntimeInput = Readonly<{
@@ -37,6 +39,7 @@ export type HostedIdentityAuthRuntimeInput = Readonly<{
   cookieName: string
   secret: string
   delivery: HostedAuthDelivery
+  socialProviders?: HostedSocialProviders
 }>
 
 export type HostedIdentityAuthRuntime = Readonly<{
@@ -95,6 +98,7 @@ export function createHostedIdentityAuthRuntime(
     secureCookies: input.secureCookies,
     cookieName: input.cookieName,
     delivery: input.delivery,
+    ...(input.socialProviders ? { socialProviders: input.socialProviders } : {}),
   })
   const boundary = createHostedStaffAuthBoundary({
     auth: postgres.auth,
@@ -121,6 +125,7 @@ export function createHostedStaffAuthRuntime(
     secureCookies: input.secureCookies,
     cookieName: input.cookieName,
     delivery: input.delivery,
+    ...(input.socialProviders ? { socialProviders: input.socialProviders } : {}),
   })
   const boundary = createHostedStaffAuthBoundary({
     auth: postgres.auth,
