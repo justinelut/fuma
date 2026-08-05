@@ -63,6 +63,9 @@ COPY --chown=bun:bun apps/studio/server ./apps/studio/server
 COPY --chown=bun:bun apps/studio/scripts/fuma-email-compatibility-matrix.ts apps/studio/scripts/fuma-email-compatibility-target.ts apps/studio/scripts/fuma-migrate.ts ./apps/studio/scripts/
 COPY --chown=bun:bun apps/studio/src ./apps/studio/src
 COPY --chown=bun:bun packages ./packages
+RUN mkdir -p node_modules/@fuma \
+ && ln -sfn ../../packages/brand node_modules/@fuma/brand \
+ && ln -sfn ../../packages/fuma-governance-launch node_modules/@fuma/governance-launch
 COPY --chown=bun:bun tooling ./tooling
 COPY --chmod=0555 infra/fuma-phase-13-18/docker/runtime-entrypoint.sh /usr/local/bin/fuma-runtime
 USER bun
