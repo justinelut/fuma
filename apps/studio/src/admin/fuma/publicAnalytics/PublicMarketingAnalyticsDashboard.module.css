@@ -1,0 +1,124 @@
+.root {
+  display: grid;
+  gap: var(--space-lxl);
+  min-width: 0;
+  color: var(--text);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.header h2,
+.header p {
+  margin: 0;
+}
+
+.eyebrow {
+  color: var(--accent-1);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.title {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.description,
+.retention,
+.status {
+  color: var(--text-muted);
+  font-size: var(--text-s);
+  line-height: 1.55;
+}
+
+.rangeForm {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-m);
+  padding: var(--space-l);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
+}
+
+.status {
+  margin: 0;
+  padding-inline: var(--space-xs);
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-m);
+}
+
+.metric {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 0;
+  padding: var(--space-l);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  background: var(--bg-surface);
+}
+
+.metric h3 {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-s);
+  font-weight: 500;
+}
+
+.metric strong {
+  overflow-wrap: anywhere;
+  font-size: var(--text-2xl);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+}
+
+.caption {
+  color: var(--text);
+  font-weight: 600;
+  text-align: left;
+}
+
+.retention {
+  margin: 0;
+  padding: var(--space-l);
+  border-left: 3px solid var(--accent-1);
+  background: var(--bg-surface-2);
+}
+
+@media (max-width: 64rem) {
+  .metricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 36rem) {
+  .rangeForm {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .metricGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (forced-colors: active) {
+  .rangeForm,
+  .metric,
+  .retention {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+}
