@@ -3,6 +3,7 @@
 import type { Route } from 'next'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useCentralIdentityStatus, CENTRAL_APP_DASHBOARD_URL } from '@/components/central-session'
 import { useState } from 'react'
 import {
   Sheet,
@@ -40,6 +41,7 @@ const sections: readonly (readonly [string, readonly MenuLink[]])[] = [
 export function MobileMenu() {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
+  const identityStatus = useCentralIdentityStatus()
   const close = () => setOpen(false)
 
   return <Sheet onOpenChange={setOpen} open={open}>
@@ -106,16 +108,13 @@ export function MobileMenu() {
 
       <div className="shrink-0 border-t border-line-soft bg-background/95 p-4 backdrop-blur-xl sm:p-5">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-          <Link
-            className="control-primary inline-flex min-h-11 items-center justify-center rounded-control bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors"
-            href="/start?kind=sign_up&source=direct"
-            onClick={close}
-          >Start building</Link>
-          <Link
-            className="control-secondary inline-flex min-h-11 items-center justify-center rounded-control px-4 text-sm font-medium transition-colors"
-            href="/start?kind=sign_in&source=direct"
-            onClick={close}
-          >Log in</Link>
+          {identityStatus === 'authenticated' ? <>
+            <a className="control-primary inline-flex min-h-11 items-center justify-center rounded-control bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors" href={CENTRAL_APP_DASHBOARD_URL} onClick={close}>Dashboard</a>
+            <a className="control-secondary inline-flex min-h-11 items-center justify-center rounded-control px-4 text-sm font-medium transition-colors" href={CENTRAL_APP_DASHBOARD_URL} onClick={close}>Account</a>
+          </> : <>
+            <Link className="control-primary inline-flex min-h-11 items-center justify-center rounded-control bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors" href="/start?kind=sign_up&source=direct" onClick={close}>Start building</Link>
+            <Link className="control-secondary inline-flex min-h-11 items-center justify-center rounded-control px-4 text-sm font-medium transition-colors" href="/start?kind=sign_in&source=direct" onClick={close}>Log in</Link>
+          </>}
         </div>
       </div>
     </SheetContent>

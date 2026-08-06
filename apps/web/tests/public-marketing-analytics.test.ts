@@ -24,8 +24,8 @@ test('FUMA-WEB-016 keeps analytics first-party, storage-safe, and non-blocking',
   const groups = await nextConfig.headers?.()
   const headers = Object.fromEntries(groups?.[0]?.headers.map(({ key, value }) => [key, value]) ?? [])
   const csp = headers['Content-Security-Policy'] ?? ''
-  expect(csp).toContain("connect-src 'self'")
-  expect(csp).not.toMatch(/connect-src[^;]*https?:/)
+  expect(csp).toContain("connect-src 'self' https://auth.trimly.co.ke")
+  expect(csp).not.toMatch(/connect-src[^;]*https?:\/\/(?!auth\.trimly\.co\.ke)/)
 })
 
 

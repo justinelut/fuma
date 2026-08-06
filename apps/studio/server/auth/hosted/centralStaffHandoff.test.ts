@@ -42,10 +42,11 @@ function database() {
   return { db, profile: () => profile, sessions: () => sessions }
 }
 
-function request(url: string, cookieHeader?: string): Request {
+function request(url: string, cookieHeader?: string, origin?: string): Request {
   const parsed = new URL(url)
   const allowedHeaders = new Headers({ host: parsed.host, 'x-forwarded-proto': 'https' })
   if (cookieHeader) allowedHeaders.set('cookie', cookieHeader)
+  if (origin) allowedHeaders.set('origin', origin)
   const NativeResponse = (globalThis as Record<PropertyKey, unknown>)[Symbol.for('instatic.test.nativeResponse')] as typeof Response
   const nativeHeaders = new NativeResponse(null, { headers: allowedHeaders }).headers
   const current = new Request(url, { headers: allowedHeaders })
@@ -78,7 +79,7 @@ describe('central staff Google handoff', () => {
     const store = database()
     const callbacks: string[] = []
     let tick = Date.parse('2026-08-06T00:00:00.000Z')
-    const boundary = createCentralStaffHandoffBoundary({ db: store.db, appOrigin: APP, authOrigin: AUTH, identityAuth: identity(callbacks), protectedOwnerEmail: OWNER, staffCookieName: '__Host-fuma_staff', staffAuthSecret: 'test-central-staff-secret-32-bytes-minimum', secureCookies: true, now: () => new Date(tick) })
+    const boundary = createCentralStaffHandoffBoundary({ db: store.db, appOrigin: APP, authOrigin: AUTH, marketingOrigin: 'https://trimly.co.ke', identityAuth: identity(callbacks), protectedOwnerEmail: OWNER, staffCookieName: '__Host-fuma_staff', staffAuthSecret: 'test-central-staff-secret-32-bytes-minimum', secureCookies: true, now: () => new Date(tick) })
 
     const started = await boundary.handle(request(`${APP}/api/auth/central-google`))
     expect(started?.status).toBe(303)
@@ -115,7 +116,7 @@ describe('central staff Google handoff', () => {
   it('rejects a handoff in a browser without the app-issued state cookie', async () => {
     const store = database()
     const callbacks: string[] = []
-    const boundary = createCentralStaffHandoffBoundary({ db: store.db, appOrigin: APP, authOrigin: AUTH, identityAuth: identity(callbacks), protectedOwnerEmail: OWNER, staffCookieName: '__Host-fuma_staff', staffAuthSecret: 'test-central-staff-secret-32-bytes-minimum', secureCookies: true, now: () => new Date('2026-08-06T00:00:00.000Z') })
+    const boundary = createCentralStaffHandoffBoundary({ db: store.db, appOrigin: APP, authOrigin: AUTH, marketingOrigin: 'https://trimly.co.ke', identityAuth: identity(callbacks), protectedOwnerEmail: OWNER, staffCookieName: '__Host-fuma_staff', staffAuthSecret: 'test-central-staff-secret-32-bytes-minimum', secureCookies: true, now: () => new Date('2026-08-06T00:00:00.000Z') })
     const started = await boundary.handle(request(`${APP}/api/auth/central-google`))
     await boundary.handle(request(started!.headers.get('location')!))
     const authorized = await boundary.handle(request(callbacks[0]!))
@@ -123,4 +124,17 @@ describe('central staff Google handoff', () => {
     expect(rejected?.status).toBe(404)
     expect(store.sessions()).toBe(0)
   })
+
+  it('exposes only boolean central session status to the exact marketing origin', async () => {
+    const store = database()
+    const boundary = createCentralStaffHandoffBoundary({ db: store.db, appOrigin: APP, authOrigin: AUTH, marketingOrigin: 'https://trimly.co.ke', identityAuth: identity([]), protectedOwnerEmail: OWNER, staffCookieName: '__Host-fuma_staff', staffAuthSecret: 'test-central-staff-secret-32-bytes-minimum', secureCookies: true })
+    const accepted = await boundary.handle(request(`${AUTH}/session/status`, '__Host-fuma_auth=identity', 'https://trimly.co.ke'))
+    expect(accepted?.status).toBe(200)
+    expect(await accepted?.json()).toEqual({ authenticated: true })
+    expect(accepted?.headers.get('access-control-allow-origin')).toBe('https://trimly.co.ke')
+    expect(accepted?.headers.get('access-control-allow-credentials')).toBe('true')
+    const denied = await boundary.handle(request(`${AUTH}/session/status`, '__Host-fuma_auth=identity', 'https://attacker.example'))
+    expect(denied?.status).toBe(404)
+  })
+
 })

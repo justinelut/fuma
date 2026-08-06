@@ -3,6 +3,7 @@ import { Value } from '@sinclair/typebox/value'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { IntentForm } from '@/components/intent-form'
+import { AuthenticatedStartRedirect } from '@/components/central-session'
 import { PageMain } from '@/components/site-shell'
 import { publicMetadata } from '@/lib/seo'
 
@@ -100,6 +101,7 @@ export default async function Page({
   const presentation = INTENT_PRESENTATION[intent.kind]
 
   return <PageMain className="max-w-6xl">
+    <AuthenticatedStartRedirect />
     <div className="grid min-h-[70svh] content-center py-4 sm:py-8">
       <div className="grid overflow-hidden rounded-surface border border-border bg-card lg:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)]">
         <header className="fuma-rise p-7 sm:p-10 lg:p-14">
