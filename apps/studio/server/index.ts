@@ -306,6 +306,7 @@ const centralStaffHandoff = centralIdentityAuthRuntime && hostedStaffAuthRuntime
     db,
     appOrigin: `https://${hostedFumaConfig.hosts.product}`,
     authOrigin: `https://${hostedAuthHost}`,
+    marketingOrigin: `https://${hostedFumaConfig.hosts.marketing}`,
     identityAuth: centralIdentityAuthRuntime,
     protectedOwnerEmail: hostedFumaConfig.protectedOwner.email,
     staffCookieName: hostedFumaConfig.staffCookie.name,

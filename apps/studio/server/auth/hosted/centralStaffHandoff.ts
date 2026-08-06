@@ -5,6 +5,7 @@ import type { HostedIdentityAuthRuntime } from './runtime'
 const APP_START_PATH = '/api/auth/central-google'
 const AUTH_START_PATH = '/staff/google'
 const AUTH_AUTHORIZE_PATH = '/staff/authorize'
+const AUTH_STATUS_PATH = '/session/status'
 const APP_CONSUME_PATH = '/api/auth/staff-handoff'
 const STATE_COOKIE = '__Host-fuma_staff_oauth'
 const HANDOFF_PREFIX = 'fuma-staff-handoff:'
@@ -103,6 +104,7 @@ export function createCentralStaffHandoffBoundary(input: Readonly<{
   db: DbClient
   appOrigin: string
   authOrigin: string
+  marketingOrigin: string
   identityAuth: HostedIdentityAuthRuntime
   protectedOwnerEmail: string
   staffCookieName: string
@@ -112,7 +114,8 @@ export function createCentralStaffHandoffBoundary(input: Readonly<{
 }>): CentralStaffHandoffBoundary {
   const app = new URL(input.appOrigin).origin
   const auth = new URL(input.authOrigin).origin
-  if (app === auth || new URL(app).pathname !== '/' || new URL(auth).pathname !== '/') throw new TypeError('Central staff handoff origins are invalid.')
+  const marketing = new URL(input.marketingOrigin).origin
+  if (app === auth || marketing === auth || new URL(app).pathname !== '/' || new URL(auth).pathname !== '/' || new URL(marketing).pathname !== '/') throw new TypeError('Central staff handoff origins are invalid.')
   const ownerEmail = input.protectedOwnerEmail.trim().toLowerCase()
   const now = input.now ?? (() => new Date())
   const stateCookie = (value: string, maxAge: number) => `${STATE_COOKIE}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${input.secureCookies ? '; Secure' : ''}`
@@ -122,12 +125,28 @@ export function createCentralStaffHandoffBoundary(input: Readonly<{
     handles(request) {
       const path = new URL(request.url).pathname
       return (exactOrigin(request, app) && (path === APP_START_PATH || path === APP_CONSUME_PATH))
-        || (exactOrigin(request, auth) && (path === AUTH_START_PATH || path === AUTH_AUTHORIZE_PATH))
+        || (exactOrigin(request, auth) && (path === AUTH_START_PATH || path === AUTH_AUTHORIZE_PATH || path === AUTH_STATUS_PATH))
     },
     async handle(request) {
       if (!this.handles(request)) return null
-      if (request.method !== 'GET') return notFound()
       const url = new URL(request.url)
+      if (exactOrigin(request, auth) && url.pathname === AUTH_STATUS_PATH) {
+        if (url.search || request.headers.get('origin') !== marketing || (request.method !== 'GET' && request.method !== 'OPTIONS')) return notFound()
+        const headers = new Headers({
+          'access-control-allow-origin': marketing,
+          'access-control-allow-credentials': 'true',
+          'access-control-allow-methods': 'GET, OPTIONS',
+          'cache-control': 'no-store, max-age=0',
+          'content-type': 'application/json; charset=utf-8',
+          'referrer-policy': 'no-referrer',
+          'vary': 'Origin',
+          'x-content-type-options': 'nosniff',
+        })
+        if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers })
+        const session = await input.identityAuth.resolveSession(request.headers)
+        return new Response(JSON.stringify({ authenticated: session !== null && session.impersonatedBy === null }), { status: 200, headers })
+      }
+      if (request.method !== 'GET') return notFound()
       if (exactOrigin(request, app) && url.pathname === APP_START_PATH) {
         if (url.search) return notFound()
         const state = token()

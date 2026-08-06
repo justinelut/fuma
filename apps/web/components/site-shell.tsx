@@ -3,6 +3,7 @@ import type { Route } from 'next'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { MobileMenu } from '@/components/mobile-menu'
+import { CentralAccountActions } from '@/components/central-session'
 import { SiteNav } from '@/components/site-nav'
 
 type Column = Readonly<{ heading: string; links: readonly (readonly [Route, string, string?])[] }>
@@ -51,8 +52,7 @@ export function SiteShell({ children }: Readonly<{ children: ReactNode }>) {
           <SiteNav />
         </nav>
         <div aria-label="Account actions" className="ml-auto flex min-w-0 items-center gap-1 sm:gap-2">
-          <Link className="inline-flex min-h-11 items-center rounded-lg px-3 text-[0.9375rem] text-muted-foreground transition-colors hover:text-foreground max-[22rem]:hidden lg:min-h-10" href="/start?kind=sign_in&source=direct">Log in</Link>
-          <Link className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-[0.9375rem] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 max-[22rem]:hidden lg:min-h-10" href="/start?kind=sign_up&source=direct"><span className="sm:hidden">Sign up</span><span className="hidden sm:inline">Sign up free</span></Link>
+          <CentralAccountActions />
           <MobileMenu />
         </div>
       </div>
