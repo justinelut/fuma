@@ -33,7 +33,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         solid: 'bg-dash-ink text-dash-surface hover:bg-dash-ink/90 focus-visible:outline-dash-ink',
-        accent: 'bg-dash-accent text-dash-ink hover:brightness-105 focus-visible:outline-dash-ink',
+        accent: 'bg-dash-accent text-white hover:brightness-110 focus-visible:outline-dash-ink',
         quiet: 'text-dash-ink-soft hover:bg-dash-rail hover:text-dash-ink focus-visible:outline-dash-ink',
         outline: 'border border-dash-hairline bg-dash-card text-dash-ink hover:bg-dash-rail focus-visible:outline-dash-ink',
         ghostDark: 'bg-ghost-card text-ghost-ink hover:bg-ghost-hairline focus-visible:outline-ghost-ink',
@@ -118,7 +118,7 @@ const badgeVariants = cva(
     variants: {
       variant: {
         solid: 'bg-dash-ink text-dash-surface',
-        accent: 'bg-dash-accent text-dash-ink',
+        accent: 'bg-dash-accent text-white',
         outline: 'border border-dash-hairline text-dash-ink-soft',
         rail: 'bg-dash-rail text-dash-ink-soft',
       },

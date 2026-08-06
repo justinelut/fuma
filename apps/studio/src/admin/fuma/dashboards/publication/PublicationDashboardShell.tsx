@@ -180,10 +180,10 @@ export function PublicationDashboardShell({
   const initials = actorLabel.trim().charAt(0).toUpperCase() || '·'
 
   return (
-    <div className="fuma-hosted flex min-h-dvh bg-ghost-canvas text-ghost-ink">
+    <div className="fuma-hosted flex h-full overflow-hidden bg-ghost-canvas text-ghost-ink">
       <aside
         className={cn(
-          'sticky top-0 hidden h-dvh w-[200px] shrink-0 flex-col',
+          'hidden h-full w-[200px] shrink-0 flex-col',
           'border-r border-ghost-hairline bg-ghost-sidebar px-3 py-4 lg:flex',
         )}
       >
@@ -334,7 +334,7 @@ export function PublicationDashboardShell({
         </div>
       </aside>
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-[1000px] px-5 py-7 sm:px-8">
           <header className="flex flex-wrap items-baseline justify-between gap-3">
             <h1 className="text-[1.875rem] leading-none font-semibold tracking-tight">{title}</h1>
