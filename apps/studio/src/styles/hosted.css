@@ -58,7 +58,7 @@
   --color-destructive-foreground: #000000;
   --color-ring: #3f6bff;
   --color-chart-1: #3f6bff;
-  --color-chart-2: #f5c842;
+  --color-chart-2: #6f92ff;
   --color-chart-3: #ff2d8a;
   --color-chart-4: #4bd07a;
   --color-chart-5: #8e5bff;
@@ -91,8 +91,13 @@
   --color-dash-ink-muted: #9a9a9a;
   --color-dash-hairline: rgba(23, 23, 23, 0.08);
   --color-dash-rail: #eceae2;
-  --color-dash-accent: #f5c842;
-  --color-dash-accent-soft: #fbe6a2;
+  /**
+   * Accent is the marketing signal blue (`--signal` in apps/web), not the
+   * reference's yellow, so hosted admin and the marketing pages read as one
+   * product. `accent-soft` is the same hue at low opacity for fills behind text.
+   */
+  --color-dash-accent: #3f6bff;
+  --color-dash-accent-soft: #b9c8ff;
 
   --radius-bento: 1.25rem;
   --radius-bento-inner: 0.875rem;

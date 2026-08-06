@@ -115,14 +115,16 @@ export function WebsiteDashboardShell({
     : Math.round((setup.completed / setup.total) * 100)
 
   return (
-    <div className="fuma-hosted min-h-dvh bg-dash-backdrop p-3 sm:p-6">
-      <div
-        className={cn(
-          'mx-auto w-full max-w-[1200px] overflow-hidden rounded-[var(--radius-app)]',
-          'bg-dash-surface bg-[radial-gradient(115%_95%_at_88%_112%,var(--color-dash-wash)_0%,transparent_58%)]',
-          'p-4 shadow-[0_28px_70px_-30px_rgba(20,20,20,0.45)] sm:p-7',
-        )}
-      >
+    // `html, body, #root` are height-locked with `overflow: hidden` for the
+    // builder canvas, so the dashboard owns its own scroll container. Without
+    // this it silently clipped instead of scrolling.
+    <div
+      className={cn(
+        'fuma-hosted h-full overflow-y-auto',
+        'bg-dash-surface bg-[radial-gradient(120%_100%_at_92%_108%,var(--color-dash-wash)_0%,transparent_60%)]',
+      )}
+    >
+      <div className="mx-auto w-full max-w-[1680px] px-4 py-5 sm:px-8 sm:py-7">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <p
             className={cn(
