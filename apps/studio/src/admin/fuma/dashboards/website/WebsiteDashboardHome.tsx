@@ -79,11 +79,11 @@ function CheckMark({ done }: { done: boolean }) {
     ? (
       <svg viewBox="0 0 16 16" className="size-4 text-primary" aria-hidden="true">
         <circle cx="8" cy="8" r="7" fill="currentColor" />
-        <path d="m5 8.2 2 2 4-4.2" stroke="#ffffff" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="m5 8.2 2 2 4-4.2" stroke="var(--primary-foreground)" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     )
     : (
-      <svg viewBox="0 0 16 16" className="size-4 text-white/25" aria-hidden="true">
+      <svg viewBox="0 0 16 16" className="size-4 text-background/25" aria-hidden="true">
         <circle cx="8" cy="8" r="6.2" fill="currentColor" />
       </svg>
     )
@@ -94,12 +94,34 @@ function StepTile({ index }: { index: number }) {
     <span
       className={cn(
         'inline-flex size-8 shrink-0 items-center justify-center rounded-[0.625rem]',
-        'bg-white/10 text-[0.625rem] font-semibold text-white/70',
+        'bg-background/12 text-[0.625rem] font-semibold text-background/70',
       )}
       aria-hidden="true"
     >
       {String(index + 1).padStart(2, '0')}
     </span>
+  )
+}
+
+const AREA_PATHS: Readonly<Record<string, string>> = {
+  'nav.bookings': 'M3 6.2h10M4.6 3.4v1.6M11.4 3.4v1.6M3 6.2h10v6.4H3z',
+  'nav.website-analytics': 'M3.4 12.6V8.4M6.8 12.6V5M10.2 12.6V9M13.6 12.6V3.4',
+  'nav.domains': 'M8 2.6a5.4 5.4 0 1 0 0 10.8A5.4 5.4 0 0 0 8 2.6ZM2.6 8h10.8M8 2.6c1.7 1.7 1.7 9.1 0 10.8',
+  'nav.team': 'M6 6.4a2 2 0 1 0 0-.1ZM2.6 13c.3-2 1.7-3.2 3.4-3.2S9.1 11 9.4 13M11 5.4a1.8 1.8 0 0 1 0 3.6M11.8 10c1.2.3 2 1.4 2.2 3',
+  'nav.settings': 'M8 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M12.4 3.6l-1 1M4.6 11.4l-1 1',
+}
+
+function AreaIcon({ id }: { id: string }) {
+  return (
+    <svg viewBox="0 0 16 16" className="size-4" fill="none" aria-hidden="true">
+      <path
+        d={AREA_PATHS[id] ?? 'M3 4h10M3 8h10M3 12h6'}
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }
 
@@ -189,7 +211,7 @@ export function WebsiteDashboardHome({
         <div>
           <Badge variant="accent" size="sm">Design</Badge>
           <p className="mt-6 text-xl leading-tight font-semibold tracking-tight">{siteName}</p>
-          <p className="mt-2 text-xs leading-relaxed text-white/55">
+          <p className="mt-2 text-xs leading-relaxed text-background/65">
             The visual builder designs and manages this site. Opening it hands
             over the whole screen — canvas, content, media and data.
           </p>
@@ -233,7 +255,7 @@ export function WebsiteDashboardHome({
             <span
               className={cn(
                 'absolute top-0 rounded-full bg-primary px-2 py-1',
-                'text-[0.625rem] font-medium text-white',
+                'text-[0.625rem] font-medium text-primary-foreground',
               )}
               style={{
                 left: `${((nextIndex + 0.5) / Math.max(1, steps.length)) * 100}%`,
@@ -341,12 +363,12 @@ export function WebsiteDashboardHome({
                   <span
                     className={cn(
                       'block truncate text-xs',
-                      step.completed ? 'text-white/40 line-through' : 'text-white',
+                      step.completed ? 'text-background/45 line-through' : 'text-background',
                     )}
                   >
                     {step.title}
                   </span>
-                  <span className="block truncate text-[0.625rem] text-white/35">
+                  <span className="block truncate text-[0.625rem] text-background/50">
                     {step.description}
                   </span>
                 </span>
@@ -357,8 +379,9 @@ export function WebsiteDashboardHome({
         </div>
       </Card>
 
-      {/* Accordion list, first column second row. */}
-      <Card>
+      {/* Accordion list, first column second row. The reference expands one row
+          into a detail line with an icon tile and a trailing action. */}
+      <Card className="py-2">
         <ul className="divide-y divide-border">
           {areas.map((area) => {
             const open = openArea === area.id
@@ -366,24 +389,49 @@ export function WebsiteDashboardHome({
               <li key={area.id}>
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between gap-3 py-3 text-left"
+                  className={cn(
+                    'flex w-full items-center justify-between gap-3 rounded-[var(--radius-md)]',
+                    'px-1 py-3 text-left transition-colors hover:bg-accent/60',
+                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                  )}
                   aria-expanded={open}
                   onClick={() => setOpenArea(open ? null : area.id)}
                 >
-                  <span className="text-sm text-foreground">{area.label}</span>
+                  <span className="min-w-0 truncate text-sm text-foreground">{area.label}</span>
                   <Chevron open={open} />
                 </button>
                 {open ? (
                   <div className="pb-3">
-                    <p className="text-xs leading-relaxed text-muted-foreground">{area.detail}</p>
                     <Link
                       to={area.path}
                       className={cn(
-                        'mt-2 inline-block text-xs font-medium text-foreground',
-                        'underline decoration-primary decoration-2 underline-offset-4',
+                        'flex items-center gap-3 rounded-[var(--radius-md)] px-1 py-2',
+                        'transition-colors hover:bg-accent/60',
+                        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                       )}
                     >
-                      Open {area.label.toLowerCase()}
+                      <span
+                        className={cn(
+                          'inline-flex size-9 shrink-0 items-center justify-center',
+                          'rounded-[var(--radius-md)] bg-muted text-foreground',
+                        )}
+                        aria-hidden="true"
+                      >
+                        <AreaIcon id={area.id} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[0.8125rem] text-foreground">
+                          Open {area.label.toLowerCase()}
+                        </span>
+                        <span className="block truncate text-[0.6875rem] text-muted-foreground">
+                          {area.detail}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-muted-foreground" aria-hidden="true">
+                        <svg viewBox="0 0 16 16" className="size-4" fill="none">
+                          <path d="m6 4 4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
                     </Link>
                   </div>
                 ) : null}
