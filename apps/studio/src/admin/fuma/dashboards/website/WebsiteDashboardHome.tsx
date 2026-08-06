@@ -83,7 +83,7 @@ function CheckMark({ done }: { done: boolean }) {
       </svg>
     )
     : (
-      <svg viewBox="0 0 16 16" className="size-4 text-background/25" aria-hidden="true">
+      <svg viewBox="0 0 16 16" className="size-4 text-border" aria-hidden="true">
         <circle cx="8" cy="8" r="6.2" fill="currentColor" />
       </svg>
     )
@@ -94,7 +94,7 @@ function StepTile({ index }: { index: number }) {
     <span
       className={cn(
         'inline-flex size-8 shrink-0 items-center justify-center rounded-[0.625rem]',
-        'bg-background/12 text-[0.625rem] font-semibold text-background/70',
+        'border border-border bg-card text-[0.625rem] font-semibold text-muted-foreground',
       )}
       aria-hidden="true"
     >
@@ -207,11 +207,13 @@ export function WebsiteDashboardHome({
   return (
     <div className="grid items-start gap-4 lg:grid-cols-4">
       {/* Feature card — the reference's tall portrait card position. */}
-      <Card tone="ink" className="flex min-h-[248px] flex-col justify-between">
+      <Card className="flex min-h-[248px] flex-col justify-between">
         <div>
           <Badge variant="accent" size="sm">Design</Badge>
-          <p className="mt-6 text-xl leading-tight font-semibold tracking-tight">{siteName}</p>
-          <p className="mt-2 text-xs leading-relaxed text-background/65">
+          <p className="mt-6 text-xl leading-tight font-semibold tracking-tight text-foreground">
+            {siteName}
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
             The visual builder designs and manages this site. Opening it hands
             over the whole screen — canvas, content, media and data.
           </p>
@@ -223,7 +225,7 @@ export function WebsiteDashboardHome({
           {publicUrl ? (
             <ButtonLink
               href={publicUrl}
-              variant="ghostDark"
+              variant="outline"
               size="md"
               target="_blank"
               rel="noreferrer noopener"
@@ -350,8 +352,8 @@ export function WebsiteDashboardHome({
             </span>
           ))}
         </div>
-        <div className="mt-4 flex-1 rounded-[var(--radius-md)] bg-foreground p-4 text-background">
-          <div className="flex items-baseline justify-between">
+        <div className="mt-4 flex-1 rounded-[var(--radius-md)] border border-border bg-muted p-4">
+          <div className="flex items-baseline justify-between text-foreground">
             <p className="text-sm font-medium">Onboarding task</p>
             <p className="text-sm font-semibold">{completed}/{steps.length}</p>
           </div>
@@ -363,12 +365,14 @@ export function WebsiteDashboardHome({
                   <span
                     className={cn(
                       'block truncate text-xs',
-                      step.completed ? 'text-background/45 line-through' : 'text-background',
+                      step.completed
+                        ? 'text-muted-foreground line-through'
+                        : 'text-foreground',
                     )}
                   >
                     {step.title}
                   </span>
-                  <span className="block truncate text-[0.625rem] text-background/50">
+                  <span className="block truncate text-[0.625rem] text-muted-foreground">
                     {step.description}
                   </span>
                 </span>

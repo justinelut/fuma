@@ -126,6 +126,7 @@ export function PublicationDashboardRoute({
       actorLabel={actorLabel}
       navigation={shell.navigation}
       currentPath={currentPath}
+      homePath={buildScopedAdminUrl(resolution.selection)}
       accountPath={accountPath}
       builderPath={buildScopedAdminUrl(resolution.selection, '/admin/builder')}
       publicUrl={publicUrl}

@@ -124,13 +124,13 @@ export function BookingsDashboard({
 
   return (
     <div className="grid items-start gap-4 lg:grid-cols-4">
-      <Card tone="ink" className="flex min-h-[248px] flex-col justify-between">
+      <Card className="flex min-h-[248px] flex-col justify-between">
         <div>
           <Badge variant="accent" size="sm">Bookings</Badge>
-          <p className="mt-6 text-xl leading-tight font-semibold tracking-tight">
+          <p className="mt-6 text-xl leading-tight font-semibold tracking-tight text-foreground">
             {bookings.length === 0 ? 'Nothing booked today' : `${bookings.length} today`}
           </p>
-          <p className="mt-2 text-xs leading-relaxed text-background/65">
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
             {activeServices.length === 0
               ? 'Add a service and its availability before customers can book.'
               : `${activeServices.length} active ${activeServices.length === 1 ? 'service' : 'services'} across ${resources.length} ${resources.length === 1 ? 'resource' : 'resources'}.`}
@@ -185,11 +185,11 @@ export function BookingsDashboard({
                         key={booking.bookingId}
                         className={cn(
                           'inline-flex items-center gap-2 rounded-[var(--radius-md)]',
-                          'bg-foreground px-3 py-2 text-[0.6875rem] text-background',
+                          'border border-border bg-muted px-3 py-2 text-[0.6875rem] text-foreground',
                         )}
                       >
                         {booking.partySize} {booking.partySize === 1 ? 'guest' : 'guests'}
-                        <span className="text-background/50">{booking.status}</span>
+                        <span className="text-muted-foreground">{booking.status}</span>
                       </span>
                     ))}
                   </span>

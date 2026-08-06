@@ -112,6 +112,7 @@ export function WebsiteDashboardRoute({
       actorLabel={actorLabel}
       navigation={shell.navigation}
       currentPath={buildScopedAdminUrl(resolution.selection, shell.profileRelativeSubpath)}
+      homePath={buildScopedAdminUrl(resolution.selection)}
       accountPath={accountPath}
       settingsPath={settingsEntry?.path ?? null}
       counts={{
