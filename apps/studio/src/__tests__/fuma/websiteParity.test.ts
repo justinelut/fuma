@@ -30,7 +30,7 @@ const WEBSITE_PARITY_MATRIX = [
     navigationId: null,
     routeIds: ['route.pages.list', 'route.pages.write'],
     permissionIds: ['content.pages.read', 'content.pages.write'],
-    onboardingIds: ['onboarding.pages'],
+    onboardingIds: [],
     starterTemplateIds: ['starter.pages'],
     jobIds: ['job.website-publish'],
     transferIds: ['transfer.pages'],
@@ -69,7 +69,7 @@ const WEBSITE_PARITY_MATRIX = [
     navigationId: null,
     routeIds: ['route.media'],
     permissionIds: ['website.media.read'],
-    onboardingIds: ['onboarding.media'],
+    onboardingIds: [],
     starterTemplateIds: [],
     jobIds: [],
     transferIds: [],
@@ -82,7 +82,7 @@ const WEBSITE_PARITY_MATRIX = [
     navigationId: null,
     routeIds: ['route.builder'],
     permissionIds: ['website.design.read', 'website.design.write'],
-    onboardingIds: ['onboarding.design'],
+    onboardingIds: [],
     starterTemplateIds: ['starter.website'],
     jobIds: [],
     transferIds: ['transfer.design'],
@@ -95,7 +95,7 @@ const WEBSITE_PARITY_MATRIX = [
     navigationId: 'nav.settings',
     routeIds: ['route.settings'],
     permissionIds: ['site.settings.read', 'site.settings.write'],
-    onboardingIds: ['onboarding.identity'],
+    onboardingIds: ['onboarding.identity', 'onboarding.domain', 'onboarding.team'],
     starterTemplateIds: [],
     jobIds: [
       'job.transfer-execute',
@@ -164,22 +164,16 @@ const WEBSITE_PROFILE_EXPECTATIONS = {
       description: 'Set the site identity and basic settings.',
     },
     {
-      id: 'onboarding.design',
-      order: 20,
-      title: 'Choose a design',
-      description: 'Start from a clean visual design preset.',
+      id: 'onboarding.domain',
+      order: 50,
+      title: 'Connect a domain',
+      description: 'Point a custom domain at this site and verify DNS.',
     },
     {
-      id: 'onboarding.pages',
-      order: 30,
-      title: 'Create a page',
-      description: 'Create the first reusable page in this site.',
-    },
-    {
-      id: 'onboarding.media',
-      order: 40,
-      title: 'Add media',
-      description: 'Upload reusable images and documents.',
+      id: 'onboarding.team',
+      order: 60,
+      title: 'Invite your team',
+      description: 'Add the people who will work on this site.',
     },
   ],
   starterTemplates: [
@@ -383,7 +377,9 @@ function renderWebsiteShell(
   registry: FumaRegistry,
   capabilityOverrides: CapabilityOverrides,
 ): string {
-  const pathname = buildScopedAdminUrl(SHELL_SELECTION, '/admin/builder')
+  // Setup is its own route now, so onboarding contributions are asserted on
+  // the page that owns them rather than stacked under another route.
+  const pathname = buildScopedAdminUrl(SHELL_SELECTION, '/admin/setup')
   const shell = createElement(FumaScopedShell, {
     catalog: shellCatalog(capabilityOverrides),
     pathname,
@@ -586,7 +582,7 @@ describe('FUMA-019 Website parity integration', () => {
     expect(launchMarkup).toContain('data-profile-id="website"')
     expect(launchMarkup).toContain('aria-label="Website navigation"')
     expect(launchMarkup).toContain(buildScopedAdminUrl(SHELL_SELECTION, '/admin/builder'))
-    expect(launchMarkup).toContain('Create a page')
+    expect(launchMarkup).toContain('Design')
     expect(launchMarkup).not.toContain('Content review')
     expect(launchMarkup).not.toContain('Configure content review')
 

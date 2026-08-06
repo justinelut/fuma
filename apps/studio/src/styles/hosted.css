@@ -1,17 +1,25 @@
 /**
  * Hosted Fuma design system for Studio.
  *
- * Imports Tailwind's theme and utility layers but NOT preflight: preflight
- * resets element defaults globally and would silently restyle Instatic's 314
- * builder files, which stay on CSS modules by design.
+ * Imports Tailwind's theme and utilities but NOT preflight: preflight resets
+ * element defaults globally and would silently restyle Instatic's 314 builder
+ * files, which stay on CSS modules by design.
+ *
+ * Utilities are deliberately NOT wrapped in `@layer utilities`. `globals.css`
+ * is unlayered, and unlayered rules beat layered ones no matter their
+ * specificity or order — so layered utilities lost every contest against the
+ * global element styles and hosted surfaces rendered unstyled. Unlayered
+ * utilities compete normally and win by import order, and they cannot reach
+ * builder chrome because Tailwind class strings are gated out of
+ * `src/admin/pages`, `src/ui` and `src/modules`.
  *
  * Semantic variable names match apps/web so hosted admin surfaces and the
  * marketing pages share one measured design language rather than drifting.
  */
-@layer theme, components, utilities;
+@layer theme;
 
 @import 'tailwindcss/theme.css' layer(theme);
-@import 'tailwindcss/utilities.css' layer(utilities);
+@import 'tailwindcss/utilities.css';
 /*---break---
  */
 @custom-variant dark (&:is(.dark *));

@@ -57,19 +57,20 @@ describe('FUMA-017 profile onboarding', () => {
       assignment('publication-site', 'publication'),
     )
 
+    // Design, pages and media belong to Instatic, so platform onboarding covers
+    // only what the platform itself owns.
     expect(website.steps.map(({ id }) => id)).toEqual([
       'onboarding.identity',
-      'onboarding.design',
-      'onboarding.pages',
-      'onboarding.media',
+      'onboarding.domain',
+      'onboarding.team',
     ])
     expect(publication.steps.map(({ id }) => id)).toEqual([
       'onboarding.identity',
       'onboarding.publication',
-      'onboarding.pages',
       'onboarding.members',
       'onboarding.newsletters',
-      'onboarding.design',
+      'onboarding.domain',
+      'onboarding.team',
     ])
     expect(website.currentStepId).toBe('onboarding.identity')
     expect(website.progress.cursor).toBe(0)
@@ -96,7 +97,7 @@ describe('FUMA-017 profile onboarding', () => {
       completedStepIds: ['onboarding.identity'],
       cursor: 1,
     })
-    expect(afterFirst.currentStepId).toBe('onboarding.design')
+    expect(afterFirst.currentStepId).toBe('onboarding.domain')
 
     const durableRoundTrip = structuredClone(afterFirst.progress)
     const resumed = resolveProfileOnboarding(fumaLaunchRegistry, site, durableRoundTrip)
@@ -125,23 +126,25 @@ describe('FUMA-017 profile onboarding', () => {
   })
 
   it('uses active capability composition to hide revoked steps and fail closed on completion', () => {
-    const site = assignment('limited-site', 'website', {
+    const site = assignment('limited-site', 'publication', {
       grant: [],
-      revoke: ['website.media'],
+      revoke: ['publication.newsletters.send', 'publication.newsletters'],
     })
     const state = resolveProfileOnboarding(fumaLaunchRegistry, site)
 
     expect(state.steps.map(({ id }) => id)).toEqual([
       'onboarding.identity',
-      'onboarding.design',
-      'onboarding.pages',
+      'onboarding.publication',
+      'onboarding.members',
+      'onboarding.domain',
+      'onboarding.team',
     ])
     expectOnboardingError(
       () => completeProfileOnboardingStep(
         fumaLaunchRegistry,
         site,
         state.progress,
-        completion(state, 'onboarding.media'),
+        completion(state, 'onboarding.newsletters'),
       ),
       'unavailable-step',
     )
@@ -159,7 +162,7 @@ describe('FUMA-017 profile onboarding', () => {
         fumaLaunchRegistry,
         site,
         state.progress,
-        completion(state, 'onboarding.pages'),
+        completion(state, 'onboarding.team'),
       ),
       'out-of-order-step',
     )
