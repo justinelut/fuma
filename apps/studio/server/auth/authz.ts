@@ -38,6 +38,30 @@ export async function getSessionHash(req: Request): Promise<string | null> {
   return token ? hashSessionToken(token) : null
 }
 
+/**
+ * Hosted builder bridge.
+ *
+ * Self-hosted installations authenticate CMS requests with the admin session
+ * cookie and nothing else. In the hosted product that cookie is invalidated at
+ * the boundary, yet staff are handed the real builder to design their site, so
+ * its CMS requests must resolve the identity bound to their hosted staff
+ * session. Registration is composition-time and process-wide, matching how the
+ * rest of this module reads configured server state; when no resolver is
+ * registered the behaviour below is byte-for-byte the self-hosted behaviour.
+ */
+export type HostedBuilderIdentityResolver = (
+  req: Request,
+  db: DbClient,
+) => Promise<AuthUser | null>
+
+let hostedBuilderIdentityResolver: HostedBuilderIdentityResolver | null = null
+
+export function setHostedBuilderIdentityResolver(
+  resolver: HostedBuilderIdentityResolver | null,
+): void {
+  hostedBuilderIdentityResolver = resolver
+}
+
 export async function requireAuthenticatedUser(
   req: Request,
   db: DbClient,
@@ -45,6 +69,10 @@ export async function requireAuthenticatedUser(
   const idHash = await getSessionHash(req)
   const user = idHash ? await findUserBySessionHash(db, idHash) : null
   if (!user) {
+    const bridged = hostedBuilderIdentityResolver
+      ? await hostedBuilderIdentityResolver(req, db)
+      : null
+    if (bridged) return bridged
     if (idHash && await sessionRequiresMfa(db, idHash)) {
       return jsonResponse({ error: 'mfa_required' }, { status: 401 })
     }

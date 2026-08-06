@@ -16,8 +16,8 @@ import { createFumaFixtureSite } from '../helpers/fuma/fixtures'
  * hosted shell opens full-screen through one entry instead of duplicating.
  */
 const PUBLICATION_NAVIGATION = [
-  'Home',
-  'Open builder',
+  'Dashboard',
+  'Design',
   'Posts',
   'Tags',
   'Members',

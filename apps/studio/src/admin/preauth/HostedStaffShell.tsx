@@ -15,6 +15,10 @@ import { PaidHandoffRouteContent } from '../fuma/paidHandoff'
 import { CustomerCapabilityDashboardRouteContent, PlatformCapabilityInventoryRouteContent } from '../fuma/aiCapabilities'
 import { BookingsRouteContent } from '../fuma/bookings'
 import {
+  WebsiteDashboardRoute,
+  isWebsiteDashboardRoute,
+} from '../fuma/dashboards/website/WebsiteDashboardRoute'
+import {
   HostedProfileEditorSurface,
   type HostedProfileEditorRenderAdapter,
 } from '../fuma/profileEditor/HostedProfileEditorSurface'
@@ -119,6 +123,33 @@ function internalCapabilityTarget(pathname: string, catalog: AccessibleContextCa
     return null
   }
 }
+/**
+ * Profiles that ship a dedicated dashboard owning their own navigation.
+ *
+ * On their home route the generic scoped chrome is suppressed so the profile
+ * dashboard is the entire page. Every other route keeps the shared chrome.
+ */
+const DEDICATED_DASHBOARD_PROFILES: ReadonlySet<string> = new Set(['website'])
+
+const SCOPED_HOME_PATTERN =
+  /^\/admin\/organizations\/([^/]+)\/workspaces\/([^/]+)\/sites\/([^/]+)\/?$/
+
+function dedicatedDashboardLayout(
+  pathname: string,
+  catalog: AccessibleContextCatalog,
+): 'panel' | 'bare' {
+  const match = SCOPED_HOME_PATTERN.exec(pathname)
+  if (!match) return 'panel'
+  let siteId: string
+  try {
+    siteId = decodeURIComponent(match[3]!)
+  } catch {
+    return 'panel'
+  }
+  const site = catalog.sites.find((entry) => entry.id === siteId)
+  return site && DEDICATED_DASHBOARD_PROFILES.has(site.profileId) ? 'bare' : 'panel'
+}
+
 export function HostedStaffShell({
   session,
   pathname = '/admin',
@@ -272,8 +303,10 @@ export function HostedStaffShell({
     )
   }
 
-  return (
-    <div className={`${panelStyles.page} ${styles.page}`}>
+  const dashboardLayout = dedicatedDashboardLayout(pathname, catalogValidation.catalog)
+
+  const scopedShell = (
+    <>
       {error && <p className={panelStyles.error} role="alert">{error}</p>}
       <FumaScopedShell
         registry={creditsAdminRegistry}
@@ -281,8 +314,18 @@ export function HostedStaffShell({
         pathname={pathname}
         actorLabel={currentSession.user.name}
         permissionState={permissionState}
+        layout={dashboardLayout}
       >
-        {(shell) => (
+        {(shell) => isWebsiteDashboardRoute(shell) ? (
+          <WebsiteDashboardRoute
+            shell={shell}
+            catalog={catalogValidation.catalog}
+            actorLabel={currentSession.user.name}
+            accountPath={ACCOUNT_PATH}
+            onSignOut={() => void signOut()}
+            signingOut={signingOut}
+          />
+        ) : (
           <>
             <PublicationRouteContent shell={shell} permissionDecisions={permissionDecisions} />
             <CreditsLedgerRouteContent shell={shell} />
@@ -310,6 +353,12 @@ export function HostedStaffShell({
           </>
         )}
       </FumaScopedShell>
-    </div>
+    </>
   )
+
+  // A dedicated dashboard owns the full viewport, so the shared panel wrapper
+  // would box it inside the generic layout.
+  return dashboardLayout === 'bare'
+    ? scopedShell
+    : <div className={`${panelStyles.page} ${styles.page}`}>{scopedShell}</div>
 }

@@ -20,26 +20,29 @@ import {
 
 const EMPTY_OVERRIDES: CapabilityOverrides = { grant: [], revoke: [] }
 
+/**
+ * Instatic owns pages, data and media, so hosted navigation exposes none of
+ * them. `Design` is the single entry that hands the viewport to Instatic.
+ */
 const PUBLICATION_NAVIGATION = [
-  'Home',
+  'Dashboard',
+  'Design',
   'Posts',
-  'Pages',
   'Tags',
   'Members',
   'Newsletters',
   'Analytics',
-  'Design',
+  'Domains',
+  'Organization & team',
   'Settings',
 ] as const
 
 const WEBSITE_NAVIGATION = [
-  'Home',
-  'Content',
-  'Pages',
-  'Data',
-  'Media',
-  'Analytics',
+  'Dashboard',
   'Design',
+  'Analytics',
+  'Domains',
+  'Organization & team',
   'Settings',
 ] as const
 
@@ -143,7 +146,7 @@ describe('FUMA-017 profile navigation composer', () => {
       fumaLaunchRegistry,
     )
 
-    expect(navigation.map(({ label }) => label)).toEqual(['Home', 'Posts'])
+    expect(navigation.map(({ label }) => label)).toEqual(['Dashboard', 'Posts'])
     expect(navigation.every((entry) => !('disabled' in entry))).toBe(true)
   })
 

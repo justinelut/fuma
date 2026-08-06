@@ -78,6 +78,7 @@ export {
   updateCurrentUserStepUpSettings,
   updateCurrentUserProfile,
   uploadCurrentUserAvatar,
+  CmsCurrentUserSchema,
 } from './cmsAuth'
 export type {
   CmsCurrentUser,

@@ -10,6 +10,15 @@ import { useLocation } from './lib/routing'
 import { useAdminBoot } from './preauth/useAdminBoot'
 import { prewarmedLazy } from './lib/prewarmedLazy'
 import { useEditorAppearancePreferences } from '@site/preferences/editorPreferences'
+import type { HostedBuilderHandoffProps } from './fuma/builder/HostedBuilderHandoff'
+import type { BuilderSessionScope } from '@core/fuma/builder/builderSessionClient'
+import {
+  readRememberedBuilderScope,
+  rememberBuilderScope,
+  resolveBuilderScope,
+} from './fuma/builder/builderScope'
+import { AccessibleContextCatalogSchema, type AccessibleContextCatalog } from '@core/fuma'
+import { Value } from '@core/utils/typeboxHelpers'
 
 // AuthenticatedAdmin lives in its own chunk so the cold /admin login screen
 // never downloads / evaluates SpotlightRoot, AdminSessionProvider,
@@ -47,6 +56,72 @@ const HostedStaffShell = prewarmedLazy(
   () => import('./preauth/HostedStaffShell').then((module) => ({ default: module.HostedStaffShell })),
   { displayName: 'HostedStaffShell' },
 )
+const HostedBuilderHandoff = prewarmedLazy<HostedBuilderHandoffProps>(
+  () => import('./fuma/builder/HostedBuilderHandoff').then((module) => ({ default: module.HostedBuilderHandoff })),
+  { displayName: 'HostedBuilderHandoff' },
+)
+
+/**
+ * Scoped builder route.
+ *
+ * Site design is Instatic's job, so this path is not a hosted page. It resolves
+ * the site being designed and hands the whole viewport to the builder. The
+ * pattern mirrors the scoped URLs the shell builds for every other route.
+ */
+const SCOPED_BUILDER_PATTERN =
+  /^\/admin\/organizations\/([^/]+)\/workspaces\/([^/]+)\/sites\/([^/]+)\/builder(?:\/.*)?$/
+
+function scopedBuilderTarget(pathname: string): BuilderSessionScope | null {
+  const match = SCOPED_BUILDER_PATTERN.exec(pathname)
+  if (!match) return null
+  try {
+    return Object.freeze({
+      organizationId: decodeURIComponent(match[1]!),
+      workspaceId: decodeURIComponent(match[2]!),
+      siteId: decodeURIComponent(match[3]!),
+    })
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Sections Instatic owns outright.
+ *
+ * The hosted product deliberately has no media manager, no page editor, no
+ * data workspace and no insights grid of its own — Instatic already ships all
+ * of them, so reaching any of these paths hands the viewport to Instatic for
+ * the site currently being worked on.
+ *
+ * `account` is excluded: hosted identity, devices and step-up policy are
+ * platform concerns and stay on the platform.
+ */
+const INSTATIC_OWNED_SECTIONS: ReadonlySet<AdminSection> = new Set<AdminSection>([
+  'dashboard',
+  'site',
+  'content',
+  'data',
+  'media',
+  'plugins',
+  'users',
+  'ai',
+  'pluginPage',
+])
+
+function validatedCatalog(value: unknown): AccessibleContextCatalog | null {
+  return Value.Check(AccessibleContextCatalogSchema, value) ? value : null
+}
+
+function scopedHomePath(scope: BuilderSessionScope): string {
+  return [
+    '/admin/organizations',
+    encodeURIComponent(scope.organizationId),
+    'workspaces',
+    encodeURIComponent(scope.workspaceId),
+    'sites',
+    encodeURIComponent(scope.siteId),
+  ].join('/')
+}
 
 // Speculative preload at module-evaluation time.
 //
@@ -118,7 +193,7 @@ function SelfHostedAdminEntry({ section = 'dashboard' }: AdminEntryProps) {
   )
 }
 
-function HostedAdminEntry({ hostedContextCatalog, platformAdmin = false }: AdminEntryProps) {
+function HostedAdminEntry({ section, hostedContextCatalog, platformAdmin = false }: AdminEntryProps) {
   useEditorAppearancePreferences()
   const { pathname } = useLocation()
   const boot = useHostedStaffBoot()
@@ -133,7 +208,39 @@ function HostedAdminEntry({ hostedContextCatalog, platformAdmin = false }: Admin
   if (boot.status === 'loading') return <AppLoadingScreen />
   if (session) {
     if (platformAdmin) return <Suspense fallback={<AppLoadingScreen />}><PlatformAdminWorkspace pathname={pathname} /></Suspense>
+    // The builder is entered, not embedded. Nothing hosted renders alongside it.
+    const builderTarget = scopedBuilderTarget(pathname)
+    if (builderTarget) {
+      rememberBuilderScope(builderTarget)
+      return (
+        <Suspense fallback={<AppLoadingScreen />}>
+          <HostedBuilderHandoff
+            scope={builderTarget}
+            section="site"
+            returnPath={scopedHomePath(builderTarget)}
+          />
+        </Suspense>
+      )
+    }
     if (hostedContextCatalog === undefined && projection.status === 'loading') return <AppLoadingScreen />
+    // Instatic's own sections render Instatic. Reaching one after the builder
+    // has been opened — including through Instatic's internal navigation, whose
+    // links carry no tenant scope — continues the same session on the same site.
+    if (section !== undefined && INSTATIC_OWNED_SECTIONS.has(section)) {
+      const catalog = validatedCatalog(hostedContextCatalog ?? projection.catalog)
+      const scope = catalog ? resolveBuilderScope(catalog) : readRememberedBuilderScope()
+      if (scope) {
+        return (
+          <Suspense fallback={<AppLoadingScreen />}>
+            <HostedBuilderHandoff
+              scope={scope}
+              section={section}
+              returnPath={scopedHomePath(scope)}
+            />
+          </Suspense>
+        )
+      }
+    }
     return (
       <Suspense fallback={<AppLoadingScreen />}>
         <HostedStaffShell

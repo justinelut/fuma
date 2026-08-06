@@ -119,11 +119,11 @@ const WEBSITE_PROFILE_EXPECTATIONS = {
     'site.settings',
   ],
   navigation: [
-    { id: 'nav.home', order: 10, label: 'Home', path: '/admin' },
+    { id: 'nav.home', order: 10, label: 'Dashboard', path: '/admin' },
     {
       id: 'nav.builder',
       order: 15,
-      label: 'Open builder',
+      label: 'Design',
       path: '/admin/builder',
       permission: 'website.design.read',
     },

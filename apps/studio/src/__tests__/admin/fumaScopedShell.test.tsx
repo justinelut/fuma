@@ -400,9 +400,11 @@ describe('FUMA-018 scoped shell and state presentation', () => {
 
   it('renders distinct Website and Publication navigation and onboarding models', () => {
 
+    // Setup lives on its own route now, so navigation and onboarding are read
+    // from the pages that own them rather than from one stacked page.
     const websiteSelection = selection('organization-a', 'website')
     const websiteView = renderShell(
-      buildScopedAdminUrl(websiteSelection),
+      buildScopedAdminUrl(websiteSelection, '/admin/setup'),
       catalog(),
       { permissionState: grantedPermissions('website') },
     )
@@ -412,12 +414,12 @@ describe('FUMA-018 scoped shell and state presentation', () => {
     const websiteOnboarding = within(
       screen.getByRole('region', { name: 'Website onboarding' }),
     ).getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)
-    expect(websiteNavigation).toContain('Open builder')
+    expect(websiteNavigation).toContain('Design')
     expect(websiteNavigation).not.toContain('Posts')
 
     websiteView.unmount()
     renderShell(
-      buildScopedAdminUrl(selection('organization-a', 'publication')),
+      buildScopedAdminUrl(selection('organization-a', 'publication'), '/admin/setup'),
       catalog(),
       { permissionState: grantedPermissions('publication') },
     )
@@ -431,5 +433,16 @@ describe('FUMA-018 scoped shell and state presentation', () => {
     expect(publicationNavigation).toContain('Posts')
     expect(publicationNavigation).not.toEqual(websiteNavigation)
     expect(publicationOnboarding).not.toEqual(websiteOnboarding)
+  })
+
+  it('renders one page per route with setup no longer stacked under content', () => {
+    const websiteSelection = selection('organization-a', 'website')
+    renderShell(
+      buildScopedAdminUrl(websiteSelection, '/admin/analytics'),
+      catalog(),
+      { permissionState: grantedPermissions('website') },
+    )
+    expect(screen.getByText('Scoped route content')).toBeDefined()
+    expect(screen.queryByRole('region', { name: 'Website onboarding' })).toBeNull()
   })
 })

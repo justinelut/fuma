@@ -34,6 +34,8 @@ import { OrganizationBootstrapService, PostgresOrganizationBootstrapRepository, 
 import { createHostedSiteOnboardingBoundary, HostedSiteOnboardingService } from './fuma/onboarding'
 import { createWorkspaceManagementBoundary } from './fuma/workspaces/managementBoundary'
 import { createAccessibleContextCatalogBoundary, PostgresAccessibleContextCatalog } from './fuma/context/accessibleCatalog'
+import { createBuilderSessionBoundary, PostgresBuilderIdentityStore } from './fuma/builder/builderIdentity'
+import { setHostedBuilderIdentityResolver } from './auth/authz'
 import { PostgresFumaSiteAuthorizationAuthority } from './fuma/context/postgresRequestAuthority'
 import { resolveLayeredPermissions } from './fuma/permissions/resolver'
 import { permissionInput, readAuthorization } from './fuma/context/requestContext'
@@ -662,6 +664,69 @@ const accessibleContextCatalog = hostedStaffAuthRuntime
 const workspaceManagement = hostedStaffAuthRuntime
   ? createWorkspaceManagementBoundary({ db, resolveSession: hostedStaffAuthRuntime.resolveSession, handlesProductRequest: hostedStaffAuthRuntime.boundary.handlesProductRequest, allowsMutationOrigin: hostedStaffAuthRuntime.allowsMutationOrigin })
   : undefined
+// Site design is not reimplemented in the hosted product. Staff are handed the
+// real builder, so their hosted staff session has to resolve a CMS identity for
+// the CMS endpoints the builder calls. The store binds the two identities once;
+// the authz bridge lets already-bound sessions authenticate.
+const builderIdentityStore = hostedStaffAuthRuntime
+  ? new PostgresBuilderIdentityStore(db)
+  : undefined
+const builderSession = hostedStaffAuthRuntime && builderIdentityStore
+  ? createBuilderSessionBoundary({
+    store: builderIdentityStore,
+    handlesProductRequest: hostedStaffAuthRuntime.boundary.handlesProductRequest,
+    resolveStaffUserId: async (headers) => {
+      const session = await hostedStaffAuthRuntime.resolveSession(headers)
+      return session?.userId ?? null
+    },
+    readStaffProfile: async (userId) => {
+      const rows = await db<{ email: string, name: string }>`
+        select identity.email, identity.name
+        from auth_users identity
+        join auth_staff_profiles profile on profile.user_id=identity.id
+        where identity.id=${userId}
+          and coalesce(identity.banned, false)=false
+        limit 1`
+      const row = rows.rows[0]
+      return row ? { email: row.email, displayName: row.name } : null
+    },
+    // Authority is re-derived from the request's own site scope; the browser
+    // never supplies permissions, only which site it is asking about.
+    resolveSitePermissions: async (request, userId) => {
+      const query = new URL(request.url).searchParams
+      const organizationId = query.get('organizationId')?.trim() ?? ''
+      const workspaceId = query.get('workspaceId')?.trim() ?? ''
+      const siteId = query.get('siteId')?.trim() ?? ''
+      if (!organizationId || !workspaceId || !siteId) return Object.freeze([])
+      const session = await hostedStaffAuthRuntime.resolveSession(request.headers)
+      if (!session || session.userId !== userId) return Object.freeze([])
+      const authorization = await new PostgresFumaSiteAuthorizationAuthority(db)
+        .loadExactSiteAuthorization({
+          actor: Object.freeze({
+            kind: 'staff' as const,
+            userId: session.userId,
+            sessionId: session.sessionId,
+            impersonator: session.impersonatedBy === null
+              ? null
+              : Object.freeze({ userId: session.impersonatedBy }),
+          }),
+          routeScope: Object.freeze({ organizationId, workspaceId, siteId }),
+        })
+      if (authorization === null) return Object.freeze([])
+      const resolved = resolveLayeredPermissions(permissionInput(readAuthorization(authorization)))
+      return Object.freeze([...resolved.allowedPermissionIds])
+    },
+  })
+  : undefined
+if (builderIdentityStore) {
+  setHostedBuilderIdentityResolver(async (request, requestDb) => {
+    const session = await hostedStaffAuthRuntime?.resolveSession(request.headers)
+    if (!session) return null
+    return requestDb === db
+      ? await builderIdentityStore.findBound(session.userId)
+      : await new PostgresBuilderIdentityStore(requestDb).findBound(session.userId)
+  })
+}
 const paystackRuntime = hostedFumaConfig
   ? createHostedPaystackRuntime({ db, config: hostedFumaConfig })
   : undefined
@@ -954,6 +1019,7 @@ const server = Bun.serve<PublicationSocketData>({
         platformConsole: platformConsoleBoundary,
         publicMarketingAnalyticsAdmin,
         accessibleContextCatalog,
+        builderSession,
         hostedSiteOnboarding,
         workspaceManagement,
         fumaScopedApi,

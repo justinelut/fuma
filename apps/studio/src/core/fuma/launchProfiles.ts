@@ -4,7 +4,7 @@ import { createFumaRegistry } from './registry'
 export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
   {
     id: 'site.home',
-    navigation: [{ id: 'nav.home', order: 10, label: 'Home', path: '/admin' }],
+    navigation: [{ id: 'nav.home', order: 10, label: 'Dashboard', path: '/admin' }],
     permissions: [{
       id: 'site.home.read',
       label: 'View home',
@@ -79,7 +79,9 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
     navigation: [{
       id: 'nav.builder',
       order: 15,
-      label: 'Open builder',
+      // Site design is Instatic's. Selecting this hands the whole viewport to
+      // it, the way a Ghost publication opens its theme editor.
+      label: 'Design',
       path: '/admin/builder',
       permission: 'website.design.read',
     }],
