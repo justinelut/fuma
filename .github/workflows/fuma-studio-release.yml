@@ -9,7 +9,12 @@ on:
       - packages/**
       - infra/fuma-phase-13-18/docker/runtime.Dockerfile
       - infra/fuma-phase-13-18/docker/runtime-entrypoint.sh
+      - infra/fuma-phase-13-18/k3s/studio-production.template.yaml
       - .github/workflows/fuma-studio-release.yml
+      # Deployment-only changes — new secrets, manifest env, ingress — never
+      # reached production because this workflow ignored them, so a merged fix
+      # silently sat undeployed until an unrelated app change came along.
+      - .github/workflows/fuma-studio-deploy.yml
 
 permissions:
   contents: read
