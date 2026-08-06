@@ -145,17 +145,17 @@ const NAV_ICONS: Readonly<Record<string, () => ReactNode>> = {
 }
 
 const DOT_COLOUR: Readonly<Record<string, string>> = {
-  series: 'bg-ghost-series',
-  'series-alt': 'bg-ghost-series-alt',
-  positive: 'bg-ghost-positive',
+  series: 'bg-chart-3',
+  'series-alt': 'bg-chart-5',
+  positive: 'bg-chart-4',
 }
 
 function itemClass(active: boolean): string {
   return cn(
     'flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[0.8125rem] transition-colors',
     active
-      ? 'bg-ghost-hairline text-ghost-ink'
-      : 'text-ghost-ink-soft hover:bg-ghost-hairline/60 hover:text-ghost-ink',
+      ? 'bg-accent text-foreground'
+      : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
   )
 }
 
@@ -183,21 +183,21 @@ export function PublicationDashboardShell({
   const initials = actorLabel.trim().charAt(0).toUpperCase() || '·'
 
   return (
-    <div className="fuma-hosted flex h-full overflow-hidden bg-ghost-canvas text-ghost-ink">
+    <div className="dark fuma-hosted flex h-full overflow-hidden bg-background text-foreground">
       <aside
         className={cn(
           'hidden h-full w-[200px] shrink-0 flex-col',
-          'border-r border-ghost-hairline bg-ghost-sidebar px-3 py-4 lg:flex',
+          'border-r border-border bg-sidebar px-3 py-4 lg:flex',
         )}
       >
         <div className="flex items-center gap-2 px-1.5">
-          <span className="inline-flex size-6 items-center justify-center rounded-full border border-ghost-hairline text-[0.625rem] font-semibold">
+          <span className="inline-flex size-6 items-center justify-center rounded-full border border-border text-[0.625rem] font-semibold">
             {publicationName.charAt(0).toUpperCase()}
           </span>
           <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold tracking-tight">
             {publicationName}
           </span>
-          <span className="text-ghost-ink-muted" title="Search"><SearchIcon /></span>
+          <span className="text-muted-foreground" title="Search"><SearchIcon /></span>
         </div>
 
         <nav aria-label="Publication navigation" className="mt-6 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
@@ -245,7 +245,7 @@ export function PublicationDashboardShell({
                 </Link>
                 <Link
                   to={`${postsEntry.path}/new`}
-                  className="rounded-md p-1.5 text-ghost-ink-muted transition-colors hover:bg-ghost-hairline hover:text-ghost-ink"
+                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   aria-label="New post"
                 >
                   <svg viewBox="0 0 16 16" className="size-4" fill="none" aria-hidden="true">
@@ -263,15 +263,15 @@ export function PublicationDashboardShell({
                         'flex items-center justify-between gap-2 rounded-md px-2.5 py-[6px]',
                         'text-[0.8125rem] transition-colors',
                         currentPath === child.path
-                          ? 'text-ghost-ink'
-                          : 'text-ghost-ink-soft hover:text-ghost-ink',
+                          ? 'text-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
                       )}
                     >
                       <span className="truncate">{child.label}</span>
                       {child.dot ? (
                         <span className={cn('size-1.5 shrink-0 rounded-full', DOT_COLOUR[child.dot])} />
                       ) : child.count !== undefined ? (
-                        <span className="text-[0.6875rem] text-ghost-ink-muted">{child.count}</span>
+                        <span className="text-[0.6875rem] text-muted-foreground">{child.count}</span>
                       ) : null}
                     </Link>
                   </li>
@@ -296,7 +296,7 @@ export function PublicationDashboardShell({
                       {entry.label}
                     </span>
                     {entry.id === 'nav.members' && memberCount !== null ? (
-                      <span className="text-[0.6875rem] text-ghost-ink-muted">
+                      <span className="text-[0.6875rem] text-muted-foreground">
                         {memberCount.toLocaleString('en-US')}
                       </span>
                     ) : null}
@@ -316,26 +316,26 @@ export function PublicationDashboardShell({
           </ul>
         </nav>
 
-        <div className="mt-4 flex items-center justify-between gap-2 border-t border-ghost-hairline pt-3">
+        <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">
           <Link
             to={accountPath}
-            className="flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-ghost-ink-soft transition-colors hover:text-ghost-ink"
+            className="flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:text-foreground"
           >
-            <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-ghost-hairline text-[0.625rem] font-semibold">
+            <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-[0.625rem] font-semibold">
               {initials}
             </span>
             <span className="truncate text-[0.75rem]">{actorLabel}</span>
           </Link>
           <div className="flex items-center gap-1">
-            <span className="p-1.5 text-ghost-ink-muted" title="Settings"><GearIcon /></span>
-            <ThemeToggle className="text-ghost-ink-muted hover:bg-ghost-hairline hover:text-ghost-ink focus-visible:outline-ghost-ink" />
+            <span className="p-1.5 text-muted-foreground" title="Settings"><GearIcon /></span>
+            <ThemeToggle className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-ring" />
             {onSignOut ? (
               <button
                 type="button"
                 onClick={onSignOut}
                 disabled={signingOut}
                 aria-busy={signingOut}
-                className="rounded-md px-2 py-1 text-[0.6875rem] text-ghost-ink-muted transition-colors hover:bg-ghost-hairline hover:text-ghost-ink"
+                className="rounded-md px-2 py-1 text-[0.6875rem] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 {signingOut ? 'Signing out' : 'Sign out'}
               </button>
@@ -345,12 +345,45 @@ export function PublicationDashboardShell({
       </aside>
 
       <div className="min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-[1000px] px-5 py-7 sm:px-8">
-          <header className="flex flex-wrap items-baseline justify-between gap-3">
-            <h1 className="text-[1.875rem] leading-none font-semibold tracking-tight">{title}</h1>
-            <p className="text-xs text-ghost-ink-soft">{range}</p>
+        <div
+          className={cn(
+            'flex items-center gap-2 border-b border-border bg-sidebar px-3 py-2.5 lg:hidden',
+          )}
+        >
+          <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-border text-[0.625rem] font-semibold">
+            {publicationName.charAt(0).toUpperCase()}
+          </span>
+          <nav aria-label="Publication sections" className="min-w-0 flex-1">
+            <ul className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {navigation.map((entry) => (
+                <li key={entry.id}>
+                  <Link
+                    to={entry.path}
+                    aria-current={currentPath === entry.path ? 'page' : undefined}
+                    className={cn(
+                      'inline-flex h-8 shrink-0 items-center rounded-full px-3 text-xs whitespace-nowrap',
+                      currentPath === entry.path
+                        ? 'bg-accent text-foreground'
+                        : 'text-muted-foreground',
+                    )}
+                  >
+                    {entry.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <ThemeToggle className="shrink-0 text-muted-foreground" />
+        </div>
+
+        <div className="mx-auto w-full max-w-[1000px] px-3 py-5 sm:px-6 sm:py-7 xl:px-8">
+          <header className="flex flex-wrap items-baseline justify-between gap-2 sm:gap-3">
+            <h1 className="text-2xl leading-none font-semibold tracking-tight sm:text-[1.875rem]">
+              {title}
+            </h1>
+            <p className="text-xs text-muted-foreground">{range}</p>
           </header>
-          <main className="mt-6 space-y-4">{children}</main>
+          <main className="mt-5 space-y-4 sm:mt-6">{children}</main>
         </div>
       </div>
     </div>

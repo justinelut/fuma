@@ -66,13 +66,13 @@ function Dial({ percent, caption }: { percent: number | null, caption: string })
   const dash = ((percent ?? 0) / 100) * circumference
   return (
     <svg viewBox="0 0 140 140" className="size-[148px]" role="img" aria-label={`${percent ?? 0}% ${caption}`}>
-      <circle cx="70" cy="70" r={radius} fill="none" stroke="var(--color-dash-rail)" strokeWidth="9" />
+      <circle cx="70" cy="70" r={radius} fill="none" stroke="var(--accent)" strokeWidth="9" />
       <circle
         cx="70"
         cy="70"
         r={radius}
         fill="none"
-        stroke="var(--color-dash-accent)"
+        stroke="var(--primary)"
         strokeWidth="9"
         strokeLinecap="round"
         strokeDasharray={`${dash} ${circumference}`}
@@ -82,12 +82,12 @@ function Dial({ percent, caption }: { percent: number | null, caption: string })
         x="70"
         y="68"
         textAnchor="middle"
-        className="fill-dash-ink"
+        className="fill-foreground"
         style={{ fontSize: '1.55rem', fontWeight: 600, letterSpacing: '-0.02em' }}
       >
         {percent === null ? '—' : `${percent}%`}
       </text>
-      <text x="70" y="86" textAnchor="middle" className="fill-dash-ink-muted" style={{ fontSize: '0.6rem' }}>
+      <text x="70" y="86" textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: '0.6rem' }}>
         {caption}
       </text>
     </svg>
@@ -140,7 +140,7 @@ export function BookingsDashboard({
           to={manageBookingsPath}
           className={cn(
             'mt-6 inline-flex h-10 items-center justify-center rounded-full',
-            'bg-dash-accent px-4 text-sm font-medium text-white transition-[filter] hover:brightness-110',
+            'bg-primary px-4 text-sm font-medium text-white transition-[filter] hover:brightness-110',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
           )}
         >
@@ -166,17 +166,17 @@ export function BookingsDashboard({
           <CardCaption>{snapshot?.date ?? '—'}</CardCaption>
         </div>
         {bookings.length === 0 ? (
-          <div className="mt-4 grid h-[168px] place-items-center rounded-[var(--radius-bento-inner)] border border-dashed border-dash-hairline">
-            <p className="text-xs text-dash-ink-muted">Nothing scheduled today</p>
+          <div className="mt-4 grid h-[168px] place-items-center rounded-[var(--radius-md)] border border-dashed border-border">
+            <p className="text-xs text-muted-foreground">Nothing scheduled today</p>
           </div>
         ) : (
-          <ul className="mt-4 divide-y divide-dash-hairline">
+          <ul className="mt-4 divide-y divide-border">
             {hours.map((hour) => {
               const slot = bookings.filter((booking) => new Date(booking.startAt).getHours() === hour)
               if (slot.length === 0) return null
               return (
                 <li key={hour} className="flex gap-4 py-2.5">
-                  <span className="w-16 shrink-0 text-[0.6875rem] text-dash-ink-muted">
+                  <span className="w-16 shrink-0 text-[0.6875rem] text-muted-foreground">
                     {hourLabel(hour)}
                   </span>
                   <span className="flex min-w-0 flex-1 flex-wrap gap-2">
@@ -184,8 +184,8 @@ export function BookingsDashboard({
                       <span
                         key={booking.bookingId}
                         className={cn(
-                          'inline-flex items-center gap-2 rounded-[var(--radius-bento-inner)]',
-                          'bg-dash-ink px-3 py-2 text-[0.6875rem] text-dash-surface',
+                          'inline-flex items-center gap-2 rounded-[var(--radius-md)]',
+                          'bg-foreground px-3 py-2 text-[0.6875rem] text-background',
                         )}
                       >
                         {booking.partySize} {booking.partySize === 1 ? 'guest' : 'guests'}
@@ -208,11 +208,11 @@ export function BookingsDashboard({
           </CardCaption>
         </div>
         {services.length === 0 ? (
-          <p className="mt-4 text-xs text-dash-ink-muted">
+          <p className="mt-4 text-xs text-muted-foreground">
             No services yet. Create one to start taking bookings.
           </p>
         ) : (
-          <ul className="mt-3 divide-y divide-dash-hairline">
+          <ul className="mt-3 divide-y divide-border">
             {services.map((service) => {
               const open = openService === service.serviceId
               return (
@@ -224,8 +224,8 @@ export function BookingsDashboard({
                     onClick={() => setOpenService(open ? null : service.serviceId)}
                   >
                     <span className="min-w-0">
-                      <span className="block truncate text-sm text-dash-ink">{service.name}</span>
-                      <span className="block text-[0.6875rem] text-dash-ink-muted">
+                      <span className="block truncate text-sm text-foreground">{service.name}</span>
+                      <span className="block text-[0.6875rem] text-muted-foreground">
                         {service.durationMinutes} min · {money(service.priceMinor, service.currency)}
                       </span>
                     </span>
@@ -236,20 +236,20 @@ export function BookingsDashboard({
                   {open ? (
                     <dl className="grid grid-cols-2 gap-2 pb-3 text-[0.6875rem]">
                       <div className="flex justify-between gap-2">
-                        <dt className="text-dash-ink-muted">Capacity</dt>
-                        <dd className="text-dash-ink-soft">{service.capacityPerSlot} per slot</dd>
+                        <dt className="text-muted-foreground">Capacity</dt>
+                        <dd className="text-muted-foreground">{service.capacityPerSlot} per slot</dd>
                       </div>
                       <div className="flex justify-between gap-2">
-                        <dt className="text-dash-ink-muted">Interval</dt>
-                        <dd className="text-dash-ink-soft">{service.slotIntervalMinutes} min</dd>
+                        <dt className="text-muted-foreground">Interval</dt>
+                        <dd className="text-muted-foreground">{service.slotIntervalMinutes} min</dd>
                       </div>
                       <div className="flex justify-between gap-2">
-                        <dt className="text-dash-ink-muted">Notice</dt>
-                        <dd className="text-dash-ink-soft">{service.minimumNoticeMinutes} min</dd>
+                        <dt className="text-muted-foreground">Notice</dt>
+                        <dd className="text-muted-foreground">{service.minimumNoticeMinutes} min</dd>
                       </div>
                       <div className="flex justify-between gap-2">
-                        <dt className="text-dash-ink-muted">Prepayment</dt>
-                        <dd className="text-dash-ink-soft">
+                        <dt className="text-muted-foreground">Prepayment</dt>
+                        <dd className="text-muted-foreground">
                           {service.requiresPrepayment ? 'Required' : 'Not required'}
                         </dd>
                       </div>

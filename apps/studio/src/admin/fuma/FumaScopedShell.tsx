@@ -404,6 +404,7 @@ export function FumaScopedShell({
   if (layout === 'bare') {
     return (
       <section
+        className="h-full"
         aria-label="Fuma scoped admin shell"
         data-resolution-kind="ready"
         data-profile-id={profile.id}

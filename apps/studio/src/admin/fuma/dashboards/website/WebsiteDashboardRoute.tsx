@@ -4,6 +4,7 @@
  * Renders on the profile home only. Every other route keeps the generic scoped
  * chrome, so one route still renders exactly one page.
  */
+import type { ReactNode } from 'react'
 import { buildScopedAdminUrl } from '@core/fuma'
 import type { AccessibleContextCatalog } from '@core/fuma'
 import type { FumaScopedShellReadyContext } from '../../FumaScopedShell'
@@ -35,12 +36,22 @@ export interface WebsiteDashboardRouteProps {
   publicUrl?: string | null
   onSignOut?: () => void
   signingOut?: boolean
+  /**
+   * Route content for subpaths the dashboard does not render itself. Hosting it
+   * here keeps every Website route inside one designed shell with one
+   * navigation, instead of some routes falling back to generic chrome.
+   */
+  children?: ReactNode
 }
 
-/** True when the resolved route is a page the Website dashboard owns. */
+/** True when the Website dashboard shell should host the resolved route. */
 export function isWebsiteDashboardRoute(shell: FumaScopedShellReadyContext): boolean {
   return shell.resolution.site.profileId === 'website'
-    && WEBSITE_DASHBOARD_PAGES.has(shell.profileRelativeSubpath)
+}
+
+/** True when the dashboard renders the route's body itself. */
+function ownsBody(shell: FumaScopedShellReadyContext): boolean {
+  return WEBSITE_DASHBOARD_PAGES.has(shell.profileRelativeSubpath)
 }
 
 function platformAreas(
@@ -85,6 +96,7 @@ export function WebsiteDashboardRoute({
   publicUrl = null,
   onSignOut,
   signingOut,
+  children,
 }: WebsiteDashboardRouteProps) {
   const { resolution } = shell
   const builderPath = buildScopedAdminUrl(resolution.selection, '/admin/builder')
@@ -111,7 +123,9 @@ export function WebsiteDashboardRoute({
       onSignOut={onSignOut}
       signingOut={signingOut}
     >
-      {shell.profileRelativeSubpath === '/admin/bookings' ? (
+      {!ownsBody(shell) ? (
+        children
+      ) : shell.profileRelativeSubpath === '/admin/bookings' ? (
         <BookingsDashboard
           scope={resolution.selection}
           manageBookingsPath={buildScopedAdminUrl(resolution.selection, '/admin/bookings/manage')}

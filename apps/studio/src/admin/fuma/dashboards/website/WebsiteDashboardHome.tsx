@@ -62,8 +62,8 @@ function ArrowOut({ to }: { to: string }) {
       to={to}
       className={cn(
         'inline-flex size-8 shrink-0 items-center justify-center rounded-full',
-        'border border-dash-hairline text-dash-ink transition-colors hover:bg-dash-rail',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dash-ink',
+        'border border-border text-foreground transition-colors hover:bg-accent',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
       )}
       aria-label="Open"
     >
@@ -77,7 +77,7 @@ function ArrowOut({ to }: { to: string }) {
 function CheckMark({ done }: { done: boolean }) {
   return done
     ? (
-      <svg viewBox="0 0 16 16" className="size-4 text-dash-accent" aria-hidden="true">
+      <svg viewBox="0 0 16 16" className="size-4 text-primary" aria-hidden="true">
         <circle cx="8" cy="8" r="7" fill="currentColor" />
         <path d="m5 8.2 2 2 4-4.2" stroke="#ffffff" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
@@ -107,7 +107,7 @@ function Chevron({ open }: { open: boolean }) {
   return (
     <svg
       viewBox="0 0 16 16"
-      className={cn('size-4 shrink-0 text-dash-ink-muted transition-transform', open && 'rotate-180')}
+      className={cn('size-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')}
       aria-hidden="true"
       fill="none"
     >
@@ -135,19 +135,19 @@ function Dial({ percent }: { percent: number }) {
             y1={70 + Math.sin(angle) * inner}
             x2={70 + Math.cos(angle) * outer}
             y2={70 + Math.sin(angle) * outer}
-            stroke="var(--color-dash-ink)"
+            stroke="var(--foreground)"
             strokeOpacity={tick % 5 === 0 ? 0.35 : 0.16}
             strokeWidth="1"
           />
         )
       })}
-      <circle cx="70" cy="70" r={radius} fill="none" stroke="var(--color-dash-rail)" strokeWidth="9" />
+      <circle cx="70" cy="70" r={radius} fill="none" stroke="var(--accent)" strokeWidth="9" />
       <circle
         cx="70"
         cy="70"
         r={radius}
         fill="none"
-        stroke="var(--color-dash-accent)"
+        stroke="var(--primary)"
         strokeWidth="9"
         strokeLinecap="round"
         strokeDasharray={`${dash} ${circumference}`}
@@ -157,12 +157,12 @@ function Dial({ percent }: { percent: number }) {
         x="70"
         y="68"
         textAnchor="middle"
-        className="fill-dash-ink"
+        className="fill-foreground"
         style={{ fontSize: '1.6rem', fontWeight: 600, letterSpacing: '-0.02em' }}
       >
         {percent}%
       </text>
-      <text x="70" y="86" textAnchor="middle" className="fill-dash-ink-muted" style={{ fontSize: '0.6rem' }}>
+      <text x="70" y="86" textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: '0.6rem' }}>
         Ready
       </text>
     </svg>
@@ -219,10 +219,10 @@ export function WebsiteDashboardHome({
           <ArrowOut to={areas[0]?.path ?? builderPath} />
         </div>
         <div className="mt-3 flex items-end gap-2">
-          <p className="text-[1.9rem] leading-none font-semibold tracking-tight text-dash-ink">
+          <p className="text-[1.9rem] leading-none font-semibold tracking-tight text-foreground">
             {completed}
           </p>
-          <p className="pb-0.5 text-[0.6875rem] leading-tight text-dash-ink-muted">
+          <p className="pb-0.5 text-[0.6875rem] leading-tight text-muted-foreground">
             of {steps.length}
             <br />
             steps done
@@ -232,7 +232,7 @@ export function WebsiteDashboardHome({
           {nextIndex >= 0 ? (
             <span
               className={cn(
-                'absolute top-0 rounded-full bg-dash-accent px-2 py-1',
+                'absolute top-0 rounded-full bg-primary px-2 py-1',
                 'text-[0.625rem] font-medium text-white',
               )}
               style={{
@@ -249,15 +249,15 @@ export function WebsiteDashboardHome({
                 className={cn(
                   'w-[5px] rounded-full',
                   step.completed
-                    ? 'bg-dash-ink'
+                    ? 'bg-foreground'
                     : index === nextIndex
-                      ? 'bg-dash-accent'
-                      : 'bg-dash-rail',
+                      ? 'bg-primary'
+                      : 'bg-accent',
                 )}
                 style={{ height: `${step.completed ? 100 : index === nextIndex ? 72 : 34}%` }}
                 title={step.title}
               />
-              <span className="text-[0.625rem] text-dash-ink-muted">{index + 1}</span>
+              <span className="text-[0.625rem] text-muted-foreground">{index + 1}</span>
             </div>
           ))}
         </div>
@@ -298,7 +298,7 @@ export function WebsiteDashboardHome({
           <span
             className={cn(
               'inline-flex size-9 items-center justify-center rounded-full',
-              'bg-dash-ink text-dash-surface',
+              'bg-foreground text-background',
             )}
             aria-hidden="true"
           >
@@ -314,21 +314,21 @@ export function WebsiteDashboardHome({
       <Card className="flex flex-col lg:row-span-2">
         <div className="flex items-baseline justify-between">
           <CardTitle>Onboarding</CardTitle>
-          <span className="text-sm font-semibold text-dash-ink">{percent}%</span>
+          <span className="text-sm font-semibold text-foreground">{percent}%</span>
         </div>
         <div className="mt-4 flex items-end gap-1.5">
           {[
-            { label: `${percent}%`, className: 'bg-dash-accent' },
-            { label: `${Math.max(0, 100 - percent)}%`, className: 'bg-dash-ink' },
-            { label: '0%', className: 'bg-dash-rail' },
+            { label: `${percent}%`, className: 'bg-primary' },
+            { label: `${Math.max(0, 100 - percent)}%`, className: 'bg-foreground' },
+            { label: '0%', className: 'bg-accent' },
           ].map((segment) => (
             <span key={segment.label + segment.className} className="flex-1">
-              <span className="mb-1.5 block text-[0.625rem] text-dash-ink-muted">{segment.label}</span>
+              <span className="mb-1.5 block text-[0.625rem] text-muted-foreground">{segment.label}</span>
               <span className={cn('block h-2 rounded-full', segment.className)} />
             </span>
           ))}
         </div>
-        <div className="mt-4 flex-1 rounded-[var(--radius-bento-inner)] bg-dash-ink p-4 text-dash-surface">
+        <div className="mt-4 flex-1 rounded-[var(--radius-md)] bg-foreground p-4 text-background">
           <div className="flex items-baseline justify-between">
             <p className="text-sm font-medium">Onboarding task</p>
             <p className="text-sm font-semibold">{completed}/{steps.length}</p>
@@ -359,7 +359,7 @@ export function WebsiteDashboardHome({
 
       {/* Accordion list, first column second row. */}
       <Card>
-        <ul className="divide-y divide-dash-hairline">
+        <ul className="divide-y divide-border">
           {areas.map((area) => {
             const open = openArea === area.id
             return (
@@ -370,17 +370,17 @@ export function WebsiteDashboardHome({
                   aria-expanded={open}
                   onClick={() => setOpenArea(open ? null : area.id)}
                 >
-                  <span className="text-sm text-dash-ink">{area.label}</span>
+                  <span className="text-sm text-foreground">{area.label}</span>
                   <Chevron open={open} />
                 </button>
                 {open ? (
                   <div className="pb-3">
-                    <p className="text-xs leading-relaxed text-dash-ink-muted">{area.detail}</p>
+                    <p className="text-xs leading-relaxed text-muted-foreground">{area.detail}</p>
                     <Link
                       to={area.path}
                       className={cn(
-                        'mt-2 inline-block text-xs font-medium text-dash-ink',
-                        'underline decoration-dash-accent decoration-2 underline-offset-4',
+                        'mt-2 inline-block text-xs font-medium text-foreground',
+                        'underline decoration-primary decoration-2 underline-offset-4',
                       )}
                     >
                       Open {area.label.toLowerCase()}
@@ -405,14 +405,14 @@ export function WebsiteDashboardHome({
               <a
                 href={section.path}
                 className={cn(
-                  'flex h-full flex-col justify-between gap-3 rounded-[var(--radius-bento-inner)]',
-                  'border border-dash-hairline bg-dash-surface p-3.5 transition-colors',
-                  'hover:border-dash-accent/40 hover:bg-dash-card-warm',
-                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dash-ink',
+                  'flex h-full flex-col justify-between gap-3 rounded-[var(--radius-md)]',
+                  'border border-border bg-background p-3.5 transition-colors',
+                  'hover:border-primary/40 hover:bg-muted',
+                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                 )}
               >
-                <span className="text-sm font-medium text-dash-ink">{section.label}</span>
-                <span className="text-[0.6875rem] leading-snug text-dash-ink-muted">
+                <span className="text-sm font-medium text-foreground">{section.label}</span>
+                <span className="text-[0.6875rem] leading-snug text-muted-foreground">
                   {section.detail}
                 </span>
               </a>
