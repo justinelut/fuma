@@ -39,6 +39,7 @@ const EMPTY_ACCESSIBLE_CONTEXT_CATALOG: AccessibleContextCatalog = {
 }
 const EMPTY_PERMISSION_DECISIONS: readonly PermissionDecision[] = Object.freeze([])
 const EMPTY_PERMISSION_STATE: NavigationPermissionState = Object.freeze({})
+const ACCOUNT_PATH = '/admin/account'
 
 export interface HostedStaffShellProps {
   session: HostedStaffSession
@@ -157,94 +158,14 @@ export function HostedStaffShell({
     }
   }
 
-  return (
-    <div className={`${panelStyles.page} ${styles.page}`}>
-      <section className={`${panelStyles.panel} ${styles.shell}`} aria-labelledby="hosted-shell-title">
-        <header className={styles.header}>
-          <div>
-            <p className={styles.eyebrow}>Fuma staff</p>
-            <h1 id="hosted-shell-title" className={panelStyles.title}>Welcome, {currentSession.user.name}</h1>
-            <p className={styles.identity}>{currentSession.user.email}</p>
-          </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={signingOut}
-            aria-busy={signingOut}
-            onClick={() => void signOut()}
-          >
-            {signingOut ? 'Signing out' : 'Sign out'}
-          </Button>
-        </header>
-        <p className={styles.copy}>
-          Manage the security of your hosted staff identity and active devices.
-        </p>
-        {currentSession.session.impersonatedBy ? (
-          <div className={styles.supportBanner} role="alert">
-            <strong>Support session active</strong>
-            <span>Actions are performed as this account by {currentSession.session.impersonatedBy} and are audited.</span>
-          </div>
-        ) : null}
-        {error && <p className={panelStyles.error} role="alert">{error}</p>}
-        <HostedStaffSecurity session={currentSession} onSessionChange={setCurrentSession} />
-      </section>
+  const needsOnboarding = catalogValidation.kind === 'valid'
+    && catalogValidation.catalog.sites.length === 0
+    && !currentSession.session.impersonatedBy
+  const accountRoute = pathname === ACCOUNT_PATH || pathname.startsWith(`${ACCOUNT_PATH}/`)
 
-      {catalogValidation.kind === 'valid' ? (
-        catalogValidation.catalog.sites.length === 0 && !currentSession.session.impersonatedBy ? (
-          <HostedSiteOnboarding catalog={catalogValidation.catalog} />
-        ) : supportTarget ? (
-          <SupportOperationsRouteContent
-            target={supportTarget}
-            pathname={pathname}
-            impersonatedBy={currentSession.session.impersonatedBy ?? null}
-          />
-        ) : expertTarget ? (
-          <ExpertDiscoveryRouteContent target={expertTarget} />
-        ) : paidHandoffTarget ? (
-          <PaidHandoffRouteContent target={paidHandoffTarget} />
-        ) : capabilityTarget ? (
-          <PlatformCapabilityInventoryRouteContent
-            target={capabilityTarget}
-            impersonatedBy={currentSession.session.impersonatedBy ?? null}
-          />
-        ) : (
-        <FumaScopedShell
-          registry={creditsAdminRegistry}
-          catalog={catalogValidation.catalog}
-          pathname={pathname}
-          actorLabel={currentSession.user.name}
-          permissionState={permissionState}
-        >
-          {(shell) => (
-            <>
-              <PublicationRouteContent shell={shell} permissionDecisions={permissionDecisions} />
-              <CreditsLedgerRouteContent shell={shell} />
-              <DomainsRouteContent shell={shell} permissionDecisions={permissionDecisions} />
-              <OrganizationManagementRouteContent shell={shell} />
-              <ComponentCatalogRouteContent shell={shell} permissionDecisions={permissionDecisions} />
-              <McpScopedRouteContent shell={shell} permissionDecisions={permissionDecisions} />
-              <QuotaSelfServiceRouteContent
-                shell={shell}
-                permissionDecisions={permissionDecisions}
-                customerBilling={(
-                  <PlatformCheckoutRouteContent
-                    shell={shell}
-                    permissionDecisions={permissionDecisions}
-                  />
-                )}
-              />
-              <CustomerCapabilityDashboardRouteContent shell={shell} />
-              <BookingsRouteContent shell={shell} />
-              <HostedProfileEditorSurface
-                shell={shell}
-                permissionDecisions={permissionDecisions}
-                renderAdapter={editorRenderAdapter}
-              />
-            </>
-          )}
-        </FumaScopedShell>
-        )
-      ) : (
+  if (catalogValidation.kind !== 'valid') {
+    return (
+      <div className={`${panelStyles.page} ${styles.page}`}>
         <section
           className={`${panelStyles.panel} ${styles.shell}`}
           aria-labelledby="hosted-context-error-title"
@@ -257,7 +178,138 @@ export function HostedStaffShell({
             The supplied accessible context catalog did not match its validated contract.
           </p>
         </section>
-      )}
+      </div>
+    )
+  }
+
+  // A brand-new owner sees only onboarding. Identity, security, and staff
+  // controls live on their own route so no unrelated surface competes with the
+  // one action that must happen first.
+  if (needsOnboarding && !accountRoute) {
+    return (
+      <div className={`${panelStyles.page} ${styles.page}`}>
+        <HostedSiteOnboarding catalog={catalogValidation.catalog} />
+      </div>
+    )
+  }
+
+  const identityBar = (
+    <div className={styles.identityBar}>
+      <div className={styles.identityText}>
+        <p className={styles.eyebrow}>Fuma staff</p>
+        <p className={styles.identity}>{currentSession.user.email}</p>
+      </div>
+      <div className={styles.identityActions}>
+        {!accountRoute && <a className={styles.accountLink} href={ACCOUNT_PATH}>Account</a>}
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={signingOut}
+          aria-busy={signingOut}
+          onClick={() => void signOut()}
+        >
+          {signingOut ? 'Signing out' : 'Sign out'}
+        </Button>
+      </div>
+    </div>
+  )
+
+  if (accountRoute) {
+    return (
+      <div className={`${panelStyles.page} ${styles.page}`}>
+        <section className={`${panelStyles.panel} ${styles.shell}`} aria-labelledby="hosted-shell-title">
+          {identityBar}
+          <h1 id="hosted-shell-title" className={panelStyles.title}>Welcome, {currentSession.user.name}</h1>
+          <p className={styles.copy}>
+            Manage the security of your hosted staff identity and active devices.
+          </p>
+          {currentSession.session.impersonatedBy ? (
+            <div className={styles.supportBanner} role="alert">
+              <strong>Support session active</strong>
+              <span>Actions are performed as this account by {currentSession.session.impersonatedBy} and are audited.</span>
+            </div>
+          ) : null}
+          {error && <p className={panelStyles.error} role="alert">{error}</p>}
+          <HostedStaffSecurity session={currentSession} onSessionChange={setCurrentSession} />
+        </section>
+      </div>
+    )
+  }
+
+  if (supportTarget) {
+    return (
+      <div className={`${panelStyles.page} ${styles.page}`}>
+        <SupportOperationsRouteContent
+          target={supportTarget}
+          pathname={pathname}
+          impersonatedBy={currentSession.session.impersonatedBy ?? null}
+        />
+      </div>
+    )
+  }
+  if (expertTarget) {
+    return (
+      <div className={`${panelStyles.page} ${styles.page}`}>
+        <ExpertDiscoveryRouteContent target={expertTarget} />
+      </div>
+    )
+  }
+  if (paidHandoffTarget) {
+    return (
+      <div className={`${panelStyles.page} ${styles.page}`}>
+        <PaidHandoffRouteContent target={paidHandoffTarget} />
+      </div>
+    )
+  }
+  if (capabilityTarget) {
+    return (
+      <div className={`${panelStyles.page} ${styles.page}`}>
+        <PlatformCapabilityInventoryRouteContent
+          target={capabilityTarget}
+          impersonatedBy={currentSession.session.impersonatedBy ?? null}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className={`${panelStyles.page} ${styles.page}`}>
+      {error && <p className={panelStyles.error} role="alert">{error}</p>}
+      <FumaScopedShell
+        registry={creditsAdminRegistry}
+        catalog={catalogValidation.catalog}
+        pathname={pathname}
+        actorLabel={currentSession.user.name}
+        permissionState={permissionState}
+      >
+        {(shell) => (
+          <>
+            <PublicationRouteContent shell={shell} permissionDecisions={permissionDecisions} />
+            <CreditsLedgerRouteContent shell={shell} />
+            <DomainsRouteContent shell={shell} permissionDecisions={permissionDecisions} />
+            <OrganizationManagementRouteContent shell={shell} />
+            <ComponentCatalogRouteContent shell={shell} permissionDecisions={permissionDecisions} />
+            <McpScopedRouteContent shell={shell} permissionDecisions={permissionDecisions} />
+            <QuotaSelfServiceRouteContent
+              shell={shell}
+              permissionDecisions={permissionDecisions}
+              customerBilling={(
+                <PlatformCheckoutRouteContent
+                  shell={shell}
+                  permissionDecisions={permissionDecisions}
+                />
+              )}
+            />
+            <CustomerCapabilityDashboardRouteContent shell={shell} />
+            <BookingsRouteContent shell={shell} />
+            <HostedProfileEditorSurface
+              shell={shell}
+              permissionDecisions={permissionDecisions}
+              renderAdapter={editorRenderAdapter}
+            />
+          </>
+        )}
+      </FumaScopedShell>
     </div>
   )
 }
