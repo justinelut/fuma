@@ -32,17 +32,19 @@ export type PostRow = Readonly<{
 export interface PublicationDashboardHomeProps {
   kpis: readonly Kpi[]
   memberSeries: readonly SeriesPoint[]
-  revenue: Readonly<{
-    mrrLabel: string | null
-    mrrDeltaPercent: number | null
-    mrrSeries: readonly SeriesPoint[]
-    subscriptionSeries: readonly SeriesPoint[]
-    monthlyShare: number | null
+  reads: Readonly<{
+    /** Total site reads in range, the headline for the first cell. */
+    total: number | null
+    postShareSeries: readonly SeriesPoint[]
+    newsletterSeries: readonly SeriesPoint[]
+    /** Share of reads from paying members, for the stacked mix bar. */
+    paidShare: number | null
+    sources: readonly Readonly<{ source: string, reads: number }>[]
   }>
   engagement: Readonly<{
-    engaged30: number | null
-    engaged7: number | null
-    subscribers: number | null
+    openRate: number | null
+    clickRate: number | null
+    members: number | null
   }>
   recentPosts: readonly PostRow[]
 }
@@ -155,7 +157,7 @@ function Bars({ points }: { points: readonly SeriesPoint[] }) {
 export function PublicationDashboardHome({
   kpis,
   memberSeries,
-  revenue,
+  reads,
   engagement,
   recentPosts,
 }: PublicationDashboardHomeProps) {
@@ -185,42 +187,48 @@ export function PublicationDashboardHome({
       <Panel>
         <div className="grid gap-6 sm:grid-cols-3">
           <div>
-            <p className="text-xs text-ghost-ink-soft">MRR</p>
-            <p className="mt-2 flex items-baseline text-[1.5rem] leading-none font-semibold tracking-tight">
-              {revenue.mrrLabel ?? '—'}
-              <Delta value={revenue.mrrDeltaPercent} />
+            <p className="text-xs text-ghost-ink-soft">Reads</p>
+            <p className="mt-2 text-[1.5rem] leading-none font-semibold tracking-tight">
+              {formatCount(reads.total)}
             </p>
-            <Sparkline points={revenue.mrrSeries} />
+            <Sparkline points={reads.postShareSeries} />
           </div>
           <div>
-            <p className="text-xs text-ghost-ink-soft">Paid subscriptions</p>
+            <p className="text-xs text-ghost-ink-soft">Newsletter opens</p>
             <div className="mt-2 flex items-center gap-3 text-[0.6875rem] text-ghost-ink-muted">
               <span className="flex items-center gap-1.5">
-                <span className="size-1.5 rounded-full bg-ghost-series-alt" />New
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="size-1.5 rounded-full bg-ghost-series" />Canceled
+                <span className="size-1.5 rounded-full bg-ghost-series-alt" />Per newsletter
               </span>
             </div>
-            <Bars points={revenue.subscriptionSeries} />
+            <Bars points={reads.newsletterSeries} />
           </div>
           <div>
-            <p className="text-xs text-ghost-ink-soft">Paid mix</p>
-            <div className="mt-2 flex items-center gap-3 text-[0.6875rem] text-ghost-ink-muted">
+            <p className="text-xs text-ghost-ink-soft">Read sources</p>
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-[0.6875rem] text-ghost-ink-muted">
               <span className="flex items-center gap-1.5">
-                <span className="size-1.5 rounded-full bg-ghost-series-alt" />Monthly
+                <span className="size-1.5 rounded-full bg-ghost-series-alt" />Members
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="size-1.5 rounded-full bg-ghost-series" />Annual
+                <span className="size-1.5 rounded-full bg-ghost-series" />Public
               </span>
             </div>
-            {revenue.monthlyShare === null ? (
-              <p className="mt-3 text-xs text-ghost-ink-muted">No paid members yet</p>
+            {reads.paidShare === null ? (
+              <p className="mt-3 text-xs text-ghost-ink-muted">No reads recorded in range</p>
             ) : (
-              <div className="mt-5 flex h-1.5 overflow-hidden rounded-full bg-ghost-hairline">
-                <span className="bg-ghost-series-alt" style={{ width: `${revenue.monthlyShare}%` }} />
-                <span className="flex-1 bg-ghost-series" />
-              </div>
+              <>
+                <div className="mt-5 flex h-1.5 overflow-hidden rounded-full bg-ghost-hairline">
+                  <span className="bg-ghost-series-alt" style={{ width: `${reads.paidShare}%` }} />
+                  <span className="flex-1 bg-ghost-series" />
+                </div>
+                <dl className="mt-3 space-y-1 text-[0.6875rem]">
+                  {reads.sources.map((entry) => (
+                    <div key={entry.source} className="flex justify-between gap-3">
+                      <dt className="text-ghost-ink-muted capitalize">{entry.source}</dt>
+                      <dd className="text-ghost-ink-soft">{formatCount(entry.reads)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </>
             )}
           </div>
         </div>
@@ -229,30 +237,30 @@ export function PublicationDashboardHome({
       <Panel>
         <dl className="grid gap-6 sm:grid-cols-3">
           <div>
-            <dt className="text-xs text-ghost-ink-soft">Engagement</dt>
+            <dt className="text-xs text-ghost-ink-soft">Newsletter open rate</dt>
             <dd className="mt-2 text-[1.5rem] leading-none font-semibold tracking-tight">
-              {engagement.engaged30 === null ? '—' : `${engagement.engaged30}%`}
+              {engagement.openRate === null ? '—' : `${engagement.openRate}%`}
             </dd>
             <p className="mt-1 text-[0.6875rem] text-ghost-ink-muted">
-              Engaged in the last 30 days
+              Opens against sends in range
             </p>
           </div>
           <div>
-            <dt className="sr-only">Engaged in the last 7 days</dt>
-            <dd className="mt-2 text-[1.5rem] leading-none font-semibold tracking-tight sm:mt-[26px]">
-              {engagement.engaged7 === null ? '—' : `${engagement.engaged7}%`}
+            <dt className="text-xs text-ghost-ink-soft">Click rate</dt>
+            <dd className="mt-2 text-[1.5rem] leading-none font-semibold tracking-tight">
+              {engagement.clickRate === null ? '—' : `${engagement.clickRate}%`}
             </dd>
             <p className="mt-1 text-[0.6875rem] text-ghost-ink-muted">
-              Engaged in the last 7 days
+              Clicks against opens in range
             </p>
           </div>
           <div>
-            <dt className="sr-only">Newsletter subscribers</dt>
-            <dd className="mt-2 text-[1.5rem] leading-none font-semibold tracking-tight sm:mt-[26px]">
-              {formatCount(engagement.subscribers)}
+            <dt className="text-xs text-ghost-ink-soft">Members</dt>
+            <dd className="mt-2 text-[1.5rem] leading-none font-semibold tracking-tight">
+              {formatCount(engagement.members)}
             </dd>
             <p className="mt-1 text-[0.6875rem] text-ghost-ink-muted">
-              Newsletter subscribers
+              Active member accounts
             </p>
           </div>
         </dl>
