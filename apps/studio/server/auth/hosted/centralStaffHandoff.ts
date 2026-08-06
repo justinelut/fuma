@@ -199,7 +199,7 @@ export function createCentralStaffHandoffBoundary(input: Readonly<{
           const owner = row?.email.trim().toLowerCase() === ownerEmail
           const banned = row?.banned === true && (row.ban_expires === null || Date.parse(String(row.ban_expires)) > at.getTime())
           if (!row || !row.session_valid || banned || (!owner && !row.staff_profile)) return null
-          if (owner && !row.staff_profile) await db`insert into auth_staff_profiles(user_id,source,created_at,updated_at) values(${row.user_id},${'central-google'},${at.toISOString()},${at.toISOString()}) on conflict(user_id) do nothing`
+          if (owner && !row.staff_profile) await db`insert into auth_staff_profiles(user_id,source,created_at,updated_at) values(${row.user_id},${'native'},${at.toISOString()},${at.toISOString()}) on conflict(user_id) do nothing`
           await db`
             insert into auth_sessions(id,expires_at,token,created_at,updated_at,ip_address,user_agent,user_id,active_organization_id,impersonated_by)
             values(${crypto.randomUUID()},${expiresAt.toISOString()},${storedSessionToken},${at.toISOString()},${at.toISOString()},${request.headers.get('x-forwarded-for')?.split(',',1)[0]?.trim() ?? null},${request.headers.get('user-agent')},${row.user_id},${null},${null})
