@@ -1,0 +1,45 @@
+name: Fuma permission diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuma-permission-diagnostics
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report protected-owner scope and permission resolution
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 5m
+          script: |
+            set -e
+            export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+            pod="$(sudo kubectl -n fuma get pods -l app=fuma-studio --sort-by=.metadata.creationTimestamp -o name | tail -1)"
+            sudo kubectl -n fuma exec "$pod" -- bun -e '
+              import { createPostgresClient } from "/workspace/apps/studio/server/db/postgres";
+              const db = createPostgresClient(process.env.DATABASE_URL!);
+              const email = process.env.FUMA_PROTECTED_OWNER_EMAIL?.trim().toLowerCase() ?? "";
+              const owner = await db<{ id: string }>`select id from auth_users where lower(btrim(email))=${email}`;
+              const userId = owner.rows[0]?.id ?? "";
+              // Per-site presence of every row the authorization join requires.
+              const rows = await db`
+                select site.organization_id, site.workspace_id, site.id site_id, site.status, site.profile_id,
+                  exists(select 1 from fuma_workspaces w where w.organization_id=site.organization_id and w.id=site.workspace_id) has_workspace,
+                  exists(select 1 from fuma_organization_profiles p where p.organization_id=site.organization_id) has_org_profile,
+                  exists(select 1 from fuma_tenant_owner_keys k where k.organization_id=site.organization_id and k.workspace_id=site.workspace_id and k.site_id=site.id) has_owner_key,
+                  (select m.role from auth_members m where m.organization_id=site.organization_id and m.user_id=${userId}) membership_role
+                from fuma_sites site
+                order by site.created_at desc limit 10`;
+              console.log("SITES=" + JSON.stringify(rows.rows));
+              await db.close?.();
+            '
