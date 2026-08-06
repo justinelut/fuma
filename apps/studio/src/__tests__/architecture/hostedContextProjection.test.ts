@@ -39,6 +39,10 @@ describe('hosted accessible context projection', () => {
     expect(server).toContain('PostgresFumaSiteAuthorizationAuthority')
     expect(server).toContain('resolveLayeredPermissions')
     expect(server).toContain('allowedPermissionIds')
+    // The projection must assemble resolver input exactly like enforcement;
+    // passing authorization.permissions alone fails contract validation.
+    expect(server).toContain('permissionInput(readAuthorization(authorization))')
+    expect(server).not.toContain('{ permissions: unknown }).permissions)')
     expect(hook).toContain('permissionState[permissionId] = true')
     expect(hook).toContain("decision: 'allow' as const")
     expect(entry).toContain('permissionState={projection.permissionState}')

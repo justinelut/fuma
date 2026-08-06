@@ -36,6 +36,7 @@ import { createWorkspaceManagementBoundary } from './fuma/workspaces/managementB
 import { createAccessibleContextCatalogBoundary, PostgresAccessibleContextCatalog } from './fuma/context/accessibleCatalog'
 import { PostgresFumaSiteAuthorizationAuthority } from './fuma/context/postgresRequestAuthority'
 import { resolveLayeredPermissions } from './fuma/permissions/resolver'
+import { permissionInput, readAuthorization } from './fuma/context/requestContext'
 import {
   AnonymousEdgeVisitorAuthority,
   createHostedEdgeRuntime,
@@ -641,7 +642,9 @@ const accessibleContextCatalog = hostedStaffAuthRuntime
             }),
           })
           if (authorization === null) continue
-          const resolved = resolveLayeredPermissions((authorization as { permissions: unknown }).permissions)
+          // Same input assembly the enforcing path uses; a partial object
+          // fails contract validation and would silently yield no grants.
+          const resolved = resolveLayeredPermissions(permissionInput(readAuthorization(authorization)))
           projections.push({
             organizationId: site.organizationId,
             workspaceId: site.workspaceId,

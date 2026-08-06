@@ -261,7 +261,7 @@ function readRouteScope(value: unknown): UntrustedFumaRouteScope {
   }
 }
 
-function readAuthorization(value: unknown): FumaSiteAuthorizationInput {
+export function readAuthorization(value: unknown): FumaSiteAuthorizationInput {
   const parsed = safeParseValue(FumaSiteAuthorizationInputSchema, value)
   if (!parsed.ok) deny()
   return structuredClone(parsed.value)
@@ -343,7 +343,7 @@ function requestId(generateRequestId: () => string): string {
   return generated
 }
 
-function permissionInput(
+export function permissionInput(
   authorization: FumaSiteAuthorizationInput,
 ): LayeredRoleResolverInput {
   return {
