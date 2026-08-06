@@ -150,7 +150,7 @@ function HeaderShell({
     <header
       className={cn(
         'sticky top-0 z-30 -mx-3 flex flex-wrap items-center justify-between gap-2',
-        'border-b border-border/70 bg-background/85 px-3 py-2.5 backdrop-blur-md',
+        'border-b border-border bg-background px-3 py-3',
         'sm:-mx-6 sm:gap-3 sm:px-6 xl:-mx-10 xl:px-10',
       )}
     >
@@ -506,10 +506,12 @@ export function PlatformDashboard({
             )}
           </Card>
 
-          {/* Detail list of the measured kinds. */}
-          <Card>
-            <CardTitle>Measured</CardTitle>
-            <dl className="mt-4 divide-y divide-border">
+          {/* A list under a heading; the rows carry the meaning, not a panel. */}
+          <section>
+            <h2 className="px-1 text-[0.9375rem] leading-snug font-semibold tracking-tight text-foreground">
+              Measured
+            </h2>
+            <dl className="mt-3 divide-y divide-border border-y border-border">
               {mix.map((part) => (
                 <div key={part.label} className="flex items-center justify-between gap-3 py-2.5">
                   <dt className="flex min-w-0 items-center gap-2 text-[0.8125rem] text-muted-foreground">
@@ -522,16 +524,20 @@ export function PlatformDashboard({
                 </div>
               ))}
             </dl>
-          </Card>
+          </section>
 
-          {/* Create another site in the same workspace. */}
-          <Card className="lg:col-span-2">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <CardTitle>Add a site</CardTitle>
-              <CardCaption>Lands in this workspace alongside the others</CardCaption>
+          {/* Creating a site is an action, so it reads as a form under a heading. */}
+          <section className="lg:col-span-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 px-1">
+              <h2 className="text-[0.9375rem] leading-snug font-semibold tracking-tight text-foreground">
+                Add a site
+              </h2>
+              <p className="text-[0.6875rem] text-muted-foreground">
+                Lands in this workspace alongside the others
+              </p>
             </div>
             <form
-              className="mt-4 flex flex-wrap items-end gap-2"
+              className="mt-4 flex flex-wrap items-end gap-3"
               onSubmit={(event) => { event.preventDefault(); void submitNewSite() }}
             >
               <label className="min-w-0 flex-1 basis-56">
@@ -592,10 +598,10 @@ export function PlatformDashboard({
             {createError ? (
               <p className="mt-2 text-xs text-destructive" role="alert">{createError}</p>
             ) : null}
-            <p className="mt-3 text-[0.6875rem] text-muted-foreground">
+            <p className="mt-3 px-1 text-[0.6875rem] text-muted-foreground">
               A website gets the site dashboard; a publication gets the editorial one.
             </p>
-          </Card>
+          </section>
         </main>
       </div>
     </div>
