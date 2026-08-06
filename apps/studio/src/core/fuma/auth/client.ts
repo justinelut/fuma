@@ -34,7 +34,8 @@ const HostedStaffSessionRecordSchema = Type.Object({
   updatedAt: Type.String(),
   ipAddress: Type.Optional(NullableStringSchema),
   userAgent: Type.Optional(NullableStringSchema),
-  impersonatedBy: Type.Optional(Type.String()),
+  activeOrganizationId: Type.Optional(NullableStringSchema),
+  impersonatedBy: Type.Optional(NullableStringSchema),
 }, { additionalProperties: false })
 
 const HostedStaffSessionEnvelopeSchema = Type.Object({
@@ -129,7 +130,8 @@ export const HostedStaffDeviceSessionSchema = Type.Object({
   updatedAt: Type.String(),
   ipAddress: Type.Optional(NullableStringSchema),
   userAgent: Type.Optional(NullableStringSchema),
-  impersonatedBy: Type.Optional(Type.String()),
+  activeOrganizationId: Type.Optional(NullableStringSchema),
+  impersonatedBy: Type.Optional(NullableStringSchema),
 }, { additionalProperties: false })
 export type HostedStaffDeviceSession = Static<typeof HostedStaffDeviceSessionSchema>
 
