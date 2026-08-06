@@ -5,7 +5,7 @@
  * come from the publication readers that already exist; anything the product does
  * not measure is reported as unavailable rather than invented.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { buildScopedAdminUrl } from '@core/fuma'
 import type { FumaScopedShellReadyContext } from '../../FumaScopedShell'
 import {
@@ -28,11 +28,16 @@ export interface PublicationDashboardRouteProps {
   signingOut?: boolean
   /** Test seam. Defaults to the live readers. */
   readFigures?: typeof readPublicationFigures
+  /**
+   * Route content for subpaths the dashboard does not render itself, so every
+   * Publication route stays inside one designed shell with one navigation.
+   */
+  children?: ReactNode
 }
 
+/** True when the Publication dashboard shell should host the resolved route. */
 export function isPublicationDashboardRoute(shell: FumaScopedShellReadyContext): boolean {
   return shell.resolution.site.profileId === 'publication'
-    && shell.profileRelativeSubpath === PUBLICATION_DASHBOARD_SUBPATH
 }
 
 function postChildren(postsPath: string, counts: Readonly<{ posts: number | null }>): readonly SidebarChild[] {
@@ -86,6 +91,7 @@ export function PublicationDashboardRoute({
   onSignOut,
   signingOut,
   readFigures = readPublicationFigures,
+  children,
 }: PublicationDashboardRouteProps) {
   const { resolution } = shell
   const [figures, setFigures] = useState<PublicationFigures>(() => emptyPublicationFigures())
@@ -105,6 +111,13 @@ export function PublicationDashboardRoute({
   const postsPath = shell.navigation.find((entry) => entry.id === 'nav.posts')?.path
     ?? buildScopedAdminUrl(resolution.selection, '/admin/posts')
 
+  const currentPath = buildScopedAdminUrl(resolution.selection, shell.profileRelativeSubpath)
+  // The heading names the page the visitor is on, taken from the same
+  // navigation the sidebar renders so the two can never disagree.
+  const pageTitle = shell.profileRelativeSubpath === PUBLICATION_DASHBOARD_SUBPATH
+    ? 'Dashboard'
+    : shell.navigation.find((entry) => entry.path === currentPath)?.label ?? 'Dashboard'
+
   const paidShare = percentage(figures.memberReads, figures.siteReads)
 
   return (
@@ -112,17 +125,18 @@ export function PublicationDashboardRoute({
       publicationName={resolution.site.name}
       actorLabel={actorLabel}
       navigation={shell.navigation}
-      currentPath={buildScopedAdminUrl(resolution.selection, shell.profileRelativeSubpath)}
+      currentPath={currentPath}
       accountPath={accountPath}
       builderPath={buildScopedAdminUrl(resolution.selection, '/admin/builder')}
       publicUrl={publicUrl}
       postChildren={postChildren(postsPath, { posts: figures.posts.length || null })}
       memberCount={figures.members}
-      title="Dashboard"
+      title={pageTitle}
       range="Past 30 days"
       onSignOut={onSignOut}
       signingOut={signingOut}
     >
+      {shell.profileRelativeSubpath !== PUBLICATION_DASHBOARD_SUBPATH ? children : (
       <PublicationDashboardHome
         kpis={kpis(figures)}
         memberSeries={[]}
@@ -148,6 +162,7 @@ export function PublicationDashboardRoute({
           openRate: post.openRate,
         }))}
       />
+      )}
     </PublicationDashboardShell>
   )
 }

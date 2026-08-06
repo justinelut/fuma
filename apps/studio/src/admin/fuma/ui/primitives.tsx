@@ -32,11 +32,11 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        solid: 'bg-dash-ink text-dash-surface hover:bg-dash-ink/90 focus-visible:outline-dash-ink',
-        accent: 'bg-dash-accent text-white hover:brightness-110 focus-visible:outline-dash-ink',
-        quiet: 'text-dash-ink-soft hover:bg-dash-rail hover:text-dash-ink focus-visible:outline-dash-ink',
-        outline: 'border border-dash-hairline bg-dash-card text-dash-ink hover:bg-dash-rail focus-visible:outline-dash-ink',
-        ghostDark: 'bg-ghost-card text-ghost-ink hover:bg-ghost-hairline focus-visible:outline-ghost-ink',
+        solid: 'bg-foreground text-background hover:bg-foreground/90 focus-visible:outline-ring',
+        accent: 'bg-primary text-white hover:brightness-110 focus-visible:outline-ring',
+        quiet: 'text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-ring',
+        outline: 'border border-border bg-card text-foreground hover:bg-accent focus-visible:outline-ring',
+        ghostDark: 'bg-card text-foreground hover:bg-accent focus-visible:outline-ring',
       },
       size: {
         sm: 'h-8 rounded-full px-3 text-[0.8125rem]',
@@ -85,10 +85,10 @@ export function Card({ className, tone = 'plain', ...props }: CardProps) {
   return (
     <div
       className={cn(
-        'rounded-[var(--radius-bento)] p-5',
-        tone === 'plain' && 'bg-dash-card',
-        tone === 'warm' && 'bg-dash-card-warm',
-        tone === 'ink' && 'bg-dash-ink text-dash-surface',
+        'rounded-[var(--radius-lg)] p-5',
+        tone === 'plain' && 'bg-card',
+        tone === 'warm' && 'bg-muted',
+        tone === 'ink' && 'bg-foreground text-background',
         className,
       )}
       {...props}
@@ -105,7 +105,7 @@ export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingEle
 }
 
 export function CardCaption({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn('text-xs leading-relaxed text-dash-ink-muted', className)} {...props} />
+  return <p className={cn('text-xs leading-relaxed text-muted-foreground', className)} {...props} />
 }
 
 /* -------------------------------------------------------------------------- */
@@ -117,10 +117,10 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        solid: 'bg-dash-ink text-dash-surface',
-        accent: 'bg-dash-accent text-white',
-        outline: 'border border-dash-hairline text-dash-ink-soft',
-        rail: 'bg-dash-rail text-dash-ink-soft',
+        solid: 'bg-foreground text-background',
+        accent: 'bg-primary text-white',
+        outline: 'border border-border text-muted-foreground',
+        rail: 'bg-accent text-muted-foreground',
       },
       size: {
         sm: 'h-6 px-2.5',
@@ -154,7 +154,7 @@ export function Progress({ value, label, className, tone = 'accent' }: ProgressP
   const clamped = Math.max(0, Math.min(100, Math.round(value)))
   return (
     <div
-      className={cn('h-2 w-full overflow-hidden rounded-full bg-dash-rail', className)}
+      className={cn('h-2 w-full overflow-hidden rounded-full bg-accent', className)}
       role="progressbar"
       aria-valuenow={clamped}
       aria-valuemin={0}
@@ -164,7 +164,7 @@ export function Progress({ value, label, className, tone = 'accent' }: ProgressP
       <div
         className={cn(
           'h-full rounded-full',
-          tone === 'accent' ? 'bg-dash-accent' : 'bg-dash-ink',
+          tone === 'accent' ? 'bg-primary' : 'bg-foreground',
         )}
         style={{ width: `${clamped}%` }}
       />
@@ -177,7 +177,7 @@ export function Progress({ value, label, className, tone = 'accent' }: ProgressP
 /* -------------------------------------------------------------------------- */
 
 export function Separator({ className, ...props }: HTMLAttributes<HTMLHRElement>) {
-  return <hr className={cn('border-0 border-t border-dash-hairline', className)} {...props} />
+  return <hr className={cn('border-0 border-t border-border', className)} {...props} />
 }
 
 /* -------------------------------------------------------------------------- */
@@ -205,7 +205,7 @@ export function Avatar({ name, className, src }: AvatarProps) {
     <span
       className={cn(
         'inline-flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full',
-        'bg-dash-rail text-xs font-semibold text-dash-ink-soft',
+        'bg-accent text-xs font-semibold text-muted-foreground',
         className,
       )}
     >
@@ -230,10 +230,10 @@ export interface StatProps {
 export function Stat({ value, label, icon, className }: StatProps) {
   return (
     <div className={cn('text-right', className)}>
-      <p className="text-[2rem] leading-none font-semibold tracking-tight text-dash-ink">
+      <p className="text-[2rem] leading-none font-semibold tracking-tight text-foreground">
         {value}
       </p>
-      <p className="mt-2 flex items-center justify-end gap-1.5 text-xs text-dash-ink-muted">
+      <p className="mt-2 flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
         {icon}
         {label}
       </p>

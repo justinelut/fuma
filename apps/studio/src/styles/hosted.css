@@ -2,160 +2,150 @@
  * Hosted Fuma design system for Studio.
  *
  * Imports Tailwind's theme and utilities but NOT preflight: preflight resets
- * element defaults globally and would silently restyle Instatic's 314 builder
- * files, which stay on CSS modules by design.
+ * element defaults globally and would silently restyle Instatic's builder files,
+ * which stay on CSS modules by design.
  *
- * Utilities are deliberately NOT wrapped in `@layer utilities`. `globals.css`
- * is unlayered, and unlayered rules beat layered ones no matter their
- * specificity or order — so layered utilities lost every contest against the
- * global element styles and hosted surfaces rendered unstyled. Unlayered
- * utilities compete normally and win by import order, and they cannot reach
- * builder chrome because Tailwind class strings are gated out of
- * `src/admin/pages`, `src/ui` and `src/modules`.
+ * Utilities are deliberately NOT wrapped in `@layer utilities`. `globals.css` is
+ * unlayered, and unlayered rules beat layered ones no matter their specificity or
+ * order — so layered utilities lost every contest against the global element
+ * styles and hosted surfaces rendered unstyled. Unlayered utilities compete
+ * normally and win by import order, and they cannot reach builder chrome because
+ * Tailwind class strings are gated out of `src/admin/pages`, `src/ui` and
+ * `src/modules`.
  *
- * Semantic variable names match apps/web so hosted admin surfaces and the
- * marketing pages share one measured design language rather than drifting.
+ * There is one theming vocabulary: the shadcn semantic tokens. Hosted surfaces
+ * use `background`, `card`, `muted`, `primary`, `accent`, `border`, `ring` and
+ * the chart scale, never a parallel bespoke palette. A surface that must be dark
+ * regardless of the visitor's choice — the publication dashboard, which follows
+ * Ghost — opts in with the `dark` class and the same tokens resolve dark.
  */
 @layer theme;
 
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/utilities.css';
-/*---break---
+
+@custom-variant dark (&:is(.dark *), &.dark);
+
+/**
+ * Light theme. Values follow the Dribbble reference's warm ivory surface with
+ * the marketing signal blue as the primary, so hosted admin and the marketing
+ * pages read as one product.
  */
-@custom-variant dark (&:is(.dark *));
+:root {
+  --background: #fdfcf8;
+  --foreground: #171717;
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+  --primary: #3f6bff;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f0e8;
+  --secondary-foreground: #171717;
+  --muted: #f4ecd2;
+  --muted-foreground: #6b6b6b;
+  --accent: #eceae2;
+  --accent-foreground: #171717;
+  --destructive: #d64545;
+  --destructive-foreground: #ffffff;
+  --border: rgba(23, 23, 23, 0.1);
+  --input: rgba(23, 23, 23, 0.16);
+  --ring: #3f6bff;
 
-@theme {
-  --color-background: #000000;
-  --color-foreground: #ffffff;
-  --color-card: #0a0a0a;
-  --color-popover: #0d0d0d;
-  --color-primary: #ffffff;
-  --color-primary-foreground: #000000;
-  --color-secondary: rgba(255, 255, 255, 0.06);
-  --color-muted: rgba(255, 255, 255, 0.06);
-  --color-muted-foreground: rgba(255, 255, 255, 0.62);
-  --color-border: rgba(255, 255, 255, 0.12);
-  --color-input: rgba(255, 255, 255, 0.14);
-  --color-surface-inset: rgba(255, 255, 255, 0.025);
-  --color-surface-hover: rgba(255, 255, 255, 0.075);
-  --color-line-strong: rgba(255, 255, 255, 0.2);
-  --color-signal: #3f6bff;
-  --color-signal-bright: #6f92ff;
-  --color-danger: #ff8b8b;
+  /* Warm wash behind the application surface, from the reference. */
+  --surface-wash: #f4ecd2;
 
-  /**
-   * Remaining shadcn contract tokens. The components installed under
-   * `src/admin/fuma/ui` reference the full set, so every one is defined here
-   * rather than left to resolve as an invalid utility.
-   */
-  --color-card-foreground: #ffffff;
-  --color-popover-foreground: #ffffff;
-  --color-primary-foreground: #000000;
-  --color-secondary-foreground: #ffffff;
-  --color-accent: rgba(255, 255, 255, 0.08);
-  --color-accent-foreground: #ffffff;
-  --color-destructive: #ff6b6b;
-  --color-destructive-foreground: #000000;
-  --color-ring: #3f6bff;
-  --color-chart-1: #3f6bff;
-  --color-chart-2: #6f92ff;
-  --color-chart-3: #ff2d8a;
-  --color-chart-4: #4bd07a;
-  --color-chart-5: #8e5bff;
+  --chart-1: #3f6bff;
+  --chart-2: #6f92ff;
+  --chart-3: #ff2d8a;
+  --chart-4: #4bd07a;
+  --chart-5: #8e5bff;
 
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #171717;
+  --sidebar-primary: #3f6bff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f2f0e8;
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: rgba(23, 23, 23, 0.1);
+  --sidebar-ring: #3f6bff;
 
-  --font-sans: 'Inter Variable', system-ui, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-
-  --radius-control: 0.5rem;
-  --radius-surface: 0.75rem;
-
-  /**
-   * Dribbble dashboard palette — Website and Bookings profiles.
-   *
-   * A warm ivory application surface carrying white cards, near-black
-   * emphasis and one signature yellow. Measured from
-   * docs/reference/design/dribbble-website-dashboard.png.
-   */
-  --color-dash-backdrop: #9ba1a8;
-  --color-dash-surface: #fdfcf8;
-  --color-dash-wash: #f4ecd2;
-  --color-dash-card: #ffffff;
-  --color-dash-card-warm: #fbf7e9;
-  --color-dash-ink: #171717;
-  --color-dash-ink-soft: #5c5c5c;
-  --color-dash-ink-muted: #9a9a9a;
-  --color-dash-hairline: rgba(23, 23, 23, 0.08);
-  --color-dash-rail: #eceae2;
-  /**
-   * Accent is the marketing signal blue (`--signal` in apps/web), not the
-   * reference's yellow, so hosted admin and the marketing pages read as one
-   * product. `accent-soft` is the same hue at low opacity for fills behind text.
-   */
-  --color-dash-accent: #3f6bff;
-  --color-dash-accent-soft: #b9c8ff;
-
-  --radius-bento: 1.25rem;
-  --radius-bento-inner: 0.875rem;
-  --radius-app: 1.75rem;
-
-  /**
-   * Ghost publication palette — Publication profile.
-   *
-   * Measured from docs/reference/design/ghost-publication-dashboard.webp.
-   */
-  --color-ghost-sidebar: #0f0f0f;
-  --color-ghost-canvas: #121212;
-  --color-ghost-card: #171717;
-  --color-ghost-hairline: #2a2a2a;
-  --color-ghost-ink: #f5f5f5;
-  --color-ghost-ink-soft: rgba(245, 245, 245, 0.62);
-  --color-ghost-ink-muted: rgba(245, 245, 245, 0.38);
-  --color-ghost-series: #ff2d8a;
-  --color-ghost-series-alt: #8e5bff;
-  --color-ghost-positive: #4bd07a;
+  --radius: 0.75rem;
 }
 
 /**
- * Scope: hosted surfaces opt in through this class so utilities never leak
- * into builder chrome mounted in the same document.
- */
-.fuma-hosted {
-  background: var(--color-background);
-  color: var(--color-foreground);
-  font-family: var(--font-sans);
-}
-/*---break---
- */
-:root {
-  --sidebar: hsl(0 0% 98%);
-  --sidebar-foreground: hsl(240 5.3% 26.1%);
-  --sidebar-primary: hsl(240 5.9% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(240 4.8% 95.9%);
-  --sidebar-accent-foreground: hsl(240 5.9% 10%);
-  --sidebar-border: hsl(220 13% 91%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-}
-/*---break---
+ * Dark theme. Also the palette the publication dashboard runs in, measured from
+ * the Ghost reference: near-black surfaces, hairline borders, magenta and purple
+ * series.
  */
 .dark {
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  --background: #121212;
+  --foreground: #f5f5f5;
+  --card: #171717;
+  --card-foreground: #f5f5f5;
+  --popover: #1a1a1a;
+  --popover-foreground: #f5f5f5;
+  --primary: #6f92ff;
+  --primary-foreground: #0b0b0b;
+  --secondary: #202020;
+  --secondary-foreground: #f5f5f5;
+  --muted: #202020;
+  --muted-foreground: rgba(245, 245, 245, 0.62);
+  --accent: #2a2a2a;
+  --accent-foreground: #f5f5f5;
+  --destructive: #ff6b6b;
+  --destructive-foreground: #0b0b0b;
+  --border: #2a2a2a;
+  --input: #333333;
+  --ring: #6f92ff;
+
+  --surface-wash: #1a1a1a;
+
+  --chart-1: #6f92ff;
+  --chart-2: #3f6bff;
+  --chart-3: #ff2d8a;
+  --chart-4: #4bd07a;
+  --chart-5: #8e5bff;
+
+  --sidebar: #0f0f0f;
+  --sidebar-foreground: #f5f5f5;
+  --sidebar-primary: #6f92ff;
+  --sidebar-primary-foreground: #0b0b0b;
+  --sidebar-accent: #2a2a2a;
+  --sidebar-accent-foreground: #f5f5f5;
+  --sidebar-border: #2a2a2a;
+  --sidebar-ring: #6f92ff;
 }
-/*---break---
- */
+
+/** Tailwind utility names for the token contract above. */
 @theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface-wash: var(--surface-wash);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -164,4 +154,23 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: 'Inter Variable', system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --radius-sm: calc(var(--radius) - 0.5rem);
+  --radius-md: calc(var(--radius) - 0.25rem);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 0.25rem);
+  --radius-2xl: calc(var(--radius) + 0.75rem);
+}
+
+/**
+ * Scope: hosted surfaces opt in through this class so utilities never leak into
+ * builder chrome mounted in the same document.
+ */
+.fuma-hosted {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
 }

@@ -93,7 +93,7 @@ export function HostedBuilderHandoff({
     >
       <section
         className={cn(
-          'w-full max-w-md rounded-[var(--radius-surface)] border border-border',
+          'w-full max-w-md rounded-[var(--radius-lg)] border border-border',
           'bg-card p-8 text-center',
         )}
         role="alert"
@@ -112,7 +112,7 @@ export function HostedBuilderHandoff({
         </p>
         <a
           className={cn(
-            'mt-6 inline-flex h-10 items-center justify-center rounded-[var(--radius-control)]',
+            'mt-6 inline-flex h-10 items-center justify-center rounded-[var(--radius-md)]',
             'bg-foreground px-4 text-sm font-medium text-background',
             'transition-opacity hover:opacity-90',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal',
