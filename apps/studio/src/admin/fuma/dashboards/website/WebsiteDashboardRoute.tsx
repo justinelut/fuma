@@ -14,8 +14,18 @@ import {
   type SetupStep,
 } from './WebsiteDashboardHome'
 import { SiteOverviewCards } from './SiteOverviewCards'
+import { BookingsDashboard } from '../bookings/BookingsDashboard'
 
 export const WEBSITE_DASHBOARD_SUBPATH = '/admin'
+
+/**
+ * Subpaths the Website dashboard renders as its own page inside its own shell.
+ * Each one replaces the content region entirely — nothing stacks.
+ */
+const WEBSITE_DASHBOARD_PAGES: ReadonlySet<string> = new Set([
+  WEBSITE_DASHBOARD_SUBPATH,
+  '/admin/bookings',
+])
 
 export interface WebsiteDashboardRouteProps {
   shell: FumaScopedShellReadyContext
@@ -27,10 +37,10 @@ export interface WebsiteDashboardRouteProps {
   signingOut?: boolean
 }
 
-/** True when the resolved route is the Website profile home. */
+/** True when the resolved route is a page the Website dashboard owns. */
 export function isWebsiteDashboardRoute(shell: FumaScopedShellReadyContext): boolean {
   return shell.resolution.site.profileId === 'website'
-    && shell.profileRelativeSubpath === WEBSITE_DASHBOARD_SUBPATH
+    && WEBSITE_DASHBOARD_PAGES.has(shell.profileRelativeSubpath)
 }
 
 function platformAreas(
@@ -101,16 +111,23 @@ export function WebsiteDashboardRoute({
       onSignOut={onSignOut}
       signingOut={signingOut}
     >
-      <div className="space-y-4">
-        <WebsiteDashboardHome
-          siteName={resolution.site.name}
-          builderPath={builderPath}
-          publicUrl={publicUrl}
-          steps={steps}
-          areas={platformAreas(shell)}
+      {shell.profileRelativeSubpath === '/admin/bookings' ? (
+        <BookingsDashboard
+          scope={resolution.selection}
+          manageBookingsPath={buildScopedAdminUrl(resolution.selection, '/admin/bookings/manage')}
         />
-        <SiteOverviewCards builderPath={builderPath} />
-      </div>
+      ) : (
+        <div className="space-y-4">
+          <WebsiteDashboardHome
+            siteName={resolution.site.name}
+            builderPath={builderPath}
+            publicUrl={publicUrl}
+            steps={steps}
+            areas={platformAreas(shell)}
+          />
+          <SiteOverviewCards builderPath={builderPath} />
+        </div>
+      )}
     </WebsiteDashboardShell>
   )
 }

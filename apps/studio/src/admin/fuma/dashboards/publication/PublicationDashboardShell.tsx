@@ -34,6 +34,8 @@ export interface PublicationDashboardShellProps {
   builderPath: string
   publicUrl: string | null
   postChildren: readonly SidebarChild[]
+  /** Right-aligned member count on the Members entry, as the reference shows. */
+  memberCount?: number | null
   title: string
   range: string
   onSignOut?: () => void
@@ -166,6 +168,7 @@ export function PublicationDashboardShell({
   builderPath,
   publicUrl,
   postChildren,
+  memberCount = null,
   title,
   range,
   onSignOut,
@@ -267,6 +270,8 @@ export function PublicationDashboardShell({
                       <span className="truncate">{child.label}</span>
                       {child.dot ? (
                         <span className={cn('size-1.5 shrink-0 rounded-full', DOT_COLOUR[child.dot])} />
+                      ) : child.count !== undefined ? (
+                        <span className="text-[0.6875rem] text-ghost-ink-muted">{child.count}</span>
                       ) : null}
                     </Link>
                   </li>
@@ -290,6 +295,11 @@ export function PublicationDashboardShell({
                       <Icon />
                       {entry.label}
                     </span>
+                    {entry.id === 'nav.members' && memberCount !== null ? (
+                      <span className="text-[0.6875rem] text-ghost-ink-muted">
+                        {memberCount.toLocaleString('en-US')}
+                      </span>
+                    ) : null}
                   </Link>
                 </li>
               )

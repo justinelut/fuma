@@ -116,12 +116,15 @@ describe('hosted builder handoff', () => {
       'utf8',
     )
     for (const section of [
-      'dashboard', 'site', 'content', 'data', 'media', 'plugins', 'users', 'ai',
+      'dashboard', 'site', 'content', 'data', 'media', 'plugins', 'ai',
     ]) {
       expect(source).toContain(`'${section}'`)
     }
-    // Hosted identity is a platform concern and must not be handed away.
-    expect(source).not.toMatch(/INSTATIC_OWNED_SECTIONS[^)]*'account'/s)
+    // Staff identity and roles are platform concerns owned by Better Auth and
+    // must not be handed to the builder's native auth surfaces.
+    const owned = /INSTATIC_OWNED_SECTIONS[^\]]*\]/s.exec(source)?.[0] ?? ''
+    expect(owned).not.toContain("'account'")
+    expect(owned).not.toContain("'users'")
     expect(source).toContain('INSTATIC_OWNED_SECTIONS.has(section)')
   })
 

@@ -136,14 +136,23 @@ function internalCapabilityTarget(pathname: string, catalog: AccessibleContextCa
  */
 const DEDICATED_DASHBOARD_PROFILES: ReadonlySet<string> = new Set(['website', 'publication'])
 
-const SCOPED_HOME_PATTERN =
-  /^\/admin\/organizations\/([^/]+)\/workspaces\/([^/]+)\/sites\/([^/]+)\/?$/
+const SCOPED_PATTERN =
+  /^\/admin\/organizations\/([^/]+)\/workspaces\/([^/]+)\/sites\/([^/]+)(\/.*)?$/
+
+/**
+ * Subpaths a profile dashboard renders itself, inside its own shell. Anything
+ * else keeps the shared scoped chrome.
+ */
+const DEDICATED_DASHBOARD_SUBPATHS: Readonly<Record<string, ReadonlySet<string>>> = {
+  website: new Set(['', '/', '/bookings']),
+  publication: new Set(['', '/']),
+}
 
 function dedicatedDashboardLayout(
   pathname: string,
   catalog: AccessibleContextCatalog,
 ): 'panel' | 'bare' {
-  const match = SCOPED_HOME_PATTERN.exec(pathname)
+  const match = SCOPED_PATTERN.exec(pathname)
   if (!match) return 'panel'
   let siteId: string
   try {
@@ -152,7 +161,9 @@ function dedicatedDashboardLayout(
     return 'panel'
   }
   const site = catalog.sites.find((entry) => entry.id === siteId)
-  return site && DEDICATED_DASHBOARD_PROFILES.has(site.profileId) ? 'bare' : 'panel'
+  if (!site || !DEDICATED_DASHBOARD_PROFILES.has(site.profileId)) return 'panel'
+  const subpath = match[4] ?? ''
+  return DEDICATED_DASHBOARD_SUBPATHS[site.profileId]?.has(subpath) ? 'bare' : 'panel'
 }
 
 export function HostedStaffShell({

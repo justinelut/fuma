@@ -23,6 +23,7 @@ import { Link, useLocation } from '@admin/lib/routing'
 import { useAdminNavigate } from '@admin/lib/useAdminNavigate'
 import { useCurrentAdminUser } from '@admin/sessionContext'
 import { canAccessWorkspace } from '@admin/access'
+import { hostedStaffAuthSelected } from '@admin/preauth/hostedStaffAuth'
 import {
   getPluginsInErrorCount,
   subscribePluginIssues,
@@ -76,7 +77,14 @@ export function AdminSectionNavigation({
   const sessionUser = useCurrentAdminUser()
   const effectiveUser = currentUser ?? sessionUser ?? null
   const unrestricted = !effectiveUser
-  const canAccess = (workspace: AdminWorkspace) => unrestricted || canAccessWorkspace(effectiveUser, workspace)
+  // In the hosted product the platform owns staff identity through Better Auth
+  // and owns the dashboard, so the builder does not offer its own versions of
+  // either. Everything else — canvas, content, data, media, plugins — stays.
+  const platformOwned: ReadonlySet<AdminWorkspace> = hostedStaffAuthSelected()
+    ? new Set<AdminWorkspace>(['users'])
+    : new Set<AdminWorkspace>()
+  const canAccess = (workspace: AdminWorkspace) => !platformOwned.has(workspace)
+    && (unrestricted || canAccessWorkspace(effectiveUser, workspace))
   const canAccessPlugins = canAccess('plugins')
 
   useEffect(() => {
