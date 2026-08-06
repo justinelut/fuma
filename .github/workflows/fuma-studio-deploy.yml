@@ -155,6 +155,11 @@ jobs:
             infra/fuma-phase-13-18/k3s/studio-production.template.yaml > k8s/_staged/studio.yaml
           grep -Fq "Host(\`app.$FUMA_DEPLOYMENT_ROOT_DOMAIN\`)" k8s/_staged/studio.yaml
           grep -Fq 'HostRegexp(' k8s/_staged/studio.yaml
+          # The ingress terminates TLS, so without an explicit HTTPS public
+          # origin the CSRF check derives an http:// origin and rejects every
+          # state-changing browser request. Fail the deploy rather than ship it.
+          grep -Fq "PUBLIC_ORIGIN" k8s/_staged/studio.yaml
+          grep -Fq "https://app.$FUMA_DEPLOYMENT_ROOT_DOMAIN" k8s/_staged/studio.yaml
           ! grep -q '__FUMA_' k8s/_staged/studio.yaml
           chmod 644 k8s/_staged/studio.yaml
 
