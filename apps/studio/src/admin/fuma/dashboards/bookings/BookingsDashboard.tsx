@@ -130,7 +130,7 @@ export function BookingsDashboard({
           <p className="mt-6 text-xl leading-tight font-semibold tracking-tight">
             {bookings.length === 0 ? 'Nothing booked today' : `${bookings.length} today`}
           </p>
-          <p className="mt-2 text-xs leading-relaxed text-white/55">
+          <p className="mt-2 text-xs leading-relaxed text-background/65">
             {activeServices.length === 0
               ? 'Add a service and its availability before customers can book.'
               : `${activeServices.length} active ${activeServices.length === 1 ? 'service' : 'services'} across ${resources.length} ${resources.length === 1 ? 'resource' : 'resources'}.`}
@@ -140,8 +140,8 @@ export function BookingsDashboard({
           to={manageBookingsPath}
           className={cn(
             'mt-6 inline-flex h-10 items-center justify-center rounded-full',
-            'bg-primary px-4 text-sm font-medium text-white transition-[filter] hover:brightness-110',
-            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
+            'bg-primary px-4 text-sm font-medium text-primary-foreground transition-[filter] hover:brightness-110',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
           )}
         >
           Manage bookings
@@ -189,7 +189,7 @@ export function BookingsDashboard({
                         )}
                       >
                         {booking.partySize} {booking.partySize === 1 ? 'guest' : 'guests'}
-                        <span className="text-white/45">{booking.status}</span>
+                        <span className="text-background/50">{booking.status}</span>
                       </span>
                     ))}
                   </span>

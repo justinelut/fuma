@@ -125,7 +125,13 @@ export function WebsiteDashboardShell({
       )}
     >
       <div className="mx-auto w-full max-w-[1680px] px-3 py-4 sm:px-6 sm:py-6 xl:px-10 xl:py-8">
-        <header className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+        <header
+          className={cn(
+            'sticky top-0 z-30 -mx-3 flex flex-wrap items-center justify-between gap-2',
+            'border-b border-border/70 bg-background/85 px-3 py-2.5 backdrop-blur-md',
+            'sm:-mx-6 sm:gap-3 sm:px-6 xl:-mx-10 xl:px-10',
+          )}
+        >
           <p
             className={cn(
               'inline-flex h-10 min-w-0 max-w-[60vw] items-center rounded-full border border-border',
