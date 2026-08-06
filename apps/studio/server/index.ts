@@ -10,6 +10,7 @@ import { startConversationPurgeTick } from './ai/boot'
 import { readFumaConfig } from './fuma/config'
 import { createHostedAuthFakeInbox } from './auth/hosted/fakeInbox'
 import { createHostedAuthOciDelivery, createHostedAuthUnavailableDelivery } from './auth/hosted/ociDelivery'
+import { createCentralStaffHandoffBoundary } from './auth/hosted/centralStaffHandoff'
 import {
   createHostedFumaScopedApi,
   createHostedIdentityAuthRuntime,
@@ -198,7 +199,6 @@ const hostedStaffAuthRuntime = hostedFumaConfig
       cookieName: fumaConfig.staffCookie.name,
       secret: hostedStaffSecret!,
       delivery,
-      ...(hostedSocialProviders ? { socialProviders: hostedSocialProviders } : {}),
       ...(customerOrganizationLifecycle ? { organizationLifecycle: customerOrganizationLifecycle } : {}),
       ...(protectedOwnerBootstrap ? {
         reconcileProtectedOwner: async () => {
@@ -300,6 +300,18 @@ const centralIdentityAuthRuntime = hostedFumaConfig && hostedStaffSecret && host
       ...(hostedSocialProviders ? { socialProviders: hostedSocialProviders } : {}),
     })
   })()
+  : undefined
+const centralStaffHandoff = centralIdentityAuthRuntime && hostedStaffAuthRuntime && hostedFumaConfig && hostedAuthHost && hostedStaffSecret
+  ? createCentralStaffHandoffBoundary({
+    db,
+    appOrigin: `https://${hostedFumaConfig.hosts.product}`,
+    authOrigin: `https://${hostedAuthHost}`,
+    identityAuth: centralIdentityAuthRuntime,
+    protectedOwnerEmail: hostedFumaConfig.protectedOwner.email,
+    staffCookieName: hostedFumaConfig.staffCookie.name,
+    staffAuthSecret: hostedStaffSecret,
+    secureCookies: hostedFumaConfig.staffCookie.secure,
+  })
   : undefined
 const templateCatalog = hostedFumaConfig
   ? new PublicTemplateCatalogService(
@@ -867,6 +879,7 @@ const server = Bun.serve<PublicationSocketData>({
         uploadsDir: config.uploadsDir,
         databaseUrl: config.databaseUrl,
         hostedStaffAuth,
+        centralStaffHandoff,
         publicProjections: publicProjectionRuntime?.boundary,
         publicHandoff: publicHandoffRuntime?.boundary,
         publicationPublic: publicationRuntime?.publicBoundary,

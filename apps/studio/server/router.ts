@@ -24,6 +24,7 @@ import type { CssBundleFile, SiteCssBundleId } from '@core/publisher'
 import { buildPublishedSiteCssBundle } from './publish/siteCssBundle'
 import { mediaStorageRegistry } from '@core/plugins/mediaStorageRegistry'
 import type { HostedStaffAuthBoundary } from './auth/hosted/routes'
+import type { CentralStaffHandoffBoundary } from './auth/hosted/centralStaffHandoff'
 import type { FumaScopedRouteBoundary } from './fuma/context'
 import type { PublicProjectionBoundary } from './fuma/publicProjections'
 import type { PublicHandoffAppBoundary } from './fuma/publicHandoff'
@@ -49,6 +50,7 @@ const HOSTED_MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 export interface ServerRuntime {
   db: DbClient
   hostedStaffAuth?: HostedStaffAuthBoundary
+  centralStaffHandoff?: CentralStaffHandoffBoundary
   publicProjections?: PublicProjectionBoundary
   publicHandoff?: PublicHandoffAppBoundary
   publicationPublic?: PublicationPublicBoundary
@@ -82,6 +84,7 @@ type RouteHandler = (
 
 const routes: readonly RouteHandler[] = [
   tryServeHealth,
+  tryServeCentralStaffHandoff,
   tryServeHostedStaffAuth,
   tryRejectHostedLegacyAuth,
   tryServeMcp,
@@ -205,6 +208,11 @@ async function tryServeWorkspaceManagement(req: Request, runtime: ServerRuntime)
 function tryServeHealth(_req: Request, _runtime: ServerRuntime, _url: URL, pathname: string): Response | null {
   if (pathname !== '/health') return null
   return jsonResponse({ status: 'ok', ts: Date.now() })
+}
+
+async function tryServeCentralStaffHandoff(req: Request, runtime: ServerRuntime): Promise<Response | null> {
+  if (!runtime.centralStaffHandoff?.handles(req)) return null
+  return await runtime.centralStaffHandoff.handle(req)
 }
 
 function tryServeHostedStaffAuth(

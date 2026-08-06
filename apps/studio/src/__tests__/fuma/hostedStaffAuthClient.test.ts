@@ -102,27 +102,11 @@ const loginInput = {
 }
 
 describe('FUMA-013 hosted staff auth client contract', () => {
-  it('starts Google with the exact app callback and accepts only the Google authorization origin', async () => {
-    const expected = scriptedFetch([{
-      path: '/api/auth/sign-in/social',
-      method: 'POST',
-      body: { provider: 'google', callbackURL: 'https://app.trimly.co.ke/admin' },
-      response: {
-        url: 'https://accounts.google.com/o/oauth2/v2/auth?client_id=fixture&state=opaque&redirect_uri=https%3A%2F%2Fapp.trimly.co.ke%2Fapi%2Fauth%2Fcallback%2Fgoogle',
-        redirect: true,
-      },
-    }])
-    expect(await beginHostedStaffGoogleSignIn('https://app.trimly.co.ke/admin', expected.fetchImpl))
-      .toStartWith('https://accounts.google.com/o/oauth2/v2/auth?')
-    expected.expectComplete()
-
-    const hostile = scriptedFetch([{
-      path: '/api/auth/sign-in/social', method: 'POST',
-      body: { provider: 'google', callbackURL: 'https://app.trimly.co.ke/admin' },
-      response: { url: 'https://attacker.example/oauth', redirect: true },
-    }])
-    await expect(beginHostedStaffGoogleSignIn('https://app.trimly.co.ke/admin', hostile.fetchImpl))
-      .rejects.toThrow('invalid authorization URL')
+  it('starts Google through the fixed same-origin central handoff', async () => {
+    expect(await beginHostedStaffGoogleSignIn('https://app.trimly.co.ke/admin'))
+      .toBe('https://app.trimly.co.ke/api/auth/central-google')
+    await expect(beginHostedStaffGoogleSignIn('https://attacker.example/admin?redirect=1'))
+      .rejects.toThrow('admin root')
   })
   it('distinguishes password authentication from an MFA challenge and confirms cookie sessions', async () => {
     const challenge = scriptedFetch([{

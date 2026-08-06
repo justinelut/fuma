@@ -202,8 +202,7 @@ export function HostedStaffPreAuth({ initialError, onAuthenticated }: HostedStaf
     setGooglePending(true)
     setError(null)
     try {
-      const callbackURL = new URL('/admin', window.location.origin).toString()
-      const authorizationUrl = await beginHostedStaffGoogleSignIn(callbackURL)
+      const authorizationUrl = await beginHostedStaffGoogleSignIn(new URL('/admin', window.location.origin).toString())
       window.location.assign(authorizationUrl)
     } catch (caught) {
       setError(getErrorMessage(caught, 'Google sign-in could not start'))
