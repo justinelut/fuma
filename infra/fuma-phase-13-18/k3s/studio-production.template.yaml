@@ -239,6 +239,13 @@ spec:
             - { name: HOST, value: "0.0.0.0" }
             - { name: PORT, value: "3101" }
             - { name: STATIC_DIR, value: "/workspace/apps/studio/dist" }
+            # The ingress terminates TLS and hands the container plain HTTP, so
+            # without this the CSRF check derives `http://app.<domain>` from the
+            # request and rejects every state-changing request the browser makes
+            # with its `https://` Origin — which is what made builder draft saves
+            # fail. The first entry is the canonical origin; the remaining
+            # control hosts are accepted too because they serve the same admin.
+            - { name: PUBLIC_ORIGIN, value: "https://app.__FUMA_ROOT_DOMAIN__,https://admin.__FUMA_ROOT_DOMAIN__,https://auth.__FUMA_ROOT_DOMAIN__" }
             - { name: FUMA_PUBLIC_PROJECTION_INTERNAL_HOST, value: "runtime-web.fuma.svc.cluster.local" }
             - { name: FUMA_REDIS_NAMESPACE, value: "fuma-production" }
             - { name: FUMA_WEB_REVISION, value: "__FUMA_SOURCE_SHA__" }

@@ -125,6 +125,44 @@ describe('originAllowed', () => {
     expect(originAllowed(req)).toBe(true)
   })
 
+  /**
+   * The production regression: a TLS-terminating ingress hands the container
+   * plain HTTP, so with nothing configured the expected origin is derived as
+   * `http://<host>` and every state-changing browser request — including the
+   * builder's draft save — is rejected. Configuring the canonical HTTPS origin
+   * is what makes the comparison compare like with like.
+   */
+  it('rejects a proxied HTTPS browser Origin until the public origin is configured', () => {
+    const proxied = () => makeReq('http://app.trimly.co.ke:3101/admin/api/cms/site-document', {
+      method: 'PUT',
+      headers: { origin: 'https://app.trimly.co.ke', host: 'app.trimly.co.ke' },
+    })
+
+    resetPublicOrigins()
+    expect(originAllowed(proxied())).toBe(false)
+
+    configurePublicOrigins([
+      'https://app.trimly.co.ke',
+      'https://admin.trimly.co.ke',
+      'https://auth.trimly.co.ke',
+    ])
+    expect(originAllowed(proxied())).toBe(true)
+    expect(publicOriginIsHttps()).toBe(true)
+
+    // Sibling control hosts serve the same admin and are accepted too.
+    const adminHost = makeReq('http://app.trimly.co.ke:3101/admin/api/cms/site-document', {
+      method: 'PUT',
+      headers: { origin: 'https://admin.trimly.co.ke', host: 'app.trimly.co.ke' },
+    })
+    expect(originAllowed(adminHost)).toBe(true)
+
+    const foreign = makeReq('http://app.trimly.co.ke:3101/admin/api/cms/site-document', {
+      method: 'PUT',
+      headers: { origin: 'https://app.trimly.co.ke.evil.example', host: 'app.trimly.co.ke' },
+    })
+    expect(originAllowed(foreign)).toBe(false)
+  })
+
   it('allows requests whose Origin matches the configured public origin', () => {
     configurePublicOrigins(['https://cms.example.com'])
     const req = makeReq('http://app:3001/admin/api/cms/login', {
