@@ -53,7 +53,7 @@
   width: 100%;
   padding: var(--space-m) var(--space-l);
   border: 1px solid var(--border);
-  border-radius: var(--radius-m);
+  border-radius: var(--input-radius);
   background: var(--bg-surface-2);
   color: var(--text-bright);
   font: inherit;

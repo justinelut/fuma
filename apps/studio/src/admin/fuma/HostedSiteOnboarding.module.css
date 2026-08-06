@@ -83,7 +83,7 @@
   min-height: 44px;
   padding: var(--space-m);
   border: 1px solid var(--border);
-  border-radius: var(--radius-m);
+  border-radius: var(--input-radius);
   background: var(--bg-surface-2);
   color: var(--text);
   font: inherit;
@@ -100,7 +100,7 @@
   gap: var(--space-2xs) var(--space-m);
   padding: var(--space-l);
   border: 1px solid var(--border);
-  border-radius: var(--radius-m);
+  border-radius: var(--input-radius);
   background: var(--bg-surface-2);
   cursor: pointer;
 }
@@ -109,7 +109,7 @@
 .profile strong, .profileActive strong { color: var(--text-bright); font-size: var(--text-s); }
 .profile span, .profileActive span { color: var(--text-muted); font-size: var(--text-xs); font-weight: 450; line-height: 1.4; }
 .slugInput { display: flex; align-items: center; }
-.slugInput input { border-radius: var(--radius-m) 0 0 var(--radius-m) !important; }
+.slugInput input { border-radius: var(--input-radius) 0 0 var(--input-radius) !important; }
 .slugInput small {
   min-height: 44px;
   display: inline-flex;
@@ -117,7 +117,7 @@
   padding: 0 var(--space-m);
   border: 1px solid var(--border);
   border-left: 0;
-  border-radius: 0 var(--radius-m) var(--radius-m) 0;
+  border-radius: 0 var(--input-radius) var(--input-radius) 0;
   color: var(--text-muted);
   background: var(--bg-surface);
   white-space: nowrap;
@@ -129,7 +129,7 @@
   margin: 0;
   padding: var(--space-m);
   border: 1px solid var(--border);
-  border-radius: var(--radius-m);
+  border-radius: var(--input-radius);
   background: var(--bg-surface-2);
 }
 .selectedOrganization strong { color: var(--text-bright); }
