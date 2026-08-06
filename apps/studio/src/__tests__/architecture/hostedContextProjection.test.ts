@@ -28,4 +28,20 @@ describe('hosted accessible context projection', () => {
     expect(hook).toContain("credentials: 'same-origin'")
     expect(hook).toContain('Value.Check(AccessibleContextCatalogSchema, candidate)')
   })
+
+  it('projects permissions from the same authority the scoped API enforces', async () => {
+    const [server, hook, entry] = await Promise.all([
+      read('server/index.ts'),
+      read('src/admin/preauth/hostedContextCatalog.ts'),
+      read('src/admin/AdminEntry.tsx'),
+    ])
+    expect(server).toContain('resolvePermissions:')
+    expect(server).toContain('PostgresFumaSiteAuthorizationAuthority')
+    expect(server).toContain('resolveLayeredPermissions')
+    expect(server).toContain('allowedPermissionIds')
+    expect(hook).toContain('permissionState[permissionId] = true')
+    expect(hook).toContain("decision: 'allow' as const")
+    expect(entry).toContain('permissionState={projection.permissionState}')
+    expect(entry).toContain('permissionDecisions={projection.permissionDecisions}')
+  })
 })

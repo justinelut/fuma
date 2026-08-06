@@ -140,6 +140,8 @@ function HostedAdminEntry({ hostedContextCatalog, platformAdmin = false }: Admin
           session={session}
           pathname={pathname}
           contextCatalog={hostedContextCatalog ?? projection.catalog ?? undefined}
+          permissionState={projection.permissionState}
+          permissionDecisions={projection.permissionDecisions}
         />
       </Suspense>
     )

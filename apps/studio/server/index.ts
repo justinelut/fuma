@@ -34,6 +34,8 @@ import { OrganizationBootstrapService, PostgresOrganizationBootstrapRepository, 
 import { createHostedSiteOnboardingBoundary, HostedSiteOnboardingService } from './fuma/onboarding'
 import { createWorkspaceManagementBoundary } from './fuma/workspaces/managementBoundary'
 import { createAccessibleContextCatalogBoundary, PostgresAccessibleContextCatalog } from './fuma/context/accessibleCatalog'
+import { PostgresFumaSiteAuthorizationAuthority } from './fuma/context/postgresRequestAuthority'
+import { resolveLayeredPermissions } from './fuma/permissions/resolver'
 import {
   AnonymousEdgeVisitorAuthority,
   createHostedEdgeRuntime,
@@ -615,6 +617,43 @@ const accessibleContextCatalog = hostedStaffAuthRuntime
     ),
     resolveSession: hostedStaffAuthRuntime.resolveSession,
     handlesProductRequest: hostedStaffAuthRuntime.boundary.handlesProductRequest,
+    // Permissions come from the same authorization authority the scoped API
+    // enforces, so navigation can never advertise a route the API denies.
+    resolvePermissions: async (request, catalog) => {
+      const session = await hostedStaffAuthRuntime.resolveSession(request.headers)
+      if (!session) return []
+      const authority = new PostgresFumaSiteAuthorizationAuthority(db)
+      const projections: Array<{ organizationId: string; workspaceId: string; siteId: string; allow: string[] }> = []
+      for (const site of catalog.sites) {
+        if (site.status !== 'active') continue
+        try {
+          const authorization = await authority.loadExactSiteAuthorization({
+            actor: Object.freeze({
+              kind: 'staff' as const,
+              userId: session.userId,
+              sessionId: session.sessionId,
+              impersonator: session.impersonatedBy === null ? null : Object.freeze({ userId: session.impersonatedBy }),
+            }),
+            routeScope: Object.freeze({
+              organizationId: site.organizationId,
+              workspaceId: site.workspaceId,
+              siteId: site.id,
+            }),
+          })
+          if (authorization === null) continue
+          const resolved = resolveLayeredPermissions((authorization as { permissions: unknown }).permissions)
+          projections.push({
+            organizationId: site.organizationId,
+            workspaceId: site.workspaceId,
+            siteId: site.id,
+            allow: [...resolved.allowedPermissionIds],
+          })
+        } catch (error) {
+          console.error('[fuma] permission projection unavailable for one site:', error)
+        }
+      }
+      return Object.freeze(projections)
+    },
   })
   : undefined
 const workspaceManagement = hostedStaffAuthRuntime
