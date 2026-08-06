@@ -20,6 +20,17 @@ import type {
 
 interface CanvasResponsiveCssOptions extends ResponsiveCssOptions {
   mediaSignature?: string
+  /**
+   * Tailwind's *compiled* output for this site — plain CSS, already produced by
+   * the compiler from the theme block and the classes in use.
+   *
+   * This must not be a raw `@theme` block. `@theme` is a Tailwind directive that
+   * only means something while Tailwind is compiling; a browser handed one
+   * ignores it silently, which would leave every utility unstyled with no error
+   * to explain why. The canvas therefore consumes compiled CSS, and the theme
+   * generator's output is compiler input rather than something injected here.
+   */
+  tailwindCss?: string
 }
 
 function buildCanvasClassCSS(
@@ -62,6 +73,14 @@ function buildCanvasClassCSS(
   // exact bytes a publish would (rule order, condition/viewport cascade, and
   // sanitized raw @keyframes rules included), so the preview cannot drift
   // from the published output.
+  // Compiled Tailwind sits between the framework variables it reads and the
+  // registry rules that may override it. Utilities come first deliberately: a
+  // site being migrated must not change appearance because a newly generated
+  // utility started winning over a style rule its author wrote explicitly.
+  // Once the registry lane is retired this ordering stops mattering, because
+  // utilities will be the only source of declarations.
+  if (responsiveOptions.tailwindCss) blocks.push(responsiveOptions.tailwindCss)
+
   const classCss = generateClassCSS(classes, breakpoints, conditions, responsiveOptions)
   if (classCss) blocks.push(classCss)
 
@@ -108,6 +127,7 @@ export function createCanvasClassCssMemo(
       frameworkPreferences,
       fonts,
       responsiveOptions.mediaSignature,
+      responsiveOptions.tailwindCss,
     ]
     const prev = lastInputs
     if (prev && inputs.every((value, i) => Object.is(value, prev[i]))) {
