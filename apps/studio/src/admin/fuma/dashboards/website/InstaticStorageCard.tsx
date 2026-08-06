@@ -91,7 +91,7 @@ export function InstaticStorageCard({ builderPath }: InstaticStorageCardProps) {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <CardTitle>Storage and library</CardTitle>
         <CardCaption>
-          {figures === null ? 'Reading from Instatic' : 'Measured by Instatic'}
+          {figures === null ? 'Reading from the builder' : 'Measured by the builder'}
         </CardCaption>
       </div>
 
@@ -128,7 +128,7 @@ export function InstaticStorageCard({ builderPath }: InstaticStorageCardProps) {
 
       <div className={cn('mt-5 flex items-center gap-2')}>
         <ButtonLink href={builderPath} variant="outline" size="sm">
-          Open Instatic
+          Open visual builder
         </ButtonLink>
         <CardCaption>Media, pages and data are managed there</CardCaption>
       </div>

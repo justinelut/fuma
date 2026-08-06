@@ -15,6 +15,7 @@ import { Link } from '@admin/lib/routing'
 import type { ProfileNavigationOutput } from '@core/fuma'
 import { Avatar, Badge, Button, Stat } from '../../ui/primitives'
 import { cn } from '../../ui/cn'
+import { ThemeToggle } from '../../ui/theme'
 
 export interface WebsiteDashboardShellProps {
   siteName: string
@@ -196,6 +197,7 @@ export function WebsiteDashboardShell({
               <Avatar name={actorLabel} className="size-11 border border-dash-hairline bg-dash-card" />
               <span className="sr-only">Account</span>
             </Link>
+            <ThemeToggle className="text-dash-ink-soft hover:bg-dash-rail hover:text-dash-ink focus-visible:outline-dash-ink" />
             {onSignOut ? (
               <Button variant="quiet" size="sm" onClick={onSignOut} disabled={signingOut} aria-busy={signingOut}>
                 {signingOut ? 'Signing out' : 'Sign out'}

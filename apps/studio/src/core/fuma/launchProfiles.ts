@@ -14,12 +14,6 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
   },
   {
     id: 'content.pages',
-    onboarding: [{
-      id: 'onboarding.pages',
-      order: 30,
-      title: 'Create a page',
-      description: 'Create the first reusable page in this site.',
-    }],
     starterTemplates: [{ id: 'starter.pages', order: 30, label: 'Pages', templateId: 'pages.blank' }],
     permissions: [
       { id: 'content.pages.read', label: 'View pages', description: 'View site pages.' },
@@ -59,12 +53,6 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
   },
   {
     id: 'website.media',
-    onboarding: [{
-      id: 'onboarding.media',
-      order: 40,
-      title: 'Add media',
-      description: 'Upload reusable images and documents.',
-    }],
     permissions: [{ id: 'website.media.read', label: 'View media', description: 'View site media.' }],
     routes: [{ id: 'route.media', method: 'GET', path: '/admin/media', permission: 'website.media.read' }],
   },
@@ -84,12 +72,6 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
       label: 'Design',
       path: '/admin/builder',
       permission: 'website.design.read',
-    }],
-    onboarding: [{
-      id: 'onboarding.design',
-      order: 20,
-      title: 'Choose a design',
-      description: 'Start from a clean visual design preset.',
     }],
     starterTemplates: [{ id: 'starter.website', order: 20, label: 'Website', templateId: 'website.blank' }],
     permissions: [
@@ -118,17 +100,33 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
   },
   {
     id: 'site.settings',
+    // Platform onboarding covers what the platform owns. Design, pages and
+    // media are Instatic's and are deliberately absent.
     navigation: [
       { id: 'nav.domains', order: 85, label: 'Domains', path: '/admin/settings/domains', permission: 'site.settings.read' },
       { id: 'nav.team', order: 86, label: 'Organization & team', path: '/admin/settings/team', permission: 'site.settings.read' },
       { id: 'nav.settings', order: 90, label: 'Settings', path: '/admin/settings', permission: 'site.settings.read' },
     ],
-    onboarding: [{
-      id: 'onboarding.identity',
-      order: 10,
-      title: 'Name the site',
-      description: 'Set the site identity and basic settings.',
-    }],
+    onboarding: [
+      {
+        id: 'onboarding.identity',
+        order: 10,
+        title: 'Name the site',
+        description: 'Set the site identity and basic settings.',
+      },
+      {
+        id: 'onboarding.domain',
+        order: 50,
+        title: 'Connect a domain',
+        description: 'Point a custom domain at this site and verify DNS.',
+      },
+      {
+        id: 'onboarding.team',
+        order: 60,
+        title: 'Invite your team',
+        description: 'Add the people who will work on this site.',
+      },
+    ],
     permissions: [
       { id: 'site.settings.read', label: 'View settings', description: 'View site settings.' },
       { id: 'site.settings.write', label: 'Edit settings', description: 'Edit site settings.' },
@@ -298,7 +296,9 @@ export const LAUNCH_PROFILES: readonly ProductProfile[] = [
       'nav.team',
       'nav.settings',
     ],
-    onboardingPreset: ['onboarding.identity', 'onboarding.design', 'onboarding.pages', 'onboarding.media'],
+    // Design, pages and media are Instatic's. Platform onboarding only covers
+    // what the platform itself owns.
+    onboardingPreset: ['onboarding.identity', 'onboarding.domain', 'onboarding.team'],
     starterTemplatePreset: ['starter.website', 'starter.pages'],
   },
   {
@@ -341,10 +341,10 @@ export const LAUNCH_PROFILES: readonly ProductProfile[] = [
     onboardingPreset: [
       'onboarding.identity',
       'onboarding.publication',
-      'onboarding.pages',
       'onboarding.members',
       'onboarding.newsletters',
-      'onboarding.design',
+      'onboarding.domain',
+      'onboarding.team',
     ],
     starterTemplatePreset: ['starter.publication', 'starter.newsletter', 'starter.pages', 'starter.website'],
   },
