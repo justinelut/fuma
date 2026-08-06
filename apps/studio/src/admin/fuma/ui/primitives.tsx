@@ -85,11 +85,12 @@ export function Card({ className, tone = 'plain', ...props }: CardProps) {
   return (
     <div
       className={cn(
-        'rounded-[var(--radius-lg)] p-5',
+        // A hairline plus a soft lift so a card is legible against a page of a
+        // similar value — without it, white on ivory disappeared in light mode.
+        'rounded-[var(--radius-lg)] border border-border p-5',
+        'shadow-[0_1px_2px_rgba(23,23,23,0.04),0_8px_24px_-16px_rgba(23,23,23,0.18)]',
         tone === 'plain' && 'bg-card text-card-foreground',
         tone === 'warm' && 'bg-muted text-foreground',
-        // The inverse surface the reference uses for its feature card. Themed
-        // through the same tokens so it follows light and dark.
         tone === 'ink' && 'bg-foreground text-background',
         className,
       )}

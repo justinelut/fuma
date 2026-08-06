@@ -27,11 +27,39 @@ export interface WebsiteDashboardShellProps {
   currentPath: string
   accountPath: string
   settingsPath: string | null
+  /** Scoped home path, so the home entry matches exactly and not by prefix. */
+  homePath: string
   counts: Readonly<{ sites: number, workspaces: number, organizations: number }>
   setup: Readonly<{ completed: number, total: number }>
   onSignOut?: () => void
   signingOut?: boolean
   children: ReactNode
+}
+
+/**
+ * The one navigation entry that represents the current route.
+ *
+ * Routes nest — `/settings/domains` sits under `/settings`, and the profile home
+ * is a prefix of everything — so the most specific match wins and exactly one
+ * entry is ever marked current. Prefix matching alone lit several at once.
+ */
+function activeEntryId(
+  navigation: ProfileNavigationOutput,
+  currentPath: string,
+  homePath: string,
+): string | null {
+  let bestId: string | null = null
+  let bestLength = -1
+  for (const entry of navigation) {
+    const matches = entry.path === homePath
+      ? currentPath === homePath
+      : currentPath === entry.path || currentPath.startsWith(`${entry.path}/`)
+    if (matches && entry.path.length > bestLength) {
+      bestId = entry.id
+      bestLength = entry.path.length
+    }
+  }
+  return bestId
 }
 
 function firstName(actorLabel: string): string {
@@ -102,6 +130,7 @@ export function WebsiteDashboardShell({
   actorLabel,
   navigation,
   currentPath,
+  homePath,
   accountPath,
   settingsPath,
   counts,
@@ -110,6 +139,7 @@ export function WebsiteDashboardShell({
   signingOut = false,
   children,
 }: WebsiteDashboardShellProps) {
+  const activeId = activeEntryId(navigation, currentPath, homePath)
   const setupPercent = setup.total === 0
     ? 100
     : Math.round((setup.completed / setup.total) * 100)
@@ -153,8 +183,7 @@ export function WebsiteDashboardShell({
               )}
             >
               {navigation.map((entry) => {
-                const active = currentPath === entry.path
-                  || (entry.path !== '/admin' && currentPath.startsWith(`${entry.path}/`))
+                const active = entry.id === activeId
                 return (
                   <li key={entry.id}>
                     <Link
@@ -164,7 +193,7 @@ export function WebsiteDashboardShell({
                         'inline-flex h-9 shrink-0 items-center rounded-full px-3 text-[0.8125rem]',
                         'whitespace-nowrap transition-colors sm:px-3.5',
                         active
-                          ? 'bg-foreground font-medium text-background'
+                          ? 'bg-primary font-medium text-primary-foreground'
                           : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                       )}
                     >
