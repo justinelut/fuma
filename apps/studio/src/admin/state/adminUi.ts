@@ -89,6 +89,13 @@ interface AdminUiState {
    * there without either layout knowing about the other.
    */
   activeLivePath: string | null
+  /**
+   * Origin the published site is served from, when it differs from the admin
+   * origin. Set by the hosted builder handoff; null for self-hosted installs,
+   * where the site and the admin share one origin.
+   */
+  publishedSiteOrigin: string | null
+  setPublishedSiteOrigin: (origin: string | null) => void
   setActiveLivePath: (path: string | null) => void
 }
 
@@ -152,4 +159,6 @@ export const useAdminUi = create<AdminUiState>((set) => ({
 
   activeLivePath: null,
   setActiveLivePath: (path) => set({ activeLivePath: path }),
+  publishedSiteOrigin: null,
+  setPublishedSiteOrigin: (origin) => set({ publishedSiteOrigin: origin }),
 }))

@@ -34,7 +34,12 @@ import { useAdminUi } from '@admin/state/adminUi'
 
 export function OpenLivePageButton() {
   const activeLivePath = useAdminUi((s) => s.activeLivePath)
-  const target = activeLivePath ?? '/'
+  // Hosted sites are served from their own host, so a relative target would
+  // open the admin origin instead of the site. Self-hosted installs leave the
+  // origin unset and keep the relative path.
+  const publishedSiteOrigin = useAdminUi((s) => s.publishedSiteOrigin)
+  const path = activeLivePath ?? '/'
+  const target = publishedSiteOrigin ? `${publishedSiteOrigin}${path}` : path
   const tooltip = activeLivePath ? 'Open live page' : 'Open live site'
 
   return (
