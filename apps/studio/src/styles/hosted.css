@@ -1,0 +1,50 @@
+/**
+ * Hosted Fuma design system for Studio.
+ *
+ * Imports Tailwind's theme and utility layers but NOT preflight: preflight
+ * resets element defaults globally and would silently restyle Instatic's 314
+ * builder files, which stay on CSS modules by design.
+ *
+ * Semantic variable names match apps/web so hosted admin surfaces and the
+ * marketing pages share one measured design language rather than drifting.
+ */
+@layer theme, components, utilities;
+
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@theme {
+  --color-background: #000000;
+  --color-foreground: #ffffff;
+  --color-card: #0a0a0a;
+  --color-popover: #0d0d0d;
+  --color-primary: #ffffff;
+  --color-primary-foreground: #000000;
+  --color-secondary: rgba(255, 255, 255, 0.06);
+  --color-muted: rgba(255, 255, 255, 0.06);
+  --color-muted-foreground: rgba(255, 255, 255, 0.62);
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-input: rgba(255, 255, 255, 0.14);
+  --color-surface-inset: rgba(255, 255, 255, 0.025);
+  --color-surface-hover: rgba(255, 255, 255, 0.075);
+  --color-line-strong: rgba(255, 255, 255, 0.2);
+  --color-signal: #3f6bff;
+  --color-signal-bright: #6f92ff;
+  --color-danger: #ff8b8b;
+
+  --font-sans: 'Inter Variable', system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --radius-control: 0.5rem;
+  --radius-surface: 0.75rem;
+}
+
+/**
+ * Scope: hosted surfaces opt in through this class so utilities never leak
+ * into builder chrome mounted in the same document.
+ */
+.fuma-hosted {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
