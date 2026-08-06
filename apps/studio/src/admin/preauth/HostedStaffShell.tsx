@@ -158,7 +158,7 @@ export function HostedStaffShell({
   }
 
   return (
-    <div className={panelStyles.page}>
+    <div className={`${panelStyles.page} ${styles.page}`}>
       <section className={`${panelStyles.panel} ${styles.shell}`} aria-labelledby="hosted-shell-title">
         <header className={styles.header}>
           <div>
