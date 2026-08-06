@@ -13,7 +13,7 @@ import {
   type PlatformArea,
   type SetupStep,
 } from './WebsiteDashboardHome'
-import { InstaticStorageCard } from './InstaticStorageCard'
+import { SiteOverviewCards } from './SiteOverviewCards'
 
 export const WEBSITE_DASHBOARD_SUBPATH = '/admin'
 
@@ -109,7 +109,7 @@ export function WebsiteDashboardRoute({
           steps={steps}
           areas={platformAreas(shell)}
         />
-        <InstaticStorageCard builderPath={builderPath} />
+        <SiteOverviewCards builderPath={builderPath} />
       </div>
     </WebsiteDashboardShell>
   )

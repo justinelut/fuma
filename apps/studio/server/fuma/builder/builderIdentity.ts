@@ -160,6 +160,12 @@ export type BuilderSessionAuthority = Readonly<{
   readStaffProfile(userId: string): Promise<Readonly<{ email: string, displayName: string }> | null>
   /** Site permissions the hosted resolver granted for the requested site. */
   resolveSitePermissions(request: Request, userId: string): Promise<readonly string[]>
+  /**
+   * Origin the published site is served from. The builder's live-site link must
+   * leave the admin host, so this is resolved server-side from the site's own
+   * routing state rather than assumed to be the current origin.
+   */
+  resolvePublicOrigin?: (request: Request) => Promise<string | null>
   handlesProductRequest(request: Request): boolean
   store: PostgresBuilderIdentityStore
 }>
@@ -212,7 +218,13 @@ export function createBuilderSessionBoundary(
       displayName: profile.displayName,
       role,
     })
-    return new Response(JSON.stringify({ user: toPublicUser(bound) }), { status: 200, headers })
+    const publicOrigin = input.resolvePublicOrigin
+      ? await input.resolvePublicOrigin(request)
+      : null
+    return new Response(
+      JSON.stringify({ user: toPublicUser(bound), publicOrigin }),
+      { status: 200, headers },
+    )
   }
 
   return Object.freeze({ handles, handle })
