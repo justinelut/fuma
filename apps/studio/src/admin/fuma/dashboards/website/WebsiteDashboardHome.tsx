@@ -74,34 +74,7 @@ function ArrowOut({ to }: { to: string }) {
   )
 }
 
-function CheckMark({ done }: { done: boolean }) {
-  return done
-    ? (
-      <svg viewBox="0 0 16 16" className="size-4 text-primary" aria-hidden="true">
-        <circle cx="8" cy="8" r="7" fill="currentColor" />
-        <path d="m5 8.2 2 2 4-4.2" stroke="var(--primary-foreground)" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-    : (
-      <svg viewBox="0 0 16 16" className="size-4 text-border" aria-hidden="true">
-        <circle cx="8" cy="8" r="6.2" fill="currentColor" />
-      </svg>
-    )
-}
 
-function StepTile({ index }: { index: number }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex size-8 shrink-0 items-center justify-center rounded-[0.625rem]',
-        'border border-border bg-card text-[0.625rem] font-semibold text-muted-foreground',
-      )}
-      aria-hidden="true"
-    >
-      {String(index + 1).padStart(2, '0')}
-    </span>
-  )
-}
 
 const AREA_PATHS: Readonly<Record<string, string>> = {
   'nav.bookings': 'M3 6.2h10M4.6 3.4v1.6M11.4 3.4v1.6M3 6.2h10v6.4H3z',
@@ -118,6 +91,20 @@ function AreaIcon({ id }: { id: string }) {
         d={AREA_PATHS[id] ?? 'M3 4h10M3 8h10M3 12h6'}
         stroke="currentColor"
         strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function TickGlyph() {
+  return (
+    <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden="true">
+      <path
+        d="m4 8.4 2.6 2.6L12 5.6"
+        stroke="currentColor"
+        strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -334,53 +321,104 @@ export function WebsiteDashboardHome({
         </div>
       </Card>
 
-      {/* Tall card spanning both rows, with the nested dark checklist. */}
+      {/* Tall card spanning both rows: the reference's onboarding panel, with a
+          segmented progress row above an ordered task list. */}
       <Card className="flex flex-col lg:row-span-2">
-        <div className="flex items-baseline justify-between">
-          <CardTitle>Onboarding</CardTitle>
-          <span className="text-sm font-semibold text-foreground">{percent}%</span>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <CardTitle>Onboarding</CardTitle>
+            <CardCaption className="mt-1">
+              {remaining === 0
+                ? 'Everything is set up'
+                : `${remaining} ${remaining === 1 ? 'task' : 'tasks'} left`}
+            </CardCaption>
+          </div>
+          <span className="shrink-0 text-2xl leading-none font-semibold tracking-tight text-foreground">
+            {percent}%
+          </span>
         </div>
-        <div className="mt-4 flex items-end gap-1.5">
-          {[
-            { label: `${percent}%`, className: 'bg-primary' },
-            { label: `${Math.max(0, 100 - percent)}%`, className: 'bg-foreground' },
-            { label: '0%', className: 'bg-accent' },
-          ].map((segment) => (
-            <span key={segment.label + segment.className} className="flex-1">
-              <span className="mb-1.5 block text-[0.625rem] text-muted-foreground">{segment.label}</span>
-              <span className={cn('block h-2 rounded-full', segment.className)} />
-            </span>
+
+        {/* Segmented progress: one segment per step, filled as each completes. */}
+        <div className="mt-4 flex items-center gap-1" aria-hidden="true">
+          {steps.map((step, index) => (
+            <span
+              key={step.id}
+              className={cn(
+                'h-1.5 flex-1 rounded-full',
+                step.completed
+                  ? 'bg-primary'
+                  : index === nextIndex
+                    ? 'bg-primary/35'
+                    : 'bg-accent',
+              )}
+            />
           ))}
         </div>
-        <div className="mt-4 flex-1 rounded-[var(--radius-md)] border border-border bg-muted p-4">
-          <div className="flex items-baseline justify-between text-foreground">
-            <p className="text-sm font-medium">Onboarding task</p>
-            <p className="text-sm font-semibold">{completed}/{steps.length}</p>
-          </div>
-          <ul className="mt-4 space-y-3.5">
-            {steps.map((step, index) => (
-              <li key={step.id} className="flex items-center gap-3">
-                <StepTile index={index} />
-                <span className="min-w-0 flex-1">
+
+        <ol className="mt-5 flex-1 space-y-2">
+          {steps.map((step, index) => {
+            const isNext = index === nextIndex
+            return (
+              <li key={step.id}>
+                <div
+                  className={cn(
+                    'flex items-start gap-3 rounded-[var(--radius-md)] border p-3 transition-colors',
+                    isNext
+                      ? 'border-primary/45 bg-primary/[0.06]'
+                      : step.completed
+                        ? 'border-border/60 bg-transparent'
+                        : 'border-border bg-muted/60',
+                  )}
+                >
                   <span
                     className={cn(
-                      'block truncate text-xs',
+                      'inline-flex size-7 shrink-0 items-center justify-center rounded-[0.5rem]',
+                      'text-[0.625rem] font-semibold tabular-nums',
                       step.completed
-                        ? 'text-muted-foreground line-through'
-                        : 'text-foreground',
+                        ? 'bg-primary text-primary-foreground'
+                        : isNext
+                          ? 'border border-primary/50 bg-card text-primary'
+                          : 'border border-border bg-card text-muted-foreground',
                     )}
+                    aria-hidden="true"
                   >
-                    {step.title}
+                    {step.completed ? <TickGlyph /> : String(index + 1).padStart(2, '0')}
                   </span>
-                  <span className="block truncate text-[0.625rem] text-muted-foreground">
-                    {step.description}
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className={cn(
+                        'block text-[0.8125rem] leading-snug font-medium',
+                        step.completed ? 'text-muted-foreground line-through' : 'text-foreground',
+                      )}
+                    >
+                      {step.title}
+                    </span>
+                    <span className="mt-0.5 block text-[0.6875rem] leading-relaxed text-muted-foreground">
+                      {step.description}
+                    </span>
                   </span>
-                </span>
-                <CheckMark done={step.completed} />
+                  {isNext ? (
+                    <Badge variant="accent" size="sm" className="shrink-0">Next</Badge>
+                  ) : step.completed ? (
+                    <span className="sr-only">Done</span>
+                  ) : (
+                    <span
+                      className="mt-1.5 size-2 shrink-0 rounded-full bg-border"
+                      aria-hidden="true"
+                    />
+                  )}
+                </div>
               </li>
-            ))}
-          </ul>
-        </div>
+            )
+          })}
+        </ol>
+
+        <p className="mt-4 flex items-baseline justify-between text-[0.6875rem] text-muted-foreground">
+          <span>Progress</span>
+          <span className="font-medium tabular-nums text-foreground">
+            {completed}/{steps.length}
+          </span>
+        </p>
       </Card>
 
       {/* Accordion list, first column second row. The reference expands one row
