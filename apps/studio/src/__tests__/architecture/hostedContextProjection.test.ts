@@ -44,7 +44,10 @@ describe('hosted accessible context projection', () => {
     expect(server).toContain('permissionInput(readAuthorization(authorization))')
     expect(server).not.toContain('{ permissions: unknown }).permissions)')
     expect(hook).toContain('permissionState[permissionId] = true')
-    expect(hook).toContain("decision: 'allow' as const")
+    // PermissionDecision is a distinct contract (subject + provenance source).
+    // Fabricating it crashed the profile editor with "Expected union value".
+    expect(hook).not.toContain('as unknown as PermissionDecision')
+    expect(hook).not.toContain("decision: 'allow' as const")
     expect(entry).toContain('permissionState={projection.permissionState}')
     expect(entry).toContain('permissionDecisions={projection.permissionDecisions}')
   })
