@@ -39,6 +39,7 @@ jobs:
           FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN: ${{ secrets.FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN }}
           FUMA_CONTROL_RUNTIME_SECRET: ${{ secrets.FUMA_CONTROL_RUNTIME_SECRET }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          INSTATIC_SECRET_KEY: ${{ secrets.INSTATIC_SECRET_KEY }}
           FUMA_OBJECT_ACCESS_SIGNING_SECRET: ${{ secrets.FUMA_OBJECT_ACCESS_SIGNING_SECRET }}
           FUMA_AI_BYOK_METADATA_KEY: ${{ secrets.FUMA_AI_BYOK_METADATA_KEY }}
           FUMA_EXPERT_INQUIRY_KEY: ${{ secrets.FUMA_EXPERT_INQUIRY_KEY }}
@@ -77,6 +78,10 @@ jobs:
           inject FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN "${FUMA_PUBLIC_PROJECTION_SERVICE_TOKEN:-}"
           inject FUMA_CONTROL_RUNTIME_SECRET "${FUMA_CONTROL_RUNTIME_SECRET:-}"
           inject BETTER_AUTH_SECRET "${BETTER_AUTH_SECRET:-}"
+          # Master key for reversible server secrets — AI provider credentials and
+          # MFA TOTP seeds. Without it the runtime refuses to store either, which
+          # is why adding an AI credential failed in production.
+          inject INSTATIC_SECRET_KEY "${INSTATIC_SECRET_KEY:-}"
           inject FUMA_OBJECT_ACCESS_SIGNING_SECRET "${FUMA_OBJECT_ACCESS_SIGNING_SECRET:-}"
           inject FUMA_AI_BYOK_METADATA_KEY "${FUMA_AI_BYOK_METADATA_KEY:-}"
           inject FUMA_EXPERT_INQUIRY_KEY "${FUMA_EXPERT_INQUIRY_KEY:-}"
@@ -114,6 +119,7 @@ jobs:
             done
           }
           check_class 'runtime role' FUMA_ROLE
+          check_class 'secret encryption' INSTATIC_SECRET_KEY
           check_class 'PostgreSQL' DATABASE_URL POSTGRES_USER POSTGRES_PASSWORD
           check_class 'Redis' FUMA_REDIS_URL
           check_class 'MinIO' FUMA_MINIO_ENDPOINT FUMA_MINIO_ACCESS_KEY_ID FUMA_MINIO_SECRET_ACCESS_KEY FUMA_MINIO_BUCKET
