@@ -121,18 +121,19 @@ export function WebsiteDashboardShell({
     <div
       className={cn(
         'fuma-hosted h-full overflow-y-auto',
-        'bg-dash-surface bg-[radial-gradient(120%_100%_at_92%_108%,var(--color-dash-wash)_0%,transparent_60%)]',
+        'bg-background bg-[radial-gradient(120%_100%_at_92%_108%,var(--surface-wash)_0%,transparent_60%)]',
       )}
     >
-      <div className="mx-auto w-full max-w-[1680px] px-4 py-5 sm:px-8 sm:py-7">
-        <header className="flex flex-wrap items-center justify-between gap-3">
+      <div className="mx-auto w-full max-w-[1680px] px-3 py-4 sm:px-6 sm:py-6 xl:px-10 xl:py-8">
+        <header className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
           <p
             className={cn(
-              'inline-flex h-11 items-center rounded-full border border-dash-hairline',
-              'px-5 text-[0.95rem] font-semibold tracking-tight text-dash-ink',
+              'inline-flex h-10 min-w-0 max-w-[60vw] items-center rounded-full border border-border',
+              'px-4 text-sm font-semibold tracking-tight text-foreground',
+              'sm:h-11 sm:px-5 sm:text-[0.95rem]',
             )}
           >
-            {siteName}
+            <span className="truncate">{siteName}</span>
           </p>
 
           <nav
@@ -141,8 +142,8 @@ export function WebsiteDashboardShell({
           >
             <ul
               className={cn(
-                'flex flex-wrap items-center gap-0.5 rounded-full border border-dash-hairline',
-                'bg-dash-card/70 p-1 lg:flex-nowrap',
+                'flex items-center gap-0.5 overflow-x-auto rounded-full border border-border',
+                'bg-card/70 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
               )}
             >
               {navigation.map((entry) => {
@@ -154,10 +155,11 @@ export function WebsiteDashboardShell({
                       to={entry.path}
                       aria-current={active ? 'page' : undefined}
                       className={cn(
-                        'inline-flex h-9 items-center rounded-full px-3.5 text-[0.8125rem] transition-colors',
+                        'inline-flex h-9 shrink-0 items-center rounded-full px-3 text-[0.8125rem]',
+                        'whitespace-nowrap transition-colors sm:px-3.5',
                         active
-                          ? 'bg-dash-ink font-medium text-dash-surface'
-                          : 'text-dash-ink-soft hover:bg-dash-rail hover:text-dash-ink',
+                          ? 'bg-foreground font-medium text-background'
+                          : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                       )}
                     >
                       {entry.label}
@@ -173,18 +175,19 @@ export function WebsiteDashboardShell({
               <Link
                 to={settingsPath}
                 className={cn(
-                  'inline-flex h-11 items-center gap-2 rounded-full border border-dash-hairline',
-                  'px-4 text-[0.8125rem] text-dash-ink-soft transition-colors hover:text-dash-ink',
+                  'inline-flex size-10 items-center justify-center gap-2 rounded-full border border-border',
+                  'text-muted-foreground transition-colors hover:text-foreground',
+                  'sm:size-auto sm:h-11 sm:px-4 sm:text-[0.8125rem]',
                 )}
               >
                 <GearIcon />
-                Setting
+                <span className="hidden sm:inline">Setting</span>
               </Link>
             ) : null}
             <span
               className={cn(
-                'inline-flex size-11 items-center justify-center rounded-full',
-                'border border-dash-hairline text-dash-ink-soft',
+                'hidden size-11 items-center justify-center rounded-full',
+                'border border-border text-muted-foreground sm:inline-flex',
               )}
               title="Notifications"
             >
@@ -193,13 +196,13 @@ export function WebsiteDashboardShell({
             </span>
             <Link
               to={accountPath}
-              className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dash-ink"
+              className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               title={actorLabel}
             >
-              <Avatar name={actorLabel} className="size-11 border border-dash-hairline bg-dash-card" />
+              <Avatar name={actorLabel} className="size-10 border border-border bg-card sm:size-11" />
               <span className="sr-only">Account</span>
             </Link>
-            <ThemeToggle className="text-dash-ink-soft hover:bg-dash-rail hover:text-dash-ink focus-visible:outline-dash-ink" />
+            <ThemeToggle className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-ring" />
             {onSignOut ? (
               <Button variant="quiet" size="sm" onClick={onSignOut} disabled={signingOut} aria-busy={signingOut}>
                 {signingOut ? 'Signing out' : 'Sign out'}
@@ -208,57 +211,62 @@ export function WebsiteDashboardShell({
           </div>
         </header>
 
-        <h1 className="mt-7 text-[2.4rem] leading-none font-semibold tracking-tight text-dash-ink sm:text-[2.75rem]">
+        <h1
+          className={cn(
+            'mt-5 text-[1.75rem] leading-tight font-semibold tracking-tight text-foreground',
+            'sm:mt-7 sm:text-[2.4rem] sm:leading-none xl:text-[2.75rem]',
+          )}
+        >
           Welcome in, {firstName(actorLabel)}
         </h1>
 
-        <div className="mt-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-6">
-          <dl className="flex flex-wrap items-end gap-6">
+        <div className="mt-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-5 sm:mt-6 sm:gap-x-8">
+          <dl className="flex min-w-0 flex-wrap items-end gap-4 sm:gap-6">
             <div>
-              <dt className="text-xs text-dash-ink-muted">Setup</dt>
+              <dt className="text-xs text-muted-foreground">Setup</dt>
               <dd className="mt-2">
                 <Badge variant="solid" size="md">{setupPercent}%</Badge>
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-dash-ink-muted">Profile</dt>
+              <dt className="text-xs text-muted-foreground">Profile</dt>
               <dd className="mt-2">
                 <Badge variant="accent" size="md">Website</Badge>
               </dd>
             </div>
             <div className="min-w-[180px] flex-1">
-              <dt className="text-xs text-dash-ink-muted">{workspaceName}</dt>
+              <dt className="text-xs text-muted-foreground">{workspaceName}</dt>
               <dd className="mt-2">
                 <div
                   className="h-8 w-full overflow-hidden rounded-full"
                   style={{
                     backgroundImage:
-                      'repeating-linear-gradient(115deg, var(--color-dash-rail) 0 6px, transparent 6px 11px)',
+                      'repeating-linear-gradient(115deg, var(--accent) 0 6px, transparent 6px 11px)',
                   }}
                 >
                   <div
-                    className="h-full rounded-full bg-dash-accent-soft"
+                    className="h-full rounded-full bg-primary/30"
                     style={{ width: `${setupPercent}%` }}
                   />
                 </div>
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-dash-ink-muted">Organization</dt>
+              <dt className="text-xs text-muted-foreground">Organization</dt>
               <dd className="mt-2">
                 <Badge variant="outline" size="md">{organizationName}</Badge>
               </dd>
             </div>
           </dl>
 
-          <div className="flex items-end gap-9">
+          <div className="flex flex-wrap items-end gap-6 sm:gap-9">
             <Stat value={counts.sites} label="Sites" icon={<SiteIcon />} />
             <Stat value={counts.workspaces} label="Workspaces" icon={<StackIcon />} />
             <Stat value={counts.organizations} label="Organizations" icon={<OrgIcon />} />
           </div>
         </div>
 
-        <main className="mt-7">{children}</main>
+        <main className="mt-6 sm:mt-7">{children}</main>
       </div>
     </div>
   )

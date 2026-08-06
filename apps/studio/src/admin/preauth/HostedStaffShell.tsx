@@ -38,7 +38,9 @@ import { Value } from '@core/utils/typeboxHelpers'
 import { Button } from '@ui/components/Button'
 import panelStyles from '../AdminEntry.module.css'
 import { HostedStaffSecurity } from './HostedStaffSecurity'
-import { HostedThemeProvider } from '../fuma/ui/theme'
+import { HostedThemeProvider, ThemeToggle } from '../fuma/ui/theme'
+import { PlatformOverview } from '../fuma/dashboards/PlatformOverview'
+import { Avatar, Button as HostedButton } from '../fuma/ui/primitives'
 import styles from './HostedStaffShell.module.css'
 
 const EMPTY_ACCESSIBLE_CONTEXT_CATALOG: AccessibleContextCatalog = {
@@ -140,14 +142,10 @@ const SCOPED_PATTERN =
   /^\/admin\/organizations\/([^/]+)\/workspaces\/([^/]+)\/sites\/([^/]+)(\/.*)?$/
 
 /**
- * Subpaths a profile dashboard renders itself, inside its own shell. Anything
- * else keeps the shared scoped chrome.
+ * Every route of a profile that ships a dedicated dashboard renders inside that
+ * dashboard's shell, so one navigation and one design language cover the whole
+ * profile instead of some routes falling back to generic chrome.
  */
-const DEDICATED_DASHBOARD_SUBPATHS: Readonly<Record<string, ReadonlySet<string>>> = {
-  website: new Set(['', '/', '/bookings']),
-  publication: new Set(['', '/']),
-}
-
 function dedicatedDashboardLayout(
   pathname: string,
   catalog: AccessibleContextCatalog,
@@ -161,9 +159,7 @@ function dedicatedDashboardLayout(
     return 'panel'
   }
   const site = catalog.sites.find((entry) => entry.id === siteId)
-  if (!site || !DEDICATED_DASHBOARD_PROFILES.has(site.profileId)) return 'panel'
-  const subpath = match[4] ?? ''
-  return DEDICATED_DASHBOARD_SUBPATHS[site.profileId]?.has(subpath) ? 'bare' : 'panel'
+  return site && DEDICATED_DASHBOARD_PROFILES.has(site.profileId) ? 'bare' : 'panel'
 }
 
 export function HostedStaffShell({
@@ -320,6 +316,49 @@ export function HostedStaffShell({
   }
 
   const dashboardLayout = dedicatedDashboardLayout(pathname, catalogValidation.catalog)
+  const platformHome = pathname === '/admin' || pathname === '/admin/'
+
+  if (platformHome) {
+    return (
+      <HostedThemeProvider>
+        <div className="fuma-hosted h-full overflow-y-auto bg-background">
+          <div className="mx-auto w-full max-w-[1400px] px-3 py-4 sm:px-6 sm:py-6 xl:px-10 xl:py-8">
+            <header className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Platform</p>
+                <h1 className="mt-1 truncate text-2xl leading-tight font-semibold tracking-tight text-foreground sm:text-3xl">
+                  Welcome, {currentSession.user.name}
+                </h1>
+              </div>
+              <div className="flex items-center gap-2">
+                <ThemeToggle className="text-muted-foreground hover:bg-accent hover:text-foreground" />
+                <a href={ACCOUNT_PATH} className="rounded-full">
+                  <Avatar name={currentSession.user.name} className="size-10 border border-border bg-card" />
+                  <span className="sr-only">Account</span>
+                </a>
+                <HostedButton
+                  variant="quiet"
+                  size="sm"
+                  disabled={signingOut}
+                  aria-busy={signingOut}
+                  onClick={() => void signOut()}
+                >
+                  {signingOut ? 'Signing out' : 'Sign out'}
+                </HostedButton>
+              </div>
+            </header>
+            {error && <p className="mt-4 text-sm text-destructive" role="alert">{error}</p>}
+            <main className="mt-6">
+              <PlatformOverview
+                catalog={catalogValidation.catalog}
+                planPath={null}
+              />
+            </main>
+          </div>
+        </div>
+      </HostedThemeProvider>
+    )
+  }
 
   const scopedShell = (
     <>
@@ -332,25 +371,9 @@ export function HostedStaffShell({
         permissionState={permissionState}
         layout={dashboardLayout}
       >
-        {(shell) => isWebsiteDashboardRoute(shell) ? (
-          <WebsiteDashboardRoute
-            shell={shell}
-            catalog={catalogValidation.catalog}
-            actorLabel={currentSession.user.name}
-            accountPath={ACCOUNT_PATH}
-            onSignOut={() => void signOut()}
-            signingOut={signingOut}
-          />
-        ) : isPublicationDashboardRoute(shell) ? (
-          <PublicationDashboardRoute
-            shell={shell}
-            actorLabel={currentSession.user.name}
-            accountPath={ACCOUNT_PATH}
-            onSignOut={() => void signOut()}
-            signingOut={signingOut}
-          />
-        ) : (
-          <>
+        {(shell) => {
+          const routeContent = (
+            <>
             <PublicationRouteContent shell={shell} permissionDecisions={permissionDecisions} />
             <CreditsLedgerRouteContent shell={shell} />
             <DomainsRouteContent shell={shell} permissionDecisions={permissionDecisions} />
@@ -369,13 +392,42 @@ export function HostedStaffShell({
             />
             <CustomerCapabilityDashboardRouteContent shell={shell} />
             <BookingsRouteContent shell={shell} />
-            <HostedProfileEditorSurface
-              shell={shell}
-              permissionDecisions={permissionDecisions}
-              renderAdapter={editorRenderAdapter}
-            />
-          </>
-        )}
+              <HostedProfileEditorSurface
+                shell={shell}
+                permissionDecisions={permissionDecisions}
+                renderAdapter={editorRenderAdapter}
+              />
+            </>
+          )
+          if (isWebsiteDashboardRoute(shell)) {
+            return (
+              <WebsiteDashboardRoute
+                shell={shell}
+                catalog={catalogValidation.catalog}
+                actorLabel={currentSession.user.name}
+                accountPath={ACCOUNT_PATH}
+                onSignOut={() => void signOut()}
+                signingOut={signingOut}
+              >
+                {routeContent}
+              </WebsiteDashboardRoute>
+            )
+          }
+          if (isPublicationDashboardRoute(shell)) {
+            return (
+              <PublicationDashboardRoute
+                shell={shell}
+                actorLabel={currentSession.user.name}
+                accountPath={ACCOUNT_PATH}
+                onSignOut={() => void signOut()}
+                signingOut={signingOut}
+              >
+                {routeContent}
+              </PublicationDashboardRoute>
+            )
+          }
+          return routeContent
+        }}
       </FumaScopedShell>
     </>
   )
