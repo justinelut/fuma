@@ -339,23 +339,26 @@ export function WebsiteDashboardHome({
         </div>
 
         {/* Segmented progress: one segment per step, filled as each completes. */}
-        <div className="mt-4 flex items-center gap-1" aria-hidden="true">
+        <div className="mt-6 mb-1 flex items-center gap-1.5" aria-hidden="true">
           {steps.map((step, index) => (
             <span
               key={step.id}
               className={cn(
-                'h-1.5 flex-1 rounded-full',
+                'h-2.5 flex-1 rounded-full transition-colors',
                 step.completed
                   ? 'bg-primary'
                   : index === nextIndex
-                    ? 'bg-primary/35'
+                    ? 'bg-primary/40'
                     : 'bg-accent',
               )}
             />
           ))}
         </div>
+        <p className="mt-2.5 text-[0.6875rem] text-muted-foreground">
+          {completed} of {steps.length} complete
+        </p>
 
-        <ol className="mt-5 flex-1 space-y-2">
+        <ol className="mt-6 flex-1 space-y-2.5">
           {steps.map((step, index) => {
             const isNext = index === nextIndex
             return (
@@ -413,12 +416,6 @@ export function WebsiteDashboardHome({
           })}
         </ol>
 
-        <p className="mt-4 flex items-baseline justify-between text-[0.6875rem] text-muted-foreground">
-          <span>Progress</span>
-          <span className="font-medium tabular-nums text-foreground">
-            {completed}/{steps.length}
-          </span>
-        </p>
       </Card>
 
       {/* Accordion list, first column second row. The reference expands one row
@@ -483,13 +480,17 @@ export function WebsiteDashboardHome({
         </ul>
       </Card>
 
-      {/* Wide card across the middle columns, the reference's calendar slot. */}
-      <Card className="lg:col-span-2">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <CardTitle>Visual builder</CardTitle>
-          <CardCaption>Everything about the site itself lives here</CardCaption>
+      {/* A plain section, not a card of cards: the tiles are the surfaces here. */}
+      <section className="lg:col-span-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 px-1">
+          <h2 className="text-[0.9375rem] leading-snug font-semibold tracking-tight text-foreground">
+            Visual builder
+          </h2>
+          <p className="text-[0.6875rem] text-muted-foreground">
+            Everything about the site itself lives here
+          </p>
         </div>
-        <ul className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {BUILDER_SECTIONS.map((section) => (
             <li key={section.path}>
               <a
@@ -509,7 +510,7 @@ export function WebsiteDashboardHome({
             </li>
           ))}
         </ul>
-      </Card>
+      </section>
     </div>
   )
 }
