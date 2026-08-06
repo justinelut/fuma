@@ -12,6 +12,9 @@
 
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/utilities.css' layer(utilities);
+/*---break---
+ */
+@custom-variant dark (&:is(.dark *));
 
 @theme {
   --color-background: #000000;
@@ -32,11 +35,76 @@
   --color-signal-bright: #6f92ff;
   --color-danger: #ff8b8b;
 
+  /**
+   * Remaining shadcn contract tokens. The components installed under
+   * `src/admin/fuma/ui` reference the full set, so every one is defined here
+   * rather than left to resolve as an invalid utility.
+   */
+  --color-card-foreground: #ffffff;
+  --color-popover-foreground: #ffffff;
+  --color-primary-foreground: #000000;
+  --color-secondary-foreground: #ffffff;
+  --color-accent: rgba(255, 255, 255, 0.08);
+  --color-accent-foreground: #ffffff;
+  --color-destructive: #ff6b6b;
+  --color-destructive-foreground: #000000;
+  --color-ring: #3f6bff;
+  --color-chart-1: #3f6bff;
+  --color-chart-2: #f5c842;
+  --color-chart-3: #ff2d8a;
+  --color-chart-4: #4bd07a;
+  --color-chart-5: #8e5bff;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
   --font-sans: 'Inter Variable', system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   --radius-control: 0.5rem;
   --radius-surface: 0.75rem;
+
+  /**
+   * Dribbble dashboard palette — Website and Bookings profiles.
+   *
+   * A warm ivory application surface carrying white cards, near-black
+   * emphasis and one signature yellow. Measured from
+   * docs/reference/design/dribbble-website-dashboard.png.
+   */
+  --color-dash-backdrop: #9ba1a8;
+  --color-dash-surface: #fdfcf8;
+  --color-dash-wash: #f4ecd2;
+  --color-dash-card: #ffffff;
+  --color-dash-card-warm: #fbf7e9;
+  --color-dash-ink: #171717;
+  --color-dash-ink-soft: #5c5c5c;
+  --color-dash-ink-muted: #9a9a9a;
+  --color-dash-hairline: rgba(23, 23, 23, 0.08);
+  --color-dash-rail: #eceae2;
+  --color-dash-accent: #f5c842;
+  --color-dash-accent-soft: #fbe6a2;
+
+  --radius-bento: 1.25rem;
+  --radius-bento-inner: 0.875rem;
+  --radius-app: 1.75rem;
+
+  /**
+   * Ghost publication palette — Publication profile.
+   *
+   * Measured from docs/reference/design/ghost-publication-dashboard.webp.
+   */
+  --color-ghost-sidebar: #0f0f0f;
+  --color-ghost-canvas: #121212;
+  --color-ghost-card: #171717;
+  --color-ghost-hairline: #2a2a2a;
+  --color-ghost-ink: #f5f5f5;
+  --color-ghost-ink-soft: rgba(245, 245, 245, 0.62);
+  --color-ghost-ink-muted: rgba(245, 245, 245, 0.38);
+  --color-ghost-series: #ff2d8a;
+  --color-ghost-series-alt: #8e5bff;
+  --color-ghost-positive: #4bd07a;
 }
 
 /**
@@ -47,4 +115,40 @@
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
+}
+/*---break---
+ */
+:root {
+  --sidebar: hsl(0 0% 98%);
+  --sidebar-foreground: hsl(240 5.3% 26.1%);
+  --sidebar-primary: hsl(240 5.9% 10%);
+  --sidebar-primary-foreground: hsl(0 0% 98%);
+  --sidebar-accent: hsl(240 4.8% 95.9%);
+  --sidebar-accent-foreground: hsl(240 5.9% 10%);
+  --sidebar-border: hsl(220 13% 91%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+/*---break---
+ */
+.dark {
+  --sidebar: hsl(240 5.9% 10%);
+  --sidebar-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-primary: hsl(224.3 76.3% 48%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(240 3.7% 15.9%);
+  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-border: hsl(240 3.7% 15.9%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+/*---break---
+ */
+@theme inline {
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 }

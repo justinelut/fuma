@@ -4,7 +4,7 @@ import { createFumaRegistry } from './registry'
 export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
   {
     id: 'site.home',
-    navigation: [{ id: 'nav.home', order: 10, label: 'Home', path: '/admin' }],
+    navigation: [{ id: 'nav.home', order: 10, label: 'Dashboard', path: '/admin' }],
     permissions: [{
       id: 'site.home.read',
       label: 'View home',
@@ -14,7 +14,6 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
   },
   {
     id: 'content.pages',
-    navigation: [{ id: 'nav.pages', order: 30, label: 'Pages', path: '/admin/pages', permission: 'content.pages.read' }],
     onboarding: [{
       id: 'onboarding.pages',
       order: 30,
@@ -35,13 +34,11 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
   },
   {
     id: 'website.content',
-    navigation: [{ id: 'nav.content', order: 20, label: 'Content', path: '/admin/content', permission: 'website.content.read' }],
     permissions: [{ id: 'website.content.read', label: 'View content', description: 'View structured website content.' }],
     routes: [{ id: 'route.content', method: 'GET', path: '/admin/content', permission: 'website.content.read' }],
   },
   {
     id: 'website.data',
-    navigation: [{ id: 'nav.data', order: 40, label: 'Data', path: '/admin/data', permission: 'website.data.read' }],
     permissions: [{ id: 'website.data.read', label: 'View data', description: 'View structured site data.' }],
     routes: [{ id: 'route.data', method: 'GET', path: '/admin/data', permission: 'website.data.read' }],
   },
@@ -62,7 +59,6 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
   },
   {
     id: 'website.media',
-    navigation: [{ id: 'nav.media', order: 50, label: 'Media', path: '/admin/media', permission: 'website.media.read' }],
     onboarding: [{
       id: 'onboarding.media',
       order: 40,
@@ -80,7 +76,15 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
   },
   {
     id: 'website.design',
-    navigation: [{ id: 'nav.design', order: 80, label: 'Design', path: '/admin/design', permission: 'website.design.read' }],
+    navigation: [{
+      id: 'nav.builder',
+      order: 15,
+      // Site design is Instatic's. Selecting this hands the whole viewport to
+      // it, the way a Ghost publication opens its theme editor.
+      label: 'Design',
+      path: '/admin/builder',
+      permission: 'website.design.read',
+    }],
     onboarding: [{
       id: 'onboarding.design',
       order: 20,
@@ -92,7 +96,7 @@ export const LAUNCH_CAPABILITIES: readonly CapabilityDefinition[] = [
       { id: 'website.design.read', label: 'View design', description: 'View the visual design workspace.' },
       { id: 'website.design.write', label: 'Edit design', description: 'Edit templates, styles, and layouts.' },
     ],
-    routes: [{ id: 'route.design', method: 'GET', path: '/admin/design', permission: 'website.design.read' }],
+    routes: [{ id: 'route.builder', method: 'GET', path: '/admin/builder', permission: 'website.design.read' }],
     transfer: [{ id: 'transfer.design', stepId: 'transfer.design.assets', permission: 'website.design.write' }],
   },
   {
@@ -288,12 +292,8 @@ export const LAUNCH_PROFILES: readonly ProductProfile[] = [
     ],
     navigationPreset: [
       'nav.home',
-      'nav.content',
-      'nav.pages',
-      'nav.data',
-      'nav.media',
+      'nav.builder',
       'nav.website-analytics',
-      'nav.design',
       'nav.domains',
       'nav.team',
       'nav.settings',
@@ -322,13 +322,12 @@ export const LAUNCH_PROFILES: readonly ProductProfile[] = [
     ],
     navigationPreset: [
       'nav.home',
+      'nav.builder',
       'nav.posts',
-      'nav.pages',
       'nav.tags',
       'nav.members',
       'nav.newsletters',
       'nav.publication-analytics',
-      'nav.design',
       'nav.domains',
       'nav.team',
       'nav.settings',
@@ -337,7 +336,7 @@ export const LAUNCH_PROFILES: readonly ProductProfile[] = [
       id: 'navigation.editor',
       label: 'Editor',
       defaultCollapsed: true,
-      navigationIds: ['nav.design'],
+      navigationIds: ['nav.builder'],
     }],
     onboardingPreset: [
       'onboarding.identity',

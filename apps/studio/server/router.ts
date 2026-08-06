@@ -26,6 +26,7 @@ import { mediaStorageRegistry } from '@core/plugins/mediaStorageRegistry'
 import type { HostedStaffAuthBoundary } from './auth/hosted/routes'
 import type { CentralStaffHandoffBoundary } from './auth/hosted/centralStaffHandoff'
 import type { AccessibleContextCatalogBoundary } from './fuma/context/accessibleCatalog'
+import type { BuilderSessionBoundary } from './fuma/builder/builderIdentity'
 import type { FumaScopedRouteBoundary } from './fuma/context'
 import type { PublicProjectionBoundary } from './fuma/publicProjections'
 import type { PublicHandoffAppBoundary } from './fuma/publicHandoff'
@@ -53,6 +54,7 @@ export interface ServerRuntime {
   hostedStaffAuth?: HostedStaffAuthBoundary
   centralStaffHandoff?: CentralStaffHandoffBoundary
   accessibleContextCatalog?: AccessibleContextCatalogBoundary
+  builderSession?: BuilderSessionBoundary
   publicProjections?: PublicProjectionBoundary
   publicHandoff?: PublicHandoffAppBoundary
   publicationPublic?: PublicationPublicBoundary
@@ -101,6 +103,7 @@ const routes: readonly RouteHandler[] = [
   tryServeEntitlementAdmin,
   tryServePlatformConsole,
   tryServePublicMarketingAnalyticsAdmin,
+  tryServeBuilderSession,
   tryServeAccessibleContextCatalog,
   tryServeHostedSiteOnboarding,
   tryServeWorkspaceManagement,
@@ -196,6 +199,11 @@ async function tryServePlatformConsole(req: Request, runtime: ServerRuntime): Pr
 async function tryServePublicMarketingAnalyticsAdmin(req: Request, runtime: ServerRuntime): Promise<Response | null> {
   if (!runtime.publicMarketingAnalyticsAdmin?.handles(req)) return null
   return await runtime.publicMarketingAnalyticsAdmin.handle(req)
+}
+
+async function tryServeBuilderSession(req: Request, runtime: ServerRuntime): Promise<Response | null> {
+  if (!runtime.builderSession?.handles(req)) return null
+  return await runtime.builderSession.handle(req)
 }
 
 async function tryServeAccessibleContextCatalog(req: Request, runtime: ServerRuntime): Promise<Response | null> {

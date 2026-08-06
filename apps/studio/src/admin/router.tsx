@@ -63,8 +63,18 @@ export function AdminRoutes({ hostedContextCatalog }: AdminRoutesProps = {}) {
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+      {/* Hosted staff land on the platform, whose home resolves their scope.
+          Self-hosted installs have no platform layer, so `/admin` is Instatic's
+          own dashboard. Instatic keeps every `/admin/<section>` path in both
+          modes, which is what makes its internal navigation work unchanged
+          after the hosted product hands over the viewport. */}
+      <Route path="/" element={<Navigate to={hosted ? '/admin' : '/admin/dashboard'} replace />} />
+      <Route
+        path="/admin"
+        element={hosted
+          ? withRouteBoundary(<AdminEntry hostedContextCatalog={hostedContextCatalog} />)
+          : <Navigate to="/admin/dashboard" replace />}
+      />
       {hosted ? (
         <Route path="/admin/internal/*" element={withRouteBoundary(<AdminEntry platformAdmin hostedContextCatalog={hostedContextCatalog} />)} />
       ) : null}
@@ -122,7 +132,7 @@ export function AdminRoutes({ hostedContextCatalog }: AdminRoutesProps = {}) {
           pipeline's NotFound template) and must never be swallowed by the
           admin SPA. MUST stay the last route: <Routes> takes the first match
           in declaration order. */}
-      <Route path="/admin/*" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route path="/admin/*" element={<Navigate to={hosted ? '/admin' : '/admin/dashboard'} replace />} />
     </Routes>
   )
 }

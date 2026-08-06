@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles/hosted.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@admin/fuma/ui",
+    "utils": "@admin/fuma/ui/cn",
+    "ui": "@admin/fuma/ui",
+    "lib": "@admin/fuma/ui",
+    "hooks": "@admin/fuma/ui/hooks"
+  }
+}

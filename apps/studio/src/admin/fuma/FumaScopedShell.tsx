@@ -67,6 +67,8 @@ export type FumaScopedShellReadyContext = Readonly<{
   permissionState: NavigationPermissionState
   profileRelativeSubpath: ProfileRelativeSubpath
   routeAccess: ProfileRouteAccess
+  /** Composed setup state, so a profile dashboard shows real progress. */
+  onboarding: ProfileOnboardingState
 }>
 
 export type FumaScopedShellChildren =
@@ -86,6 +88,12 @@ export interface FumaScopedShellProps {
   switcherSlot?: FumaScopedShellSwitcherSlot
   onContextSwitch?: FumaContextSwitchHandler
   preferenceStorage?: ContextPreferenceStorage
+  /**
+   * `panel` keeps the generic scoped chrome. `bare` renders only the resolved
+   * children, for profiles that ship a dedicated dashboard owning its own
+   * navigation and layout.
+   */
+  layout?: 'panel' | 'bare'
   children?: FumaScopedShellChildren
 }
 
@@ -303,6 +311,7 @@ export function FumaScopedShell({
   switcherSlot,
   onContextSwitch,
   preferenceStorage,
+  layout = 'panel',
   children,
 }: FumaScopedShellProps) {
   const readyPermissionState = Object.freeze({ ...permissionState })
@@ -371,6 +380,7 @@ export function FumaScopedShell({
     permissionState: readyPermissionState,
     profileRelativeSubpath: resolution.profileRelativeSubpath,
     routeAccess: model.routeAccess,
+    onboarding: model.onboarding,
   })
   const renderedChildren = showingManagedClients || model.routeAccess.kind === 'denied'
     ? null
@@ -388,6 +398,20 @@ export function FumaScopedShell({
     : typeof switcherSlot === 'function'
       ? switcherSlot(switcherModel(catalog, resolution))
       : switcherSlot
+
+  // A dedicated profile dashboard supplies its own navigation, header and
+  // setup surface, so the generic chrome would duplicate all three.
+  if (layout === 'bare') {
+    return (
+      <section
+        aria-label="Fuma scoped admin shell"
+        data-resolution-kind="ready"
+        data-profile-id={profile.id}
+      >
+        {renderedChildren}
+      </section>
+    )
+  }
 
   return (
     <section
@@ -452,16 +476,17 @@ export function FumaScopedShell({
               />
             </div>
           ) : (
-            <>
-              {renderedChildren !== null && renderedChildren !== undefined ? (
-                <div className={styles.routeContent}>{renderedChildren}</div>
-              ) : null}
+            // One route renders one page. Setup guidance is a page of its own
+            // rather than a panel appended beneath whatever else is open.
+            resolution.profileRelativeSubpath === '/admin/setup' ? (
               <ProfileOnboarding
                 state={model.onboarding}
                 onCompleteStep={onCompleteOnboardingStep}
                 ariaLabel={`${profile.label} onboarding`}
               />
-            </>
+            ) : (
+              <div className={styles.routeContent}>{renderedChildren}</div>
+            )
           )}
         </main>
       </div>

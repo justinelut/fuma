@@ -294,7 +294,7 @@ describe('FUMA-018 scoped shell and state presentation', () => {
 
   it('supports an immutable ready-context renderer while preserving static children', () => {
     const selected = selection('organization-a', 'website')
-    const pathname = buildScopedAdminUrl(selected, '/admin/pages')
+    const pathname = buildScopedAdminUrl(selected, '/admin/builder')
     const permissionState = grantedPermissions('website')
     const callbackView = render(
       <MemoryRouter initialEntries={[pathname]}>
@@ -309,7 +309,7 @@ describe('FUMA-018 scoped shell and state presentation', () => {
               {JSON.stringify({
                 selection: context.resolution.selection,
                 subpath: context.profileRelativeSubpath,
-                navigationPath: context.navigation.find(({ id }) => id === 'nav.pages')?.path,
+                navigationPath: context.navigation.find(({ id }) => id === 'nav.builder')?.path,
                 pagesAllowed: context.permissionState['content.pages.read'],
                 frozen: Object.isFrozen(context)
                   && Object.isFrozen(context.resolution)
@@ -324,7 +324,7 @@ describe('FUMA-018 scoped shell and state presentation', () => {
 
     expect(JSON.parse(screen.getByTestId('ready-context').textContent ?? '')).toEqual({
       selection: selected,
-      subpath: '/admin/pages',
+      subpath: '/admin/builder',
       navigationPath: pathname,
       pagesAllowed: true,
       frozen: true,
@@ -351,7 +351,7 @@ describe('FUMA-018 scoped shell and state presentation', () => {
 
   it('supplies deterministic scoped targets through the injected switcher slot', () => {
     const selected = selection('organization-a', 'website')
-    const path = buildScopedAdminUrl(selected, '/admin/design')
+    const path = buildScopedAdminUrl(selected, '/admin/builder')
     renderShell(path, catalog(), {
       permissionState: grantedPermissions('website'),
       switcherSlot: (model) => (
@@ -363,7 +363,7 @@ describe('FUMA-018 scoped shell and state presentation', () => {
 
     expect(screen.getByLabelText('Context switchers')).toBeTruthy()
     expect(screen.getByTestId('switcher-target').textContent).toBe(
-      buildScopedAdminUrl(selection('organization-b', 'publication'), '/admin/design'),
+      buildScopedAdminUrl(selection('organization-b', 'publication'), '/admin/builder'),
     )
   })
 
@@ -400,9 +400,11 @@ describe('FUMA-018 scoped shell and state presentation', () => {
 
   it('renders distinct Website and Publication navigation and onboarding models', () => {
 
+    // Setup lives on its own route now, so navigation and onboarding are read
+    // from the pages that own them rather than from one stacked page.
     const websiteSelection = selection('organization-a', 'website')
     const websiteView = renderShell(
-      buildScopedAdminUrl(websiteSelection),
+      buildScopedAdminUrl(websiteSelection, '/admin/setup'),
       catalog(),
       { permissionState: grantedPermissions('website') },
     )
@@ -412,12 +414,12 @@ describe('FUMA-018 scoped shell and state presentation', () => {
     const websiteOnboarding = within(
       screen.getByRole('region', { name: 'Website onboarding' }),
     ).getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)
-    expect(websiteNavigation).toContain('Content')
+    expect(websiteNavigation).toContain('Design')
     expect(websiteNavigation).not.toContain('Posts')
 
     websiteView.unmount()
     renderShell(
-      buildScopedAdminUrl(selection('organization-a', 'publication')),
+      buildScopedAdminUrl(selection('organization-a', 'publication'), '/admin/setup'),
       catalog(),
       { permissionState: grantedPermissions('publication') },
     )
@@ -431,5 +433,16 @@ describe('FUMA-018 scoped shell and state presentation', () => {
     expect(publicationNavigation).toContain('Posts')
     expect(publicationNavigation).not.toEqual(websiteNavigation)
     expect(publicationOnboarding).not.toEqual(websiteOnboarding)
+  })
+
+  it('renders one page per route with setup no longer stacked under content', () => {
+    const websiteSelection = selection('organization-a', 'website')
+    renderShell(
+      buildScopedAdminUrl(websiteSelection, '/admin/analytics'),
+      catalog(),
+      { permissionState: grantedPermissions('website') },
+    )
+    expect(screen.getByText('Scoped route content')).toBeDefined()
+    expect(screen.queryByRole('region', { name: 'Website onboarding' })).toBeNull()
   })
 })
