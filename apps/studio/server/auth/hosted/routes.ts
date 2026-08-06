@@ -19,7 +19,6 @@ const TargetSessionBodySchema = Type.Object({
 const ALLOWED_ENDPOINTS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
   ['/sign-up/email', new Set(['POST'])],
   ['/sign-in/email', new Set(['POST'])],
-  ['/sign-in/social', new Set(['POST'])],
   ['/sign-out', new Set(['POST'])],
   ['/get-session', new Set(['GET'])],
   ['/send-verification-email', new Set(['POST'])],
@@ -100,6 +99,7 @@ export type HostedStaffAuthBoundaryInput = Readonly<{
   origin: string
   cookieName: string
   secureCookies: boolean
+  socialEndpoints?: boolean
   organizationEndpoints?: boolean
   security?: HostedStaffSecurityPolicy
 }>
@@ -118,11 +118,12 @@ function endpointFor(pathname: string): string {
   return pathname.slice(AUTH_PREFIX.length) || '/'
 }
 
-function endpointIsAllowed(pathname: string, method: string, organizationEndpoints: boolean): boolean {
+function endpointIsAllowed(pathname: string, method: string, organizationEndpoints: boolean, socialEndpoints: boolean): boolean {
   const endpoint = endpointFor(pathname)
   if (ALLOWED_ENDPOINTS.get(endpoint)?.has(method)) return true
+  if (socialEndpoints && method === 'POST' && endpoint === '/sign-in/social') return true
   if (organizationEndpoints && ORGANIZATION_ENDPOINTS.get(endpoint)?.has(method)) return true
-  if (method === 'GET' && /^\/callback\/(?:google|github)$/.test(endpoint)) return true
+  if (socialEndpoints && method === 'GET' && /^\/callback\/(?:google|github)$/.test(endpoint)) return true
   return method === 'GET' && /^\/reset-password\/[^/]+$/.test(endpoint)
 }
 
@@ -264,7 +265,7 @@ export function createHostedStaffAuthBoundary(
     if (!handlesProductRequest(request)) return jsonError('Not found', 404)
 
     const method = request.method.toUpperCase()
-    if (!endpointIsAllowed(url.pathname, method, input.organizationEndpoints === true)) return jsonError('Not found', 404)
+    if (!endpointIsAllowed(url.pathname, method, input.organizationEndpoints === true, input.socialEndpoints === true)) return jsonError('Not found', 404)
     if (MUTATING_METHODS.has(method) && request.headers.get('origin') !== origin) {
       return jsonError('Origin not allowed', 403)
     }

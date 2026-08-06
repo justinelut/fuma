@@ -110,6 +110,7 @@ export function createHostedIdentityAuthRuntime(
     origin,
     cookieName: input.cookieName,
     secureCookies: input.secureCookies,
+    socialEndpoints: input.socialProviders !== undefined,
   })
   return Object.freeze({
     boundary,

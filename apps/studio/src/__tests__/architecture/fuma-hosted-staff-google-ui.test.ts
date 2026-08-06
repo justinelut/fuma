@@ -9,11 +9,13 @@ describe('Vite React hosted staff authentication UI', () => {
   test('owns Google initiation in React and validates the provider through the typed client', () => {
     const view = read('src/admin/preauth/HostedStaffPreAuth.tsx')
     const client = read('src/core/fuma/auth/client.ts')
+    const central = read('server/auth/hosted/centralStaffHandoff.ts')
     expect(view).toContain('beginHostedStaffGoogleSignIn')
     expect(view).toContain('Continue with Google')
     expect(view).toContain("new URL('/admin', window.location.origin)")
-    expect(client).toContain("`${AUTH_BASE}/sign-in/social`")
-    expect(client).toContain("url.hostname !== 'accounts.google.com'")
+    expect(client).toContain("new URL('/api/auth/central-google', callback.origin)")
+    expect(client).not.toContain("`${AUTH_BASE}/sign-in/social`")
+    expect(central).toContain("provider.hostname !== 'accounts.google.com'")
   })
 
   test('uses existing admin tokens and deliberately avoids gradients and raw utility classes', () => {
