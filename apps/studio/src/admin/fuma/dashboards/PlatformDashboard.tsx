@@ -73,63 +73,65 @@ function OrgIcon() {
   )
 }
 
-function Figure({
-  label,
-  value,
-  detail,
-}: {
-  label: string
-  value: string
-  detail?: string
-}) {
+function WebsiteGlyph() {
   return (
-    <div className="min-w-0">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate text-xl leading-none font-semibold tracking-tight text-foreground">
-        {value}
-      </p>
-      {detail ? (
-        <p className="mt-1.5 text-[0.6875rem] text-muted-foreground">{detail}</p>
-      ) : null}
-    </div>
+    <svg viewBox="0 0 16 16" className="size-4" fill="none" aria-hidden="true">
+      <rect x="2.2" y="3.2" width="11.6" height="9.6" rx="1.4" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M2.2 6.2h11.6" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
   )
 }
 
-/** Proportional bar of the storage mix, in the reference's card vocabulary. */
-function StorageMix({
-  parts,
-  total,
-}: {
-  parts: readonly Readonly<{ label: string, bytes: number, className: string }>[]
-  total: number
-}) {
-  if (total <= 0) {
-    return <p className="mt-3 text-xs text-muted-foreground">Nothing stored yet</p>
-  }
+function PublicationGlyph() {
   return (
-    <>
-      <div className="mt-4 flex h-2 overflow-hidden rounded-full bg-accent">
-        {parts.filter((part) => part.bytes > 0).map((part) => (
-          <span
-            key={part.label}
-            className={part.className}
-            style={{ width: `${(part.bytes / total) * 100}%` }}
-            title={`${part.label}: ${formatBytes(part.bytes)}`}
-          />
-        ))}
-      </div>
-      <dl className="mt-4 grid grid-cols-2 gap-y-2 text-[0.6875rem] sm:grid-cols-3">
-        {parts.map((part) => (
-          <div key={part.label} className="flex items-center gap-1.5">
-            <span className={cn('size-1.5 shrink-0 rounded-full', part.className)} />
-            <dt className="text-muted-foreground">{part.label}</dt>
-            <dd className="ml-auto pr-3 text-foreground">{formatBytes(part.bytes)}</dd>
-          </div>
-        ))}
-      </dl>
-    </>
+    <svg viewBox="0 0 16 16" className="size-4" fill="none" aria-hidden="true">
+      <path d="M3.4 2.8h6.2l3 3v7.4H3.4z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M5.6 8h4.8M5.6 10.4h3.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
   )
 }
+
+/** Ring gauge, matching the dial the profile dashboards use. */
+function Dial({ percent, caption }: { percent: number | null, caption: string }) {
+  const radius = 52
+  const circumference = 2 * Math.PI * radius
+  const dash = ((percent ?? 0) / 100) * circumference
+  return (
+    <svg
+      viewBox="0 0 140 140"
+      className="size-[148px]"
+      role="img"
+      aria-label={`${percent ?? 0}% ${caption}`}
+    >
+      <circle cx="70" cy="70" r={radius} fill="none" stroke="var(--accent)" strokeWidth="9" />
+      <circle
+        cx="70"
+        cy="70"
+        r={radius}
+        fill="none"
+        stroke="var(--primary)"
+        strokeWidth="9"
+        strokeLinecap="round"
+        strokeDasharray={`${dash} ${circumference}`}
+        transform="rotate(-90 70 70)"
+      />
+      <text
+        x="70"
+        y="68"
+        textAnchor="middle"
+        className="fill-foreground"
+        style={{ fontSize: '1.55rem', fontWeight: 600, letterSpacing: '-0.02em' }}
+      >
+        {percent === null ? '—' : `${percent}%`}
+      </text>
+      <text x="70" y="86" textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: '0.6rem' }}>
+        {caption}
+      </text>
+    </svg>
+  )
+}
+
+
 
 function HeaderShell({
   actorLabel,
@@ -242,6 +244,18 @@ export function PlatformDashboard({
   const mediaBytes = storage
     ? storage.imageBytes + storage.videoBytes + storage.documentBytes
     : null
+  const mix = Object.freeze([
+    { label: 'Images', short: 'Img', bytes: storage?.imageBytes ?? 0, className: 'bg-chart-1' },
+    { label: 'Videos', short: 'Vid', bytes: storage?.videoBytes ?? 0, className: 'bg-chart-2' },
+    { label: 'Documents', short: 'Doc', bytes: storage?.documentBytes ?? 0, className: 'bg-chart-5' },
+    { label: 'Plugins', short: 'Plg', bytes: storage?.pluginBytes ?? 0, className: 'bg-chart-4' },
+    { label: 'Database', short: 'DB', bytes: storage?.databaseBytes ?? 0, className: 'bg-muted-foreground' },
+  ] as const)
+  const mixTotal = mix.reduce((total, part) => total + part.bytes, 0)
+  const largestBytes = mix.reduce((largest, part) => Math.max(largest, part.bytes), 0)
+  const databaseShare = storage && storage.totalBytes > 0
+    ? Math.round((storage.databaseBytes / storage.totalBytes) * 100)
+    : null
 
   return (
     <div
@@ -306,8 +320,8 @@ export function PlatformDashboard({
           Welcome in, {firstName(actorLabel)}
         </h1>
 
-        <div className="mt-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-5 sm:mt-6 sm:gap-x-8">
-          <dl className="flex min-w-0 flex-wrap items-end gap-4 sm:gap-6">
+        <div className="mt-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-6 sm:mt-8 sm:gap-x-12">
+          <dl className="flex min-w-0 flex-wrap items-end gap-5 sm:gap-8">
             <div>
               <dt className="text-xs text-muted-foreground">Storage</dt>
               <dd className="mt-2">
@@ -339,84 +353,189 @@ export function PlatformDashboard({
           <p className="mt-4 text-sm text-destructive" role="alert">{error}</p>
         ) : null}
 
-        <main className="mt-6 grid items-start gap-4 sm:mt-7 lg:grid-cols-4">
+        <main className="mt-7 grid items-start gap-4 sm:mt-9 sm:gap-5 lg:grid-cols-4">
+          {/* Feature card: what the plan is carrying right now. */}
+          <Card className="flex min-h-[248px] flex-col justify-between">
+            <div>
+              <Badge variant="accent" size="sm">Runtime</Badge>
+              <p className="mt-6 text-[1.75rem] leading-none font-semibold tracking-tight text-foreground">
+                {formatBytes(storage?.totalBytes ?? null)}
+              </p>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                {loading
+                  ? 'Reading measurements from the runtime.'
+                  : storage
+                    ? `Stored across every site on this plan, on ${storage.dialect}.`
+                    : 'Storage measurements are not available right now.'}
+              </p>
+            </div>
+            {planPath ? (
+              <Link
+                to={planPath}
+                className={cn(
+                  'mt-6 inline-flex h-10 items-center justify-center self-start rounded-full',
+                  'bg-primary px-4 text-sm font-medium text-primary-foreground',
+                  'transition-[filter] hover:brightness-110',
+                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                )}
+              >
+                Review plan and usage
+              </Link>
+            ) : (
+              <p className="mt-6 text-[0.6875rem] text-muted-foreground">
+                Limits follow your plan.
+              </p>
+            )}
+          </Card>
+
+          {/* Bar chart of the storage mix, largest series highlighted. */}
+          <Card className="flex min-h-[248px] flex-col">
+            <CardTitle>Storage mix</CardTitle>
+            <div className="mt-3 flex items-end gap-2">
+              <p className="text-[1.9rem] leading-none font-semibold tracking-tight text-foreground">
+                {mix.length}
+              </p>
+              <p className="pb-0.5 text-[0.6875rem] leading-tight text-muted-foreground">
+                kinds
+                <br />
+                measured
+              </p>
+            </div>
+            {mixTotal <= 0 ? (
+              <p className="mt-auto pb-4 text-xs text-muted-foreground">Nothing stored yet</p>
+            ) : (
+              <div className="mt-auto flex h-[104px] items-end gap-3">
+                {mix.map((part) => (
+                  <div key={part.label} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+                    <span
+                      className={cn(
+                        'w-[5px] rounded-full',
+                        part.bytes === largestBytes ? 'bg-primary' : 'bg-accent',
+                      )}
+                      style={{ height: `${Math.max(6, (part.bytes / mixTotal) * 100)}%` }}
+                      title={`${part.label}: ${formatBytes(part.bytes)}`}
+                    />
+                    <span className="max-w-full truncate text-[0.625rem] text-muted-foreground">
+                      {part.short}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* Dial: how much of what is stored is the database itself. */}
+          <Card tone="warm" className="flex min-h-[248px] flex-col">
+            <CardTitle>Composition</CardTitle>
+            <div className="grid flex-1 place-items-center">
+              <Dial
+                percent={databaseShare}
+                caption="database"
+              />
+            </div>
+            <CardCaption>
+              {databaseShare === null
+                ? 'Composition appears once something is stored'
+                : `${formatBytes(storage?.databaseBytes ?? null)} of ${formatBytes(storage?.totalBytes ?? null)}`}
+            </CardCaption>
+          </Card>
+
+          {/* Tall panel: the sites this plan carries. */}
+          <Card className="flex flex-col lg:row-span-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <CardTitle>Your sites</CardTitle>
+                <CardCaption className="mt-1">
+                  Each opens the dashboard shaped for what it is
+                </CardCaption>
+              </div>
+              <span className="shrink-0 text-2xl leading-none font-semibold tracking-tight text-foreground">
+                {sites.length}
+              </span>
+            </div>
+            {sites.length === 0 ? (
+              <p className="mt-5 text-xs text-muted-foreground">
+                No sites yet. Create one below to get started.
+              </p>
+            ) : (
+              <ul className="mt-5 flex-1 space-y-2">
+                {sites.map((site) => {
+                  const workspace = catalog.workspaces.find((entry) => entry.id === site.workspaceId)
+                  const organization = catalog.organizations.find(
+                    (entry) => entry.id === site.organizationId,
+                  )
+                  return (
+                    <li key={site.id}>
+                      <Link
+                        to={buildScopedAdminUrl({
+                          organizationId: site.organizationId,
+                          workspaceId: site.workspaceId,
+                          siteId: site.id,
+                        })}
+                        className={cn(
+                          'flex items-center gap-3 rounded-[var(--radius-md)] border border-border',
+                          'bg-muted/60 p-3 transition-colors hover:border-primary/45 hover:bg-primary/[0.06]',
+                          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'inline-flex size-9 shrink-0 items-center justify-center',
+                            'rounded-[0.5rem] border border-border bg-card text-muted-foreground',
+                          )}
+                          aria-hidden="true"
+                        >
+                          {site.profileId === 'publication' ? <PublicationGlyph /> : <WebsiteGlyph />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[0.8125rem] font-medium text-foreground">
+                            {site.name}
+                          </span>
+                          <span className="mt-0.5 block truncate text-[0.6875rem] text-muted-foreground">
+                            {organization?.name ?? site.organizationId} / {workspace?.name ?? site.workspaceId}
+                          </span>
+                        </span>
+                        <Badge variant="outline" size="sm" className="shrink-0">
+                          {PROFILE_LABEL[site.profileId] ?? site.profileId}
+                        </Badge>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </Card>
+
+          {/* Detail list of the measured kinds. */}
+          <Card>
+            <CardTitle>Measured</CardTitle>
+            <dl className="mt-4 divide-y divide-border">
+              {mix.map((part) => (
+                <div key={part.label} className="flex items-center justify-between gap-3 py-2.5">
+                  <dt className="flex min-w-0 items-center gap-2 text-[0.8125rem] text-muted-foreground">
+                    <span className={cn('size-1.5 shrink-0 rounded-full', part.className)} />
+                    <span className="truncate">{part.label}</span>
+                  </dt>
+                  <dd className="shrink-0 text-[0.8125rem] font-medium tabular-nums text-foreground">
+                    {formatBytes(part.bytes)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+
+          {/* Create another site in the same workspace. */}
           <Card className="lg:col-span-2">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <CardTitle>Runtime</CardTitle>
-              <CardCaption>
-                {loading
-                  ? 'Reading measurements'
-                  : storage
-                    ? `Measured · ${storage.dialect}`
-                    : 'Measurements unavailable'}
-              </CardCaption>
-            </div>
-            <StorageMix
-              total={storage?.totalBytes ?? 0}
-              parts={[
-                { label: 'Images', bytes: storage?.imageBytes ?? 0, className: 'bg-chart-1' },
-                { label: 'Videos', bytes: storage?.videoBytes ?? 0, className: 'bg-chart-2' },
-                { label: 'Documents', bytes: storage?.documentBytes ?? 0, className: 'bg-chart-5' },
-                { label: 'Plugins', bytes: storage?.pluginBytes ?? 0, className: 'bg-chart-4' },
-                { label: 'Database', bytes: storage?.databaseBytes ?? 0, className: 'bg-muted-foreground' },
-              ]}
-            />
-            {planPath ? (
-              <p className="mt-5 text-xs text-muted-foreground">
-                Limits follow your plan.{' '}
-                <Link
-                  to={planPath}
-                  className="font-medium text-foreground underline decoration-primary decoration-2 underline-offset-4"
-                >
-                  Review plan and usage
-                </Link>
-              </p>
-            ) : null}
-          </Card>
-
-          <Card tone="warm">
-            <CardTitle>Capacity</CardTitle>
-            <dl className="mt-4 space-y-4">
-              <Figure
-                label="Total used"
-                value={formatBytes(storage?.totalBytes ?? null)}
-                detail="Across every site on this plan"
-              />
-              <Figure
-                label="Plugins"
-                value={formatBytes(storage?.pluginBytes ?? null)}
-                detail="Installed extension packages"
-              />
-            </dl>
-          </Card>
-
-          <Card>
-            <CardTitle>Scope</CardTitle>
-            <dl className="mt-4 space-y-4">
-              <Figure
-                label="Organizations"
-                value={String(catalog.organizations.length)}
-                detail="Billing and membership boundaries"
-              />
-              <Figure
-                label="Workspaces"
-                value={String(workspaces.length)}
-                detail="Groupings of sites"
-              />
-            </dl>
-          </Card>
-
-          <Card className="lg:col-span-4">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <CardTitle>Your sites</CardTitle>
-              <CardCaption>Each site opens the dashboard shaped for what it is</CardCaption>
+              <CardTitle>Add a site</CardTitle>
+              <CardCaption>Lands in this workspace alongside the others</CardCaption>
             </div>
             <form
               className="mt-4 flex flex-wrap items-end gap-2"
               onSubmit={(event) => { event.preventDefault(); void submitNewSite() }}
             >
               <label className="min-w-0 flex-1 basis-56">
-                <span className="block text-xs text-muted-foreground">New site name</span>
+                <span className="block text-xs text-muted-foreground">Name</span>
                 <input
                   className={cn(
                     'mt-1.5 h-10 w-full rounded-full border border-border bg-card px-4',
@@ -473,50 +592,9 @@ export function PlatformDashboard({
             {createError ? (
               <p className="mt-2 text-xs text-destructive" role="alert">{createError}</p>
             ) : null}
-
-            {sites.length === 0 ? (
-              <p className="mt-4 text-xs text-muted-foreground">
-                No sites yet. Create one above to get started.
-              </p>
-            ) : (
-              <ul className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                {sites.map((site) => {
-                  const workspace = catalog.workspaces.find((entry) => entry.id === site.workspaceId)
-                  const organization = catalog.organizations.find(
-                    (entry) => entry.id === site.organizationId,
-                  )
-                  return (
-                    <li key={site.id}>
-                      <Link
-                        to={buildScopedAdminUrl({
-                          organizationId: site.organizationId,
-                          workspaceId: site.workspaceId,
-                          siteId: site.id,
-                        })}
-                        className={cn(
-                          'flex h-full flex-col justify-between gap-4 rounded-[var(--radius-md)]',
-                          'border border-border bg-background p-3.5 transition-colors',
-                          'hover:border-primary/40 hover:bg-accent',
-                          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                        )}
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium text-foreground">
-                            {site.name}
-                          </span>
-                          <span className="mt-1 block truncate text-[0.6875rem] text-muted-foreground">
-                            {organization?.name ?? site.organizationId} / {workspace?.name ?? site.workspaceId}
-                          </span>
-                        </span>
-                        <Badge variant="outline" size="sm">
-                          {PROFILE_LABEL[site.profileId] ?? site.profileId}
-                        </Badge>
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
+            <p className="mt-3 text-[0.6875rem] text-muted-foreground">
+              A website gets the site dashboard; a publication gets the editorial one.
+            </p>
           </Card>
         </main>
       </div>

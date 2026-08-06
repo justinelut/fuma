@@ -87,7 +87,7 @@ export function Card({ className, tone = 'plain', ...props }: CardProps) {
       className={cn(
         // A hairline plus a soft lift so a card is legible against a page of a
         // similar value — without it, white on ivory disappeared in light mode.
-        'rounded-[var(--radius-lg)] border border-border p-5',
+        'rounded-[var(--radius-lg)] border border-border p-5 sm:p-6',
         'shadow-[0_1px_2px_rgba(23,23,23,0.04),0_8px_24px_-16px_rgba(23,23,23,0.18)]',
         tone === 'plain' && 'bg-card text-card-foreground',
         tone === 'warm' && 'bg-muted text-foreground',
@@ -104,11 +104,21 @@ export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElemen
 }
 
 export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn('text-base font-semibold tracking-tight', className)} {...props} />
+  return (
+    <h3
+      className={cn('text-[0.9375rem] leading-snug font-semibold tracking-tight', className)}
+      {...props}
+    />
+  )
 }
 
 export function CardCaption({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn('text-xs leading-relaxed text-muted-foreground', className)} {...props} />
+  return (
+    <p
+      className={cn('text-[0.6875rem] leading-relaxed text-muted-foreground', className)}
+      {...props}
+    />
+  )
 }
 
 /* -------------------------------------------------------------------------- */
@@ -236,7 +246,7 @@ export function Stat({ value, label, icon, className }: StatProps) {
       <p className="text-[2rem] leading-none font-semibold tracking-tight text-foreground">
         {value}
       </p>
-      <p className="mt-2 flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
+      <p className="mt-2.5 flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
         {icon}
         {label}
       </p>

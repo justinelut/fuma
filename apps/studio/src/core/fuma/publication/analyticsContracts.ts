@@ -107,8 +107,25 @@ const NewsletterMetricSchema = Type.Object({
   unsubscriptions: CountSchema,
 }, { additionalProperties: false })
 
+/**
+ * One aggregate row per day in range.
+ *
+ * Optional so existing producers stay valid: the PostgreSQL reader supplies it
+ * from the daily aggregate table, while adapters that only need totals may omit
+ * it. A consumer that has no series shows its own empty state rather than
+ * drawing a shape from nothing.
+ */
+const DailyMetricSchema = Type.Object({
+  day: DateSchema,
+  siteReads: CountSchema,
+  postReads: CountSchema,
+  memberReads: CountSchema,
+  newsletterOpens: CountSchema,
+}, { additionalProperties: false })
+
 export const PublicationPrivacyAnalyticsReportSchema = Type.Object({
   range: PublicationAnalyticsRangeSchema,
+  daily: Type.Optional(Type.Array(DailyMetricSchema, { maxItems: 400 })),
   retention: Type.Object({ rawEventDays: Type.Literal(30), aggregateDays: Type.Literal(400) }, { additionalProperties: false }),
   totals: TotalsSchema,
   content: Type.Array(ContentMetricSchema, { maxItems: 100 }),
