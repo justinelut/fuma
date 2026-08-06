@@ -25,6 +25,7 @@ import { buildPublishedSiteCssBundle } from './publish/siteCssBundle'
 import { mediaStorageRegistry } from '@core/plugins/mediaStorageRegistry'
 import type { HostedStaffAuthBoundary } from './auth/hosted/routes'
 import type { CentralStaffHandoffBoundary } from './auth/hosted/centralStaffHandoff'
+import type { AccessibleContextCatalogBoundary } from './fuma/context/accessibleCatalog'
 import type { FumaScopedRouteBoundary } from './fuma/context'
 import type { PublicProjectionBoundary } from './fuma/publicProjections'
 import type { PublicHandoffAppBoundary } from './fuma/publicHandoff'
@@ -51,6 +52,7 @@ export interface ServerRuntime {
   db: DbClient
   hostedStaffAuth?: HostedStaffAuthBoundary
   centralStaffHandoff?: CentralStaffHandoffBoundary
+  accessibleContextCatalog?: AccessibleContextCatalogBoundary
   publicProjections?: PublicProjectionBoundary
   publicHandoff?: PublicHandoffAppBoundary
   publicationPublic?: PublicationPublicBoundary
@@ -99,6 +101,7 @@ const routes: readonly RouteHandler[] = [
   tryServeEntitlementAdmin,
   tryServePlatformConsole,
   tryServePublicMarketingAnalyticsAdmin,
+  tryServeAccessibleContextCatalog,
   tryServeHostedSiteOnboarding,
   tryServeWorkspaceManagement,
   // Hosted scoped routes own `/api/fuma` completely. Keep this before the
@@ -193,6 +196,11 @@ async function tryServePlatformConsole(req: Request, runtime: ServerRuntime): Pr
 async function tryServePublicMarketingAnalyticsAdmin(req: Request, runtime: ServerRuntime): Promise<Response | null> {
   if (!runtime.publicMarketingAnalyticsAdmin?.handles(req)) return null
   return await runtime.publicMarketingAnalyticsAdmin.handle(req)
+}
+
+async function tryServeAccessibleContextCatalog(req: Request, runtime: ServerRuntime): Promise<Response | null> {
+  if (!runtime.accessibleContextCatalog?.handles(req)) return null
+  return await runtime.accessibleContextCatalog.handle(req)
 }
 
 async function tryServeHostedSiteOnboarding(req: Request, runtime: ServerRuntime): Promise<Response | null> {

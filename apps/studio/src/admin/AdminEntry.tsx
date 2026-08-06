@@ -5,6 +5,7 @@ import { AppLoadingScreen } from './AppLoadingScreen'
 import type { AdminWorkspace } from './workspace'
 import { AdminPreAuthForm, type PreAuthPhase } from './preauth/AdminPreAuthForm'
 import { hostedStaffAuthSelected, useHostedStaffBoot } from './preauth/hostedStaffAuth'
+import { useHostedContextCatalog } from './preauth/hostedContextCatalog'
 import { useLocation } from './lib/routing'
 import { useAdminBoot } from './preauth/useAdminBoot'
 import { prewarmedLazy } from './lib/prewarmedLazy'
@@ -122,17 +123,23 @@ function HostedAdminEntry({ hostedContextCatalog, platformAdmin = false }: Admin
   const { pathname } = useLocation()
   const boot = useHostedStaffBoot()
   const [authenticated, setAuthenticated] = useState<HostedStaffSession | null>(null)
+  const session = authenticated ?? boot.session
+  // Server-supplied context wins for tests and composition; otherwise the
+  // shell reads its real scope from the authenticated projection.
+  const projection = useHostedContextCatalog(
+    boot.status === 'ready' && session !== null && hostedContextCatalog === undefined,
+  )
 
   if (boot.status === 'loading') return <AppLoadingScreen />
-  const session = authenticated ?? boot.session
   if (session) {
     if (platformAdmin) return <Suspense fallback={<AppLoadingScreen />}><PlatformAdminWorkspace pathname={pathname} /></Suspense>
+    if (hostedContextCatalog === undefined && projection.status === 'loading') return <AppLoadingScreen />
     return (
       <Suspense fallback={<AppLoadingScreen />}>
         <HostedStaffShell
           session={session}
           pathname={pathname}
-          contextCatalog={hostedContextCatalog}
+          contextCatalog={hostedContextCatalog ?? projection.catalog ?? undefined}
         />
       </Suspense>
     )

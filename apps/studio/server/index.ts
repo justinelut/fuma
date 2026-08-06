@@ -33,6 +33,7 @@ import { createHostedFreeHostRuntime, createHostedReleaseObjectStorage, type Fre
 import { OrganizationBootstrapService, PostgresOrganizationBootstrapRepository, PostgresCustomerOrganizationLifecycle } from './fuma/organizations'
 import { createHostedSiteOnboardingBoundary, HostedSiteOnboardingService } from './fuma/onboarding'
 import { createWorkspaceManagementBoundary } from './fuma/workspaces/managementBoundary'
+import { createAccessibleContextCatalogBoundary, PostgresAccessibleContextCatalog } from './fuma/context/accessibleCatalog'
 import {
   AnonymousEdgeVisitorAuthority,
   createHostedEdgeRuntime,
@@ -600,6 +601,22 @@ const hostedSiteOnboarding = hostedStaffAuthRuntime && freeHostRuntime && hosted
     allowsMutationOrigin: hostedStaffAuthRuntime.allowsMutationOrigin,
   })
   : undefined
+// The Vite admin shell reads its organization/workspace/site scope from this
+// projection. Without it the shell sees an empty catalog and cannot leave
+// first-site onboarding. `reconcileOwned` repairs organizations created
+// through Better Auth whose Fuma sidecars were interrupted.
+const accessibleContextCatalog = hostedStaffAuthRuntime
+  ? createAccessibleContextCatalogBoundary({
+    catalog: new PostgresAccessibleContextCatalog(
+      db,
+      customerOrganizationLifecycle
+        ? async (userId: string) => { await customerOrganizationLifecycle.reconcileOwned(userId) }
+        : undefined,
+    ),
+    resolveSession: hostedStaffAuthRuntime.resolveSession,
+    handlesProductRequest: hostedStaffAuthRuntime.boundary.handlesProductRequest,
+  })
+  : undefined
 const workspaceManagement = hostedStaffAuthRuntime
   ? createWorkspaceManagementBoundary({ db, resolveSession: hostedStaffAuthRuntime.resolveSession, handlesProductRequest: hostedStaffAuthRuntime.boundary.handlesProductRequest, allowsMutationOrigin: hostedStaffAuthRuntime.allowsMutationOrigin })
   : undefined
@@ -894,6 +911,7 @@ const server = Bun.serve<PublicationSocketData>({
         entitlementAdmin: entitlementAdminRuntime?.boundary,
         platformConsole: platformConsoleBoundary,
         publicMarketingAnalyticsAdmin,
+        accessibleContextCatalog,
         hostedSiteOnboarding,
         workspaceManagement,
         fumaScopedApi,
