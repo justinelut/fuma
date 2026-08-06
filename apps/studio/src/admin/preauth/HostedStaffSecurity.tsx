@@ -70,6 +70,17 @@ function mfaActionFromSubmit(event: FormEvent<HTMLFormElement>, fallback: MfaAct
   return fallback
 }
 
+/**
+ * The hosted auth boundary denies stale sensitive operations with the exact
+ * machine code `step_up_required`. Staff read it as instruction, not jargon.
+ */
+function securityMessage(caught: unknown, fallback: string): string {
+  const message = getErrorMessage(caught, fallback)
+  return message === 'step_up_required'
+    ? 'Reauthenticate below to use sensitive staff controls. Sessions stay sensitive for five minutes.'
+    : message
+}
+
 export function HostedStaffSecurity({ session, onSessionChange }: HostedStaffSecurityProps) {
   const [state, dispatch] = useReducer(securityReducer, initialSecurityState)
   const reauthPasswordId = useId()
@@ -87,7 +98,7 @@ export function HostedStaffSecurity({ session, onSessionChange }: HostedStaffSec
       pushToast({
         kind: 'error',
         title: 'Security operation failed',
-        body: getErrorMessage(caught, fallback),
+        body: securityMessage(caught, fallback),
       })
     } finally {
       dispatch({ type: 'update', value: { busy: false } })
@@ -237,7 +248,7 @@ export function HostedStaffSecurity({ session, onSessionChange }: HostedStaffSec
         pushToast({
           kind: 'error',
           title: 'Could not load devices',
-          body: getErrorMessage(caught, 'Could not load staff sessions'),
+          body: securityMessage(caught, 'Could not load staff sessions'),
         })
       },
     )
@@ -253,7 +264,7 @@ export function HostedStaffSecurity({ session, onSessionChange }: HostedStaffSec
           pushToast({
             kind: 'error',
             title: 'Could not load staff accounts',
-            body: getErrorMessage(caught, 'Could not load staff accounts'),
+            body: securityMessage(caught, 'Could not load staff accounts'),
           })
         },
       )

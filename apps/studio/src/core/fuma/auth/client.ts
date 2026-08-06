@@ -139,6 +139,9 @@ const HostedStaffDeviceSessionsSchema = Type.Array(HostedStaffDeviceSessionSchem
 const AdminUsersEnvelopeSchema = Type.Object({
   users: Type.Array(HostedStaffUserSchema),
   total: Type.Number(),
+  // Better Auth echoes the requested window alongside the page.
+  limit: Type.Optional(Type.Number()),
+  offset: Type.Optional(Type.Number()),
 }, { additionalProperties: false })
 const HostedUserEnvelopeSchema = Type.Object({
   user: HostedStaffUserSchema,
