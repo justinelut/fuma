@@ -1,0 +1,53 @@
+name: Reconcile Fuma protected owner
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuma-protected-owner-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reconcile exact verified protected owner
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 5m
+          script: |
+            set -e
+            export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+            pod="$(sudo kubectl -n fuma get pods -l app=fuma-studio --sort-by=.metadata.creationTimestamp -o name | tail -1)"
+            sudo kubectl -n fuma exec "$pod" -- bun -e '
+              import { createPostgresClient } from "./server/db/postgres";
+              import { OrganizationBootstrapService, PostgresOrganizationBootstrapRepository } from "./server/fuma/organizations";
+              const db = createPostgresClient(process.env.DATABASE_URL!);
+              const email = process.env.FUMA_PROTECTED_OWNER_EMAIL?.trim().toLowerCase() ?? "";
+              const authority = await db<{ google_account: boolean; staff_profile: boolean }>`
+                select
+                  exists(select 1 from auth_accounts account where account.user_id=staff.id and account.provider_id=${"google"}) google_account,
+                  exists(select 1 from auth_staff_profiles profile where profile.user_id=staff.id) staff_profile
+                from auth_users staff where lower(btrim(staff.email))=${email}
+              `;
+              if (authority.rows.length !== 1 || authority.rows[0]?.google_account !== true || authority.rows[0]?.staff_profile !== true) {
+                throw new Error("Protected owner requires one verified Google identity and staff profile.");
+              }
+              const service = new OrganizationBootstrapService({ repository: new PostgresOrganizationBootstrapRepository(db) });
+              await service.bootstrap({ protectedOwnerEmail: email });
+              const evidence = await db<{ admin: boolean; organization: boolean; membership: boolean; receipt: boolean }>`
+                select
+                  exists(select 1 from auth_users where lower(btrim(email))=${email} and role=${"admin"} and banned=false) admin,
+                  exists(select 1 from auth_organizations where id=${"fuma-platform"}) organization,
+                  exists(select 1 from auth_members where id=${"fuma-platform-owner"} and organization_id=${"fuma-platform"} and role=${"owner"}) membership,
+                  exists(select 1 from fuma_organization_bootstrap_receipts where bootstrap_key=${"fuma-platform-launch-v1"}) receipt
+              `;
+              console.log(JSON.stringify(evidence.rows[0]));
+              await db.close?.();
+            '
