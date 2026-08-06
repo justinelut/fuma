@@ -311,6 +311,9 @@ const centralStaffHandoff = centralIdentityAuthRuntime && hostedStaffAuthRuntime
     protectedOwnerEmail: hostedFumaConfig.protectedOwner.email,
     staffCookieName: hostedFumaConfig.staffCookie.name,
     staffAuthSecret: hostedStaffSecret,
+    ...(protectedOwnerBootstrap ? { reconcileProtectedOwner: async (email: string) => {
+      await protectedOwnerBootstrap.bootstrap({ protectedOwnerEmail: email })
+    } } : {}),
     secureCookies: hostedFumaConfig.staffCookie.secure,
   })
   : undefined

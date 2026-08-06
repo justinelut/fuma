@@ -109,6 +109,7 @@ export function createCentralStaffHandoffBoundary(input: Readonly<{
   protectedOwnerEmail: string
   staffCookieName: string
   staffAuthSecret: string
+  reconcileProtectedOwner?: (email: string) => Promise<void>
   secureCookies: boolean
   now?: () => Date
 }>): CentralStaffHandoffBoundary {
@@ -226,6 +227,7 @@ export function createCentralStaffHandoffBoundary(input: Readonly<{
           return row.email
         })
         if (!email) return notFound()
+        if (email.trim().toLowerCase() === ownerEmail) await input.reconcileProtectedOwner?.(email)
         return redirect(`${app}/admin`, [staffCookie(await signedCookieValue(rawSessionToken, input.staffAuthSecret)), stateCookie('', 0)])
       }
       return notFound()

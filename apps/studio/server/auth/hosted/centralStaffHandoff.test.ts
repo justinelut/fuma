@@ -79,7 +79,8 @@ describe('central staff Google handoff', () => {
     const store = database()
     const callbacks: string[] = []
     let tick = Date.parse('2026-08-06T00:00:00.000Z')
-    const boundary = createCentralStaffHandoffBoundary({ db: store.db, appOrigin: APP, authOrigin: AUTH, marketingOrigin: 'https://trimly.co.ke', identityAuth: identity(callbacks), protectedOwnerEmail: OWNER, staffCookieName: '__Host-fuma_staff', staffAuthSecret: 'test-central-staff-secret-32-bytes-minimum', secureCookies: true, now: () => new Date(tick) })
+    const reconciled: string[] = []
+    const boundary = createCentralStaffHandoffBoundary({ db: store.db, appOrigin: APP, authOrigin: AUTH, marketingOrigin: 'https://trimly.co.ke', identityAuth: identity(callbacks), protectedOwnerEmail: OWNER, staffCookieName: '__Host-fuma_staff', staffAuthSecret: 'test-central-staff-secret-32-bytes-minimum', reconcileProtectedOwner: async (email) => { reconciled.push(email) }, secureCookies: true, now: () => new Date(tick) })
 
     const started = await boundary.handle(request(`${APP}/api/auth/central-google`))
     expect(started?.status).toBe(303)
@@ -106,6 +107,7 @@ describe('central staff Google handoff', () => {
     expect(exchanged?.headers.get('location')).toBe(`${APP}/admin`)
     expect(store.profile()).toBe(true)
     expect(store.sessions()).toBe(1)
+    expect(reconciled).toEqual([OWNER])
 
     tick += 1_000
     const replay = await boundary.handle(request(consume, statePair))
