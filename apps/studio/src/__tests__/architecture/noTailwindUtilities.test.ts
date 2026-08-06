@@ -14,6 +14,20 @@ const SCAN_DIRS = [
   join(SRC_ROOT, 'ui'),
 ]
 
+/**
+ * Hosted Fuma surfaces deliberately use Tailwind 4 + shadcn so they share one
+ * design language with the marketing pages. Instatic's builder stays on CSS
+ * modules, so the gate still guards everything outside these directories.
+ */
+const TAILWIND_ALLOWED = [
+  join(SRC_ROOT, 'admin', 'fuma'),
+  join(SRC_ROOT, 'admin', 'preauth'),
+]
+
+function tailwindAllowed(file: string): boolean {
+  return TAILWIND_ALLOWED.some((allowed) => file.startsWith(allowed))
+}
+
 // Named Tailwind utility classes (non-arbitrary)
 const UTILITY_CLASS_RE = /\b(?:sr-only|not-sr-only|container|static|fixed|absolute|relative|sticky|isolate|flex|inline-flex|grid|inline-grid|block|inline-block|hidden|contents|flow-root|h-screen|min-h-screen|w-screen|min-w-screen|inset-\d+|inset-\[[^\]]+\]|z-\d+|z-\[[^\]]+\]|items-[a-z-]+|justify-[a-z-]+|content-[a-z-]+|self-[a-z-]+|gap-\d+|p[trblxy]?-\d+|m[trblxy]?-\d+|w-\d+|h-\d+|min-w-\d+|min-h-\d+|max-w-\d+|max-h-\d+|rounded(?:-[a-z0-9]+)?|border(?:-[a-z0-9]+)?|bg-[a-z]+-\d{2,3}|text-[a-z]+-\d{2,3}|font-[a-z0-9]+|leading-[a-z0-9]+|tracking-[a-z0-9]+|shadow(?:-[a-z0-9]+)?|overflow-[a-z]+|animate-[a-z0-9-]+|backdrop-[a-z0-9-]+)\b/
 // Tailwind arbitrary-value syntax: e.g. min-h-[44px], w-[200px], text-[14px], bg-[#fff]
@@ -58,6 +72,7 @@ describe('No Tailwind-style utility class strings in runtime UI code', () => {
 
     for (const dir of SCAN_DIRS) {
       for (const filePath of collectFiles(dir)) {
+        if (tailwindAllowed(filePath)) continue
         const source = readFileSync(filePath, 'utf8')
         const relPath = `src/${relative(SRC_ROOT, filePath)}`
 
@@ -112,6 +127,7 @@ describe('No Tailwind-style utility class strings in runtime UI code', () => {
 
     for (const dir of SCAN_DIRS) {
       for (const filePath of collectFiles(dir)) {
+        if (tailwindAllowed(filePath)) continue
         const source = readFileSync(filePath, 'utf8')
         const relPath = `src/${relative(SRC_ROOT, filePath)}`
 
