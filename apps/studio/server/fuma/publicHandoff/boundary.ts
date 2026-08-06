@@ -80,6 +80,15 @@ export type PublicHandoffAppBoundaryInput = Readonly<{
   authOrigin: string
   marketingOrigin: string
   secureCookies: boolean
+  /**
+   * Mints the app-host staff session for an exchanged handoff, returning the
+   * `Set-Cookie` values to add. Omitted when the deployment has no staff
+   * boundary, which is the self-hosted case.
+   */
+  completeStaffSession?: (
+    request: Request,
+    session: Readonly<{ userId: string, identitySessionId: string }>,
+  ) => Promise<readonly string[]>
   googleAuthEnabled?: boolean
   identityAuth: HostedStaffAuthBoundary
   resolveIdentitySession(headers: Headers): Promise<HostedResolvedSession | null>
@@ -212,8 +221,19 @@ function twoFactorPage(query: AppHandoffStartQuery, message = '', cookies: reado
   return response
 }
 
+/**
+ * Final handoff step.
+ *
+ * The exchange must be a POST — a GET could be forced cross-site and would burn
+ * the single-use code — but it needs no decision from the person signing in, who
+ * has already authenticated and already chose to continue. So the form submits
+ * itself as soon as the page loads, and the button remains the fallback when
+ * scripting is unavailable. Without this, someone who signed in and then went
+ * straight to the app was met by a second sign-in form, because the session had
+ * never been minted.
+ */
 function exchangePage(value: AppHandoffExchangeRequest): Response {
-  return html(`<h1>Continue to Fuma</h1><p>You’re signed in. Continue to finish what you started.</p><form method="post" action="${APP_EXCHANGE_PATH}"><input type="hidden" name="code" value="${escaped(value.code)}"><input type="hidden" name="state" value="${escaped(value.state)}"><button type="submit">Continue</button></form><form method="post" action="${APP_CANCEL_PATH}"><input type="hidden" name="kind" value="code"><input type="hidden" name="code" value="${escaped(value.code)}"><input type="hidden" name="state" value="${escaped(value.state)}"><button class="secondary" type="submit">Cancel</button></form>`)
+  return html(`<h1>Signing you in</h1><p>One moment — finishing what you started.</p><form id="fuma-exchange" method="post" action="${APP_EXCHANGE_PATH}"><input type="hidden" name="code" value="${escaped(value.code)}"><input type="hidden" name="state" value="${escaped(value.state)}"><noscript><button type="submit">Continue</button></noscript></form><form method="post" action="${APP_CANCEL_PATH}"><input type="hidden" name="kind" value="code"><input type="hidden" name="code" value="${escaped(value.code)}"><input type="hidden" name="state" value="${escaped(value.state)}"><button class="secondary" type="submit">Cancel</button></form><script>document.getElementById('fuma-exchange').submit()</script>`)
 }
 
 function safeFailure(error: unknown): Response {
@@ -365,6 +385,14 @@ export function createPublicHandoffAppBoundary(input: PublicHandoffAppBoundaryIn
         const maxAge = Math.max(1, Math.floor((Date.parse(result.session.expiresAt) - Date.now()) / 1_000))
         const response = redirect(new URL('/admin', input.appOrigin).toString())
         response.headers.append('set-cookie', appCookie(appCookieName, result.session.token, maxAge, input.secureCookies))
+        // The handoff cookie resumes what the visitor started; it is not a staff
+        // credential. Without also minting the staff session, someone who had just
+        // authenticated landed on the app and was asked to sign in again. Minting
+        // is fail-closed: no session, no extra cookie, and the app shows its own
+        // sign-in rather than pretending.
+        for (const cookie of await (input.completeStaffSession?.(request, result.session) ?? Promise.resolve([]))) {
+          response.headers.append('set-cookie', cookie)
+        }
         return response
       }
       if (request.method === 'POST' && (url.pathname === APP_CANCEL_PATH || url.pathname === AUTH_CANCEL_PATH)) {

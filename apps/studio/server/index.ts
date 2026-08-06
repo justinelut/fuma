@@ -36,6 +36,7 @@ import { createWorkspaceManagementBoundary } from './fuma/workspaces/managementB
 import { createAccessibleContextCatalogBoundary, PostgresAccessibleContextCatalog } from './fuma/context/accessibleCatalog'
 import { createBuilderSessionBoundary, PostgresBuilderIdentityStore } from './fuma/builder/builderIdentity'
 import { setHostedBuilderIdentityResolver } from './auth/authz'
+import { mintStaffSession, staffSessionCookie } from './auth/hosted/staffSessionMint'
 import { PostgresFumaSiteAuthorizationAuthority } from './fuma/context/postgresRequestAuthority'
 import { resolveLayeredPermissions } from './fuma/permissions/resolver'
 import { permissionInput, readAuthorization } from './fuma/context/requestContext'
@@ -344,6 +345,34 @@ const publicHandoffRuntime = hostedFumaConfig && hostedAuthHost && centralIdenti
     marketingHost: hostedFumaConfig.hosts.marketing,
     secureCookies: hostedFumaConfig.staffCookie.secure,
     googleAuthEnabled: Boolean(hostedSocialProviders?.google),
+    // Finish the sign-in the visitor already completed on the auth host, rather
+    // than landing them on the app with only a handoff cookie and a second form.
+    ...(hostedStaffSecret ? {
+      completeStaffSession: async (
+        request: Request,
+        session: Readonly<{ userId: string, identitySessionId: string }>,
+      ) => {
+        const minted = await mintStaffSession({
+          db,
+          userId: session.userId,
+          identitySessionId: session.identitySessionId,
+          protectedOwnerEmail: hostedFumaConfig.protectedOwner.email,
+          staffAuthSecret: hostedStaffSecret,
+          ipAddress: request.headers.get('x-forwarded-for')?.split(',', 1)[0]?.trim() ?? null,
+          userAgent: request.headers.get('user-agent'),
+          now: new Date(),
+        })
+        if (!minted) return []
+        if (minted.email.trim().toLowerCase() === hostedFumaConfig.protectedOwner.email.trim().toLowerCase()) {
+          await protectedOwnerBootstrap?.bootstrap({ protectedOwnerEmail: minted.email })
+        }
+        return [staffSessionCookie(
+          hostedFumaConfig.staffCookie.name,
+          minted.cookieValue,
+          hostedFumaConfig.staffCookie.secure,
+        )]
+      },
+    } : {}),
   })
   : undefined
 const publicProjectionRuntime = fumaHosted

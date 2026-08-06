@@ -24,6 +24,14 @@ export function createHostedPublicHandoffRuntime(input: Readonly<{
   marketingHost: string
   secureCookies: boolean
   googleAuthEnabled?: boolean
+  /**
+   * Mints the app-host staff session once a handoff is exchanged, so someone who
+   * has just authenticated is not asked to sign in again on the app.
+   */
+  completeStaffSession?: (
+    request: Request,
+    session: Readonly<{ userId: string, identitySessionId: string }>,
+  ) => Promise<readonly string[]>
 }>): HostedPublicHandoffRuntime {
   const expectedCookie = input.secureCookies ? AUTH_HANDOFF_SESSION_COOKIE : 'fuma_auth'
   if (input.identityAuth.boundary.cookieName !== expectedCookie) {
@@ -39,6 +47,7 @@ export function createHostedPublicHandoffRuntime(input: Readonly<{
     service,
     appOrigin: `${protocol}://${input.appHost}`,
     authOrigin: `${protocol}://${input.authHost}`,
+    ...(input.completeStaffSession ? { completeStaffSession: input.completeStaffSession } : {}),
     marketingOrigin: `${protocol}://${input.marketingHost}`,
     secureCookies: input.secureCookies,
     googleAuthEnabled: input.googleAuthEnabled ?? false,
