@@ -38,9 +38,8 @@ import { Value } from '@core/utils/typeboxHelpers'
 import { Button } from '@ui/components/Button'
 import panelStyles from '../AdminEntry.module.css'
 import { HostedStaffSecurity } from './HostedStaffSecurity'
-import { HostedThemeProvider, ThemeToggle } from '../fuma/ui/theme'
-import { PlatformOverview } from '../fuma/dashboards/PlatformOverview'
-import { Avatar, Button as HostedButton } from '../fuma/ui/primitives'
+import { HostedThemeProvider } from '../fuma/ui/theme'
+import { PlatformDashboard } from '../fuma/dashboards/PlatformDashboard'
 import styles from './HostedStaffShell.module.css'
 
 const EMPTY_ACCESSIBLE_CONTEXT_CATALOG: AccessibleContextCatalog = {
@@ -321,41 +320,14 @@ export function HostedStaffShell({
   if (platformHome) {
     return (
       <HostedThemeProvider>
-        <div className="fuma-hosted h-full overflow-y-auto bg-background">
-          <div className="mx-auto w-full max-w-[1400px] px-3 py-4 sm:px-6 sm:py-6 xl:px-10 xl:py-8">
-            <header className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Platform</p>
-                <h1 className="mt-1 truncate text-2xl leading-tight font-semibold tracking-tight text-foreground sm:text-3xl">
-                  Welcome, {currentSession.user.name}
-                </h1>
-              </div>
-              <div className="flex items-center gap-2">
-                <ThemeToggle className="text-muted-foreground hover:bg-accent hover:text-foreground" />
-                <a href={ACCOUNT_PATH} className="rounded-full">
-                  <Avatar name={currentSession.user.name} className="size-10 border border-border bg-card" />
-                  <span className="sr-only">Account</span>
-                </a>
-                <HostedButton
-                  variant="quiet"
-                  size="sm"
-                  disabled={signingOut}
-                  aria-busy={signingOut}
-                  onClick={() => void signOut()}
-                >
-                  {signingOut ? 'Signing out' : 'Sign out'}
-                </HostedButton>
-              </div>
-            </header>
-            {error && <p className="mt-4 text-sm text-destructive" role="alert">{error}</p>}
-            <main className="mt-6">
-              <PlatformOverview
-                catalog={catalogValidation.catalog}
-                planPath={null}
-              />
-            </main>
-          </div>
-        </div>
+        <PlatformDashboard
+          catalog={catalogValidation.catalog}
+          actorLabel={currentSession.user.name}
+          accountPath={ACCOUNT_PATH}
+          onSignOut={() => void signOut()}
+          signingOut={signingOut}
+          error={error}
+        />
       </HostedThemeProvider>
     )
   }

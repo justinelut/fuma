@@ -25,11 +25,36 @@ export type SidebarChild = Readonly<{
   count?: number
 }>
 
+/**
+ * The one navigation entry representing the current route. Routes nest, so the
+ * most specific match wins and exactly one entry is ever marked current.
+ */
+function activeEntryId(
+  navigation: ProfileNavigationOutput,
+  currentPath: string,
+  homePath: string,
+): string | null {
+  let bestId: string | null = null
+  let bestLength = -1
+  for (const entry of navigation) {
+    const matches = entry.path === homePath
+      ? currentPath === homePath
+      : currentPath === entry.path || currentPath.startsWith(`${entry.path}/`)
+    if (matches && entry.path.length > bestLength) {
+      bestId = entry.id
+      bestLength = entry.path.length
+    }
+  }
+  return bestId
+}
+
 export interface PublicationDashboardShellProps {
   publicationName: string
   actorLabel: string
   navigation: ProfileNavigationOutput
   currentPath: string
+  /** Scoped home path, so the home entry matches exactly and not by prefix. */
+  homePath: string
   accountPath: string
   builderPath: string
   publicUrl: string | null
@@ -154,8 +179,8 @@ function itemClass(active: boolean): string {
   return cn(
     'flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[0.8125rem] transition-colors',
     active
-      ? 'bg-accent text-foreground'
-      : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+      ? 'bg-primary font-medium text-primary-foreground'
+      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
   )
 }
 
@@ -164,6 +189,7 @@ export function PublicationDashboardShell({
   actorLabel,
   navigation,
   currentPath,
+  homePath,
   accountPath,
   builderPath,
   publicUrl,
@@ -180,7 +206,8 @@ export function PublicationDashboardShell({
   const secondary = navigation.filter((entry) => (
     entry.id !== 'nav.home' && entry.id !== 'nav.posts' && entry.id !== 'nav.builder'
   ))
-  const initials = actorLabel.trim().charAt(0).toUpperCase() || '·'
+  const initials = actorLabel.trim().charAt(0).toUpperCase() || 'F'
+  const activeId = activeEntryId(navigation, currentPath, homePath)
 
   return (
     <div className="dark fuma-hosted flex h-full overflow-hidden bg-background text-foreground">
@@ -208,8 +235,8 @@ export function PublicationDashboardShell({
                 <li key={entry.id}>
                   <Link
                     to={entry.path}
-                    aria-current={currentPath === entry.path ? 'page' : undefined}
-                    className={itemClass(currentPath === entry.path)}
+                    aria-current={entry.id === activeId ? 'page' : undefined}
+                    className={itemClass(entry.id === activeId)}
                   >
                     <Icon />
                     {entry.label}
@@ -237,8 +264,8 @@ export function PublicationDashboardShell({
               <div className="flex items-center justify-between gap-2">
                 <Link
                   to={postsEntry.path}
-                  aria-current={currentPath === postsEntry.path ? 'page' : undefined}
-                  className={cn(itemClass(currentPath === postsEntry.path), 'flex-1')}
+                  aria-current={postsEntry.id === activeId ? 'page' : undefined}
+                  className={cn(itemClass(postsEntry.id === activeId), 'flex-1')}
                 >
                   <PenIcon />
                   {postsEntry.label}
@@ -263,7 +290,7 @@ export function PublicationDashboardShell({
                         'flex items-center justify-between gap-2 rounded-md px-2.5 py-[6px]',
                         'text-[0.8125rem] transition-colors',
                         currentPath === child.path
-                          ? 'text-foreground'
+                          ? 'font-medium text-foreground'
                           : 'text-muted-foreground hover:text-foreground',
                       )}
                     >
@@ -283,7 +310,7 @@ export function PublicationDashboardShell({
           <ul className="space-y-0.5">
             {secondary.map((entry) => {
               const Icon = NAV_ICONS[entry.id] ?? ListIcon
-              const active = currentPath === entry.path
+              const active = entry.id === activeId
               return (
                 <li key={entry.id}>
                   <Link
@@ -359,7 +386,7 @@ export function PublicationDashboardShell({
                 <li key={entry.id}>
                   <Link
                     to={entry.path}
-                    aria-current={currentPath === entry.path ? 'page' : undefined}
+                    aria-current={entry.id === activeId ? 'page' : undefined}
                     className={cn(
                       'inline-flex h-8 shrink-0 items-center rounded-full px-3 text-xs whitespace-nowrap',
                       currentPath === entry.path
