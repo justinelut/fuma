@@ -26,8 +26,8 @@ jobs:
             export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
             pod="$(sudo kubectl -n fuma get pods -l app=fuma-studio --sort-by=.metadata.creationTimestamp -o name | tail -1)"
             sudo kubectl -n fuma exec "$pod" -- bun -e '
-              import { createPostgresClient } from "./server/db/postgres";
-              import { OrganizationBootstrapService, PostgresOrganizationBootstrapRepository } from "./server/fuma/organizations";
+              import { createPostgresClient } from "/workspace/apps/studio/server/db/postgres";
+              import { OrganizationBootstrapService, PostgresOrganizationBootstrapRepository } from "/workspace/apps/studio/server/fuma/organizations";
               const db = createPostgresClient(process.env.DATABASE_URL!);
               const email = process.env.FUMA_PROTECTED_OWNER_EMAIL?.trim().toLowerCase() ?? "";
               const authority = await db<{ google_account: boolean; staff_profile: boolean }>`
