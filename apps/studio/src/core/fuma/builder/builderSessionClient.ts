@@ -15,6 +15,12 @@ export const BUILDER_SESSION_PATH = '/api/fuma/builder-session'
 
 const BuilderSessionEnvelopeSchema = Type.Object({
   user: CmsCurrentUserSchema,
+  /**
+   * Origin the published site is served from. The builder opens its live-site
+   * link against this rather than the current origin, which in the hosted
+   * product is the admin host and would open the dashboard instead.
+   */
+  publicOrigin: Type.Optional(Type.Union([Type.String(), Type.Null()])),
 }, { additionalProperties: false })
 
 export type BuilderSessionScope = Readonly<{
@@ -24,7 +30,7 @@ export type BuilderSessionScope = Readonly<{
 }>
 
 export type BuilderSessionResult =
-  | Readonly<{ kind: 'ready', user: CmsCurrentUser }>
+  | Readonly<{ kind: 'ready', user: CmsCurrentUser, publicOrigin: string | null }>
   | Readonly<{ kind: 'forbidden' }>
   | Readonly<{ kind: 'unauthenticated' }>
   | Readonly<{ kind: 'error', message: string }>
@@ -49,7 +55,11 @@ export async function openBuilderSession(
       },
       ...(fetchImpl ? { fetchImpl } : {}),
     })
-    return Object.freeze({ kind: 'ready' as const, user: envelope.user })
+    return Object.freeze({
+      kind: 'ready' as const,
+      user: envelope.user,
+      publicOrigin: envelope.publicOrigin ?? null,
+    })
   } catch (error) {
     const status = statusOf(error)
     if (status === 403) return Object.freeze({ kind: 'forbidden' as const })

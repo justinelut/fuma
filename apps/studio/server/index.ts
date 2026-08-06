@@ -690,6 +690,38 @@ const builderSession = hostedStaffAuthRuntime && builderIdentityStore
       const row = rows.rows[0]
       return row ? { email: row.email, displayName: row.name } : null
     },
+    // The published site has its own host. Prefer an active custom domain, then
+    // the allocated free host; never fall back to the admin origin, because a
+    // relative link there would open the dashboard instead of the site.
+    resolvePublicOrigin: async (request) => {
+      const query = new URL(request.url).searchParams
+      const organizationId = query.get('organizationId')?.trim() ?? ''
+      const workspaceId = query.get('workspaceId')?.trim() ?? ''
+      const siteId = query.get('siteId')?.trim() ?? ''
+      if (!organizationId || !workspaceId || !siteId) return null
+      const active = await db<{ hostname: string }>`
+        select hostname
+        from fuma_domains
+        where organization_id=${organizationId}
+          and workspace_id=${workspaceId}
+          and site_id=${siteId}
+          and desired='active'
+          and observed='active'
+        order by case when kind='free' then 1 else 0 end, hostname
+        limit 1`
+      const hostname = active.rows[0]?.hostname
+      if (hostname) return `https://${hostname}`
+      const free = await db<{ host: string }>`
+        select host
+        from fuma_free_hosts
+        where organization_id=${organizationId}
+          and workspace_id=${workspaceId}
+          and site_id=${siteId}
+          and state='active'
+        limit 1`
+      const host = free.rows[0]?.host
+      return host ? `https://${host}` : null
+    },
     // Authority is re-derived from the request's own site scope; the browser
     // never supplies permissions, only which site it is asking about.
     resolveSitePermissions: async (request, userId) => {

@@ -19,6 +19,7 @@ import {
   type BuilderSessionScope,
 } from '@core/fuma/builder/builderSessionClient'
 import type { CmsCurrentUser } from '@core/persistence'
+import { useAdminUi } from '@admin/state/adminUi'
 import { cn } from '../ui/cn'
 
 const AuthenticatedAdmin = prewarmedLazy<{
@@ -56,15 +57,20 @@ export function HostedBuilderHandoff({
   exchange = openBuilderSession,
 }: HostedBuilderHandoffProps) {
   const [state, setState] = useState<HandoffState>({ kind: 'resolving' })
+  const setPublishedSiteOrigin = useAdminUi((store) => store.setPublishedSiteOrigin)
 
   useEffect(() => {
     let active = true
     setState({ kind: 'resolving' })
     void exchange(scope).then((result) => {
-      if (active) setState(result)
+      if (!active) return
+      // The builder's live-site link needs the site's own origin before it
+      // renders, otherwise it would open the admin host.
+      setPublishedSiteOrigin(result.kind === 'ready' ? result.publicOrigin : null)
+      setState(result)
     })
     return () => { active = false }
-  }, [exchange, scope])
+  }, [exchange, scope, setPublishedSiteOrigin])
 
   if (state.kind === 'resolving') return <AppLoadingScreen />
 
