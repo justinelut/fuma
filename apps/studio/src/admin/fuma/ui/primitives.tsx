@@ -86,8 +86,10 @@ export function Card({ className, tone = 'plain', ...props }: CardProps) {
     <div
       className={cn(
         'rounded-[var(--radius-lg)] p-5',
-        tone === 'plain' && 'bg-card',
-        tone === 'warm' && 'bg-muted',
+        tone === 'plain' && 'bg-card text-card-foreground',
+        tone === 'warm' && 'bg-muted text-foreground',
+        // The inverse surface the reference uses for its feature card. Themed
+        // through the same tokens so it follows light and dark.
         tone === 'ink' && 'bg-foreground text-background',
         className,
       )}

@@ -174,3 +174,56 @@
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+/**
+ * Scoped element reset.
+ *
+ * Tailwind's preflight is deliberately not imported, because it resets element
+ * defaults globally and would restyle Instatic's builder. Hosted surfaces still
+ * need the same baseline, so it is applied here scoped to `.fuma-hosted` — which
+ * the builder never carries. Without this, navigation lists rendered browser
+ * bullets and inherited list indentation.
+ */
+.fuma-hosted :where(ul, ol, menu) {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fuma-hosted :where(h1, h2, h3, h4, h5, h6, p, dl, dd, figure, blockquote) {
+  margin: 0;
+}
+
+.fuma-hosted :where(button, input, select, textarea) {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+.fuma-hosted :where(button) {
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.fuma-hosted :where(a) {
+  color: inherit;
+  text-decoration: none;
+}
+
+.fuma-hosted :where(table) {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.fuma-hosted :where(img, svg, video, canvas) {
+  display: block;
+}
+
+.fuma-hosted :where(svg) {
+  vertical-align: middle;
+}
+
+.fuma-hosted :where(hr) {
+  border-color: inherit;
+}
