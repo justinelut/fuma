@@ -230,6 +230,15 @@ describe('FUMA-013 hosted staff auth client contract', () => {
     requests.expectComplete()
   })
 
+  it('accepts the window Better Auth echoes with a staff page', async () => {
+    const paged = scriptedFetch([{
+      path: '/api/auth/admin/list-users?limit=100',
+      response: { users: [user], total: 1, limit: 100, offset: 0 },
+    }])
+    expect(await listHostedStaffUsers(paged.fetchImpl)).toEqual([user])
+    paged.expectComplete()
+  })
+
   it('lists staff and models admin ban and unban requests', async () => {
     const bannedUser = { ...user, banned: true, banReason: 'Suspended by a Fuma administrator' }
     const requests = scriptedFetch([
