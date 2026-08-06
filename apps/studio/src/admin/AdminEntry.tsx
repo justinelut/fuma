@@ -93,8 +93,9 @@ function scopedBuilderTarget(pathname: string): BuilderSessionScope | null {
  * of them, so reaching any of these paths hands the viewport to Instatic for
  * the site currently being worked on.
  *
- * `account` is excluded: hosted identity, devices and step-up policy are
- * platform concerns and stay on the platform.
+ * `account` and `users` are excluded: staff identity, roles, devices and
+ * step-up policy are platform concerns owned by Better Auth, so they stay on
+ * the platform rather than being served by the builder's native auth surfaces.
  */
 const INSTATIC_OWNED_SECTIONS: ReadonlySet<AdminSection> = new Set<AdminSection>([
   'dashboard',
@@ -103,7 +104,6 @@ const INSTATIC_OWNED_SECTIONS: ReadonlySet<AdminSection> = new Set<AdminSection>
   'data',
   'media',
   'plugins',
-  'users',
   'ai',
   'pluginPage',
 ])
