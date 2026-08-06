@@ -132,6 +132,22 @@ function perMTok(value: string | undefined): number | null {
   return perToken * 1_000_000
 }
 
+/**
+ * Price band shown next to the model in the picker.
+ *
+ * OpenRouter publishes hundreds of models across a wide price range, and a free
+ * account can only use the ones priced at zero. Without a band the list is an
+ * undifferentiated wall, so `free` is called out explicitly and the paid models
+ * are grouped coarsely by input price rather than left to be compared by eye.
+ */
+function tierFor(inputPerMTok: number | null, outputPerMTok: number | null): string | null {
+  if (inputPerMTok === null || outputPerMTok === null) return null
+  if (inputPerMTok === 0 && outputPerMTok === 0) return 'free'
+  if (inputPerMTok < 1) return 'budget'
+  if (inputPerMTok < 10) return 'standard'
+  return 'premium'
+}
+
 async function fetchOpenRouterModels(
   creds: AiResolvedCredential,
   signal?: AbortSignal,
@@ -173,6 +189,7 @@ async function fetchOpenRouterModels(
       ...(inputPerMTok !== null && outputPerMTok !== null
         ? { pricing: { inputPerMTok, outputPerMTok } }
         : {}),
+      ...(tierFor(inputPerMTok, outputPerMTok) ? { tier: tierFor(inputPerMTok, outputPerMTok)! } : {}),
       ...(model.context_length && Number.isFinite(model.context_length)
         ? { contextWindow: model.context_length }
         : {}),
