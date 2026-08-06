@@ -87,6 +87,8 @@ const session = {
     updatedAt: '2026-07-24T12:00:00.000Z',
     ipAddress: '203.0.113.7',
     userAgent: 'Contract Test',
+    activeOrganizationId: null,
+    impersonatedBy: null,
   },
   user,
 }
