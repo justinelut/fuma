@@ -67,27 +67,20 @@ export function useHostedContextCatalog(enabled: boolean): HostedContextCatalogS
           }
           const rawPermissions = (body as { permissions?: unknown }).permissions
           const permissions = Value.Check(PermissionProjectionsSchema, rawPermissions) ? rawPermissions : []
-          // Navigation reads a flat allow map; route access reads per-site decisions.
+          // Navigation and route access read this flat allow map. Editor
+          // surfaces consume PermissionDecision, a distinct contract carrying
+          // subject and provenance that this projection cannot produce, so it
+          // is deliberately left empty rather than fabricated.
           const permissionState: Record<string, boolean> = {}
-          const permissionDecisions: PermissionDecision[] = []
           for (const projection of permissions) {
-            for (const permissionId of projection.allow) {
-              permissionState[permissionId] = true
-              permissionDecisions.push(Object.freeze({
-                organizationId: projection.organizationId,
-                workspaceId: projection.workspaceId,
-                siteId: projection.siteId,
-                permissionId,
-                decision: 'allow' as const,
-              }) as unknown as PermissionDecision)
-            }
+            for (const permissionId of projection.allow) permissionState[permissionId] = true
           }
           if (!controller.signal.aborted) {
             setState({
               status: 'ready',
               catalog: candidate,
               permissionState: Object.freeze(permissionState),
-              permissionDecisions: Object.freeze(permissionDecisions),
+              permissionDecisions: EMPTY_PROJECTION.permissionDecisions,
             })
           }
         })
