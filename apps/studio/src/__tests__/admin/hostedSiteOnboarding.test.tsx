@@ -27,6 +27,9 @@ describe('hosted first-site onboarding', () => {
     render(<HostedSiteOnboarding catalog={empty} fetchImpl={fetchImpl} navigate={(target) => targets.push(target)} />)
 
     fireEvent.change(screen.getByLabelText('Organization name'), { target: { value: 'Acme Studio' } })
+    // Organization and site are separate steps: no site fields exist yet.
+    expect(screen.queryByLabelText('Site name')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     fireEvent.change(screen.getByLabelText('Site name'), { target: { value: 'Acme Site' } })
     fireEvent.click(screen.getByLabelText(/Publication/))
     fireEvent.click(screen.getByRole('button', { name: 'Create site and open editor' }))

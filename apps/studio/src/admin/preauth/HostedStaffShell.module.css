@@ -71,3 +71,53 @@
   background: #fff8c5;
   color: #4d2d00;
 }
+
+.identityBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-l);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-l);
+  border-bottom: 1px solid var(--border);
+}
+
+.identityText {
+  display: grid;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.identityText .eyebrow {
+  margin: 0;
+}
+
+.identityText .identity {
+  margin: 0;
+}
+
+.identityActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-m);
+}
+
+.accountLink {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: var(--text-s);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.accountLink:hover {
+  color: var(--text-bright);
+}
+
+.accountLink:focus-visible {
+  outline: 2px solid var(--accent-1);
+  outline-offset: 2px;
+}

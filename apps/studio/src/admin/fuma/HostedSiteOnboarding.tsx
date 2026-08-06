@@ -78,6 +78,8 @@ export function HostedSiteOnboarding({
   const [error, setError] = useState('')
 
   const needsOrganization = activeOrganizations.length === 0
+  const [step, setStep] = useState<'organization' | 'site'>(needsOrganization ? 'organization' : 'site')
+  const organizationReady = !needsOrganization || slug(organizationName).length > 0
   const canContinue = siteName.trim().length > 0
     && slug(siteSlug || siteName).length > 0
     && (!needsOrganization || slug(organizationName).length > 0)
@@ -127,61 +129,86 @@ export function HostedSiteOnboarding({
       <div className={styles.intro}>
         <p className={styles.eyebrow}>Your first Fuma site</p>
         <h2 id="fuma-onboarding-title">Give the editor somewhere real to work.</h2>
-        <p>Create the organization boundary, its default workspace, and a live site authority in one guided step.</p>
+        <p>Name the organization that owns the work, then create its first site. The default workspace is created for you.</p>
         <ol className={styles.rail} aria-label="Site setup progress">
-          <li><span>1</span><strong>Organization</strong><small>People and ownership</small></li>
-          <li><span>2</span><strong>Workspace</strong><small>Created as your default</small></li>
-          <li><span>3</span><strong>Site</strong><small>Website or publication</small></li>
+          <li
+            data-state={needsOrganization ? (step === 'organization' ? 'current' : 'complete') : 'complete'}
+            aria-current={step === 'organization' ? 'step' : undefined}
+          >
+            <span>1</span><strong>Organization</strong><small>People and ownership</small>
+          </li>
+          <li data-state="automatic">
+            <span>2</span><strong>Workspace</strong><small>Created automatically as your default</small>
+          </li>
+          <li data-state={step === 'site' ? 'current' : 'upcoming'} aria-current={step === 'site' ? 'step' : undefined}>
+            <span>3</span><strong>Site</strong><small>Website or publication</small>
+          </li>
         </ol>
       </div>
       <div className={styles.form}>
-        {needsOrganization ? (
-          <label>
-            Organization name
-            <input
-              autoComplete="organization"
-              value={organizationName}
-              onChange={(event) => setOrganizationName(event.target.value)}
-              placeholder="Acme Studio"
-              disabled={busy}
-            />
-          </label>
-        ) : activeOrganizations.length > 1 ? (
-          <label>
-            Organization
-            <select value={organizationId} onChange={(event) => setOrganizationId(event.target.value)} disabled={busy}>
-              {activeOrganizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}
-            </select>
-          </label>
+        {step === 'organization' ? (
+          <>
+            <label>
+              Organization name
+              <input
+                autoComplete="organization"
+                value={organizationName}
+                onChange={(event) => setOrganizationName(event.target.value)}
+                placeholder="Acme Studio"
+                disabled={busy}
+              />
+            </label>
+            <Button variant="primary" disabled={!organizationReady || busy} onClick={() => setStep('site')}>
+              Continue
+            </Button>
+          </>
         ) : (
-          <p className={styles.selectedOrganization}><span>Organization</span><strong>{activeOrganizations[0]?.name}</strong></p>
+          <>
+            {needsOrganization ? (
+              <p className={styles.selectedOrganization}><span>Organization</span><strong>{organizationName.trim()}</strong></p>
+            ) : activeOrganizations.length > 1 ? (
+              <label>
+                Organization
+                <select value={organizationId} onChange={(event) => setOrganizationId(event.target.value)} disabled={busy}>
+                  {activeOrganizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}
+                </select>
+              </label>
+            ) : (
+              <p className={styles.selectedOrganization}><span>Organization</span><strong>{activeOrganizations[0]?.name}</strong></p>
+            )}
+            <label>
+              Site name
+              <input value={siteName} onChange={(event) => setSiteName(event.target.value)} placeholder="Acme Studio" disabled={busy} />
+            </label>
+            <label>
+              Site address
+              <span className={styles.slugInput}>
+                <input value={siteSlug} onChange={(event) => setSiteSlug(event.target.value)} placeholder={slug(siteName) || 'acme-studio'} disabled={busy} />
+                <small>.trimly.co.ke</small>
+              </span>
+            </label>
+            <fieldset disabled={busy}>
+              <legend>What are you building?</legend>
+              <label className={profileId === 'website' ? styles.profileActive : styles.profile}>
+                <input type="radio" name="profile" value="website" checked={profileId === 'website'} onChange={() => setProfileId('website')} />
+                <strong>Website</strong><span>Pages, forms, data, media and visual design.</span>
+              </label>
+              <label className={profileId === 'publication' ? styles.profileActive : styles.profile}>
+                <input type="radio" name="profile" value="publication" checked={profileId === 'publication'} onChange={() => setProfileId('publication')} />
+                <strong>Publication</strong><span>Editorial workflow, members and newsletters.</span>
+              </label>
+            </fieldset>
+            {error ? <p className={styles.error} role="alert">{error}</p> : null}
+            <div className={styles.actions}>
+              {needsOrganization ? (
+                <Button variant="secondary" disabled={busy} onClick={() => setStep('organization')}>Back</Button>
+              ) : null}
+              <Button variant="primary" disabled={!canContinue || busy} onClick={() => void create()}>
+                {busy ? 'Creating your site…' : 'Create site and open editor'}
+              </Button>
+            </div>
+          </>
         )}
-        <label>
-          Site name
-          <input value={siteName} onChange={(event) => setSiteName(event.target.value)} placeholder="Acme Studio" disabled={busy} />
-        </label>
-        <label>
-          Site address
-          <span className={styles.slugInput}>
-            <input value={siteSlug} onChange={(event) => setSiteSlug(event.target.value)} placeholder={slug(siteName) || 'acme-studio'} disabled={busy} />
-            <small>.trimly.co.ke</small>
-          </span>
-        </label>
-        <fieldset disabled={busy}>
-          <legend>What are you building?</legend>
-          <label className={profileId === 'website' ? styles.profileActive : styles.profile}>
-            <input type="radio" name="profile" value="website" checked={profileId === 'website'} onChange={() => setProfileId('website')} />
-            <strong>Website</strong><span>Pages, forms, data, media and visual design.</span>
-          </label>
-          <label className={profileId === 'publication' ? styles.profileActive : styles.profile}>
-            <input type="radio" name="profile" value="publication" checked={profileId === 'publication'} onChange={() => setProfileId('publication')} />
-            <strong>Publication</strong><span>Editorial workflow, members and newsletters.</span>
-          </label>
-        </fieldset>
-        {error ? <p className={styles.error} role="alert">{error}</p> : null}
-        <Button variant="primary" disabled={!canContinue || busy} onClick={() => void create()}>
-          {busy ? 'Creating your site…' : 'Create site and open editor'}
-        </Button>
       </div>
     </section>
   )
