@@ -195,9 +195,17 @@ function identityBoundary(): HostedStaffAuthBoundary {
   }
 }
 
-function boundary(service: PublicHandoffService, authenticated = false) {
+function boundary(
+  service: PublicHandoffService,
+  authenticated = false,
+  completeStaffSession?: (
+    request: Request,
+    session: Readonly<{ userId: string, identitySessionId: string }>,
+  ) => Promise<readonly string[]>,
+) {
   return createPublicHandoffAppBoundary({
     service,
+    ...(completeStaffSession ? { completeStaffSession } : {}),
     appOrigin: APP,
     authOrigin: AUTH,
     marketingOrigin: PUBLIC,
@@ -374,8 +382,32 @@ describe('FUMA-WEB-013 host, redirect, cancellation, and cookie isolation', () =
     const surface = boundary(h.service, true)
     const review = await surface.handle(request(`${APP}/resume?code=${code.code}&state=${code.state}`))
     expect(review?.status).toBe(200)
-    expect(await review!.text()).toContain('Continue to Fuma')
-    const exchanged = await surface.handle(formRequest(`${APP}/resume/exchange`, APP, { code: code.code, state: code.state }))
+    const reviewHtml = await review!.text()
+    // The exchange needs no decision from someone who has already signed in, so
+    // it submits itself; the button is only the no-script fallback. Leaving it
+    // behind a click meant a visitor who went straight to the app was met by a
+    // second sign-in form because the session had never been minted.
+    expect(reviewHtml).toContain('Signing you in')
+    expect(reviewHtml).toContain("document.getElementById('fuma-exchange').submit()")
+    expect(reviewHtml).toContain('<noscript><button type="submit">Continue</button></noscript>')
+    const staffCookies: unknown[] = []
+    const staffSurface = boundary(h.service, true, async (_request, session) => {
+      staffCookies.push(session)
+      return ['__Host-fuma_staff=minted; Path=/; HttpOnly; Secure']
+    })
+    const withStaff = await staffSurface.handle(formRequest(`${APP}/resume/exchange`, APP, { code: code.code, state: code.state }))
+    // The visitor already authenticated, so the app must receive a staff session
+    // as well as the handoff cookie — otherwise it shows a second sign-in form.
+    expect(withStaff?.headers.getSetCookie().some((value) => value.startsWith('__Host-fuma_staff='))).toBe(true)
+    expect(staffCookies).toHaveLength(1)
+
+    const second = await h.service.issue({ kind: 'create_site', source: 'home', profile: 'website' })
+    const replayCode = await h.service.authorize(
+      { intent: second.intent, correlation: second.correlation },
+      'user-1',
+      'identity-session',
+    )
+    const exchanged = await surface.handle(formRequest(`${APP}/resume/exchange`, APP, { code: replayCode.code, state: replayCode.state }))
     const setCookie = exchanged?.headers.get('set-cookie') ?? ''
     expect(exchanged?.status).toBe(303)
     expect(exchanged?.headers.get('location')).toBe(`${APP}/admin`)
