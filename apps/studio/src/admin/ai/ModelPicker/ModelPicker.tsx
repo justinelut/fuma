@@ -74,6 +74,37 @@ function formatPerMTok(value: number): string {
 }
 
 /** Input/output price pair shown inline per model row, e.g. `$3 / $15`. */
+/**
+ * Order shown in the picker: what a free account can run comes first, then
+ * ascending price. OpenRouter lists hundreds of models, so an unordered list
+ * buries the ones most people can actually use.
+ */
+const TIER_ORDER: Readonly<Record<string, number>> = {
+  free: 0,
+  budget: 1,
+  standard: 2,
+  premium: 3,
+}
+
+const TIER_LABELS: Readonly<Record<string, string>> = {
+  free: 'Free',
+  budget: 'Low cost',
+  standard: 'Standard',
+  premium: 'Premium',
+}
+
+function orderedByTier(models: readonly AiModel[]): readonly AiModel[] {
+  return [...models].sort((left, right) => {
+    const leftRank = TIER_ORDER[left.tier ?? ''] ?? 99
+    const rightRank = TIER_ORDER[right.tier ?? ''] ?? 99
+    if (leftRank !== rightRank) return leftRank - rightRank
+    const leftPrice = left.pricing?.inputPerMTok ?? Number.POSITIVE_INFINITY
+    const rightPrice = right.pricing?.inputPerMTok ?? Number.POSITIVE_INFINITY
+    if (leftPrice !== rightPrice) return leftPrice - rightPrice
+    return left.label.localeCompare(right.label)
+  })
+}
+
 function formatModelPrice(model: AiModel): string | null {
   if (!model.pricing) return null
   return `${formatPerMTok(model.pricing.inputPerMTok)} / ${formatPerMTok(model.pricing.outputPerMTok)}`
@@ -355,7 +386,19 @@ export function ModelPicker({
                   </ContextMenuItem>,
                 )
               } else {
-                for (const model of group.models) {
+                let renderedTier: string | null = null
+                for (const model of orderedByTier(group.models)) {
+                  const tier = model.tier ?? null
+                  if (tier !== renderedTier) {
+                    renderedTier = tier
+                    if (tier) {
+                      items.push(
+                        <div key={`${credentialId}:tier:${tier}`} role="presentation" className={styles.groupHeaderRow}>
+                          <span className={styles.groupHeader}>{TIER_LABELS[tier] ?? tier}</span>
+                        </div>,
+                      )
+                    }
+                  }
                   const key = choiceKey(credentialId, model.id)
                   const entry = optionByKey.get(key)
                   const isSelected =
