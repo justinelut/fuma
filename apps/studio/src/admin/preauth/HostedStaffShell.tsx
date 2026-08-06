@@ -19,6 +19,10 @@ import {
   isWebsiteDashboardRoute,
 } from '../fuma/dashboards/website/WebsiteDashboardRoute'
 import {
+  PublicationDashboardRoute,
+  isPublicationDashboardRoute,
+} from '../fuma/dashboards/publication/PublicationDashboardRoute'
+import {
   HostedProfileEditorSurface,
   type HostedProfileEditorRenderAdapter,
 } from '../fuma/profileEditor/HostedProfileEditorSurface'
@@ -34,6 +38,7 @@ import { Value } from '@core/utils/typeboxHelpers'
 import { Button } from '@ui/components/Button'
 import panelStyles from '../AdminEntry.module.css'
 import { HostedStaffSecurity } from './HostedStaffSecurity'
+import { HostedThemeProvider } from '../fuma/ui/theme'
 import styles from './HostedStaffShell.module.css'
 
 const EMPTY_ACCESSIBLE_CONTEXT_CATALOG: AccessibleContextCatalog = {
@@ -129,7 +134,7 @@ function internalCapabilityTarget(pathname: string, catalog: AccessibleContextCa
  * On their home route the generic scoped chrome is suppressed so the profile
  * dashboard is the entire page. Every other route keeps the shared chrome.
  */
-const DEDICATED_DASHBOARD_PROFILES: ReadonlySet<string> = new Set(['website'])
+const DEDICATED_DASHBOARD_PROFILES: ReadonlySet<string> = new Set(['website', 'publication'])
 
 const SCOPED_HOME_PATTERN =
   /^\/admin\/organizations\/([^/]+)\/workspaces\/([^/]+)\/sites\/([^/]+)\/?$/
@@ -325,6 +330,14 @@ export function HostedStaffShell({
             onSignOut={() => void signOut()}
             signingOut={signingOut}
           />
+        ) : isPublicationDashboardRoute(shell) ? (
+          <PublicationDashboardRoute
+            shell={shell}
+            actorLabel={currentSession.user.name}
+            accountPath={ACCOUNT_PATH}
+            onSignOut={() => void signOut()}
+            signingOut={signingOut}
+          />
         ) : (
           <>
             <PublicationRouteContent shell={shell} permissionDecisions={permissionDecisions} />
@@ -359,6 +372,6 @@ export function HostedStaffShell({
   // A dedicated dashboard owns the full viewport, so the shared panel wrapper
   // would box it inside the generic layout.
   return dashboardLayout === 'bare'
-    ? scopedShell
+    ? <HostedThemeProvider>{scopedShell}</HostedThemeProvider>
     : <div className={`${panelStyles.page} ${styles.page}`}>{scopedShell}</div>
 }

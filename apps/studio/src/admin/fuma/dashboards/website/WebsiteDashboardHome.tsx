@@ -9,7 +9,7 @@
  *  - the ring card shows readiness;
  *  - the segmented card nests a dark checklist of the real onboarding steps;
  *  - the accordion lists platform areas;
- *  - the wide card is the Instatic launcher, because Instatic already owns
+ *  - the wide card is the builder launcher, because the builder already owns
  *    insights, pages, content, data, media and plugins.
  */
 import { useState } from 'react'
@@ -39,14 +39,14 @@ export interface WebsiteDashboardHomeProps {
   areas: readonly PlatformArea[]
 }
 
-/** Instatic's own workspaces. The hosted product reproduces none of them. */
-const INSTATIC_SECTIONS: readonly Readonly<{
+/** Builder workspaces. The platform reproduces none of them. */
+const BUILDER_SECTIONS: readonly Readonly<{
   path: string
   label: string
   detail: string
 }>[] = Object.freeze([
   { path: '/admin/dashboard', label: 'Insights', detail: 'Site stats and activity' },
-  { path: '/admin/site', label: 'Builder', detail: 'Canvas and design tokens' },
+  { path: '/admin/site', label: 'Canvas', detail: 'Design and layout' },
   { path: '/admin/content', label: 'Content', detail: 'Write posts and entries' },
   { path: '/admin/data', label: 'Data', detail: 'Collections and rows' },
   { path: '/admin/media', label: 'Media', detail: 'Files and folders' },
@@ -137,13 +137,13 @@ export function WebsiteDashboardHome({
             {siteName}
           </p>
           <p className="mt-2 text-xs leading-relaxed text-white/55">
-            Instatic builds and manages this site. Opening it hands over the whole
-            screen — canvas, content, media and data.
+            The visual builder designs and manages this site. Opening it hands
+            over the whole screen — canvas, content, media and data.
           </p>
         </div>
         <div className="mt-6 flex items-center gap-2">
           <ButtonLink href={builderPath} variant="accent" size="md">
-            Open Instatic
+            Open visual builder
           </ButtonLink>
           {publicUrl ? (
             <ButtonLink
@@ -273,11 +273,11 @@ export function WebsiteDashboardHome({
       {/* Instatic launcher — the wide card position in the reference. */}
       <Card className="lg:col-span-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <CardTitle>Instatic</CardTitle>
-          <CardCaption>Everything about this site itself lives here</CardCaption>
+          <CardTitle>Visual builder</CardTitle>
+          <CardCaption>Everything about the site itself lives here</CardCaption>
         </div>
         <ul className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-          {INSTATIC_SECTIONS.map((section) => (
+          {BUILDER_SECTIONS.map((section) => (
             <li key={section.path}>
               <a
                 href={section.path}
