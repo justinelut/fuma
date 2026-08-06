@@ -11,15 +11,18 @@ import {
 } from '@core/fuma'
 import { createFumaFixtureSite } from '../helpers/fuma/fixtures'
 
+/**
+ * Pages, media, data, and design belong to the Instatic builder, which the
+ * hosted shell opens full-screen through one entry instead of duplicating.
+ */
 const PUBLICATION_NAVIGATION = [
   'Home',
+  'Open builder',
   'Posts',
-  'Pages',
   'Tags',
   'Members',
   'Newsletters',
   'Analytics',
-  'Design',
   'Domains',
   'Organization & team',
   'Settings',

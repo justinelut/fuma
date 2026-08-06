@@ -19,13 +19,16 @@ const SCAN_DIRS = [
  * design language with the marketing pages. Instatic's builder stays on CSS
  * modules, so the gate still guards everything outside these directories.
  */
-const TAILWIND_ALLOWED = [
-  join(SRC_ROOT, 'admin', 'fuma'),
-  join(SRC_ROOT, 'admin', 'preauth'),
+const BUILDER_ONLY = [
+  join(SRC_ROOT, 'admin', 'pages'),
+  join(SRC_ROOT, 'ui'),
+  join(SRC_ROOT, 'modules'),
 ]
 
 function tailwindAllowed(file: string): boolean {
-  return TAILWIND_ALLOWED.some((allowed) => file.startsWith(allowed))
+  const insideAdmin = file.startsWith(join(SRC_ROOT, 'admin'))
+  const builderOwned = BUILDER_ONLY.some((builder) => file.startsWith(builder))
+  return insideAdmin && !builderOwned
 }
 
 // Named Tailwind utility classes (non-arbitrary)

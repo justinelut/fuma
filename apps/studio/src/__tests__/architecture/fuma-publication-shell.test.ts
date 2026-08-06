@@ -31,17 +31,17 @@ function audit(sources: Sources): string[] {
   const violations: string[] = []
   const publicationBlock = sources.launch.match(/id: 'publication',[\s\S]*?starterTemplatePreset:/)?.[0] ?? ''
   const navigationPreset = publicationBlock.match(/navigationPreset: \[([\s\S]*?)\],/)?.[1] ?? ''
-  const labels = [...navigationPreset.matchAll(/'nav\.(home|posts|pages|tags|members|newsletters|publication-analytics|design|settings)'/g)]
+  const labels = [...navigationPreset.matchAll(/'nav\.(home|builder|posts|tags|members|newsletters|publication-analytics|settings)'/g)]
     .map((match) => match[1])
 
   if (!publicationBlock.includes("subtitle: 'Blog, magazine, newsletter, or newsroom'")) {
     violations.push('Publication subtitle drifted from the exact launch contract')
   }
-  if (labels.join(',') !== 'home,posts,pages,tags,members,newsletters,publication-analytics,design,settings') {
+  if (labels.join(',') !== 'home,builder,posts,tags,members,newsletters,publication-analytics,settings') {
     violations.push('Publication navigation preset is not the exact required order')
   }
-  if (!/label: 'Editor',[\s\S]*?defaultCollapsed: true,[\s\S]*?navigationIds: \['nav\.design'\]/.test(publicationBlock)) {
-    violations.push('Design is not present in the default-collapsed Editor disclosure')
+  if (!/label: 'Editor',[\s\S]*?defaultCollapsed: true,[\s\S]*?navigationIds: \['nav\.builder'\]/.test(publicationBlock)) {
+    violations.push('Builder entry is not present in the default-collapsed Editor disclosure')
   }
   if (!sources.contracts.includes('navigationSections: Type.Optional(Type.Array(NavigationSectionSchema))')
     || !sources.navigation.includes('disclosureByNavigationId')) {
@@ -64,10 +64,17 @@ function audit(sources: Sources): string[] {
   if (sharedDecisionSources.some((source) => /profile(?:\.id|Id)?\s*={2,3}\s*['"](?:website|publication)['"]/.test(source))) {
     violations.push('shared shell implementation branches on a launch profile ID')
   }
-  if (/\b(?:tailwindcss|tailwind-merge|shadcn|class-variance-authority|zod)\b/.test(
+  if (/\bzod\b/.test(
     `${sources.navigation}\n${sources.routes}\n${sources.shell}\n${sources.component}\n${sources.studioManifest}`,
   )) {
-    violations.push('Publication shell contaminates Studio with Fuma Web styling or Zod dependencies')
+    violations.push('Publication shell contaminates Studio with a second validation library')
+  }
+  // Core contracts stay free of styling dependencies. Hosted surfaces
+  // deliberately use Tailwind and shadcn to share the marketing design system.
+  if (/\b(?:tailwindcss|tailwind-merge|shadcn|class-variance-authority)\b/.test(
+    `${sources.navigation}\n${sources.routes}`,
+  )) {
+    violations.push('Fuma contract layer depends on styling libraries')
   }
   return violations
 }
@@ -93,15 +100,15 @@ describe('FUMA-032 Publication shell architecture', () => {
     expect(audit(replace(
       sources,
       'launch',
-      "      'nav.posts',\n      'nav.pages',",
-      "      'nav.pages',\n      'nav.posts',",
+      "      'nav.builder',\n      'nav.posts',",
+      "      'nav.posts',\n      'nav.builder',",
     ))).toContain('Publication navigation preset is not the exact required order')
     expect(audit(replace(
       sources,
       'launch',
       'defaultCollapsed: true',
       'defaultCollapsed: false',
-    ))).toContain('Design is not present in the default-collapsed Editor disclosure')
+    ))).toContain('Builder entry is not present in the default-collapsed Editor disclosure')
   })
 
   it('rejects capability, permission, and denied-child route bypasses', () => {
@@ -130,7 +137,11 @@ describe('FUMA-032 Publication shell architecture', () => {
     })).toContain('shared shell implementation branches on a launch profile ID')
     expect(audit({
       ...sources,
-      component: `${sources.component}\nimport { cn } from 'tailwind-merge'`,
-    })).toContain('Publication shell contaminates Studio with Fuma Web styling or Zod dependencies')
+      component: `${sources.component}\nimport { z } from 'zod'`,
+    })).toContain('Publication shell contaminates Studio with a second validation library')
+    expect(audit({
+      ...sources,
+      routes: `${sources.routes}\nimport { cn } from 'tailwind-merge'`,
+    })).toContain('Fuma contract layer depends on styling libraries')
   })
 })

@@ -294,7 +294,7 @@ describe('FUMA-018 scoped shell and state presentation', () => {
 
   it('supports an immutable ready-context renderer while preserving static children', () => {
     const selected = selection('organization-a', 'website')
-    const pathname = buildScopedAdminUrl(selected, '/admin/pages')
+    const pathname = buildScopedAdminUrl(selected, '/admin/builder')
     const permissionState = grantedPermissions('website')
     const callbackView = render(
       <MemoryRouter initialEntries={[pathname]}>
@@ -309,7 +309,7 @@ describe('FUMA-018 scoped shell and state presentation', () => {
               {JSON.stringify({
                 selection: context.resolution.selection,
                 subpath: context.profileRelativeSubpath,
-                navigationPath: context.navigation.find(({ id }) => id === 'nav.pages')?.path,
+                navigationPath: context.navigation.find(({ id }) => id === 'nav.builder')?.path,
                 pagesAllowed: context.permissionState['content.pages.read'],
                 frozen: Object.isFrozen(context)
                   && Object.isFrozen(context.resolution)
@@ -324,7 +324,7 @@ describe('FUMA-018 scoped shell and state presentation', () => {
 
     expect(JSON.parse(screen.getByTestId('ready-context').textContent ?? '')).toEqual({
       selection: selected,
-      subpath: '/admin/pages',
+      subpath: '/admin/builder',
       navigationPath: pathname,
       pagesAllowed: true,
       frozen: true,
@@ -351,7 +351,7 @@ describe('FUMA-018 scoped shell and state presentation', () => {
 
   it('supplies deterministic scoped targets through the injected switcher slot', () => {
     const selected = selection('organization-a', 'website')
-    const path = buildScopedAdminUrl(selected, '/admin/design')
+    const path = buildScopedAdminUrl(selected, '/admin/builder')
     renderShell(path, catalog(), {
       permissionState: grantedPermissions('website'),
       switcherSlot: (model) => (
@@ -363,7 +363,7 @@ describe('FUMA-018 scoped shell and state presentation', () => {
 
     expect(screen.getByLabelText('Context switchers')).toBeTruthy()
     expect(screen.getByTestId('switcher-target').textContent).toBe(
-      buildScopedAdminUrl(selection('organization-b', 'publication'), '/admin/design'),
+      buildScopedAdminUrl(selection('organization-b', 'publication'), '/admin/builder'),
     )
   })
 
@@ -412,7 +412,7 @@ describe('FUMA-018 scoped shell and state presentation', () => {
     const websiteOnboarding = within(
       screen.getByRole('region', { name: 'Website onboarding' }),
     ).getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)
-    expect(websiteNavigation).toContain('Content')
+    expect(websiteNavigation).toContain('Open builder')
     expect(websiteNavigation).not.toContain('Posts')
 
     websiteView.unmount()

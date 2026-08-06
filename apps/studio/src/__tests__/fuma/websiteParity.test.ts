@@ -27,7 +27,7 @@ const WEBSITE_PARITY_MATRIX = [
     concept: 'pages',
     currentBaseline: 'Pages panel in the visual editor at /admin/site',
     capabilityId: 'content.pages',
-    navigationId: 'nav.pages',
+    navigationId: null,
     routeIds: ['route.pages.list', 'route.pages.write'],
     permissionIds: ['content.pages.read', 'content.pages.write'],
     onboardingIds: ['onboarding.pages'],
@@ -40,7 +40,7 @@ const WEBSITE_PARITY_MATRIX = [
     concept: 'content',
     currentBaseline: 'Content workspace at /admin/content',
     capabilityId: 'website.content',
-    navigationId: 'nav.content',
+    navigationId: null,
     routeIds: ['route.content'],
     permissionIds: ['website.content.read'],
     onboardingIds: [],
@@ -53,7 +53,7 @@ const WEBSITE_PARITY_MATRIX = [
     concept: 'data',
     currentBaseline: 'Data workspace at /admin/data',
     capabilityId: 'website.data',
-    navigationId: 'nav.data',
+    navigationId: null,
     routeIds: ['route.data'],
     permissionIds: ['website.data.read'],
     onboardingIds: [],
@@ -66,7 +66,7 @@ const WEBSITE_PARITY_MATRIX = [
     concept: 'media',
     currentBaseline: 'Media workspace at /admin/media',
     capabilityId: 'website.media',
-    navigationId: 'nav.media',
+    navigationId: null,
     routeIds: ['route.media'],
     permissionIds: ['website.media.read'],
     onboardingIds: ['onboarding.media'],
@@ -79,8 +79,8 @@ const WEBSITE_PARITY_MATRIX = [
     concept: 'design',
     currentBaseline: 'Design tab in the visual editor at /admin/site',
     capabilityId: 'website.design',
-    navigationId: 'nav.design',
-    routeIds: ['route.design'],
+    navigationId: null,
+    routeIds: ['route.builder'],
     permissionIds: ['website.design.read', 'website.design.write'],
     onboardingIds: ['onboarding.design'],
     starterTemplateIds: ['starter.website'],
@@ -121,32 +121,11 @@ const WEBSITE_PROFILE_EXPECTATIONS = {
   navigation: [
     { id: 'nav.home', order: 10, label: 'Home', path: '/admin' },
     {
-      id: 'nav.content',
-      order: 20,
-      label: 'Content',
-      path: '/admin/content',
-      permission: 'website.content.read',
-    },
-    {
-      id: 'nav.pages',
-      order: 30,
-      label: 'Pages',
-      path: '/admin/pages',
-      permission: 'content.pages.read',
-    },
-    {
-      id: 'nav.data',
-      order: 40,
-      label: 'Data',
-      path: '/admin/data',
-      permission: 'website.data.read',
-    },
-    {
-      id: 'nav.media',
-      order: 50,
-      label: 'Media',
-      path: '/admin/media',
-      permission: 'website.media.read',
+      id: 'nav.builder',
+      order: 15,
+      label: 'Open builder',
+      path: '/admin/builder',
+      permission: 'website.design.read',
     },
     {
       id: 'nav.website-analytics',
@@ -156,11 +135,18 @@ const WEBSITE_PROFILE_EXPECTATIONS = {
       permission: 'website.analytics.read',
     },
     {
-      id: 'nav.design',
-      order: 80,
-      label: 'Design',
-      path: '/admin/design',
-      permission: 'website.design.read',
+      id: 'nav.domains',
+      order: 85,
+      label: 'Domains',
+      path: '/admin/settings/domains',
+      permission: 'site.settings.read',
+    },
+    {
+      id: 'nav.team',
+      order: 86,
+      label: 'Organization & team',
+      path: '/admin/settings/team',
+      permission: 'site.settings.read',
     },
     {
       id: 'nav.settings',
@@ -311,9 +297,9 @@ const WEBSITE_PROFILE_EXPECTATIONS = {
       permission: 'website.analytics.read',
     },
     {
-      id: 'route.design',
+      id: 'route.builder',
       method: 'GET',
-      path: '/admin/design',
+      path: '/admin/builder',
       permission: 'website.design.read',
     },
     {
@@ -397,7 +383,7 @@ function renderWebsiteShell(
   registry: FumaRegistry,
   capabilityOverrides: CapabilityOverrides,
 ): string {
-  const pathname = buildScopedAdminUrl(SHELL_SELECTION, '/admin/pages')
+  const pathname = buildScopedAdminUrl(SHELL_SELECTION, '/admin/builder')
   const shell = createElement(FumaScopedShell, {
     catalog: shellCatalog(capabilityOverrides),
     pathname,
@@ -449,7 +435,10 @@ describe('FUMA-019 Website parity integration', () => {
       if (!capability) throw new Error(`Missing Website capability ${row.capabilityId}`)
 
       expect(capability.navigation ?? []).toEqual(
-        expect.arrayContaining(contributionsWithIds(WEBSITE_PROFILE_EXPECTATIONS.navigation, [row.navigationId])),
+        expect.arrayContaining(contributionsWithIds(
+          WEBSITE_PROFILE_EXPECTATIONS.navigation,
+          row.navigationId === null ? [] : [row.navigationId],
+        )),
       )
       expect(capability.routes ?? []).toEqual(
         expect.arrayContaining(contributionsWithIds(WEBSITE_PROFILE_EXPECTATIONS.routes, row.routeIds)),
@@ -596,7 +585,7 @@ describe('FUMA-019 Website parity integration', () => {
     expect(registeredBaselineMarkup).toBe(launchMarkup)
     expect(launchMarkup).toContain('data-profile-id="website"')
     expect(launchMarkup).toContain('aria-label="Website navigation"')
-    expect(launchMarkup).toContain(buildScopedAdminUrl(SHELL_SELECTION, '/admin/pages'))
+    expect(launchMarkup).toContain(buildScopedAdminUrl(SHELL_SELECTION, '/admin/builder'))
     expect(launchMarkup).toContain('Create a page')
     expect(launchMarkup).not.toContain('Content review')
     expect(launchMarkup).not.toContain('Configure content review')

@@ -136,10 +136,14 @@ const WEBSITE_CAPABILITY_PERMISSION_IDS = [
   'content.pages.read',
   'content.pages.write',
   'website.data.read',
+  'site.collections.read',
+  'site.collections.write',
   'website.media.read',
   'website.analytics.read',
   'website.design.read',
   'website.design.write',
+  'ai.chat',
+  'ai.tools.write',
   'site.settings.read',
   'site.settings.write',
 ] as const
@@ -154,6 +158,8 @@ const PUBLICATION_CAPABILITY_PERMISSION_IDS = [
   'publication.workflow.assign',
   'publication.workflow.review',
   'publication.workflow.approve',
+  'site.collections.read',
+  'site.collections.write',
   'publication.posts.schedule',
   'publication.tags.read',
   'publication.tags.write',
@@ -165,6 +171,8 @@ const PUBLICATION_CAPABILITY_PERMISSION_IDS = [
   'publication.analytics.read',
   'website.design.read',
   'website.design.write',
+  'ai.chat',
+  'ai.tools.write',
   'site.settings.read',
   'site.settings.write',
 ] as const
@@ -175,9 +183,11 @@ const WEBSITE_MEMBER_CAPABILITY_GRANTS = [
   'content.pages.read',
   'content.pages.write',
   'website.data.read',
+  'site.collections.read',
   'website.media.read',
   'website.analytics.read',
   'website.design.read',
+  'ai.chat',
   'site.settings.read',
 ] as const
 
@@ -186,6 +196,7 @@ const WEBSITE_VIEWER_CAPABILITY_GRANTS = [
   'website.content.read',
   'content.pages.read',
   'website.data.read',
+  'site.collections.read',
   'website.media.read',
   'website.analytics.read',
   'website.design.read',
@@ -203,11 +214,13 @@ const PUBLICATION_MEMBER_CAPABILITY_GRANTS = [
   'publication.posts.write',
   'publication.workflow.read',
   'publication.workflow.review',
+  'site.collections.read',
   'publication.tags.read',
   'publication.members.read',
   'publication.newsletters.read',
   'publication.analytics.read',
   'website.design.read',
+  'ai.chat',
   'site.settings.read',
 ] as const
 
@@ -216,6 +229,7 @@ const PUBLICATION_VIEWER_CAPABILITY_GRANTS = [
   'content.pages.read',
   'publication.posts.read',
   'publication.workflow.read',
+  'site.collections.read',
   'publication.tags.read',
   'publication.members.read',
   'publication.newsletters.read',
@@ -533,8 +547,8 @@ describe('FUMA-020 exhaustive permission role matrix', () => {
       profileId,
       rowCount: rows.length,
     }))).toEqual([
-      { profileId: 'website', rowCount: 37 },
-      { profileId: 'publication', rowCount: 48 },
+      { profileId: 'website', rowCount: 41 },
+      { profileId: 'publication', rowCount: 52 },
     ])
   })
 
