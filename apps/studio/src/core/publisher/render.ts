@@ -141,6 +141,13 @@ interface PublishPageOptions {
    */
   publishVersion?: number
   /**
+   * Durable stamp for the published content, preferred over `publishVersion` for hole placeholders.
+   *
+   * See `renderConfig.publishStamp`: a shell stamped with the in-memory counter is rejected as stale
+   * after any restart, permanently, because the next page load serves the same baked shell.
+   */
+  publishStamp?: string
+  /**
    * Editor-only: annotate each node's outermost emitted element with
    * `uid="<id>"`. Default off — real publishes emit clean, id-less
    * HTML. Used by the agent read-surface (read_document) to produce an
@@ -512,6 +519,7 @@ export function publishPage(
     mediaAssets: options.mediaAssets,
     dynamicNodeIds: dynamicNodeIds.size > 0 ? dynamicNodeIds : undefined,
     publishVersion: options.publishVersion ?? 0,
+    ...(options.publishStamp ? { publishStamp: options.publishStamp } : {}),
     annotateNodeIds: options.annotateNodeIds,
   }
 

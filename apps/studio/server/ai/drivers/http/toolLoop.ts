@@ -35,6 +35,13 @@ import { parseSseStream, type SseFrame } from './sse'
 import { executeAiTool } from './execTool'
 import { isAbortError, classifyHttpFailure } from './errors'
 
+/**
+ * Below this an output budget cannot carry a usable answer, so a retry would produce a reply
+ * truncated mid-sentence - which reads as the model failing rather than as a billing limit, and
+ * still costs the account for the tokens it did generate.
+ */
+const MIN_USEFUL_OUTPUT_TOKENS = 256
+
 export const PROVIDER_RETRY_IMAGE_OMITTED =
   '[Earlier attached images omitted after the provider rejected the full conversation context.]'
 
@@ -115,6 +122,8 @@ export async function* runToolLoop<TMessage>(
   const headers = adapter.buildHeaders(req)
   let initialProviderRound = true
   let replayOverflowRetried = false
+  let budgetRetried = false
+  let outputBudget = req.maxOutputTokens
 
   // Track tool-result messages that carry heavy evidence (screenshots,
   // full-page HTML/CSS). Once superseded they describe stale page state and are
@@ -149,7 +158,7 @@ export async function* runToolLoop<TMessage>(
       res = await fetch(adapter.endpoint, {
         method: 'POST',
         headers,
-        body: JSON.stringify(adapter.buildRequestBody(messages, req)),
+        body: JSON.stringify(adapter.buildRequestBody(messages, { ...req, maxOutputTokens: outputBudget })),
         signal: req.signal,
       })
     } catch (err) {
@@ -164,6 +173,26 @@ export async function* runToolLoop<TMessage>(
       const bodyText = await res.text().catch(() => '')
       console.error(`[ai/${adapter.label.toLowerCase()}] HTTP ${res.status}:`, bodyText.slice(0, 500))
       const failure = classifyHttpFailure(adapter.label, res.status, bodyText)
+      // An unaffordable output budget is recoverable: the provider told us what it CAN
+      // afford, so asking for that instead is the correct next request rather than an
+      // error the person has to interpret. Retried ONCE, and only on a figure the
+      // provider stated - a retry loop against a shrinking balance would spend the
+      // remaining credit on failed attempts, which is the known failure mode in other
+      // agents that treat this as a context-overflow and auto-compact repeatedly.
+      if (!budgetRetried && failure.kind === 'budgetTooLarge' && failure.affordableTokens !== undefined) {
+        if (failure.affordableTokens >= MIN_USEFUL_OUTPUT_TOKENS) {
+          budgetRetried = true
+          outputBudget = failure.affordableTokens
+          continue
+        }
+        // Below the floor there is no point retrying: the reply would be cut off
+        // mid-sentence and read as the model breaking rather than as a billing limit.
+        yield {
+          type: 'error',
+          message: `${adapter.label} can only afford about ${failure.affordableTokens} output tokens, which is too few to answer with. Add credit or choose a cheaper model.`,
+        }
+        return
+      }
       if (initialProviderRound && !replayOverflowRetried && failure.kind === 'replayOverflow') {
         const projected = elideHistoricalUserImages(req.messages)
         if (projected) {

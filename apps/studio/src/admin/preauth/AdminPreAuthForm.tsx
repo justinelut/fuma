@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Button } from '@ui/components/Button'
-import { Input } from '@ui/components/Input'
+import { Button } from '@admin/fuma/ui/button'
+import { Input } from '@admin/fuma/ui/input'
 import { DatabaseSolidIcon } from 'pixel-art-icons/icons/database-solid'
 import { LoaderIcon } from 'pixel-art-icons/icons/loader'
 import {
@@ -12,8 +12,6 @@ import {
   type CmsCurrentUser,
   type CmsPublicSite,
 } from '@core/persistence/auth'
-import panelStyles from '../AdminEntry.module.css'
-import styles from './AdminPreAuthForm.module.css'
 import { getErrorMessage } from '@core/utils/errorMessage'
 
 // Phase the unauthenticated form can be in. 'mfa' is a sub-state reached
@@ -131,30 +129,30 @@ export function AdminPreAuthForm({
     handleLogin
 
   return (
-    <main className={panelStyles.page}>
-      <section className={panelStyles.panel} aria-labelledby="admin-entry-title">
-        <div className={styles.brandRow}>
+    <main className="grid h-full min-h-0 w-full max-w-full justify-items-center overflow-y-auto overflow-x-hidden overscroll-y-contain content-center p-4 sm:p-8">
+      <section className="w-[min(100%,360px)] rounded-2xl bg-card p-10" aria-labelledby="admin-entry-title">
+        <div className="mb-10 flex items-center gap-3 text-sm text-muted-foreground">
           {publicSite.faviconUrl ? (
             <img
-              className={styles.brandFavicon}
+              className="size-7 rounded-md object-cover"
               src={publicSite.faviconUrl}
               alt=""
               aria-hidden="true"
               draggable={false}
             />
           ) : (
-            <div className={styles.brandIcon} aria-hidden="true">
+            <div className="grid size-7 place-items-center rounded-md bg-accent text-foreground" aria-hidden="true">
               <DatabaseSolidIcon size={16} />
             </div>
           )}
           <span>{brandLabel}</span>
         </div>
 
-        <h1 id="admin-entry-title" className={panelStyles.title}>{copy.title}</h1>
+        <h1 id="admin-entry-title" className="mb-8 text-3xl font-semibold text-foreground">{copy.title}</h1>
 
-        <form className={styles.form} onSubmit={onSubmit}>
+        <form className="grid gap-6" onSubmit={onSubmit}>
           {phase === 'mfa' ? (
-            <label className={styles.field} htmlFor={mfaCodeId}>
+            <label className="grid gap-1 text-sm font-semibold text-muted-foreground" htmlFor={mfaCodeId}>
               <span>Authentication code</span>
               <Input
                 id={mfaCodeId}
@@ -167,7 +165,7 @@ export function AdminPreAuthForm({
               />
             </label>
           ) : phase === 'setup' && (
-            <label className={styles.field} htmlFor={siteNameId}>
+            <label className="grid gap-1 text-sm font-semibold text-muted-foreground" htmlFor={siteNameId}>
               <span>Site name</span>
               <Input
                 id={siteNameId}
@@ -181,7 +179,7 @@ export function AdminPreAuthForm({
 
           {phase !== 'mfa' && (
             <>
-              <label className={styles.field} htmlFor={emailId}>
+              <label className="grid gap-1 text-sm font-semibold text-muted-foreground" htmlFor={emailId}>
                 <span>Email</span>
                 <Input
                   id={emailId}
@@ -193,7 +191,7 @@ export function AdminPreAuthForm({
                 />
               </label>
 
-              <label className={styles.field} htmlFor={passwordId}>
+              <label className="grid gap-1 text-sm font-semibold text-muted-foreground" htmlFor={passwordId}>
                 <span>Password</span>
                 <Input
                   id={passwordId}
@@ -209,21 +207,19 @@ export function AdminPreAuthForm({
           )}
 
           {error && (
-            <p role="alert" className={panelStyles.error}>
+            <p role="alert" className="m-0 text-sm leading-snug text-destructive">
               {error}
             </p>
           )}
 
-          <Button
-            variant="primary"
-            size="md"
+          <Button className="w-full"
+            variant="default"
             type="submit"
-            fullWidth
             disabled={submitting}
             aria-busy={submitting}
           >
             {submitting && (
-              <LoaderIcon size={14} className={styles.spinIcon} aria-hidden="true" />
+              <LoaderIcon size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
             )}
             <span>{submitLabel}</span>
           </Button>

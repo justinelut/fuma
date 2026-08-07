@@ -55,6 +55,7 @@ import { clientPointToEditorDoc } from './canvasDomGeometry'
 import { useConfirmDelete } from '@admin/shared/dialogs/ConfirmDeleteDialog'
 import { useEditorPreference, readEditorSelectPreference } from '@site/preferences/editorPreferences'
 import { useTemplatePreviewContext } from '@site/hooks/useTemplatePreviewContext'
+import { ReactCanvasSurface } from './ReactCanvasSurface'
 import styles from './CanvasRoot.module.css'
 
 const VisualComponentModeControl = lazy(() =>
@@ -418,6 +419,30 @@ export function CanvasRoot({ editable = true }: CanvasRootProps) {
   const gestureBindings = isLive ? {} : bind()
   const onCanvasKeyDown = isLive ? undefined : handleKeyDown
   const onCanvasClick = isLive ? undefined : handleCanvasClick
+
+  // A React IR module is a DIFFERENT DOCUMENT, not a different view of this one, so it renders its
+  // own surface rather than being threaded through the PageNode frames below. Placed AFTER every
+  // hook above so the hook order is identical on every render whichever document is open - an early
+  // return before them would break React's rules the moment somebody switches document.
+  //
+  // The whole page-frame apparatus (breakpoint frames, drag gestures, the PageNode selection
+  // overlay) reads PageNode state that a module does not have, so reusing it would mean teaching
+  // each piece to recognise a tree it cannot address.
+  if (activeDocument?.kind === 'reactModule') {
+    return (
+      <div
+        role="region"
+        aria-label="Canvas — React module"
+        data-testid="canvas-root"
+        data-canvas-document="reactModule"
+        className={styles.reactModuleCanvas}
+      >
+        {/* The document's own path is passed so the surface can refuse if the editor store
+            holds a different module than this document names. */}
+        <ReactCanvasSurface expectedPath={activeDocument.path} />
+      </div>
+    )
+  }
 
   return (
     <CanvasViewportActionsContext.Provider value={viewportActionsContextValue}>

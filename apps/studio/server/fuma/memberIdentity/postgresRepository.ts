@@ -1,16 +1,18 @@
 import type { DbClient } from '../../db/client'
 import {
   MemberCredentialRecordSchema,
+  MemberIdentitySchema,
   MemberImportReceiptSchema,
   MemberSessionRecordSchema,
   parseMemberIdentityContract,
   type MemberConsentEvent,
   type MemberCredentialRecord,
+  type MemberIdentity,
   type MemberIdentityScope,
   type MemberImportReceipt,
   type MemberSessionRecord,
 } from './contracts'
-import type { MemberIdentityRepository, ResolvedMemberSession } from './repository'
+import { MAX_IDENTITY_PAGE, type MemberIdentityPage, type MemberIdentityRepository, type ResolvedMemberSession } from './repository'
 
 interface IdentityRow { member_identity_id:string; normalized_email:string; display_name:string; password_hash:string|null; state:string; origin:string; import_receipt_id:string|null; created_at:string|Date; updated_at:string|Date }
 interface SessionRow { session_id:string; member_identity_id:string; token_hash_sha256:string; created_at:string|Date; last_seen_at:string|Date; expires_at:string|Date; idle_expires_at:string|Date; reauthenticated_at:string|Date|null; revoked_at:string|Date|null; user_agent_hash_sha256:string|null; ip_hash_sha256:string|null }
@@ -19,6 +21,9 @@ interface ImportRow { import_id:string; source:string; source_sha256:string; sta
 
 function iso(value:string|Date|null):string|null{return value===null?null:(value instanceof Date?value.toISOString():new Date(value).toISOString())}
 function count(value:number|string|bigint):number{return Number(value)}
+type IdentityListRow=Omit<IdentityRow,'password_hash'>
+/** Maps a hash-free row. Validated against MemberIdentitySchema so the shape is checked, not trusted. */
+function identityOnly(row:IdentityListRow):MemberIdentity{return parseMemberIdentityContract('stored member identity',MemberIdentitySchema,{memberIdentityId:row.member_identity_id,email:row.normalized_email,displayName:row.display_name,state:row.state,origin:row.origin,importReceiptId:row.import_receipt_id,createdAt:iso(row.created_at),updatedAt:iso(row.updated_at)}) as MemberIdentity}
 function identity(row:IdentityRow):MemberCredentialRecord{return parseMemberIdentityContract('stored member credential',MemberCredentialRecordSchema,{identity:{memberIdentityId:row.member_identity_id,email:row.normalized_email,displayName:row.display_name,state:row.state,origin:row.origin,importReceiptId:row.import_receipt_id,createdAt:iso(row.created_at),updatedAt:iso(row.updated_at)},normalizedEmail:row.normalized_email,passwordHash:row.password_hash}) as MemberCredentialRecord}
 function session(row:SessionRow):MemberSessionRecord{return parseMemberIdentityContract('stored member session',MemberSessionRecordSchema,{sessionId:row.session_id,memberIdentityId:row.member_identity_id,tokenHashSha256:row.token_hash_sha256,createdAt:iso(row.created_at),lastSeenAt:iso(row.last_seen_at),expiresAt:iso(row.expires_at),idleExpiresAt:iso(row.idle_expires_at),reauthenticatedAt:iso(row.reauthenticated_at),revokedAt:iso(row.revoked_at),userAgentHashSha256:row.user_agent_hash_sha256,ipHashSha256:row.ip_hash_sha256}) as MemberSessionRecord}
 function receipt(row:ImportRow):MemberImportReceipt{return parseMemberIdentityContract('stored member import receipt',MemberImportReceiptSchema,{importId:row.import_id,source:row.source,sourceSha256:row.source_sha256,staffUserId:row.staff_user_id,staffSessionId:row.staff_session_id,reauthenticationProofId:row.reauthentication_proof_id,importedCount:count(row.imported_count),skippedCount:count(row.skipped_count),createdAt:iso(row.created_at)}) as MemberImportReceipt}
@@ -44,6 +49,29 @@ export class PostgresMemberIdentityRepository implements MemberIdentityRepositor
     try{return await this.#authorized(scope,async(db)=>{if(!await this.#insertIdentity(db,scope,record))return false;for(const event of consent)await this.#insertConsent(db,scope,event);return true})}catch(error){if(conflict(error))return false;throw error}
   }
   async findIdentityByEmail(scope:MemberIdentityScope,normalizedEmail:string):Promise<MemberCredentialRecord|null>{return await this.#authorized(scope,async(db)=>{const row=(await db<IdentityRow>`select member_identity_id,normalized_email,display_name,password_hash,state,origin,import_receipt_id,created_at,updated_at from fuma_member_identities where platform_id=${scope.platformId} and organization_id=${scope.organizationId} and workspace_id=${scope.workspaceId} and site_id=${scope.siteId} and owner_key=${scope.ownerKey} and owner_generation=${scope.generation} and profile_id=${scope.profileId} and normalized_email=${normalizedEmail}`).rows[0];return row?identity(row):null})}
+
+  /**
+   * Scoped identity list for the members directory.
+   *
+   * EVERY ONE of the seven scope columns is in the predicate. Dropping any of them would return
+   * another site's members, which is the same cross-tenant class as the shared site document - and it
+   * would look like a working list.
+   *
+   * Selects NO password_hash: the return type is MemberIdentity rather than MemberCredentialRecord, so
+   * a hash cannot travel to an admin surface even by accident.
+   */
+  async listIdentities(scope:MemberIdentityScope,page?:MemberIdentityPage):Promise<readonly MemberIdentity[]>{
+    const limit=Math.min(page?.limit??MAX_IDENTITY_PAGE,MAX_IDENTITY_PAGE)
+    const after=page?.after
+    return await this.#authorized(scope,async(db)=>{
+      // Ordered by (created_at, member_identity_id): two members created in the same millisecond make
+      // an unstable boundary without the tiebreak, so one of them is skipped or repeated on the next page.
+      const rows=after===undefined
+        ?(await db<IdentityListRow>`select member_identity_id,normalized_email,display_name,state,origin,import_receipt_id,created_at,updated_at from fuma_member_identities where platform_id=${scope.platformId} and organization_id=${scope.organizationId} and workspace_id=${scope.workspaceId} and site_id=${scope.siteId} and owner_key=${scope.ownerKey} and owner_generation=${scope.generation} and profile_id=${scope.profileId} order by created_at asc,member_identity_id asc limit ${limit}`).rows
+        :(await db<IdentityListRow>`select member_identity_id,normalized_email,display_name,state,origin,import_receipt_id,created_at,updated_at from fuma_member_identities where platform_id=${scope.platformId} and organization_id=${scope.organizationId} and workspace_id=${scope.workspaceId} and site_id=${scope.siteId} and owner_key=${scope.ownerKey} and owner_generation=${scope.generation} and profile_id=${scope.profileId} and (created_at,member_identity_id)>(${after.createdAt},${after.memberIdentityId}) order by created_at asc,member_identity_id asc limit ${limit}`).rows
+      return Object.freeze(rows.map((row)=>identityOnly(row)))
+    })
+  }
   async createSession(scope:MemberIdentityScope,value:MemberSessionRecord):Promise<boolean>{return await this.#authorized(scope,db=>this.#insertSession(db,scope,value))}
   async resolveSession(scope:MemberIdentityScope,tokenHashSha256:string):Promise<ResolvedMemberSession|null>{return await this.#authorized(scope,async(db)=>{const row=(await db<ResolvedRow>`select i.member_identity_id,i.normalized_email,i.display_name,i.password_hash,i.state,i.origin,i.import_receipt_id,i.created_at as identity_created_at,i.updated_at as identity_updated_at,s.session_id,s.member_identity_id,s.token_hash_sha256,s.created_at,s.last_seen_at,s.expires_at,s.idle_expires_at,s.reauthenticated_at,s.revoked_at,s.user_agent_hash_sha256,s.ip_hash_sha256 from fuma_member_sessions s join fuma_member_identities i on i.platform_id=s.platform_id and i.organization_id=s.organization_id and i.workspace_id=s.workspace_id and i.site_id=s.site_id and i.owner_key=s.owner_key and i.owner_generation=s.owner_generation and i.profile_id=s.profile_id and i.member_identity_id=s.member_identity_id where s.platform_id=${scope.platformId} and s.organization_id=${scope.organizationId} and s.workspace_id=${scope.workspaceId} and s.site_id=${scope.siteId} and s.owner_key=${scope.ownerKey} and s.owner_generation=${scope.generation} and s.profile_id=${scope.profileId} and s.token_hash_sha256=${tokenHashSha256}`).rows[0];return row?{identity:identity({...row,created_at:row.identity_created_at,updated_at:row.identity_updated_at}),session:session(row)}:null})}
   async rotateSession(scope:MemberIdentityScope,previousSessionId:string,next:MemberSessionRecord,revokedAt:string):Promise<boolean>{try{return await this.#authorized(scope,async(db)=>{const revoked=await db`update fuma_member_sessions set revoked_at=${revokedAt} where platform_id=${scope.platformId} and organization_id=${scope.organizationId} and workspace_id=${scope.workspaceId} and site_id=${scope.siteId} and owner_key=${scope.ownerKey} and owner_generation=${scope.generation} and profile_id=${scope.profileId} and session_id=${previousSessionId} and revoked_at is null`;if(revoked.rowCount!==1)return false;if(!await this.#insertSession(db,scope,next))throw Object.assign(new Error('member session rotation collision'),{code:'23505'});return true})}catch(error){if(conflict(error))return false;throw error}}

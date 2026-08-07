@@ -6,9 +6,8 @@ import {
   type DynamicPublicationTemplateDocument,
 } from '@core/fuma/publication/dynamicPublication'
 import { getErrorMessage } from '@core/utils/errorMessage'
-import { Button } from '@ui/components/Button'
+import { Button } from '@admin/fuma/ui/button'
 import type { DynamicPublicationTemplateClientPort } from './dynamicPublicationClient'
-import styles from './DynamicPublicationTemplateEditor.module.css'
 
 const TARGETS: readonly DynamicPublicationTarget['kind'][] = ['post', 'page', 'author', 'tag', 'date', 'collection']
 const BINDINGS: readonly DynamicPublicationBinding[] = [
@@ -83,20 +82,20 @@ export function DynamicPublicationTemplateEditor({ client, canWrite, templates: 
     } catch (error) { setMessage(getErrorMessage(error, 'Template save failed.')) }
   }
 
-  return <section className={styles.editor} aria-labelledby="dynamic-publication-editor-title">
-    <header className={styles.heading}><div><p>Publication design</p><h2 id="dynamic-publication-editor-title">Dynamic templates</h2></div>{!canWrite ? <span>Read only</span> : null}</header>
-    <div className={styles.layout}>
-      <nav className={styles.templates} aria-label="Dynamic publication templates">
-        {templates.length ? templates.map((template) => <Button key={template.templateId} type="button" variant="ghost" size="sm" fullWidth align="between" className={template.templateId === selectedId ? styles.active : styles.template} onClick={() => { setSelectedId(template.templateId); setName(template.name); setKind(template.target.kind); setTargetId(template.target.targetId ?? ''); setEmptyState(template.emptyState); setDocument(template.document) }}><span>{template.name}</span><small>{template.target.kind} · v{template.version}</small></Button>) : <p>No dynamic templates yet.</p>}
+  return <section className="grid min-w-0 gap-6" aria-labelledby="dynamic-publication-editor-title">
+    <header className="flex items-end justify-between gap-4 border-b border-border pb-4 [&_p]:text-sm [&_p]:uppercase [&_p]:text-muted-foreground [&_span]:text-destructive"><div><p>Publication design</p><h2 id="dynamic-publication-editor-title">Dynamic templates</h2></div>{!canWrite ? <span>Read only</span> : null}</header>
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(14rem,1fr)_minmax(24rem,2fr)]">
+      <nav className="grid gap-2 p-4 rounded-md border border-border bg-card" aria-label="Dynamic publication templates">
+        {templates.length ? templates.map((template) => <Button key={template.templateId} type="button" variant="ghost" size="sm" className={`flex justify-between gap-2 text-left [&_small]:text-muted-foreground ${template.templateId === selectedId ? 'bg-muted outline outline-2 -outline-offset-2 outline-primary' : ''} w-full justify-between`} onClick={() => { setSelectedId(template.templateId); setName(template.name); setKind(template.target.kind); setTargetId(template.target.targetId ?? ''); setEmptyState(template.emptyState); setDocument(template.document) }}><span>{template.name}</span><small>{template.target.kind} · v{template.version}</small></Button>) : <p>No dynamic templates yet.</p>}
         <Button type="button" variant="secondary" size="sm" disabled={!canWrite} onClick={() => { setSelectedId(''); setName('Shared archive'); setKind('author'); setTargetId(''); setEmptyState('No published content is available yet.'); setDocument(INITIAL_DOCUMENT) }}>New template</Button>
       </nav>
-      <form className={styles.form} onSubmit={(event) => { event.preventDefault(); void save() }}>
+      <form className="grid gap-2 p-4 rounded-md border border-border bg-card [&_label]:grid [&_label]:gap-1 [&_label]:font-semibold [&_label_span]:font-normal [&_label_span]:text-muted-foreground" onSubmit={(event) => { event.preventDefault(); void save() }}>
         <label>Name<input disabled={!canWrite} value={name} onChange={(event) => setName(event.target.value)} /></label>
-        <div className={styles.row}><label>Route type<select disabled={!canWrite} value={kind} onChange={(event) => setKind(event.target.value as DynamicPublicationTarget['kind'])}>{TARGETS.map((target) => <option key={target} value={target}>{target}</option>)}</select></label><label>Specific target ID <span>(blank means shared)</span><input disabled={!canWrite} value={targetId} onChange={(event) => setTargetId(event.target.value)} /></label></div>
+        <div className="flex justify-between gap-2"><label>Route type<select disabled={!canWrite} value={kind} onChange={(event) => setKind(event.target.value as DynamicPublicationTarget['kind'])}>{TARGETS.map((target) => <option key={target} value={target}>{target}</option>)}</select></label><label>Specific target ID <span>(blank means shared)</span><input disabled={!canWrite} value={targetId} onChange={(event) => setTargetId(event.target.value)} /></label></div>
         <label>Empty state<textarea disabled={!canWrite} value={emptyState} onChange={(event) => setEmptyState(event.target.value)} /></label>
-        <fieldset disabled={!canWrite}><legend>Template bindings</legend>{document.blocks.map((block) => <div className={styles.block} key={block.blockId}><label>Scope<select value={block.scope} onChange={(event) => patchBlock(block.blockId, { scope: event.target.value as 'root' | 'item' })}><option value="root">Route</option><option value="item">Each loop item</option></select></label><label>Element<select value={block.element} onChange={(event) => patchBlock(block.blockId, { element: event.target.value as typeof block.element })}>{ELEMENTS.map((element) => <option key={element} value={element}>{element}</option>)}</select></label><label>Binding<select value={block.value.kind === 'binding' ? block.value.binding : ''} onChange={(event) => patchBlock(block.blockId, { value: { kind: 'binding', binding: event.target.value as DynamicPublicationBinding } })}>{BINDINGS.map((binding) => <option key={binding} value={binding}>{binding}</option>)}</select></label><Button type="button" variant="ghost" size="sm" disabled={document.blocks.length === 1} onClick={() => setDocument((current) => ({ version: 1, blocks: current.blocks.filter((item) => item.blockId !== block.blockId) }))}>Remove block</Button></div>)}<Button type="button" variant="secondary" size="sm" onClick={addBlock}>Add bound block</Button></fieldset>
+        <fieldset disabled={!canWrite}><legend>Template bindings</legend>{document.blocks.map((block) => <div className="grid gap-2" key={block.blockId}><label>Scope<select value={block.scope} onChange={(event) => patchBlock(block.blockId, { scope: event.target.value as 'root' | 'item' })}><option value="root">Route</option><option value="item">Each loop item</option></select></label><label>Element<select value={block.element} onChange={(event) => patchBlock(block.blockId, { element: event.target.value as typeof block.element })}>{ELEMENTS.map((element) => <option key={element} value={element}>{element}</option>)}</select></label><label>Binding<select value={block.value.kind === 'binding' ? block.value.binding : ''} onChange={(event) => patchBlock(block.blockId, { value: { kind: 'binding', binding: event.target.value as DynamicPublicationBinding } })}>{BINDINGS.map((binding) => <option key={binding} value={binding}>{binding}</option>)}</select></label><Button type="button" variant="ghost" size="sm" disabled={document.blocks.length === 1} onClick={() => setDocument((current) => ({ version: 1, blocks: current.blocks.filter((item) => item.blockId !== block.blockId) }))}>Remove block</Button></div>)}<Button type="button" variant="secondary" size="sm" onClick={addBlock}>Add bound block</Button></fieldset>
         <Button type="submit" variant="secondary" size="sm" disabled={!canWrite || !name.trim() || !emptyState.trim()}>Save shared template</Button>
-        {message ? <p role="status" className={styles.status}>{message}</p> : null}
+        {message ? <p role="status" className="text-sm text-muted-foreground">{message}</p> : null}
       </form>
     </div>
   </section>

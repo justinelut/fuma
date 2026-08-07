@@ -13,6 +13,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from '@admin/lib/routing'
 import { BookingsHttpClient, type BookingCatalogWire, type BookingWire } from '../../bookings/client'
+import { bookingsOnDay, monthRange } from '../../bookings/bookingCalendar'
+import { BookingCalendarCard } from './BookingCalendarCard'
 import { Badge, Card, CardCaption, CardTitle } from '../../ui/primitives'
 import { cn } from '../../ui/cn'
 
@@ -40,9 +42,13 @@ function isoDate(value: Date): string {
 }
 
 export async function readBookingsSnapshot(scope: BookingsScope): Promise<BookingsSnapshot> {
-  const date = isoDate(new Date())
+  const now = new Date()
+  const date = isoDate(now)
   const client = new BookingsHttpClient(scope)
-  const catalog = await client.catalog(date, date).catch(() => null)
+  // THE WHOLE MONTH, not just today. The catalogue already accepts a range, so this is the same single
+  // request and it is what the calendar needs - asking for one day made "when am I open" unanswerable.
+  const month = monthRange(now.getUTCFullYear(), now.getUTCMonth() + 1)
+  const catalog = await client.catalog(month.fromDate, month.toDate).catch(() => null)
   const firstActive = catalog?.services.find((service) => service.state === 'active')
   const today = firstActive
     ? await client.day(firstActive.serviceId, date).catch(() => [])
@@ -130,7 +136,7 @@ export function BookingsDashboard({
           <p className="mt-6 text-xl leading-tight font-semibold tracking-tight text-foreground">
             {bookings.length === 0 ? 'Nothing booked today' : `${bookings.length} today`}
           </p>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
             {activeServices.length === 0
               ? 'Add a service and its availability before customers can book.'
               : `${activeServices.length} active ${activeServices.length === 1 ? 'service' : 'services'} across ${resources.length} ${resources.length === 1 ? 'resource' : 'resources'}.`}
@@ -160,17 +166,26 @@ export function BookingsDashboard({
         </CardCaption>
       </Card>
 
+      <BookingCalendarCard
+        year={Number((snapshot?.date ?? '').slice(0, 4)) || new Date().getUTCFullYear()}
+        month={Number((snapshot?.date ?? '').slice(5, 7)) || new Date().getUTCMonth() + 1}
+        workingHours={snapshot?.catalog?.workingHours ?? []}
+        exceptions={snapshot?.catalog?.exceptions ?? []}
+        today={snapshot?.date ?? null}
+        todayBookings={snapshot === null ? null : bookingsOnDay(bookings, snapshot.date)}
+      />
+
       <Card className="lg:col-span-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <CardTitle>Today</CardTitle>
           <CardCaption>{snapshot?.date ?? '—'}</CardCaption>
         </div>
         {bookings.length === 0 ? (
-          <div className="mt-4 grid h-[168px] place-items-center rounded-[var(--radius-md)] border border-dashed border-border">
+          <div className="mt-6 grid h-[168px] place-items-center rounded-[var(--radius-md)] border border-dashed border-border">
             <p className="text-xs text-muted-foreground">Nothing scheduled today</p>
           </div>
         ) : (
-          <ul className="mt-4 divide-y divide-border">
+          <ul className="mt-6 divide-y divide-border">
             {hours.map((hour) => {
               const slot = bookings.filter((booking) => new Date(booking.startAt).getHours() === hour)
               if (slot.length === 0) return null
@@ -208,7 +223,7 @@ export function BookingsDashboard({
           </CardCaption>
         </div>
         {services.length === 0 ? (
-          <p className="mt-4 text-xs text-muted-foreground">
+          <p className="mt-6 text-xs text-muted-foreground">
             No services yet. Create one to start taking bookings.
           </p>
         ) : (

@@ -24,6 +24,7 @@ import { useAdminNavigate } from '@admin/lib/useAdminNavigate'
 import { useCurrentAdminUser } from '@admin/sessionContext'
 import { canAccessWorkspace } from '@admin/access'
 import { hostedStaffAuthSelected } from '@admin/preauth/hostedStaffAuth'
+import { builderOffersSection } from '@core/fuma/builder/sectionOwnership'
 import {
   getPluginsInErrorCount,
   subscribePluginIssues,
@@ -77,13 +78,15 @@ export function AdminSectionNavigation({
   const sessionUser = useCurrentAdminUser()
   const effectiveUser = currentUser ?? sessionUser ?? null
   const unrestricted = !effectiveUser
-  // In the hosted product the platform owns staff identity through Better Auth
-  // and owns the dashboard, so the builder does not offer its own versions of
-  // either. Everything else — canvas, content, data, media, plugins — stays.
-  const platformOwned: ReadonlySet<AdminWorkspace> = hostedStaffAuthSelected()
-    ? new Set<AdminWorkspace>(['users'])
-    : new Set<AdminWorkspace>()
-  const canAccess = (workspace: AdminWorkspace) => !platformOwned.has(workspace)
+  // In the hosted product the platform owns staff identity, the dashboards, AI
+  // configuration and the account, so the builder does not offer its own
+  // versions. Everything else — canvas, content, data, media, plugins — stays.
+  // The list lives in sectionOwnership.ts with the reason per section, because
+  // this comment previously claimed the dashboard was excluded while the set
+  // named only 'users', so the link kept rendering.
+  const platformPresent = hostedStaffAuthSelected()
+  const canAccess = (workspace: AdminWorkspace) =>
+    builderOffersSection(workspace, platformPresent)
     && (unrestricted || canAccessWorkspace(effectiveUser, workspace))
   const canAccessPlugins = canAccess('plugins')
 

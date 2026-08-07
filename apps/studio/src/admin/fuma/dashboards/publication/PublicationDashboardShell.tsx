@@ -13,7 +13,15 @@
 import type { ReactNode } from 'react'
 import { Link } from '@admin/lib/routing'
 import type { ProfileNavigationOutput } from '@core/fuma'
+import { Menu } from 'lucide-react'
 import { cn } from '../../ui/cn'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '../../ui/sheet'
 import { ThemeToggle } from '../../ui/theme'
 
 export type SidebarChild = Readonly<{
@@ -380,26 +388,66 @@ export function PublicationDashboardShell({
           <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-border text-[0.625rem] font-semibold">
             {publicationName.charAt(0).toUpperCase()}
           </span>
-          <nav aria-label="Publication sections" className="min-w-0 flex-1">
-            <ul className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {navigation.map((entry) => (
-                <li key={entry.id}>
-                  <Link
-                    to={entry.path}
-                    aria-current={entry.id === activeId ? 'page' : undefined}
-                    className={cn(
-                      'inline-flex h-8 shrink-0 items-center rounded-full px-3 text-xs whitespace-nowrap',
-                      currentPath === entry.path
-                        ? 'bg-accent text-foreground'
-                        : 'text-muted-foreground',
-                    )}
-                  >
-                    {entry.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
+          {/*
+            A LEFT SHEET RATHER THAN A HORIZONTAL SCROLL STRIP.
+
+            The sidebar is `hidden ... lg:flex`, so below `lg` the entire navigation used to collapse
+            into a horizontally scrolling row of pills. Sections past the third were off-screen with
+            no indication they existed, and the row competed with the page's own horizontal scrolling.
+            A sheet opens from the same edge the sidebar occupies at wider widths, so the navigation is
+            in the same place at every size.
+          */}
+          <Sheet>
+            <SheetTrigger
+              className={cn(
+                'inline-flex size-8 shrink-0 items-center justify-center rounded-full',
+                'border border-border text-muted-foreground transition-colors',
+                'hover:bg-accent hover:text-foreground',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+              )}
+            >
+              <Menu className="size-4" aria-hidden="true" />
+              <span className="sr-only">Open navigation</span>
+            </SheetTrigger>
+            <SheetContent side="left" className="dark fuma-hosted w-[16rem] bg-sidebar p-0">
+              <SheetHeader className="border-b border-border px-5 py-4 text-left">
+                <SheetTitle className="truncate text-base">{publicationName}</SheetTitle>
+              </SheetHeader>
+              <nav aria-label="Publication sections menu" className="px-3 py-3">
+                <ul className="flex flex-col gap-0.5">
+                  {navigation.map((entry) => {
+                    const Icon = NAV_ICONS[entry.id] ?? ListIcon
+                    // The RESOLVED active id, matching the sidebar. The strip this replaced styled by
+                    // `currentPath === entry.path` while announcing `aria-current` from the resolved
+                    // id, so on a nested route the item announced as current and the item highlighted
+                    // were different items.
+                    const active = entry.id === activeId
+                    return (
+                      <li key={entry.id}>
+                        <Link
+                          to={entry.path}
+                          aria-current={active ? 'page' : undefined}
+                          className={cn(
+                            'flex h-9 items-center gap-2.5 rounded-lg px-3 text-sm transition-colors',
+                            active
+                              ? 'bg-accent font-medium text-foreground'
+                              : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+                          )}
+                        >
+                          <Icon />
+                          <span className="truncate">{entry.label}</span>
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </nav>
+            </SheetContent>
+          </Sheet>
+
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
+            {publicationName}
+          </span>
           <ThemeToggle className="shrink-0 text-muted-foreground" />
         </div>
 

@@ -25,7 +25,32 @@ const BUILDER_ONLY = [
   join(SRC_ROOT, 'modules'),
 ]
 
+/**
+ * Builder surfaces already rebuilt on the React engine.
+ *
+ * The engine's whole styling model is Tailwind classes, and its panels are composed from
+ * shadcn components — so a converted panel using Tailwind is correct rather than a lapse.
+ * Listed one directory at a time, and expected to grow as the conversion proceeds, so the
+ * gate keeps protecting every part of the builder that has NOT been converted yet. A blanket
+ * exemption for `admin/pages` would switch the rule off for the whole builder at once.
+ */
+const REACT_ENGINE_CONVERTED = [
+  join(SRC_ROOT, 'admin', 'pages', 'site', 'panels', 'AnimationPanel'),
+  // Each converted directory is listed individually rather than exempting admin/pages wholesale,
+  // which would switch the rule off for the whole builder at once.
+  join(SRC_ROOT, 'admin', 'pages', 'site', 'panels', 'BlocksPanel'),
+  // A FILE rather than the canvas directory, because `canvas/` still holds the old module+props
+  // renderer and exempting it wholesale would switch the rule off for the part not yet converted.
+  join(SRC_ROOT, 'admin', 'pages', 'site', 'canvas', 'ReactCanvasSurface.tsx'),
+  // The entry point that makes the React canvas mode reachable - it lists the tenant's modules
+  // and opens one, so it is engine-side rather than builder chrome.
+  join(SRC_ROOT, 'admin', 'pages', 'site', 'panels', 'ModuleListPanel'),
+  // Where task 72's derived cva variant controls finally become editable.
+  join(SRC_ROOT, 'admin', 'pages', 'site', 'panels', 'ReactPropertiesPanel'),
+]
+
 function tailwindAllowed(file: string): boolean {
+  if (REACT_ENGINE_CONVERTED.some((converted) => file.startsWith(converted))) return true
   const insideAdmin = file.startsWith(join(SRC_ROOT, 'admin'))
   const builderOwned = BUILDER_ONLY.some((builder) => file.startsWith(builder))
   return insideAdmin && !builderOwned

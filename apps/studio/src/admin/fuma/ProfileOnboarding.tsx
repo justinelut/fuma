@@ -1,9 +1,8 @@
-import { Button } from '@ui/components/Button'
+import { Button } from '@admin/fuma/ui/button'
 import type {
   CompleteProfileOnboardingStepCommand,
   ProfileOnboardingState,
 } from '@core/fuma'
-import styles from './ProfileOnboarding.module.css'
 
 export type ProfileOnboardingStepHandler = (
   command: CompleteProfileOnboardingStepCommand,
@@ -37,20 +36,20 @@ export function ProfileOnboarding({
 
   return (
     <section
-      className={styles.root}
+      className="grid gap-px overflow-hidden rounded-md bg-border text-foreground"
       aria-label={ariaLabel}
       data-complete={state.complete ? 'true' : 'false'}
       data-resume-cursor={state.progress.cursor}
     >
-      <header className={styles.header}>
-        <div className={styles.headerCopy}>
-          <p className={styles.kicker}>
+      <header className="flex flex-col items-start justify-between gap-8 bg-card p-8 sm:flex-row sm:items-end">
+        <div className="grid gap-1">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
             {state.complete ? 'Setup complete' : 'Setup in progress'}
           </p>
-          <h2 className={styles.title}>
+          <h2 className="text-2xl text-foreground">
             {state.complete ? 'Your setup is complete' : 'Continue setting up'}
           </h2>
-          <p className={styles.summary}>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             {totalSteps === 0
               ? 'No setup steps are required.'
               : state.complete
@@ -58,41 +57,41 @@ export function ProfileOnboarding({
                 : `Resume at step ${state.progress.cursor + 1} of ${totalSteps}.`}
           </p>
         </div>
-        <div className={styles.progressBlock}>
+        <div className="grid min-w-[min(100%,220px)] gap-1">
           <progress
-            className={styles.progress}
+            className="h-2 w-full overflow-hidden rounded-md border-0"
             aria-label="Completed onboarding steps"
             max={progressMaximum}
             value={progressValue}
           />
-          <span className={styles.progressText}>
+          <span className="text-right text-xs text-muted-foreground">
             {state.progress.cursor} of {totalSteps} steps complete
           </span>
         </div>
       </header>
 
       {totalSteps > 0 && (
-        <ol className={styles.steps}>
+        <ol className="m-0 grid list-none gap-px p-0">
           {state.steps.map((step, index) => {
             const completed = state.progress.completedStepIds.includes(step.id)
             const current = state.currentStepId === step.id
             const stepState = completed ? 'complete' : current ? 'current' : 'upcoming'
 
             return (
-              <li className={styles.step} data-state={stepState} key={step.id}>
-                <span className={styles.stepNumber} aria-hidden="true">
+              <li className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-6 bg-card px-8 py-6" data-state={stepState} key={step.id}>
+                <span className="grid size-10 place-items-center rounded-md border border-border font-mono text-xs text-muted-foreground" aria-hidden="true">
                   {index + 1}
                 </span>
-                <div className={styles.stepCopy}>
-                  <h3 className={styles.stepTitle}>{step.title}</h3>
-                  <p className={styles.stepDescription}>{step.description}</p>
-                  <span className={styles.stepStatus}>
+                <div className="grid min-w-0 gap-1">
+                  <h3 className="text-base text-foreground">{step.title}</h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">{step.description}</p>
+                  <span className="mt-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     {completed ? 'Completed' : current ? 'Current step' : 'Upcoming'}
                   </span>
                 </div>
                 {current && onCompleteStep && (
                   <Button
-                    variant="primary"
+                    variant="default"
                     size="sm"
                     aria-label={`Complete ${step.title}`}
                     onClick={() => completeStep(step.id)}

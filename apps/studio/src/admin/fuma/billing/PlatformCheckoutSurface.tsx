@@ -1,9 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { getErrorMessage } from '@core/utils/errorMessage'
-import { Button } from '@ui/components/Button'
+import { Button } from '@admin/fuma/ui/button'
 import type { PlatformCheckoutHttpClient } from './client'
 import type { PlatformCheckoutSource, PlatformCheckoutWire } from './contracts'
-import styles from './PlatformCheckoutSurface.module.css'
 
 export type PlatformCheckoutSurfaceProps = Readonly<{
   client: PlatformCheckoutHttpClient
@@ -37,7 +36,7 @@ function AuthorizationLink({ obligation }: Readonly<{
   }
   return (
     <a
-      className={styles.authorizationLink}
+      className="mt-2 w-fit text-sm font-semibold text-primary underline-offset-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       href={obligation.authorizationUrl}
       target="_blank"
       rel="noopener noreferrer"
@@ -49,35 +48,35 @@ function AuthorizationLink({ obligation }: Readonly<{
 
 function CheckoutSummary({ checkout }: Readonly<{ checkout: PlatformCheckoutWire }>) {
   return (
-    <section className={styles.summary} aria-labelledby="checkout-summary-title">
-      <header className={styles.summaryHeader}>
+    <section className="grid gap-6 min-w-0 rounded-md border border-border bg-card p-8" aria-labelledby="checkout-summary-title">
+      <header className="flex items-center justify-between gap-6">
         <div>
-          <p className={styles.eyebrow}>Exact checkout</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Exact checkout</p>
           <h3 id="checkout-summary-title">Bound consideration</h3>
         </div>
-        <span className={styles.checkoutState}>{checkout.state.replace('-', ' ')}</span>
+        <span className="rounded-md border border-border px-3 py-1 text-xs font-semibold capitalize text-muted-foreground">{checkout.state.replace('-', ' ')}</span>
       </header>
-      <p className={styles.destination}>
+      <p className="text-sm leading-relaxed text-muted-foreground">
         Destination: organization {checkout.destination.organizationId}, workspace{' '}
         {checkout.destination.workspaceId}, site {checkout.destination.siteId}
       </p>
-      <div className={styles.considerationGrid}>
-        <article className={styles.consideration} aria-labelledby="setup-consideration-title">
-          <p className={styles.kind}>One-time</p>
+      <div className="grid gap-6 sm:grid-cols-2">
+        <article className="grid content-start gap-2 rounded-md border border-border bg-muted/40 p-6 [&_strong]:font-mono [&_strong]:text-xl [&_strong]:text-foreground [&_p]:text-sm [&_p]:text-muted-foreground [&_h4]:text-foreground" aria-labelledby="setup-consideration-title">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">One-time</p>
           <h4 id="setup-consideration-title">Setup/import fee</h4>
           <strong>{checkout.setup ? money(checkout.setup.amountMinor) : money(0)}</strong>
           <p>{checkout.setup ? statusLabel(checkout.setup.state) : 'No setup fee for this plan'}</p>
           {checkout.setup ? <AuthorizationLink obligation={checkout.setup} /> : null}
         </article>
-        <article className={styles.consideration} aria-labelledby="recurring-consideration-title">
-          <p className={styles.kind}>{checkout.cadence}</p>
+        <article className="grid content-start gap-2 rounded-md border border-border bg-muted/40 p-6 [&_strong]:font-mono [&_strong]:text-xl [&_strong]:text-foreground [&_p]:text-sm [&_p]:text-muted-foreground [&_h4]:text-foreground" aria-labelledby="recurring-consideration-title">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{checkout.cadence}</p>
           <h4 id="recurring-consideration-title">Recurring consideration</h4>
           <strong>{money(checkout.recurring.amountMinor)}</strong>
           <p>{statusLabel(checkout.recurring.state)}</p>
           <AuthorizationLink obligation={checkout.recurring} />
         </article>
       </div>
-      <p className={styles.pendingNotice}>
+      <p className="border-l-2 border-border bg-muted px-4 py-3 text-sm leading-relaxed text-muted-foreground">
         A browser callback verifies the exact reference only. It does not settle either
         obligation, activate a contract, or transfer a site.
       </p>
@@ -180,25 +179,25 @@ export function PlatformCheckoutSurface({
   }
 
   return (
-    <section className={styles.surface} aria-labelledby="platform-checkout-title">
-      <header className={styles.header}>
+    <section className="grid min-w-0 gap-8 rounded-md bg-muted/40 p-8 text-foreground" aria-labelledby="platform-checkout-title">
+      <header className="flex items-center justify-between gap-6">
         <div>
-          <p className={styles.eyebrow}>Platform billing</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Platform billing</p>
           <h2 id="platform-checkout-title">Checkout</h2>
         </div>
-        <span className={styles.currency}>KES only</span>
+        <span className="rounded-md border border-border px-3 py-1 text-xs font-semibold capitalize text-muted-foreground">KES only</span>
       </header>
-      <p className={styles.intro}>
+      <p className="text-sm leading-relaxed text-muted-foreground">
         Start a checkout from a current published plan or an exact issued private offer.
         Customer identity, price, destination, channels, and callback are bound by the server.
       </p>
       {!canCheckout ? (
-        <p className={styles.readOnly} role="status">
+        <p className="border-l-2 border-border bg-muted px-4 py-3 text-sm leading-relaxed text-muted-foreground" role="status">
           You can inspect checkout status, but site settings write permission is required to pay or cancel.
         </p>
       ) : null}
-      <div className={styles.intentGrid}>
-        <form className={styles.form} onSubmit={submitPlan}>
+      <div className="grid gap-6 sm:grid-cols-2">
+        <form className="min-w-0 rounded-md border border-border bg-card" onSubmit={submitPlan}>
           <fieldset disabled={!canCheckout || busy}>
             <legend>Current public plan</legend>
             <label>
@@ -216,10 +215,10 @@ export function PlatformCheckoutSurface({
                 <option value="annual">Annual</option>
               </select>
             </label>
-            <Button type="submit" variant="primary" size="md" disabled={!canCheckout || busy}>Initialize plan checkout</Button>
+            <Button type="submit" disabled={!canCheckout || busy}>Initialize plan checkout</Button>
           </fieldset>
         </form>
-        <form className={styles.form} onSubmit={submitOffer}>
+        <form className="min-w-0 rounded-md border border-border bg-card" onSubmit={submitOffer}>
           <fieldset disabled={!canCheckout || busy}>
             <legend>Exact private offer</legend>
             <label>
@@ -230,21 +229,21 @@ export function PlatformCheckoutSurface({
               Offer version
               <input required type="number" min="1" step="1" value={offerVersion} onChange={(event) => setOfferVersion(event.target.value)} />
             </label>
-            <p className={styles.offerHelp}>The issued snapshot fixes setup fee, recurring amount, cadence, and destination.</p>
-            <Button type="submit" variant="primary" size="md" disabled={!canCheckout || busy}>Initialize offer checkout</Button>
+            <p className="text-sm leading-relaxed text-muted-foreground">The issued snapshot fixes setup fee, recurring amount, cadence, and destination.</p>
+            <Button type="submit" disabled={!canCheckout || busy}>Initialize offer checkout</Button>
           </fieldset>
         </form>
       </div>
       {checkout ? <CheckoutSummary checkout={checkout} /> : null}
       {checkout?.state === 'awaiting-payment' && canCheckout ? (
-        <div className={styles.cancelRow}>
+        <div className="flex items-center justify-end gap-6">
           <Button variant="destructive" size="sm" disabled={busy} onClick={() => void cancel()}>
             Cancel checkout
           </Button>
         </div>
       ) : null}
-      {status ? <p className={styles.status} role="status" aria-live="polite">{status}</p> : null}
-      {error ? <p className={styles.error} role="alert">{error}</p> : null}
+      {status ? <p className="rounded-md bg-muted px-4 py-3 text-sm text-foreground" role="status" aria-live="polite">{status}</p> : null}
+      {error ? <p className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{error}</p> : null}
     </section>
   )
 }

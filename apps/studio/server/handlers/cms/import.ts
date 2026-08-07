@@ -36,7 +36,7 @@ import {
 } from './importMediaValidation'
 import { requireCapability, requireStepUp, userHasCapability } from '../../auth/authz'
 import { saveDraftSite } from '../../repositories/site'
-import { SELF_HOST_SITE_ID } from '../../selfHost'
+import { resolveRequestSiteDocumentId } from '../../selfHost'
 import {
   listDataTables,
   createDataTable,
@@ -162,6 +162,17 @@ export async function handleImportRoute(
   // silently skipped rather than violating the membership foreign key.
   const importedFolderIds = new Set<string>()
 
+  // Resolved BEFORE any transaction opens. Refusing inside the transaction would roll back work
+  // already done and report a permission problem as a failed import, so the decision is made
+  // while nothing has been written yet.
+  const siteDocumentId = await resolveRequestSiteDocumentId(req)
+  if (siteDocumentId === null) {
+    return jsonResponse(
+      { error: 'This request did not resolve to a site you may import into.' },
+      { status: 403 },
+    )
+  }
+
   // ---------------------------------------------------------------------------
   // DB transaction
   // ---------------------------------------------------------------------------
@@ -231,7 +242,7 @@ export async function handleImportRoute(
 
       // 6. Replace the site shell (only when the bundle carries one)
       if (bundle.site) {
-        await saveDraftSite(tx, SELF_HOST_SITE_ID, bundle.site)
+        await saveDraftSite(tx, siteDocumentId, bundle.site)
       }
 
       // 7. Media folder tree. `delete from data_rows` above does NOT touch
@@ -359,7 +370,7 @@ export async function handleImportRoute(
 
       // Site shell: overwrite if the bundle carries one
       if (bundle.site) {
-        await saveDraftSite(tx, SELF_HOST_SITE_ID, bundle.site)
+        await saveDraftSite(tx, siteDocumentId, bundle.site)
       }
     })
   }

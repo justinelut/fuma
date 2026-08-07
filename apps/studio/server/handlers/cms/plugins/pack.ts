@@ -23,7 +23,7 @@ import {
   PluginPackError,
 } from '../../../plugins/pack'
 import { getDraftSite, saveDraftSite } from '../../../repositories/site'
-import { SELF_HOST_SITE_ID } from '../../../selfHost'
+import { resolveRequestSiteDocumentId } from '../../../selfHost'
 import {
   listDataRows,
   createDataRow,
@@ -67,7 +67,13 @@ async function installPluginPackToSite(
   const raw = await loadPluginPackFile(uploadsDir, plugin.manifest.assetBasePath, plugin.manifest.pack.path)
   const pack = parsePluginPack(plugin.id, raw)
 
-  const shell = await getDraftSite(db, SELF_HOST_SITE_ID)
+  // Resolved before the shell is read, so the read and the later write target the same site.
+  // Returning null (no pack installed) rather than guessing: installing a plugin's pages into
+  // another tenant's site would add content its owner never asked for.
+  const siteDocumentId = await resolveRequestSiteDocumentId(req)
+  if (siteDocumentId === null) return null
+
+  const shell = await getDraftSite(db, siteDocumentId)
   if (!shell) return null
 
   // Assemble a temporary SiteDocument for the pack merge function.
@@ -98,7 +104,7 @@ async function installPluginPackToSite(
 
   // Extract shell (strip pages, visualComponents, and layouts) and save
   const { pages: packPages, visualComponents: _vcs, layouts: _layouts, ...nextShell } = nextSiteDoc
-  await saveDraftSite(db, SELF_HOST_SITE_ID, nextShell, actorUserId)
+  await saveDraftSite(db, siteDocumentId, nextShell, actorUserId)
 
   // Upsert pack pages as data_rows
   const existingPagesById = new Map(pageRows.map((r) => [r.id, r]))

@@ -83,6 +83,7 @@ import { bookingsAuthorityMigration } from './000081_bookings_authority'
 import { freeHostRootDomainPortabilityMigration } from './000082_free_host_root_domain_portability'
 import { publicationMembershipTiersMigration } from './000083_publication_membership_tiers'
 import { transferObjectCheckpointMigration } from './000084_transfer_object_checkpoints'
+import { emailDnsInstructionsMigration } from './000085_email_dns_instructions'
 
 export const hostedMigrations = Object.freeze([
   transitionBookkeepingMigration,
@@ -169,6 +170,7 @@ export const hostedMigrations = Object.freeze([
   freeHostRootDomainPortabilityMigration,
   publicationMembershipTiersMigration,
   transferObjectCheckpointMigration,
+  emailDnsInstructionsMigration,
 ])
 
 export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
@@ -262,6 +264,7 @@ export const HOSTED_MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = Obje
   '000082_free_host_root_domain_portability': '7ab618b889dbed53775ec1453a7924804f0b76b143dbbac44418ce55099ac793',
   '000083_publication_membership_tiers': '9275c9dc4efbd4b9585054992e1e06ecef66ccacee6ec4371d50553d66972a3e',
   '000084_transfer_object_checkpoints': '968aad0ae1e7547d43e51a47c24bbd3eb050f7b8ebdddd40d113bd7d5bca0fab',
+  '000085_email_dns_instructions': 'a2c603b2d43bb83b9a3427f2268e025c28ec8de4ff09d31f6e30f16fcb38542c',
 })
 
 const firstUnappliedMigration = hostedMigrations.findIndex(({ id }) => (

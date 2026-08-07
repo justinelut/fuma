@@ -8,7 +8,6 @@ import {
   type ScopedMcpConnectorView,
   type ScopedMcpCreateIntent,
 } from './McpScopedConnectorPanel'
-import styles from './McpScopedRouteContent.module.css'
 
 function allowsWrite(
   decisions: readonly PermissionDecision[],
@@ -82,10 +81,10 @@ export function McpScopedRouteContent({
 
   if (!selected || !allowed) return null
   if (!state || state.scopeKey !== scopeKey) {
-    return <p className={styles.status} role="status">Loading site MCP connectors…</p>
+    return <p className="text-sm text-muted-foreground" role="status">Loading site MCP connectors…</p>
   }
   if (state.error || !state.connectors) {
-    return <p className={styles.error} role="alert">{state.error ?? 'Site MCP connectors could not be loaded.'}</p>
+    return <p className="text-sm text-destructive" role="alert">{state.error ?? 'Site MCP connectors could not be loaded.'}</p>
   }
   const canWrite = allowsWrite(permissionDecisions, shell)
   const create = async (intent: ScopedMcpCreateIntent): Promise<Readonly<{ token: string }>> => {
@@ -100,7 +99,7 @@ export function McpScopedRouteContent({
     await refresh()
   }
   return (
-    <div className={styles.root} data-testid="mcp-scoped-route-content">
+    <div className="rounded-md border border-border bg-card p-6" data-testid="mcp-scoped-route-content">
       <McpScopedConnectorPanel
         siteId={siteId}
         connectors={state.connectors}

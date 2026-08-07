@@ -225,7 +225,9 @@ function renderHolePlaceholder(
   const sanitized = rawPlaceholder ? sanitizeRichtext(rawPlaceholder) : ''
 
   const safeId = escapeHtml(node.id)
-  const version = config.publishVersion ?? 0
+  // The durable stamp wins when present. The numeric fallback keeps existing callers working and is
+  // accepted by the hole endpoint as a legacy value.
+  const version = config.publishStamp ?? config.publishVersion ?? 0
 
   return (
     `<instatic-hole id="hole-${safeId}" data-instatic-hole="${safeId}" data-instatic-version="${version}" style="display:contents">` +

@@ -83,8 +83,16 @@ const RULES: PackageRule[] = [
   {
     label: 'zod',
     importRe: /from\s+['"]zod['"]|require\s*\(\s*['"]zod['"]\s*\)/,
-    // No allowed callers — drivers pass TypeBox schemas through as JSON Schema.
+    // No allowed callers in the app itself — drivers pass TypeBox schemas through as JSON Schema.
     allowed: [],
+    // CODE GENERATORS ARE EXCLUDED, the same carve-out direct-icon-imports needs and for the same
+    // reason. Files under src/core/generatedSite/ emit SOURCE TEXT for a tenant's site; they do not
+    // import zod themselves, they write an import statement into a string. Task 23's boundary is
+    // "TypeBox for Fuma, zod for generated sites" — so the file whose job is to emit generated-site
+    // source MUST name zod, and scanning it as app code reports the tenant's dependency as if the
+    // admin had taken one. The boundary is unchanged: apps/studio still declares no zod dependency,
+    // which generated-site-forms.test.ts asserts by reading package.json.
+    allowedPrefixes: ['src/core/generatedSite/'],
   },
   {
     label: '@anthropic-ai/sdk',

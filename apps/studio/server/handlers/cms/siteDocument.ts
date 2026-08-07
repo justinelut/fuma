@@ -50,7 +50,7 @@ import {
   type DataRowWrite,
 } from '../../repositories/data'
 import { getDraftSite, saveDraftSite, stampDraftSiteSeq } from '../../repositories/site'
-import { SELF_HOST_SITE_ID } from '../../selfHost'
+import { resolveRequestSiteDocumentId } from '../../selfHost'
 import { allocateSiteSeq } from '../../repositories/syncSequence'
 import { pageFromRow, pageToCells } from '../../../src/core/data/pageFromRow'
 import { visualComponentFromRow, visualComponentToCells } from '../../../src/core/data/componentFromRow'
@@ -152,6 +152,18 @@ export async function handleSiteDocumentRoutes(req: Request, db: DbClient): Prom
   const user = await requireAnyCapability(req, db, SITE_WRITE_CAPABILITIES)
   if (user instanceof Response) return user
 
+  // Which site's document is this? Resolved ONCE, after authorisation and before any read or
+  // write, so the read and the write cannot disagree about their target. Refused rather than
+  // defaulted: in a hosted deployment there is no safe default, and serving the legacy document
+  // would return another tenant's design.
+  const siteDocumentId = await resolveRequestSiteDocumentId(req)
+  if (siteDocumentId === null) {
+    return badRequest(
+      'This request did not resolve to a site you may edit, so it was refused rather than '
+      + 'applied to the default document.',
+    )
+  }
+
   const body = await readValidatedBody(req, SiteDocumentBodySchema)
   if (!body) return badRequest('Invalid request body')
 
@@ -170,7 +182,7 @@ export async function handleSiteDocumentRoutes(req: Request, db: DbClient): Prom
     // cheap (id, slug) page projection plus the component roster it needs
     // for ref validation — never all three hydrated collections.
 
-    const previousShell = await getDraftSite(db, SELF_HOST_SITE_ID)
+    const previousShell = await getDraftSite(db, siteDocumentId)
     const shell = validateSite(body.site)
     validateSiteWriteDiff(previousShell, shell, user.capabilities)
 
@@ -309,8 +321,8 @@ export async function handleSiteDocumentRoutes(req: Request, db: DbClient): Prom
     let deletedPublishedPage = false
     await db.transaction(async (tx) => {
       seq = await allocateSiteSeq(tx)
-      await saveDraftSite(tx, SELF_HOST_SITE_ID, shell, user.id)
-      await stampDraftSiteSeq(tx, SELF_HOST_SITE_ID, seq)
+      await saveDraftSite(tx, siteDocumentId, shell, user.id)
+      await stampDraftSiteSeq(tx, siteDocumentId, seq)
       // Empty change sets skip their table entirely — a shell-only save
       // issues no row queries inside the transaction.
       if (componentWrites.length > 0 || componentDeleteIds.size > 0) {

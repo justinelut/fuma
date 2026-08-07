@@ -11,6 +11,7 @@ import { SelectorsPanel } from '@site/panels/SelectorsPanel'
 import { FrameworkChangeConfirmProvider } from '@admin/shared/dialogs/FrameworkChangeConfirmDialog'
 import { VCDeletionConfirmProvider } from '@admin/shared/dialogs/VCDeletionConfirmDialog'
 import { SidebarResizeHandle } from '@admin/shared/SidebarResizeHandle'
+import { ModuleListMount } from '@site/panels/ModuleListPanel/ModuleListMount'
 import styles from './LeftSidebar.module.css'
 
 // Image preparation and provider catalogue code belong to the AI surface, not
@@ -139,6 +140,11 @@ export function LeftSidebar({
               </div>
               <div className={styles.panelMount} hidden={effectiveActivePanel !== 'dependencies'}>
                 <DependenciesPanel variant="docked" />
+              </div>
+              {/* The React module list. Editor-only because opening one switches the active document,
+                  which is structural work rather than navigation. */}
+              <div className={styles.panelMount} hidden={effectiveActivePanel !== 'modules'}>
+                <ModuleListMount />
               </div>
               {effectivePluginPanelId !== null && (
                 <div

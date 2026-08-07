@@ -30,6 +30,10 @@ export function activeDocumentNodes(store: EditorStore): Record<string, BaseNode
   const site = store.site
   if (!site) return null
   const activeDocument = store.activeDocument
+  // A React IR module is NOT a PageNode document, so there are no PageNodes to return. Falling
+  // through to activePageId would hand these tools the previously-open PAGE while the canvas shows
+  // a module - an edit applied to a document the author is not looking at. Null refuses instead.
+  if (activeDocument?.kind === 'reactModule') return null
   if (activeDocument?.kind === 'visualComponent') {
     const vc = site.visualComponents?.find((component) => component.id === activeDocument.vcId)
     return vc ? (vc.tree.nodes as Record<string, BaseNode>) : null
@@ -44,6 +48,10 @@ export function activeRenderPage(store: EditorStore): Page | null {
   const site = store.site
   if (!site) return null
   const activeDocument = store.activeDocument
+  // A React IR module is NOT a PageNode document, so there are no PageNodes to return. Falling
+  // through to activePageId would hand these tools the previously-open PAGE while the canvas shows
+  // a module - an edit applied to a document the author is not looking at. Null refuses instead.
+  if (activeDocument?.kind === 'reactModule') return null
   if (activeDocument?.kind === 'visualComponent') {
     const vc = site.visualComponents?.find((component) => component.id === activeDocument.vcId)
     return vc ? flattenVCToVirtualPage(vc) : null

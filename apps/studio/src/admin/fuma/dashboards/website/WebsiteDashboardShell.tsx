@@ -13,7 +13,17 @@
 import type { ReactNode } from 'react'
 import { Link } from '@admin/lib/routing'
 import type { ProfileNavigationOutput } from '@core/fuma'
+import { ChevronsUpDown, Menu } from 'lucide-react'
 import { Avatar, Badge, Button, Stat } from '../../ui/primitives'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '../../ui/sheet'
+import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover'
 import { cn } from '../../ui/cn'
 import { ThemeToggle } from '../../ui/theme'
 
@@ -31,6 +41,21 @@ export interface WebsiteDashboardShellProps {
   homePath: string
   counts: Readonly<{ sites: number, workspaces: number, organizations: number }>
   setup: Readonly<{ completed: number, total: number }>
+  /**
+   * Who owns the organization being viewed.
+   *
+   * Shown beside the greeting when it is somebody other than the viewer. Staff and agency users work
+   * inside organizations they do not own, and a dashboard that only ever greets you by your own name
+   * gives no indication of whose site you are about to change.
+   */
+  organizationOwnerLabel?: string
+  /**
+   * Organization / workspace / site switchers.
+   *
+   * A slot rather than the catalog itself, so the shell does not have to know the catalog and
+   * resolution types — it only decides where switching belongs.
+   */
+  contextSwitchers?: ReactNode
   onSignOut?: () => void
   signingOut?: boolean
   children: ReactNode
@@ -135,6 +160,8 @@ export function WebsiteDashboardShell({
   settingsPath,
   counts,
   setup,
+  organizationOwnerLabel,
+  contextSwitchers,
   onSignOut,
   signingOut = false,
   children,
@@ -155,26 +182,112 @@ export function WebsiteDashboardShell({
       )}
     >
       <div className="mx-auto w-full max-w-[1680px] px-3 py-4 sm:px-6 sm:py-6 xl:px-10 xl:py-8">
+        {/*
+          ONE ROW AT EVERY WIDTH, which is what makes `sticky` safe.
+
+          This header previously used `flex-wrap` with the navigation forced to `order-3 w-full`, so
+          below `lg` it became three stacked rows. A sticky element has whatever height its content
+          gives it, so on a narrow viewport the header occupied a large part of the screen and the
+          greeting immediately beneath it was covered — the defect was the wrapping, not the offset.
+
+          The navigation moves into a left sheet below `lg` instead of wrapping, so the row height is
+          bounded by design rather than by how many sections the profile happens to have.
+        */}
         <header
           className={cn(
-            'sticky top-0 z-30 -mx-3 flex flex-wrap items-center justify-between gap-2',
-            'border-b border-border bg-background px-3 py-3',
+            'sticky top-0 z-30 -mx-3 flex items-center justify-between gap-2',
+            // Translucent rather than a flat fill: the page behind carries a radial wash, and an
+            // opaque strip over a gradient shows as a seam at the header's edge.
+            'border-b border-border bg-background/80 px-3 py-3 backdrop-blur-sm',
             'sm:-mx-6 sm:gap-3 sm:px-6 xl:-mx-10 xl:px-10',
           )}
         >
-          <p
-            className={cn(
-              'inline-flex h-10 min-w-0 max-w-[60vw] items-center rounded-full border border-border',
-              'px-4 text-sm font-semibold tracking-tight text-foreground',
-              'sm:h-11 sm:px-5 sm:text-[0.95rem]',
+          <div className="flex min-w-0 items-center gap-2">
+            <Sheet>
+              <SheetTrigger
+                className={cn(
+                  'inline-flex size-10 shrink-0 items-center justify-center rounded-full',
+                  'border border-border text-muted-foreground transition-colors',
+                  'hover:bg-accent hover:text-foreground lg:hidden',
+                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                )}
+              >
+                <Menu className="size-4" aria-hidden="true" />
+                <span className="sr-only">Open navigation</span>
+              </SheetTrigger>
+              {/* Left, because the trigger is on the left: a panel that flies in from the opposite
+                  side of the control that opened it reads as unrelated to it. */}
+              <SheetContent side="left" className="w-[17rem] p-0">
+                <SheetHeader className="border-b border-border px-5 py-4 text-left">
+                  <SheetTitle className="truncate text-base">{siteName}</SheetTitle>
+                  <SheetDescription className="truncate text-xs">
+                    {organizationName} · {workspaceName}
+                  </SheetDescription>
+                </SheetHeader>
+                <nav aria-label="Website sections menu" className="px-3 py-3">
+                  <ul className="flex flex-col gap-0.5">
+                    {navigation.map((entry) => {
+                      const active = entry.id === activeId
+                      return (
+                        <li key={entry.id}>
+                          <Link
+                            to={entry.path}
+                            aria-current={active ? 'page' : undefined}
+                            className={cn(
+                              'flex h-10 items-center rounded-lg px-3 text-sm transition-colors',
+                              active
+                                ? 'bg-primary font-medium text-primary-foreground'
+                                : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                            )}
+                          >
+                            {entry.label}
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </nav>
+              </SheetContent>
+            </Sheet>
+
+            {contextSwitchers ? (
+              // The pill that NAMES the current context is what opens the control that changes it.
+              // Switching lived only in a different shell before this, so a site opened from the
+              // website dashboard could not be changed without going back out to find one.
+              <Popover>
+                <PopoverTrigger
+                  className={cn(
+                    'inline-flex h-10 min-w-0 max-w-[52vw] items-center gap-2 rounded-full',
+                    'border border-border px-4 text-sm font-semibold tracking-tight text-foreground',
+                    'transition-colors hover:bg-accent',
+                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                    'sm:h-11 sm:px-5 sm:text-[0.95rem] lg:max-w-[22rem]',
+                  )}
+                  aria-label={`Current context: ${siteName}. Switch organization, workspace or site`}
+                >
+                  <span className="truncate">{siteName}</span>
+                  <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[20rem] p-4">
+                  {contextSwitchers}
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <p
+                className={cn(
+                  'inline-flex h-10 min-w-0 max-w-[52vw] items-center rounded-full border border-border',
+                  'px-4 text-sm font-semibold tracking-tight text-foreground',
+                  'sm:h-11 sm:px-5 sm:text-[0.95rem] lg:max-w-[22rem]',
+                )}
+              >
+                <span className="truncate">{siteName}</span>
+              </p>
             )}
-          >
-            <span className="truncate">{siteName}</span>
-          </p>
+          </div>
 
           <nav
             aria-label="Website sections"
-            className="order-3 w-full lg:order-none lg:w-auto"
+            className="hidden lg:block"
           >
             <ul
               className={cn(
@@ -254,6 +367,15 @@ export function WebsiteDashboardShell({
         >
           Welcome in, {firstName(actorLabel)}
         </h1>
+
+        {organizationOwnerLabel && organizationOwnerLabel !== actorLabel ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Working in{' '}
+            <span className="font-medium text-foreground">{organizationName}</span>
+            {', owned by '}
+            <span className="font-medium text-foreground">{organizationOwnerLabel}</span>
+          </p>
+        ) : null}
 
         <div className="mt-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-5 sm:mt-6 sm:gap-x-8">
           <dl className="flex min-w-0 flex-wrap items-end gap-4 sm:gap-6">

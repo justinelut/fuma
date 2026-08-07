@@ -15,6 +15,7 @@ import { buildScopedAdminUrl, type AccessibleContextCatalog } from '@core/fuma'
 import { Avatar, Badge, Button, Card, CardCaption, CardTitle, Stat } from '../ui/primitives'
 import { ThemeToggle } from '../ui/theme'
 import { cn } from '../ui/cn'
+import { GROUP, RELATED_GAP } from '../ui/rhythm'
 import { useDashboardStore } from './dashboardStore'
 import {
   provisionSite,
@@ -133,6 +134,13 @@ function Dial({ percent, caption }: { percent: number | null, caption: string })
 
 
 
+/**
+ * How many site shortcuts the header strip carries. Bounded because the strip is one row and
+ * an unbounded list would either scroll off or wrap the header; the remainder is REPORTED so
+ * the bound is visible rather than silent.
+ */
+const NAV_SITE_LIMIT = 5
+
 function HeaderShell({
   actorLabel,
   accountPath,
@@ -149,8 +157,13 @@ function HeaderShell({
   return (
     <header
       className={cn(
-        'sticky top-0 z-30 -mx-3 flex flex-wrap items-center justify-between gap-2',
-        'border-b border-border bg-background px-3 py-3',
+        // NOT flex-wrap. A sticky element has whatever height its content gives it, so
+        // wrapping the nav onto its own row made this header several rows tall on a narrow
+        // viewport and it covered the surface underneath. One row at every width instead.
+        'sticky top-0 z-30 -mx-3 flex items-center justify-between gap-2',
+        // Translucent because the page carries a radial gradient wash and an opaque strip
+        // over a gradient shows as a seam at its edge.
+        'border-b border-border bg-background/85 backdrop-blur-sm px-3 py-3',
         'sm:-mx-6 sm:gap-3 sm:px-6 xl:-mx-10 xl:px-10',
       )}
     >
@@ -271,7 +284,14 @@ export function PlatformDashboard({
           onSignOut={onSignOut}
           signingOut={signingOut}
         >
-          <nav aria-label="Platform sections" className="order-3 w-full lg:order-none lg:w-auto">
+          {/* These are SITE shortcuts, not platform sections - the previous accessible name
+              said "Platform sections" while the list read out site names.
+              Hidden below lg rather than moved into a sheet (which is what the website and
+              publication shells needed): there the sidebar was the ONLY route to those
+              destinations, whereas every one of these sites is also listed in the "Your sites"
+              card on this same page. Hiding a duplicate costs nothing; hiding a sole route
+              would strand somebody. */}
+          <nav aria-label="Jump to a site" className="hidden lg:block">
             <ul
               className={cn(
                 'flex items-center gap-0.5 overflow-x-auto rounded-full border border-border',
@@ -289,7 +309,7 @@ export function PlatformDashboard({
                   Overview
                 </span>
               </li>
-              {sites.slice(0, 5).map((site) => (
+              {sites.slice(0, NAV_SITE_LIMIT).map((site) => (
                 <li key={site.id}>
                   <Link
                     to={buildScopedAdminUrl({
@@ -307,36 +327,45 @@ export function PlatformDashboard({
                   </Link>
                 </li>
               ))}
+              {sites.length > NAV_SITE_LIMIT ? (
+                <li>
+                  {/* A cap is only honest if it is visible. Without this, sites past the
+                      fifth simply are not here and read as deleted. */}
+                  <span className="inline-flex h-9 shrink-0 items-center px-3 text-[0.8125rem] whitespace-nowrap text-muted-foreground">
+                    +{sites.length - NAV_SITE_LIMIT} more below
+                  </span>
+                </li>
+              ) : null}
             </ul>
           </nav>
         </HeaderShell>
 
         <h1
           className={cn(
-            'mt-5 text-[1.75rem] leading-tight font-semibold tracking-tight text-foreground',
-            'sm:mt-7 sm:text-[2.4rem] sm:leading-none xl:text-[2.75rem]',
+            'mt-6 text-[1.75rem] leading-tight font-semibold tracking-tight text-foreground',
+            'sm:mt-10 sm:mt-12 sm:text-[2.4rem] sm:leading-none xl:text-[2.75rem]',
           )}
         >
           Welcome in, {firstName(actorLabel)}
         </h1>
 
-        <div className="mt-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-6 sm:mt-8 sm:gap-x-12">
+        <div className="mt-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-6 sm:mt-10 sm:mt-12 sm:gap-x-12">
           <dl className="flex min-w-0 flex-wrap items-end gap-5 sm:gap-8">
             <div>
               <dt className="text-xs text-muted-foreground">Storage</dt>
-              <dd className="mt-2">
+              <dd className="mt-3">
                 <Badge variant="solid" size="md">{formatBytes(storage?.totalBytes ?? null)}</Badge>
               </dd>
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">Database</dt>
-              <dd className="mt-2">
+              <dd className="mt-3">
                 <Badge variant="accent" size="md">{formatBytes(storage?.databaseBytes ?? null)}</Badge>
               </dd>
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">Media</dt>
-              <dd className="mt-2">
+              <dd className="mt-3">
                 <Badge variant="outline" size="md">{formatBytes(mediaBytes)}</Badge>
               </dd>
             </div>
@@ -350,10 +379,10 @@ export function PlatformDashboard({
         </div>
 
         {error ? (
-          <p className="mt-4 text-sm text-destructive" role="alert">{error}</p>
+          <p className="mt-6 text-sm text-destructive" role="alert">{error}</p>
         ) : null}
 
-        <main className="mt-7 grid items-start gap-4 sm:mt-9 sm:gap-5 lg:grid-cols-4">
+        <main className="mt-10 sm:mt-12 grid items-start gap-4 sm:mt-10 sm:mt-12 sm:gap-5 lg:grid-cols-4">
           {/* Feature card: what the plan is carrying right now. */}
           <Card className="flex min-h-[248px] flex-col justify-between">
             <div>
@@ -361,7 +390,7 @@ export function PlatformDashboard({
               <p className="mt-6 text-[1.75rem] leading-none font-semibold tracking-tight text-foreground">
                 {formatBytes(storage?.totalBytes ?? null)}
               </p>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
                 {loading
                   ? 'Reading measurements from the runtime.'
                   : storage
@@ -445,7 +474,7 @@ export function PlatformDashboard({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <CardTitle>Your sites</CardTitle>
-                <CardCaption className="mt-1">
+                <CardCaption className="mt-1.5">
                   Each opens the dashboard shaped for what it is
                 </CardCaption>
               </div>
@@ -454,11 +483,27 @@ export function PlatformDashboard({
               </span>
             </div>
             {sites.length === 0 ? (
-              <p className="mt-5 text-xs text-muted-foreground">
-                No sites yet. Create one below to get started.
-              </p>
+              <div className={cn('flex flex-col items-start', GROUP, RELATED_GAP)}>
+                <p className="text-xs text-muted-foreground">
+                  Nothing here yet. Your first site is the next step.
+                </p>
+                {/* The ACTION, not a direction to look elsewhere. The previous copy said
+                    "create one below", which is only true while the form happens to render
+                    beneath this card - the component cannot know that, and a first-run
+                    instruction that is wrong is worse than none. */}
+                <a
+                  href="#add-a-site"
+                  className={cn(
+                    'inline-flex h-9 items-center rounded-full bg-primary px-4',
+                    'text-[0.8125rem] font-medium text-primary-foreground',
+                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                  )}
+                >
+                  Create your first site
+                </a>
+              </div>
             ) : (
-              <ul className="mt-5 flex-1 space-y-2">
+              <ul className="mt-6 flex-1 space-y-2">
                 {sites.map((site) => {
                   const workspace = catalog.workspaces.find((entry) => entry.id === site.workspaceId)
                   const organization = catalog.organizations.find(
@@ -491,7 +536,7 @@ export function PlatformDashboard({
                           <span className="block truncate text-[0.8125rem] font-medium text-foreground">
                             {site.name}
                           </span>
-                          <span className="mt-0.5 block truncate text-[0.6875rem] text-muted-foreground">
+                          <span className="mt-1.5 block truncate text-[0.6875rem] text-muted-foreground">
                             {organization?.name ?? site.organizationId} / {workspace?.name ?? site.workspaceId}
                           </span>
                         </span>
@@ -527,7 +572,7 @@ export function PlatformDashboard({
           </section>
 
           {/* Creating a site is an action, so it reads as a form under a heading. */}
-          <section className="lg:col-span-2">
+          <section id="add-a-site" className="lg:col-span-2 scroll-mt-24">
             <div className="flex flex-wrap items-baseline justify-between gap-2 px-1">
               <h2 className="text-[0.9375rem] leading-snug font-semibold tracking-tight text-foreground">
                 Add a site
@@ -537,7 +582,7 @@ export function PlatformDashboard({
               </p>
             </div>
             <form
-              className="mt-4 flex flex-wrap items-end gap-3"
+              className="mt-6 flex flex-wrap items-end gap-3"
               onSubmit={(event) => { event.preventDefault(); void submitNewSite() }}
             >
               <label className="min-w-0 flex-1 basis-56">
@@ -596,7 +641,7 @@ export function PlatformDashboard({
               </Button>
             </form>
             {createError ? (
-              <p className="mt-2 text-xs text-destructive" role="alert">{createError}</p>
+              <p className="mt-3 text-xs text-destructive" role="alert">{createError}</p>
             ) : null}
             <p className="mt-3 px-1 text-[0.6875rem] text-muted-foreground">
               A website gets the site dashboard; a publication gets the editorial one.

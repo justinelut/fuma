@@ -21,6 +21,10 @@
  */
 
 import {
+  AuthorModuleToolInputSchema,
+  EditModuleToolInputSchema,
+  ReadModuleToolInputSchema,
+  ListModulesToolInputSchema,
   InsertHtmlInputSchema,
   GetNodeHtmlInputSchema,
   ReadDocumentInputSchema,
@@ -77,7 +81,74 @@ const SITE_CONTENT_CAPS: readonly CoreCapability[] = [
 const SITE_STYLE_CAPS: readonly CoreCapability[] = ['site.style.edit']
 
 // ---------------------------------------------------------------------------
-// HTML-native write tools
+// TSX authoring tools
+//
+// These supersede the HTML-native pair below. The model writes the typed React
+// source the site is built from, and it is read back through the same reader a
+// person's hand edits go through — so there is one accepted subset and one set of
+// diagnostics, instead of an importer reinterpreting what was written into
+// something else.
+// ---------------------------------------------------------------------------
+
+const authorModuleTool: AiTool = {
+  name: 'site_author_module',
+  scope: 'site',
+  execution: 'browser',
+  requiredCapabilities: SITE_STRUCTURE_CAPS,
+  description:
+    'Create a new page, layout or component as typed TSX. Supply the COMPLETE file: '
+    + 'a default-exported component returning JSX. Style with Tailwind utility classes '
+    + 'referencing the site theme (bg-primary, gap-4, text-lg) — not CSS files, <style> '
+    + 'blocks or style attributes. Animate with motion.* props (initial/animate/exit/'
+    + 'transition/variants/while*), and put \'use client\' on the smallest module that '
+    + 'needs it. Refused: spread attributes, event handlers, dangerouslySetInnerHTML, '
+    + 'computed className (Tailwind only generates CSS for literal class names), and '
+    + 'components with no traceable import. Paths must be .tsx under app/ or components/. '
+    + 'Returns nodeIds for addressing follow-up edits and a hash to pass as baseHash when '
+    + 'editing. Refusals name the rule and the line so they can be corrected directly.',
+  inputSchema: AuthorModuleToolInputSchema,
+}
+
+const editModuleTool: AiTool = {
+  name: 'site_edit_module',
+  scope: 'site',
+  execution: 'browser',
+  requiredCapabilities: SITE_STRUCTURE_CAPS,
+  description:
+    'Replace an existing module with new complete TSX. There is no patch tool, because '
+    + 'reproducing an exact span is the least reliable thing a model can be asked to do — '
+    + 'read the file, then send it back whole. Pass baseHash from the preceding '
+    + 'site_read_module so a change made underneath is reported rather than overwritten; '
+    + 'a stale-base failure returns the current hash so the retry needs no extra read. '
+    + 'Preserve the /* @fuma <id> */ anchor comments you find: they are how the canvas '
+    + 'keeps track of each element across edits.',
+  inputSchema: EditModuleToolInputSchema,
+}
+
+const readModuleTool: AiTool = {
+  name: 'site_read_module',
+  scope: 'site',
+  execution: 'browser',
+  description:
+    'Read a module\'s current TSX along with its content hash and the node ids the canvas '
+    + 'can address. Call this before editing. If the path is wrong the result lists the '
+    + 'modules that do exist.',
+  inputSchema: ReadModuleToolInputSchema,
+}
+
+const listModulesTool: AiTool = {
+  name: 'site_list_modules',
+  scope: 'site',
+  execution: 'browser',
+  description:
+    'List every authored module in this site — pages, layouts and components. Use it to '
+    + 'orient before building, so a component that already exists is reused rather than '
+    + 'written again.',
+  inputSchema: ListModulesToolInputSchema,
+}
+
+// ---------------------------------------------------------------------------
+// HTML-native write tools (superseded by the TSX tools above)
 // ---------------------------------------------------------------------------
 
 const insertHtmlTool: AiTool = {
@@ -411,6 +482,10 @@ const renderSnapshotTool: AiTool = {
 // ---------------------------------------------------------------------------
 
 export const siteWriteTools: AiTool[] = [
+  authorModuleTool,
+  editModuleTool,
+  readModuleTool,
+  listModulesTool,
   siteProposePaymentSetupTool,
   insertHtmlTool,
   getNodeHtmlTool,

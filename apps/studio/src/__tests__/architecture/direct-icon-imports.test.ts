@@ -32,8 +32,22 @@ const PROD_DIRS = ['editor', 'core', 'modules', 'ui', 'app', 'lib'].map((d) =>
   join(SRC_ROOT, d),
 )
 
+/**
+ * Code generators are excluded.
+ *
+ * Files under `core/generatedSite/` emit source text for a *tenant's* site; they do not render
+ * anything themselves. Scanning them as admin UI reports the tenant's `<Icon />` — a concrete
+ * Lucide component chosen inside the generated file — as if the admin were rendering a lazy
+ * wrapper. That is a false positive, and a gate that cries wolf gets ignored when it is right.
+ */
+const GENERATOR_DIRS = [join(SRC_ROOT, 'core', 'generatedSite')]
+
+function isGenerator(file: string): boolean {
+  return GENERATOR_DIRS.some((dir) => file.startsWith(dir))
+}
+
 function collectProdFiles(): string[] {
-  return PROD_DIRS.flatMap((dir) => collectFiles(dir))
+  return PROD_DIRS.flatMap((dir) => collectFiles(dir)).filter((file) => !isGenerator(file))
 }
 
 describe('Direct icon imports — no lazy Icon wrapper in production UI', () => {

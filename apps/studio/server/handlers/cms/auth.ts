@@ -68,6 +68,8 @@ import { Type } from '@core/utils/typeboxHelpers'
 import { CMS_API_PREFIX, requestAuditContext } from './shared'
 import { clearSessionCookie, getDummyPasswordHash, sessionCookie } from './session'
 import { runRouteTable, type Route } from './routeTable'
+import { hostedIdentityBridgeActive } from '../../auth/authz'
+import { evaluateStepUp } from '../../auth/stepUpEligibility'
 
 /**
  * Helper: build a 429 response with a `Retry-After` header. Centralises the
@@ -755,6 +757,22 @@ async function handleStepUp(req: Request, db: DbClient): Promise<Response> {
   const body = await readValidatedBody(req, StepUpBodySchema)
   const password = (body?.password ?? '').trim()
   const mfaCode = (body?.mfaCode ?? '').trim()
+  // A HOSTED ACCOUNT HAS NO PASSWORD TO RE-ENTER, so verifying one can only ever fail - its CMS
+  // user was created with unusablePasswordHash(), an argon2id hash of material discarded inside
+  // that function. Reporting it as a wrong password invites another attempt, and every attempt
+  // runs recordStepUpPasswordFailure, which counts toward LOCKOUT. So somebody trying to do what
+  // the interface offers gets locked out for failing at something impossible.
+  // Report the real situation and DO NOT count it.
+  if (hostedIdentityBridgeActive()) {
+    const readiness = evaluateStepUp({
+      hasUsablePassword: false,
+      stepUpAuthMode: user.stepUpAuthMode,
+      stepUpActive: false,
+    })
+    if (readiness.kind === 'needs-password') {
+      return jsonResponse({ error: 'password_not_set', message: readiness.reason, remedy: readiness.remedy }, { status: 409 })
+    }
+  }
   const passwordOk = await verifyPassword(password, user.passwordHash)
   if (!passwordOk) {
     return recordStepUpPasswordFailure(db, req, user, ip)

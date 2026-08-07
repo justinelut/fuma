@@ -39,7 +39,6 @@ import {
   type StableContextSelection,
 } from '@core/fuma'
 import { EmptyState } from '@ui/components/EmptyState'
-import styles from './FumaScopedShell.module.css'
 
 const EMPTY_PERMISSION_STATE: NavigationPermissionState = Object.freeze({})
 
@@ -253,7 +252,7 @@ function StatePanel({ resolution }: { resolution: NonReadyResolution }) {
   const content = statePanelContent(resolution)
   return (
     <div
-      className={styles.statePanel}
+      className="grid min-h-[min(70vh,720px)] bg-background p-8"
       data-resolution-kind={resolution.kind}
     >
       <EmptyState
@@ -264,7 +263,7 @@ function StatePanel({ resolution }: { resolution: NonReadyResolution }) {
         role={content.role}
       >
         {resolution.kind === 'invitation' ? (
-          <code className={styles.invitationId}>
+          <code className="block max-w-[min(100%,680px)] rounded-md bg-muted px-4 py-3 text-muted-foreground">
             {resolution.invitation.invitationId}
           </code>
         ) : null}
@@ -337,12 +336,12 @@ export function FumaScopedShell({
 
   if (model.kind === 'error') {
     return (
-      <section className={styles.shell} aria-label="Fuma scoped admin shell">
-        <header className={styles.sessionBar}>
-          <span className={styles.sessionLabel}>Current session</span>
-          <strong className={styles.actorLabel}>{actorLabel}</strong>
+      <section className="grid min-h-full grid-rows-[auto_minmax(0,1fr)] bg-card text-foreground" aria-label="Fuma scoped admin shell">
+        <header className="flex items-center gap-8 bg-card px-8 py-6 justify-end">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Current session</span>
+          <strong className="overflow-hidden text-ellipsis whitespace-nowrap max-w-60 text-sm text-foreground">{actorLabel}</strong>
         </header>
-        <div className={styles.statePanel} data-resolution-kind="error">
+        <div className="grid min-h-[min(70vh,720px)] bg-background p-8" data-resolution-kind="error">
           <EmptyState
             variant="centered"
             size="large"
@@ -357,10 +356,10 @@ export function FumaScopedShell({
 
   if (model.kind === 'state') {
     return (
-      <section className={styles.shell} aria-label="Fuma scoped admin shell">
-        <header className={styles.sessionBar}>
-          <span className={styles.sessionLabel}>Current session</span>
-          <strong className={styles.actorLabel}>{actorLabel}</strong>
+      <section className="grid min-h-full grid-rows-[auto_minmax(0,1fr)] bg-card text-foreground" aria-label="Fuma scoped admin shell">
+        <header className="flex items-center gap-8 bg-card px-8 py-6 justify-end">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Current session</span>
+          <strong className="overflow-hidden text-ellipsis whitespace-nowrap max-w-60 text-sm text-foreground">{actorLabel}</strong>
         </header>
         <StatePanel resolution={model.resolution} />
       </section>
@@ -416,29 +415,29 @@ export function FumaScopedShell({
 
   return (
     <section
-      className={styles.shell}
+      className="grid min-h-full grid-rows-[auto_minmax(0,1fr)] bg-card text-foreground"
       aria-label="Fuma scoped admin shell"
       data-resolution-kind="ready"
       data-profile-id={profile.id}
     >
-      <a className={styles.skipLink} href="#fuma-scoped-main">Skip to workspace</a>
-      <header className={styles.header}>
-        <div className={styles.contextHeading}>
-          <p className={styles.profileLabel}>{profile.label} profile</p>
-          <h1 className={styles.siteName}>{resolution.site.name}</h1>
+      <a className="fixed left-2 top-2 z-[100] -translate-y-16 rounded-md border border-border bg-card px-4 py-2 text-sm focus-visible:translate-y-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none" href="#fuma-scoped-main">Skip to workspace</a>
+      <header className="flex items-center gap-8 bg-card px-8 py-6 justify-between">
+        <div className="grid min-w-0 flex-1 gap-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{profile.label} profile</p>
+          <h1 className="overflow-hidden text-ellipsis whitespace-nowrap text-2xl text-foreground">{resolution.site.name}</h1>
           {profile.subtitle ? (
-            <p className={styles.profileSubtitle}>{profile.subtitle}</p>
+            <p className="text-base text-muted-foreground">{profile.subtitle}</p>
           ) : null}
-          <p className={styles.contextPath}>
+          <p className="text-sm text-muted-foreground">
             {resolution.organization.name} / {resolution.workspace.name}
           </p>
         </div>
-        <div className={styles.sessionBlock}>
-          <span className={styles.sessionLabel}>Current session</span>
-          <strong className={styles.actorLabel}>{actorLabel}</strong>
+        <div className="grid min-w-0 justify-items-end gap-1">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Current session</span>
+          <strong className="overflow-hidden text-ellipsis whitespace-nowrap max-w-60 text-sm text-foreground">{actorLabel}</strong>
           {model.managedClients.entries.length > 0 ? (
             <Link
-              className={styles.managedClientsLink}
+              className="text-sm font-semibold text-primary no-underline hover:underline aria-[current=page]:underline"
               to={managedClientsPath}
               aria-current={showingManagedClients ? 'page' : undefined}
             >
@@ -447,25 +446,25 @@ export function FumaScopedShell({
           ) : null}
         </div>
         {renderedSwitcher ? (
-          <div className={styles.switcherSlot} aria-label="Context switchers">
+          <div className="flex items-center gap-2" aria-label="Context switchers">
             {renderedSwitcher}
           </div>
         ) : null}
       </header>
 
-      <div className={styles.body}>
-        <aside className={styles.navigation}>
+      <div className="grid min-h-0 gap-px bg-border lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)]">
+        <aside className="overflow-auto bg-muted/40 py-8">
           <ProfileNavigation
             entries={model.navigation}
             currentPath={model.currentNavigationPath}
             ariaLabel={`${profile.label} navigation`}
           />
         </aside>
-        <main id="fuma-scoped-main" className={styles.main} tabIndex={-1}>
+        <main id="fuma-scoped-main" className="grid min-w-0 content-start gap-8 overflow-auto bg-background p-8" tabIndex={-1}>
           {showingManagedClients ? (
             <FumaManagedClientsView model={model.managedClients} />
           ) : model.routeAccess.kind === 'denied' ? (
-            <div className={styles.routeDenied} data-route-access={model.routeAccess.reason}>
+            <div className="min-h-[min(60vh,640px)]" data-route-access={model.routeAccess.reason}>
               <EmptyState
                 variant="centered"
                 size="large"
@@ -486,7 +485,7 @@ export function FumaScopedShell({
                 ariaLabel={`${profile.label} onboarding`}
               />
             ) : (
-              <div className={styles.routeContent}>{renderedChildren}</div>
+              <div className="min-w-0">{renderedChildren}</div>
             )
           )}
         </main>

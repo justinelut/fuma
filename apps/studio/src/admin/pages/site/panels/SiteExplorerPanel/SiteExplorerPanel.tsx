@@ -4,6 +4,7 @@ import type { SiteFile } from '@core/files/schemas'
 import type { ExplorerPathChangePlan, Page, SiteExplorerSectionId, StructuralSiteExplorerSectionId } from '@core/page-tree'
 import { createUniquePageSlug, pagePublicPath, isHomePage } from '@core/page-tree'
 import { templateTargetLabel } from '@core/templates'
+import { reviewPageCreation } from '@core/fuma/builder/pageAllowance'
 import { SkeletonBlock } from '@ui/components/Skeleton'
 import { FileTextSolidIcon } from 'pixel-art-icons/icons/file-text-solid'
 import { FolderGlyphIcon } from 'pixel-art-icons/icons/folder-glyph'
@@ -119,6 +120,7 @@ export function SiteExplorerPanel({
   const confirmVCDeletion = useVCDeletionConfirm()
   const confirmDelete = useConfirmDelete()
   const [createKind, setCreateKind] = useState<SiteCreateKind | null>(null)
+  const [limitNotice, setLimitNotice] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [inlineRenameTarget, setInlineRenameTarget] = useState<SiteExplorerContextTarget | null>(null)
   const [templateSettingsTarget, setTemplateSettingsTarget] = useState<Page | null>(null)
@@ -133,6 +135,16 @@ export function SiteExplorerPanel({
 
     try {
       if (createKind === 'page') {
+        // Consulted BEFORE creating. Creating then removing would leave the page in undo history
+        // for somebody to restore, and the limit would read as a bug that ate their work.
+        const verdict = reviewPageCreation(site?.pages ?? [])
+        if (!verdict.allowed) {
+          // Shown rather than thrown: the catch below only reaches the console, so a thrown
+          // refusal would close the dialog and tell the person nothing at all.
+          setLimitNotice(verdict.message)
+          return
+        }
+        setLimitNotice(null)
         const page = addPage(name, slug ?? slugifySiteItemName(name))
         openPageInCanvas(page.id)
       } else if (createKind === 'component') {
@@ -634,11 +646,18 @@ export function SiteExplorerPanel({
             onKeyDownFolder={(sectionId, folder, event) => openKeyboardContextMenu(folderTarget(sectionId, folder), event)}
           />
         )}
+        {limitNotice !== null && (
+          // role="status" so the refusal is announced rather than only drawn - somebody using a
+          // screen reader pressed a button and needs to know why nothing happened.
+          <p role="status" className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-foreground">
+            {limitNotice}
+          </p>
+        )}
         {createKind && (
           <SiteCreateDialog
             kind={createKind}
             pages={pages}
-            onCancel={() => setCreateKind(null)}
+            onCancel={() => { setCreateKind(null); setLimitNotice(null) }}
             onCreate={handleCreate}
           />
         )}

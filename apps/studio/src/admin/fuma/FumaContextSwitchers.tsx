@@ -1,4 +1,4 @@
-import { useId, type ChangeEvent } from 'react'
+import { useId } from 'react'
 import { useNavigate } from '@admin/lib/routing'
 import {
   buildOrganizationSwitchTarget,
@@ -7,8 +7,7 @@ import {
   type AccessibleContextCatalog,
   type ReadyScopedContextResolution,
 } from '@core/fuma'
-import { Select } from '@ui/components/Select'
-import styles from './FumaContextSwitchers.module.css'
+import { ContextPicker } from './ContextPicker'
 
 export type FumaContextSwitchIntent =
   | Readonly<{
@@ -37,6 +36,16 @@ export interface FumaContextSwitchersProps {
   catalog: AccessibleContextCatalog
   onSwitch?: FumaContextSwitchHandler
   ariaLabel?: string
+}
+
+/**
+ * The workspace a site sits in, used as the picker's secondary line.
+ *
+ * Two sites with the same name is ordinary once an agency runs "Marketing" for several clients, and a
+ * list of identical labels is a list you cannot choose from.
+ */
+function workspaceNameFor(catalog: AccessibleContextCatalog, workspaceId: string): string | null {
+  return catalog.workspaces.find((workspace) => workspace.id === workspaceId)?.name ?? null
 }
 
 export function FumaContextSwitchers({
@@ -89,8 +98,8 @@ export function FumaContextSwitchers({
     return [{ entry: site, target }]
   })
 
-  function handleOrganizationChange(event: ChangeEvent<HTMLSelectElement>) {
-    const choice = organizationChoices.find(({ entry }) => entry.id === event.target.value)
+  function handleOrganizationValue(value: string) {
+    const choice = organizationChoices.find(({ entry }) => entry.id === value)
     if (!choice) return
     const intent: FumaContextSwitchIntent = {
       kind: 'organization',
@@ -101,8 +110,8 @@ export function FumaContextSwitchers({
     navigate(choice.target)
   }
 
-  function handleWorkspaceChange(event: ChangeEvent<HTMLSelectElement>) {
-    const choice = workspaceChoices.find(({ entry }) => entry.id === event.target.value)
+  function handleWorkspaceValue(value: string) {
+    const choice = workspaceChoices.find(({ entry }) => entry.id === value)
     if (!choice) return
     const intent: FumaContextSwitchIntent = {
       kind: 'workspace',
@@ -114,8 +123,8 @@ export function FumaContextSwitchers({
     navigate(choice.target)
   }
 
-  function handleSiteChange(event: ChangeEvent<HTMLSelectElement>) {
-    const choice = siteChoices.find(({ entry }) => entry.id === event.target.value)
+  function handleSiteValue(value: string) {
+    const choice = siteChoices.find(({ entry }) => entry.id === value)
     if (!choice) return
     const intent: FumaContextSwitchIntent = {
       kind: 'site',
@@ -129,46 +138,51 @@ export function FumaContextSwitchers({
   }
 
   return (
-    <section className={styles.root} aria-label={ariaLabel}>
-      <div className={styles.field}>
-        <label className={styles.label} htmlFor={organizationSelectId}>Organization</label>
-        <Select
+    <section className="flex w-full flex-wrap gap-3" aria-label={ariaLabel}>
+      <div className="grid min-w-[min(100%,14rem)] flex-1 gap-1">
+        <label className="text-xs leading-none text-muted-foreground" htmlFor={organizationSelectId}>Organization</label>
+        <ContextPicker
           id={organizationSelectId}
-          fieldSize="sm"
+          label="Organization"
           value={context.selection.organizationId}
-          options={organizationChoices.map(({ entry }) => ({
+          choices={organizationChoices.map(({ entry }) => ({
             value: entry.id,
             label: entry.name,
           }))}
-          onChange={handleOrganizationChange}
+          onChange={handleOrganizationValue}
         />
       </div>
 
-      <div className={styles.field}>
-        <label className={styles.label} htmlFor={workspaceSelectId}>Workspace</label>
-        <Select
+      <div className="grid min-w-[min(100%,14rem)] flex-1 gap-1">
+        <label className="text-xs leading-none text-muted-foreground" htmlFor={workspaceSelectId}>Workspace</label>
+        <ContextPicker
           id={workspaceSelectId}
-          fieldSize="sm"
+          label="Workspace"
           value={context.selection.workspaceId}
-          options={workspaceChoices.map(({ entry }) => ({
+          choices={workspaceChoices.map(({ entry }) => ({
             value: entry.id,
             label: entry.name,
           }))}
-          onChange={handleWorkspaceChange}
+          onChange={handleWorkspaceValue}
         />
       </div>
 
-      <div className={styles.field}>
-        <label className={styles.label} htmlFor={siteSelectId}>Site</label>
-        <Select
+      <div className="grid min-w-[min(100%,14rem)] flex-1 gap-1">
+        <label className="text-xs leading-none text-muted-foreground" htmlFor={siteSelectId}>Site</label>
+        <ContextPicker
           id={siteSelectId}
-          fieldSize="sm"
+          label="Site"
           value={context.selection.siteId}
-          options={siteChoices.map(({ entry }) => ({
+          choices={siteChoices.map(({ entry }) => ({
             value: entry.id,
             label: entry.name,
+            // Named so two sites with the same name are distinguishable - common once an agency runs
+            // "Marketing" for several clients.
+            ...(workspaceNameFor(catalog, entry.workspaceId)
+              ? { hint: workspaceNameFor(catalog, entry.workspaceId) as string }
+              : {}),
           }))}
-          onChange={handleSiteChange}
+          onChange={handleSiteValue}
         />
       </div>
     </section>

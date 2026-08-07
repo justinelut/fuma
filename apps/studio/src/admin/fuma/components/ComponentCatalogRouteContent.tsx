@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { PermissionDecision } from '@core/fuma'
 import { getErrorMessage } from '@core/utils/errorMessage'
-import { Button } from '@ui/components/Button'
-import { Input } from '@ui/components/Input'
+import { Button } from '@admin/fuma/ui/button'
+import { Input } from '@admin/fuma/ui/input'
 import type { FumaScopedShellReadyContext } from '../FumaScopedShell'
 import { ComponentCatalogHttpClient, type ComponentCatalogItemView } from './client'
-import styles from './ComponentCatalogRouteContent.module.css'
 
 export function ComponentCatalogRouteContent({
   shell,
@@ -64,19 +63,19 @@ export function ComponentCatalogRouteContent({
 
   return (
     <section
-      className={styles.root}
+      className="grid gap-6 rounded-md border border-border bg-card p-6 text-foreground [&_header_p]:max-w-[72ch]"
       aria-labelledby="component-catalog-title"
       data-testid="component-catalog"
     >
       <header>
-        <p className={styles.eyebrow}>Open exact-version registry</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Open exact-version registry</p>
         <h2 id="component-catalog-title">Component catalog</h2>
         <p>
           Create private declarative versions immediately, validate restricted React/Tailwind
           drafts, or install signed reviewed packs. Every insert stays exact-pinned.
         </p>
       </header>
-      <div className={styles.toolbar}>
+      <div className="flex items-center gap-6 [&>*:first-child]:flex-1">
         <Input
           aria-label="Search components"
           value={query}
@@ -85,16 +84,14 @@ export function ComponentCatalogRouteContent({
         />
         <span>{items.length} results</span>
       </div>
-      <div className={styles.layout}>
-        <div className={styles.grid}>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(18rem,1fr)]">
+        <div className="grid content-start gap-4 grid-cols-[repeat(auto-fill,minmax(13rem,1fr))]">
           {items.map((item) => (
             <Button
               type="button"
               variant="secondary"
               size="lg"
-              align="start"
-              fullWidth
-              className={styles.card}
+              className="grid h-auto w-full justify-items-start gap-2 whitespace-normal p-4 text-left hover:border-primary focus-visible:border-primary"
               key={item.coordinate}
               onClick={() => {
                 setSelected(item)
@@ -111,7 +108,7 @@ export function ComponentCatalogRouteContent({
                 )
               }}
             >
-              <span className={styles.source}>{item.source}</span>
+              <span className="w-max rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">{item.source}</span>
               <strong>{item.displayName}</strong>
               <p>{item.description}</p>
               <small>
@@ -121,7 +118,7 @@ export function ComponentCatalogRouteContent({
             </Button>
           ))}
         </div>
-        <aside className={styles.editor} aria-label="Component authoring">
+        <aside className="grid content-start gap-3 rounded-md bg-muted/40 p-4 [&_textarea]:min-h-60 [&_textarea]:rounded-md [&_textarea]:border [&_textarea]:border-border [&_textarea]:bg-card [&_textarea]:p-3 [&_textarea]:font-mono [&_textarea]:text-sm [&_textarea]:leading-relaxed" aria-label="Component authoring">
           <h3>{selected?.displayName ?? 'Declarative authoring'}</h3>
           <p>
             Use strict command JSON to create/edit/version/variant/preview/insert. Source
@@ -132,7 +129,7 @@ export function ComponentCatalogRouteContent({
             onChange={(event) => setCommand(event.currentTarget.value)}
             spellCheck={false}
           />
-          <div className={styles.actions}>
+          <div className="flex flex-wrap gap-2">
             {[
               'preview',
               'create',
@@ -150,7 +147,7 @@ export function ComponentCatalogRouteContent({
                 key={action}
                 type="button"
                 size="sm"
-                variant={action === 'preview' ? 'secondary' : 'primary'}
+                variant={action === 'preview' ? 'secondary' : 'default'}
                 disabled={!canWrite && action !== 'preview' && action !== 'usage'}
                 onClick={() => {
                   try {
@@ -165,7 +162,7 @@ export function ComponentCatalogRouteContent({
             ))}
           </div>
           {error && (
-            <p role="alert" className={styles.error}>
+            <p role="alert" className="text-sm text-destructive">
               {error}
             </p>
           )}

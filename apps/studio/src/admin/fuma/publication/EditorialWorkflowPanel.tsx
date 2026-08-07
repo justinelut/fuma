@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { PublicationContent, PublicationScheduledReadiness, PublicationWorkflowHistoryEvent, PublicationWorkflowInbox } from '@core/fuma/publication'
 import { getErrorMessage } from '@core/utils/errorMessage'
-import { Button } from '@ui/components/Button'
+import { Button } from '@admin/fuma/ui/button'
 import type { PublicationHttpClient } from './client'
-import styles from './EditorialWorkflowPanel.module.css'
 
 type Props = Readonly<{
   client: PublicationHttpClient
@@ -63,12 +62,12 @@ export function EditorialWorkflowPanel({ client, content, canRead, canAssign, ca
   const assignment = inbox.assignments.find((item) => item.contentId === content.contentId)
   const review = inbox.reviews.find((item) => item.reviewId === selectedReviewId)
 
-  return <section className={styles.workflow} aria-labelledby="editorial-workflow-title">
-    <header><div><p>Editorial workflow</p><h3 id="editorial-workflow-title">Assignment and review</h3></div><span className={readiness?.ready ? styles.ready : styles.blocked}>{readiness?.ready ? 'Current revision approved' : 'Approval required to schedule'}</span></header>
-    {!canRead ? <p className={styles.notice}>Workflow details require <code>publication.workflow.read</code>.</p> : <>
-      {busy ? <p role="status" className={styles.notice}>Updating editorial workflow…</p> : null}
-      {message ? <p role={message.toLowerCase().includes('fail') || message.toLowerCase().includes('invalid') ? 'alert' : 'status'} className={styles.notice}>{message}</p> : null}
-      <div className={styles.columns}>
+  return <section className="grid gap-3 border-t border-border pt-3 [&>header]:flex [&>header]:items-start [&>header]:justify-between [&>header]:gap-3 [&_header_p]:m-0 [&_header_p]:text-sm [&_header_p]:uppercase [&_header_p]:text-muted-foreground [&_header_h3]:m-0 [&_h4]:m-0 [&_fieldset]:m-0 [&_fieldset]:grid [&_fieldset]:min-w-0 [&_fieldset]:content-start [&_fieldset]:gap-2 [&_fieldset]:rounded-md [&_fieldset]:border [&_fieldset]:border-border [&_fieldset]:p-3 [&_fieldset_p]:m-0 [&_legend]:px-1 [&_legend]:font-bold [&_input]:min-h-9 [&_input]:rounded-md [&_input]:border [&_input]:border-input [&_input]:bg-transparent [&_input]:px-2 [&_select]:min-h-9 [&_select]:rounded-md [&_select]:border [&_select]:border-input [&_select]:bg-transparent [&_select]:px-2 [&_textarea]:min-h-20 [&_textarea]:rounded-md [&_textarea]:border [&_textarea]:border-input [&_textarea]:bg-transparent [&_textarea]:p-2 [&_input:focus-visible]:ring-2 [&_input:focus-visible]:ring-ring [&_input:focus-visible]:outline-none [&_select:focus-visible]:ring-2 [&_select:focus-visible]:ring-ring [&_select:focus-visible]:outline-none [&_textarea:focus-visible]:ring-2 [&_textarea:focus-visible]:ring-ring [&_textarea:focus-visible]:outline-none [&_label]:grid [&_label]:gap-1 [&_label]:text-sm" aria-labelledby="editorial-workflow-title">
+    <header><div><p>Editorial workflow</p><h3 id="editorial-workflow-title">Assignment and review</h3></div><span className={`rounded-md border border-border px-2 py-1 text-sm ${readiness?.ready ? 'text-primary' : 'text-amber-700 dark:text-amber-300'}`}>{readiness?.ready ? 'Current revision approved' : 'Approval required to schedule'}</span></header>
+    {!canRead ? <p className="text-sm text-muted-foreground">Workflow details require <code>publication.workflow.read</code>.</p> : <>
+      {busy ? <p role="status" className="text-sm text-muted-foreground">Updating editorial workflow…</p> : null}
+      {message ? <p role={message.toLowerCase().includes('fail') || message.toLowerCase().includes('invalid') ? 'alert' : 'status'} className="text-sm text-muted-foreground">{message}</p> : null}
+      <div className="grid gap-3 lg:grid-cols-3 [&>section]:grid [&>section]:min-w-0 [&>section]:content-start [&>section]:gap-2 [&>section]:rounded-md [&>section]:border [&>section]:border-border [&>section]:p-3">
         <fieldset disabled={!canAssign || busy}><legend>Role and assignment</legend>
           <label>Staff user ID<input value={roleUserId} maxLength={255} onChange={(event) => setRoleUserId(event.target.value)}/></label>
           <label>Editorial role<select value={role} onChange={(event) => setRole(event.target.value as typeof role)}><option value="author">Author</option><option value="editor">Editor</option><option value="managing-editor">Managing editor</option></select></label>
@@ -91,10 +90,10 @@ export function EditorialWorkflowPanel({ client, content, canRead, canAssign, ca
           <Button variant="secondary" size="sm" disabled={!canApprove || busy || !review || (decision !== 'approved' && !decisionNote.trim())} type="button" onClick={() => review && void run(() => client.decideEditorialReview({ eventId:id(), notificationId:id(), reviewId:review.reviewId, contentVersion:review.contentVersion, decision, note:decisionNote }), decision === 'approved' ? 'Current revision approved.' : 'Decision recorded with its immutable note.')}>Record decision</Button>
         </fieldset>
       </div>
-      <div className={styles.columns}>
-        <section aria-labelledby="review-inbox-title"><h4 id="review-inbox-title">Review inbox</h4>{inbox.reviews.length ? <ul>{inbox.reviews.map((item) => <li key={item.reviewId}><strong>{item.contentId}</strong><span>Revision {item.contentVersion} · requested by {item.requestedBy}</span></li>)}</ul> : <p className={styles.notice}>No pending reviews assigned to you.</p>}</section>
-        <section aria-labelledby="workflow-notifications-title"><h4 id="workflow-notifications-title">Notifications</h4>{inbox.notifications.length ? <ul>{inbox.notifications.map((item) => <li key={item.notificationId}><span><strong>{item.kind}</strong><small>{item.message}</small></span>{item.readAt === null ? <Button variant="ghost" size="sm" type="button" onClick={() => void run(() => client.markWorkflowNotificationRead(item.notificationId), 'Notification marked read.')}>Mark read</Button> : <small>Read</small>}</li>)}</ul> : <p className={styles.notice}>No workflow notifications.</p>}</section>
-        <section aria-labelledby="workflow-history-title"><h4 id="workflow-history-title">Immutable workflow history</h4>{history.length ? <ol>{history.map((item) => <li key={item.eventId}><strong>{item.kind}</strong><span>{item.note || 'No note'} · {item.createdAt}</span></li>)}</ol> : <p className={styles.notice}>No workflow events for this content.</p>}</section>
+      <div className="grid gap-3 lg:grid-cols-3 [&>section]:grid [&>section]:min-w-0 [&>section]:content-start [&>section]:gap-2 [&>section]:rounded-md [&>section]:border [&>section]:border-border [&>section]:p-3">
+        <section aria-labelledby="review-inbox-title"><h4 id="review-inbox-title">Review inbox</h4>{inbox.reviews.length ? <ul>{inbox.reviews.map((item) => <li key={item.reviewId}><strong>{item.contentId}</strong><span>Revision {item.contentVersion} · requested by {item.requestedBy}</span></li>)}</ul> : <p className="text-sm text-muted-foreground">No pending reviews assigned to you.</p>}</section>
+        <section aria-labelledby="workflow-notifications-title"><h4 id="workflow-notifications-title">Notifications</h4>{inbox.notifications.length ? <ul>{inbox.notifications.map((item) => <li key={item.notificationId}><span><strong>{item.kind}</strong><small>{item.message}</small></span>{item.readAt === null ? <Button variant="ghost" size="sm" type="button" onClick={() => void run(() => client.markWorkflowNotificationRead(item.notificationId), 'Notification marked read.')}>Mark read</Button> : <small>Read</small>}</li>)}</ul> : <p className="text-sm text-muted-foreground">No workflow notifications.</p>}</section>
+        <section aria-labelledby="workflow-history-title"><h4 id="workflow-history-title">Immutable workflow history</h4>{history.length ? <ol>{history.map((item) => <li key={item.eventId}><strong>{item.kind}</strong><span>{item.note || 'No note'} · {item.createdAt}</span></li>)}</ol> : <p className="text-sm text-muted-foreground">No workflow events for this content.</p>}</section>
       </div>
     </>}
   </section>

@@ -13,6 +13,7 @@ import { SchedulePublishDialog } from '@admin/modals/SchedulePublishDialog'
 import type { PersistenceSaveStatus } from '@site/hooks/usePersistence'
 import { PublishActionGroup, type PublishActionMenuItem } from './PublishActionGroup'
 import { getErrorMessage } from '@core/utils/errorMessage'
+import { publishMessage } from '@core/publisher/publishReport'
 
 type PublishState = 'idle' | 'publishing' | 'published' | 'error'
 
@@ -127,11 +128,17 @@ export function PublishButton({ enabled = true, onSave, saveStatus }: PublishBut
       // in addition to the `pages.publish` capability check.
       const result = await runStepUp(() => publishCmsDraft())
       setState('published')
-      setMessage(
-        result.publishedPages === 1
-          ? '1 page published'
-          : `${result.publishedPages} pages published`,
-      )
+      // The message comes from publishReport rather than being written here, so the SAME rule
+      // applies wherever publish is reported: only a SERVING release may be described as
+      // published. On this path the call bakes the pages synchronously, so the request
+      // returning does mean they are live and 'live' is the honest phase - which keeps the
+      // wording byte-identical to before. The release path (fuma.publish-release) enqueues
+      // instead and must not reuse this claim; see publishReport.ts for why.
+      setMessage(publishMessage({
+        mode: 'immediate',
+        phase: 'live',
+        pages: result.publishedPages,
+      }))
       clearMessageLater()
     } catch (err) {
       if (err instanceof Error && err.message === StepUpCancelledMessage) {
@@ -143,7 +150,13 @@ export function PublishButton({ enabled = true, onSave, saveStatus }: PublishBut
         return
       }
       setState('error')
-      setMessage(getErrorMessage(err, 'Unknown publish error'))
+      // 'request-failed', not 'failed': nothing was accepted, so no build exists to read a log
+      // from. Reporting them the same way sends somebody to look for a build that never started.
+      setMessage(publishMessage({
+        mode: 'immediate',
+        phase: 'request-failed',
+        failure: getErrorMessage(err, 'Unknown publish error'),
+      }))
       resetErrorLater()
     }
   }

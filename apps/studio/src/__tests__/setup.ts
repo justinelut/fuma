@@ -49,6 +49,12 @@ const happyWindow = new GlobalWindow({
 // This ensures built-in constructors (SyntaxError, HTMLElement, etc.) are
 // accessible both as standalone globals AND as window.* properties.
 const GLOBALS_TO_COPY = [
+  // happy-dom implements `NodeFilter` and `document.createTreeWalker`, but `NodeFilter` was not
+  // copied onto globalThis, so any component that walks the DOM for focusable nodes threw
+  // `ReferenceError: NodeFilter is not defined`. That is every Radix overlay — Dialog, Sheet,
+  // Popover, Dropdown — because @radix-ui/react-focus-scope builds a TreeWalker to find the focus
+  // boundary. Copying it makes those components testable at all.
+  'NodeFilter',
   'navigator',
   'location',
   'history',

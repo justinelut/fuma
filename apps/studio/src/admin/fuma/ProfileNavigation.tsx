@@ -5,7 +5,6 @@ import type {
   ProfileNavigationEntry,
   ProfileNavigationOutput,
 } from '@core/fuma'
-import styles from './ProfileNavigation.module.css'
 
 export type ProfileNavigationHandler = (entry: ProfileNavigationEntry) => void
 
@@ -63,9 +62,9 @@ function NavigationLink({
 }) {
   const current = pathSelectsEntry(currentPath, entry.path, entry.id === 'nav.home')
   return (
-    <li className={styles.item}>
+    <li className="min-w-0">
       <Link
-        className={styles.navigationLink}
+        className="flex min-h-11 items-center border-l-2 border-transparent px-8 text-base font-medium text-muted-foreground no-underline hover:bg-accent/50 hover:text-foreground data-[active=true]:border-l-foreground data-[active=true]:bg-accent/50 data-[active=true]:text-foreground focus-visible:outline focus-visible:outline-1 focus-visible:outline-border"
         data-active={current ? 'true' : undefined}
         aria-current={current ? 'page' : undefined}
         to={entry.path}
@@ -94,12 +93,12 @@ function NavigationDisclosure({
 
   return (
     <details
-      className={styles.disclosure}
+      className="min-w-0"
       open={open}
       onToggle={(event) => setExpanded(event.currentTarget.open)}
     >
-      <summary className={styles.disclosureSummary}>{disclosure.label}</summary>
-      <ul className={styles.disclosureList}>
+      <summary className="min-h-11 cursor-pointer px-8 py-3 text-sm font-semibold text-muted-foreground hover:bg-accent/50 hover:text-foreground focus-visible:outline focus-visible:outline-1 focus-visible:outline-border">{disclosure.label}</summary>
+      <ul className="grid list-none gap-0.5 p-0 m-0 [&_a]:pl-16">
         {entries.map((entry) => (
           <NavigationLink
             key={entry.id}
@@ -120,8 +119,8 @@ export function ProfileNavigation({
   ariaLabel = 'Profile navigation',
 }: ProfileNavigationProps) {
   return (
-    <nav className={styles.root} aria-label={ariaLabel}>
-      <ul className={styles.list}>
+    <nav className="w-full" aria-label={ariaLabel}>
+      <ul className="grid list-none gap-0.5 p-0 m-0">
         {navigationGroups(entries).map((group) => {
           if (!group.disclosure) {
             const entry = group.entries[0]
@@ -135,7 +134,7 @@ export function ProfileNavigation({
             ) : null
           }
           return (
-            <li className={styles.section} key={group.disclosure.id}>
+            <li className="min-w-0" key={group.disclosure.id}>
               <NavigationDisclosure
                 disclosure={group.disclosure}
                 entries={group.entries}

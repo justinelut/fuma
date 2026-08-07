@@ -115,8 +115,12 @@ describe('FUMA-043 PostgreSQL and architecture gates', () => {
     expect(html).toContain('role="status"')
     expect(html).toContain('type="checkbox"')
     expect(html).not.toMatch(/secret|credential|private key/i)
-    const css = await Bun.file(new URL('../../admin/fuma/publication/EmailSettingsSurface.module.css', import.meta.url)).text()
-    expect(css).toContain(':focus-visible')
-    expect(css).toContain('@media(max-width:900px)')
+    // The stylesheet is gone: task 80's standard makes hosted pages shadcn + Tailwind only. The two
+    // properties it defended are real and still asserted, now as utilities on the surface itself -
+    // a keyboard-reachable control must show focus, and the two-column grid must collapse.
+    const surface = await Bun.file(new URL('../../admin/fuma/publication/EmailSettingsSurface.tsx', import.meta.url)).text()
+    expect(surface).toContain('focus-visible:')
+    expect(surface).toContain('lg:grid-cols-2')
+    expect(surface).not.toContain('module.css')
   })
 })

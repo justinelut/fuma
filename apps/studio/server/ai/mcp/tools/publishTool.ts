@@ -11,6 +11,7 @@
 import { Type } from '@core/utils/typeboxHelpers'
 import type { AiTool, ToolContext } from '../../runtime/types'
 import { createAuditEvent } from '../../../repositories/audit'
+import { SELF_HOST_SITE_ID } from '../../../selfHost'
 import { publishDraftSite } from '../../../publish/publishSite'
 
 export interface McpPublishConfirmationInput {
@@ -49,7 +50,13 @@ export function createPublishMcpTool(runtime?: McpPublishRuntime): AiTool {
       if (runtime.publish) return runtime.publish({ confirmation, context: ctx })
       if (!runtime.uploadsDir) throw new Error('MCP publish uploads directory is not configured.')
 
-      const result = await publishDraftSite(ctx.db, ctx.userId, runtime.uploadsDir)
+      // NOT YET TENANT-SCOPED. MCP carries its scope on the session rather than a URL, so
+      // resolving it needs the session plumbing rather than the request resolver. Passing the
+      // legacy scope EXPLICITLY here keeps the remaining gap visible at the call site instead of
+      // hidden behind a default inside the repository.
+      const result = await publishDraftSite(
+        ctx.db, ctx.userId, SELF_HOST_SITE_ID, runtime.uploadsDir,
+      )
       await createAuditEvent(ctx.db, {
         actorUserId: ctx.userId,
         action: 'publish',

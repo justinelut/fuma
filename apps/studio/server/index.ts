@@ -1,5 +1,6 @@
 import { createDbClient } from './db'
 import { runMigrations } from './db/runMigrations'
+import { verifyMasterKeyAtBoot } from './secrets/masterKey'
 import { runHostedMigrations } from './fuma/db/hostedMigrationRunner'
 import { assertFumaHostedDatabaseUrl, assertFumaHostedStartup } from './fuma/startupGuard'
 import { syncSystemRoles } from './repositories/roles'
@@ -36,6 +37,10 @@ import { createWorkspaceManagementBoundary } from './fuma/workspaces/managementB
 import { createAccessibleContextCatalogBoundary, PostgresAccessibleContextCatalog } from './fuma/context/accessibleCatalog'
 import { createBuilderSessionBoundary, PostgresBuilderIdentityStore } from './fuma/builder/builderIdentity'
 import { setHostedBuilderIdentityResolver } from './auth/authz'
+import { setHostedSiteDocumentResolver } from './selfHost'
+import { setHostedStorageAllowanceResolver } from './fuma/entitlements/storageAllowanceBridge'
+import { assumedFundedStorageBytes } from './fuma/entitlements/subscription'
+import { createSiteDocumentResolver } from './fuma/editor/siteDocumentResolver'
 import { mintStaffSession, staffSessionCookie } from './auth/hosted/staffSessionMint'
 import { PostgresFumaSiteAuthorizationAuthority } from './fuma/context/postgresRequestAuthority'
 import { resolveLayeredPermissions } from './fuma/permissions/resolver'
@@ -111,6 +116,14 @@ import {
 } from './fuma/memberIdentity'
 import { FUMA_STAFF_FRESH_SESSION_SECONDS } from './auth/hosted/auth'
 import { createErrorReporter } from './fuma/observability/errorReporter'
+import { setSiteScaffolder } from './fuma/editor/siteScaffoldBridge'
+import { pageAllowanceForSlug } from './fuma/entitlements/planSeed'
+import { reviewChargingReadiness } from './fuma/entitlements/subscription'
+import { persistScaffold, scaffoldTenantWorkspace } from './fuma/editor/tenantScaffold'
+import { createScopedModuleStore } from './fuma/editor/moduleStore'
+import { PostgresEditorScopedStorage } from './fuma/editor/postgresStorage'
+import { hashSource } from '@core/react-ir/workspace'
+import { dirname as scaffoldDirname } from 'node:path'
 import {
   createHostedPublicationRuntime,
   type DynamicPublicationAudienceAuthority,
@@ -169,6 +182,24 @@ const fumaHosted = process.env.FUMA_HOSTED === 'true'
 if (fumaHosted) assertFumaHostedDatabaseUrl(config.databaseUrl)
 configureTrustedProxyCidrs(config.trustedProxyCidrs)
 configurePublicOrigins(config.publicOrigins)
+// Verify the reversible-secret master key BEFORE touching the database.
+//
+// `secrets/masterKey.ts` documents that an unset INSTATIC_SECRET_KEY makes boot "fail loudly with
+// instructions" in production. It did not: nothing loaded the key at startup, so it was resolved lazily
+// on first use inside `ai/credentials/store.ts` and `auth/totpSecrets.ts`. A misconfigured production
+// deployment therefore booted, served traffic, and failed only when a customer saved an AI credential or
+// used two-factor auth - which reads as those FEATURES being broken rather than as a deployment missing
+// one variable, and surfaces on a customer's screen instead of in the deploy that caused it.
+//
+// Failing the boot is the right direction specifically because this key also encrypts MFA TOTP seeds. A
+// server that cannot decrypt a second factor must not accept sign-ins; refusing to start is safer than
+// serving while an authentication factor cannot be verified.
+//
+// Production only, so a self-hosted `bun run dev` keeps the auto-created dev key and is unchanged.
+if (process.env.NODE_ENV === 'production') {
+  await verifyMasterKeyAtBoot()
+}
+
 const { db, migrations } = createDbClient(config.databaseUrl)
 await runMigrations(db, migrations)
 if (fumaHosted) {
@@ -719,6 +750,21 @@ const builderSession = hostedStaffAuthRuntime && builderIdentityStore
       const row = rows.rows[0]
       return row ? { email: row.email, displayName: row.name } : null
     },
+    /**
+     * The plan's page allowance, so the builder's one-page free tier can actually refuse a second
+     * page. Task 68 wired the check at all three creation paths and left the carrier unpopulated,
+     * which made the limit inert in production.
+     *
+     * SELF-LIMITING for the same reason the storage allowance is: nothing is chargeable yet, so every
+     * hosted tenant genuinely IS on the funded starter and returning its quota is TRUE. It stops
+     * being true the moment a paid plan can be bought, so this returns null from then on - forcing the
+     * persisted-assignment lookup to become required rather than optional. A figure that quietly
+     * becomes wrong is worse than one that is absent.
+     */
+    resolvePageAllowance: async () => {
+      if (reviewChargingReadiness().ready) return null
+      return pageAllowanceForSlug('starter')
+    },
     // The published site has its own host. Prefer an active custom domain, then
     // the allocated free host; never fall back to the admin origin, because a
     // relative link there would open the dashboard instead of the site.
@@ -786,6 +832,110 @@ if (builderIdentityStore) {
     return requestDb === db
       ? await builderIdentityStore.findBound(session.userId)
       : await new PostgresBuilderIdentityStore(requestDb).findBound(session.userId)
+  })
+
+  // Activate tenant-scoped site documents.
+  //
+  // Without this registration every hosted site reads and writes the ONE legacy document, so
+  // editing one site overwrites another and nothing reports a conflict. The resolver derives the
+  // document from the AUTHORISED scope, never from the raw query string: trusting the query
+  // would let any signed-in staff user reach another tenant's design by editing `?siteId=`.
+  setHostedSiteDocumentResolver(async (request) => {
+    const resolution = await createSiteDocumentResolver({
+      mode: 'hosted',
+      authorizer: {
+        authorizeScope: async (scopedRequest, scope) => {
+          const session = await hostedStaffAuthRuntime?.resolveSession(scopedRequest.headers)
+          if (!session) return null
+          const authorization = await new PostgresFumaSiteAuthorizationAuthority(db)
+            .loadExactSiteAuthorization({
+              actor: Object.freeze({
+                kind: 'staff' as const,
+                userId: session.userId,
+                sessionId: session.sessionId,
+                impersonator: session.impersonatedBy === null
+                  ? null
+                  : Object.freeze({ userId: session.impersonatedBy }),
+              }),
+              routeScope: scope,
+            })
+          // No authorization row means no access. Returning the scope anyway would authorise by
+          // omission, which is how a cross-tenant read gets shipped.
+          return authorization === null ? null : scope
+        },
+      },
+    }).resolve(request)
+    return resolution.ok ? resolution.documentId : null
+  })
+
+  // The storage allowance the hosted dashboard reports. Registered here for the same reason the
+  // site document resolver is: built but unregistered means the fix is inert, which is the mistake
+  // task 20 nearly shipped.
+  //
+  // AUTHORISATION IS REUSED, NOT REIMPLEMENTED - the resolver runs the same scoped resolution
+  // above, so an allowance is only reported for a request that has already proven it may read this
+  // tenant. A caller who merely edits ?siteId= gets null rather than another tenant's figure.
+  setHostedStorageAllowanceResolver(async (request) => {
+    const resolution = await createSiteDocumentResolver({
+      mode: 'hosted',
+      authorizer: {
+        authorizeScope: async (scopedRequest, scope) => {
+          const session = await hostedStaffAuthRuntime?.resolveSession(scopedRequest.headers)
+          if (!session) return null
+          const authorization = await new PostgresFumaSiteAuthorizationAuthority(db)
+            .loadExactSiteAuthorization({
+              actor: Object.freeze({
+                kind: 'staff' as const,
+                userId: session.userId,
+                sessionId: session.sessionId,
+                impersonator: session.impersonatedBy === null
+                  ? null
+                  : Object.freeze({ userId: session.impersonatedBy }),
+              }),
+              routeScope: scope,
+            })
+          return authorization === null ? null : scope
+        },
+      },
+    }).resolve(request)
+    if (!resolution.ok) return null
+    // Self-limiting by construction: returns null once any plan is chargeable, because from then
+    // on the tenant's actual assignment must be read rather than assumed.
+    return assumedFundedStorageBytes()
+  })
+}
+
+// Registered so the tenant scaffold is not inert - the mistake tasks 20, 52 and 68 each made, where a
+// correct fix was built and never reached by a running server. With no hosted config this never runs,
+// so a self-hosted install writes nothing new.
+/**
+ * The studio root, derived from this module rather than from cwd: the scaffold reads real files
+ * under src/admin/fuma/ui, and a server started from the repo root would otherwise resolve a
+ * different directory than one started from the app dir.
+ */
+function scaffoldStudioRoot(): string {
+  return scaffoldDirname(import.meta.dir)
+}
+
+if (hostedFumaConfig) {
+  setSiteScaffolder(async (target) => {
+    const scaffold = await scaffoldTenantWorkspace(scaffoldStudioRoot(), target.siteName)
+    const store = createScopedModuleStore(new PostgresEditorScopedStorage(db), Object.freeze({
+      platformId: target.platformId,
+      organizationId: target.organizationId,
+      workspaceId: target.workspaceId,
+      siteId: target.siteId,
+      ownerKey: target.ownerKey,
+      generation: target.generation,
+    }) as never)
+    return await persistScaffold(
+      store,
+      scaffold,
+      // The same hash the workspace uses, so a scaffolded module and an edited one are compared the
+      // same way rather than by two different digests.
+      async (source) => await hashSource(source),
+      new Date().toISOString(),
+    )
   })
 }
 const paystackRuntime = hostedFumaConfig

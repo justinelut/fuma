@@ -8,6 +8,7 @@ import type { ReactNode } from 'react'
 import { buildScopedAdminUrl } from '@core/fuma'
 import type { AccessibleContextCatalog } from '@core/fuma'
 import type { FumaScopedShellReadyContext } from '../../FumaScopedShell'
+import { FumaContextSwitchers } from '../../FumaContextSwitchers'
 import { WebsiteDashboardShell } from './WebsiteDashboardShell'
 import {
   WebsiteDashboardHome,
@@ -15,9 +16,14 @@ import {
   type SetupStep,
 } from './WebsiteDashboardHome'
 import { SiteOverviewCards } from './SiteOverviewCards'
+import { InstaticStorageCard } from './InstaticStorageCard'
+import { GROUP_GAP } from '../../ui/rhythm'
 import { BookingsDashboard } from '../bookings/BookingsDashboard'
 
 export const WEBSITE_DASHBOARD_SUBPATH = '/admin'
+
+/** Panels in the content region are groups within one page, so they use the GROUP step. */
+const SECTION_STACK = `flex flex-col ${GROUP_GAP}`
 
 /**
  * Subpaths the Website dashboard renders as its own page inside its own shell.
@@ -121,6 +127,13 @@ export function WebsiteDashboardRoute({
         organizations: catalog.organizations.length,
       }}
       setup={{ completed, total: steps.length }}
+      organizationOwnerLabel={
+        catalog.organizations.find((organization) => organization.id === resolution.organization.id)
+          ?.ownerLabel
+      }
+      contextSwitchers={
+        <FumaContextSwitchers context={resolution} catalog={catalog} />
+      }
       onSignOut={onSignOut}
       signingOut={signingOut}
     >
@@ -132,7 +145,7 @@ export function WebsiteDashboardRoute({
           manageBookingsPath={buildScopedAdminUrl(resolution.selection, '/admin/bookings/manage')}
         />
       ) : (
-        <div className="space-y-4">
+        <div className={SECTION_STACK}>
           <WebsiteDashboardHome
             siteName={resolution.site.name}
             builderPath={builderPath}
@@ -140,6 +153,16 @@ export function WebsiteDashboardRoute({
             steps={steps}
             areas={platformAreas(shell)}
           />
+          {/*
+            MOUNTED HERE BECAUSE IT WAS NOT MOUNTED ANYWHERE.
+
+            The card existed and read real usage, but nothing rendered it - so a visitor had no way to
+            see what storage they were allowed or how much they had used, which is the whole of the
+            defect. Bandwidth is deliberately NOT passed yet: it is a platform meter and no per-site
+            reading is exposed, so the card says it is not measured rather than showing a zero that
+            would read as "none used".
+          */}
+          <InstaticStorageCard builderPath={builderPath} />
           <SiteOverviewCards builderPath={builderPath} />
         </div>
       )}

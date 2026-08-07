@@ -28,7 +28,8 @@ describe('FUMA-074 paid handoff architecture', () => {
     expect(joined).toContain('Type.Object')
     expect(joined).not.toMatch(/from ['"]zod['"]|className="(?:flex|grid|p-)/)
     expect(joined).not.toMatch(/apps\/(?:web|control-surfaces)|@\/components/)
-    expect(source('apps/studio/src/admin/fuma/paidHandoff/PaidHandoffRouteContent.tsx')).toContain("from './PaidHandoffRouteContent.module.css'")
+    // Everything outside the visual builder is Tailwind now, so the surface has no stylesheet.
+    expect(source('apps/studio/src/admin/fuma/paidHandoff/PaidHandoffRouteContent.tsx')).not.toContain('module.css')
   })
   test('mounts recovery contribution and preserves accepted migration order', () => {
     const contribution = source('apps/studio/server/fuma/transfers/paidHandoffConsoleContribution.ts')

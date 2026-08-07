@@ -29,6 +29,7 @@ import type { AiProviderModel } from '../drivers/types'
 import type { CredentialRecord } from '../credentials/types'
 import { listDefaults, setDefaultForScope } from '../defaults/store'
 import type { ToolScope } from '../runtime/types'
+import { chooseDefaultModel, type DefaultModelChoice } from './defaultModelChoice'
 
 const ALL_SCOPES: ToolScope[] = ['site', 'content', 'data', 'plugin']
 
@@ -169,6 +170,7 @@ async function seedEmptyDefaults(
   if (emptyScopes.length === 0) return
 
   let topModelId: string | null
+  let defaultChoice: DefaultModelChoice | null = null
   let apiKeyForRedaction: string | null = null
   try {
     const resolved = await resolveCredentialForDriver(record)
@@ -176,8 +178,12 @@ async function seedEmptyDefaults(
     const driver = resolveDriver(record.providerId)
     const models = await listProviderModels(driver, resolved, signal)
     const liveModels = models.filter((model) => model.catalogueSource !== 'fallback')
-    const top = liveModels.find((m) => m.tier === 'smartest') ?? liveModels[0]
-    topModelId = top?.id ?? null
+    // WAS `liveModels.find((m) => m.tier === 'smartest') ?? liveModels[0]`, and no driver ever
+    // sets a tier of 'smartest' - so the intended pick was unreachable and this always took
+    // whatever the provider returned FIRST. See defaultModelChoice.ts for why that mattered.
+    const choice = chooseDefaultModel(liveModels)
+    topModelId = choice?.modelId ?? null
+    defaultChoice = choice
   } catch (err) {
     console.warn(
       '[ai/credentials] auto-default skipped - model lookup failed:',
@@ -199,7 +205,16 @@ async function seedEmptyDefaults(
       action: 'ai.default.updated',
       targetType: 'ai_default',
       targetId: scope,
-      metadata: { scope, credentialId: record.id, modelId: topModelId, auto: true },
+      metadata: {
+        scope,
+        credentialId: record.id,
+        modelId: topModelId,
+        auto: true,
+        // WHY this model, not just which. Without it a default nobody chose cannot be
+        // explained months later, and the free-model preference looks like a random pick.
+        reason: defaultChoice?.reason ?? 'unknown',
+        freeModelsAvailable: defaultChoice?.freeModelCount ?? 0,
+      },
     })
   }
 }

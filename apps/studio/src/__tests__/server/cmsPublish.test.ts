@@ -271,7 +271,7 @@ describe('CMS publishing', () => {
     const { state, db } = createPublishFakeDb()
     await seedSiteAndPage(db, 'Published headline')
 
-    const result = await publishDraftSite(db, 'admin_1')
+    const result = await publishDraftSite(db, 'admin_1', 'default')
     const published = await getPublishedPageBySlug(db, 'index')
 
     expect(result).toMatchObject({ publishedPages: 1 })
@@ -282,7 +282,7 @@ describe('CMS publishing', () => {
   it('does not expose later draft changes until another publish occurs', async () => {
     const { db } = createPublishFakeDb()
     await seedSiteAndPage(db, 'Public version')
-    await publishDraftSite(db, 'admin_1')
+    await publishDraftSite(db, 'admin_1', 'default')
 
     // Update the draft page text
     await saveDataRowDraft(db, 'page_home', {
@@ -297,9 +297,9 @@ describe('CMS publishing', () => {
   it('reports that the current draft matches the active published snapshots after publishing', async () => {
     const { db } = createPublishFakeDb()
     await seedSiteAndPage(db, 'Public version')
-    await publishDraftSite(db, 'admin_1')
+    await publishDraftSite(db, 'admin_1', 'default')
 
-    const status = await getDraftPublishStatus(db)
+    const status = await getDraftPublishStatus(db, 'default')
 
     expect(status).toMatchObject({
       hasPublishedVersion: true,
@@ -313,7 +313,7 @@ describe('CMS publishing', () => {
   it('reports that the current draft no longer matches after a later draft save', async () => {
     const { db } = createPublishFakeDb()
     await seedSiteAndPage(db, 'Public version')
-    await publishDraftSite(db, 'admin_1')
+    await publishDraftSite(db, 'admin_1', 'default')
 
     // Update the draft to create mismatch
     await saveDataRowDraft(db, 'page_home', {
@@ -321,7 +321,7 @@ describe('CMS publishing', () => {
       slug: 'index',
     }, 'admin_1')
 
-    const status = await getDraftPublishStatus(db)
+    const status = await getDraftPublishStatus(db, 'default')
 
     expect(status).toMatchObject({
       hasPublishedVersion: true,
@@ -362,7 +362,7 @@ describe('CMS publishing', () => {
       slug: page.slug,
     }, 'admin_1')
 
-    await publishDraftSite(db, 'admin_1')
+    await publishDraftSite(db, 'admin_1', 'default')
     const published = await getPublishedPageBySlug(db, 'index')
 
     expect(state.runtimeAssets.length).toBeGreaterThan(0)

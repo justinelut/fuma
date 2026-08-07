@@ -102,6 +102,18 @@ export interface RenderConfig {
    */
   readonly dynamicNodeIds?: ReadonlySet<string>
   /**
+   * Durable stamp for the published content, preferred over `publishVersion` for hole placeholders.
+   *
+   * `publishVersion` is an in-memory counter, so a shell baked with it is rejected as stale after any
+   * restart or by any second process — permanently, because the next page load serves the same baked
+   * shell from disk. A stamp derived from the published content is identical everywhere, so a shell
+   * stays valid exactly as long as the content it was baked from is what is published.
+   *
+   * Optional so existing callers and tests are unaffected; when absent the numeric version is used
+   * and the hole endpoint treats it as a legacy stamp.
+   */
+  readonly publishStamp?: string
+  /**
    * Monotonic publish version stamped into every `<instatic-hole data-instatic-version>`
    * attribute. The hole runtime sends this value back as `?v=` on each
    * fetch; the hole endpoint returns a stale fragment when the version

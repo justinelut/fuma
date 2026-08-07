@@ -5,6 +5,7 @@ import type { DbClient } from '../../db/client'
 import { FreeHostService, PostgresFreeHostRepository } from '../freeHosts'
 import { PostgresSiteRepository, SiteService, normalizeSiteSlug } from '../sites'
 import { PostgresWorkspaceRepository, WorkspaceService, normalizeWorkspaceSlug } from '../workspaces'
+import { scaffoldProvisionedSite } from '../editor/siteScaffoldBridge'
 
 export const HOSTED_SITE_ONBOARDING_PATH = '/api/fuma/onboarding/site'
 const Strict = { additionalProperties: false } as const
@@ -161,6 +162,30 @@ export class HostedSiteOnboardingService {
         ownerGeneration = Number(existingOwner.rows[0]!.generation)
       } else {
         throw new Error('Site onboarding found duplicate tenant owner-key authority.')
+      }
+
+      // The starting workspace is written HERE because this is the first point at which the tenant
+      // scope is complete: the owner key and its generation are what the module store is keyed by, so
+      // before this line there is nowhere for a module to be stored. Nothing is registered on a
+      // self-hosted install, so this is a no-op there.
+      //
+      // Deliberately NOT awaited-and-thrown: the site exists by now, and failing the response would
+      // tell the customer their site was not created. scaffoldProvisionedSite swallows and reports.
+      const scaffold = await scaffoldProvisionedSite({
+        platformId: 'fuma',
+        organizationId: input.organizationId,
+        workspaceId: workspace.id,
+        siteId: site.id,
+        ownerKey,
+        generation: ownerGeneration,
+        siteName: input.siteName.trim(),
+      })
+      if (scaffold !== null && scaffold.problems.length > 0) {
+        // eslint-disable-next-line no-console
+        console.warn('[fuma] site scaffold reported problems', {
+          siteId: site.id,
+          problems: scaffold.problems.map((problem) => problem.code),
+        })
       }
 
       const existingHost = await db<Readonly<{ host: string; owner_key: string; owner_generation: number }>>`

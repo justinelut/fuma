@@ -20,6 +20,11 @@ import type { AuditAction } from '../../../repositories/audit'
  */
 export interface DashboardRequestContext {
   timeZone: string
+  /**
+   * The originating request, so a reader that must resolve tenant scope can do so. Without it a
+   * per-tenant lookup has nothing to key on and would answer for the wrong tenant.
+   */
+  request: Request
 }
 
 // ---------------------------------------------------------------------------
@@ -277,6 +282,14 @@ export interface RecentActivityStats {
  *                        caption so the operator knows where data lives.
  */
 export interface StorageStats {
+  /**
+   * Bytes the tenant's plan includes, or null when no plan applies or none could be resolved.
+   *
+   * NULL IS NOT UNLIMITED, and the surface that renders this states so: an absent allowance shows
+   * no bar at all rather than a bar at zero, because a proportion of an unknown total is not a
+   * quantity. Self-host has no plan, so null is its correct and permanent answer.
+   */
+  limitBytes: number | null
   imageBytes: number
   videoBytes: number
   documentBytes: number

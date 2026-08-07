@@ -15,7 +15,6 @@ import { TagPill } from '@ui/components/TagPill'
 import { CORE_EDITOR_SURFACE_CONTRIBUTIONS } from './contributions'
 import { resolveProfileEditorSurfaces } from './resolver'
 import type { ResolvedEditorSurface } from './contracts'
-import styles from './HostedProfileEditorSurface.module.css'
 
 export type HostedProfileEditorRenderContext = Readonly<{
   shell: FumaScopedShellReadyContext
@@ -105,16 +104,16 @@ export function HostedProfileEditorSurface({
 
   return (
     <section
-      className={styles.surface}
+      className="grid min-w-0 gap-6 rounded-md bg-muted/40 p-8 text-foreground"
       aria-label={`${surface.label} editor surface`}
       data-editor-surface={surface.surface}
       data-editor-access={surface.access.mutable ? 'mutable' : 'read-only'}
       data-editor-target-key={fullTargetKey}
     >
-      <header className={styles.header}>
-        <div className={styles.headingGroup}>
-          <p className={styles.eyebrow}>Editor surface</p>
-          <h2 className={styles.heading}>{surface.label}</h2>
+      <header className="flex items-center justify-between gap-4">
+        <div className="grid min-w-0 gap-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Editor surface</p>
+          <h2 className="overflow-hidden text-ellipsis whitespace-nowrap text-xl text-foreground">{surface.label}</h2>
         </div>
         <TagPill
           label={accessLabel}
@@ -130,7 +129,7 @@ export function HostedProfileEditorSurface({
         </Alert>
       ) : null}
 
-      <div className={styles.body} key={fullTargetKey}>
+      <div className="min-w-0" key={fullTargetKey}>
         {renderAdapter ? renderAdapter(renderContext) : (
           <EmptyState
             plain

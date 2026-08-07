@@ -109,6 +109,9 @@ async function renderMergedTemplate(
     mediaAssets,
     loopEndpointBaseUrl: LOOP_ENDPOINT_BASE_URL,
     publishVersion,
+    // Durable stamp so the shell stays hydratable across restarts and across processes. The numeric
+    // version above is retained only for asset cache-busting, which is a same-process concern.
+    publishStamp: snapshot.publishStamp,
   })
   // Per-page injection set = candidates from the render (emitted ∪ hole
   // subtrees) ∩ the site module-JS map — over-inclusive candidates from

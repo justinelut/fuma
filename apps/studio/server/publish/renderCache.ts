@@ -38,6 +38,18 @@ import { getPublishVersion, resetPublishStateForTests } from './publishState'
 export interface RenderCacheKey {
   urlPath: string
   queryString: string
+  /**
+   * Which site this response belongs to.
+   *
+   * OPTIONAL, and absent means the single self-hosted site. Without it two hosted tenants both
+   * serving `/about` share ONE cache entry, so whichever rendered first is served to visitors of
+   * the other — a cross-tenant content leak on the public web, invisible because both responses
+   * are valid HTML for that path.
+   *
+   * Omitting it keeps self-hosted keys byte-identical to what they have always been, so adding
+   * this cannot invalidate an existing install's cache.
+   */
+  siteScope?: string
 }
 
 export interface CachedResponse {
@@ -70,7 +82,12 @@ const map = new Map<string, CacheEntry>()
 const inFlight = new Map<string, Promise<CachedResponse | null>>()
 
 function cacheKey(key: RenderCacheKey): string {
-  return `${key.urlPath}\0${key.queryString}`
+  // The scope is PREFIXED and separated by the same NUL used between the other parts, so a site id
+  // containing the separator cannot be crafted to collide with another site's key. Absent scope
+  // produces exactly the historical key.
+  return key.siteScope === undefined
+    ? `${key.urlPath}\0${key.queryString}`
+    : `${key.siteScope}\0${key.urlPath}\0${key.queryString}`
 }
 
 // ---------------------------------------------------------------------------

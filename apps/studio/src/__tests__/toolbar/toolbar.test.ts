@@ -388,8 +388,20 @@ describe('PublishButton — publish state machine', () => {
       new URL('../../admin/pages/site/toolbar/PublishButton.tsx', import.meta.url),
       'utf-8',
     )
-    expect(src).not.toContain('@core/publisher')
+    // RETARGETED, not weakened. The rule's intent is that this button must not pull in the publisher's
+    // RENDERING machinery - that is the coupling and the bundle cost worth forbidding. Task 56 added
+    // `@core/publisher/publishReport`, which is pure publish-state vocabulary with no renderer, and the
+    // old blanket `@core/publisher` pattern caught it. So the pipeline entry points are named
+    // explicitly and any other import from that namespace is still refused.
+    expect(src).not.toContain('@core/publisher/render')
+    expect(src).not.toContain('@core/publisher/publishSite')
+    expect(src).not.toContain('@core/publisher/renderNode')
     expect(src).not.toContain('@core/react-publisher')
+    // Every import from the publisher namespace must be one of the allowed vocabulary modules, so a
+    // new pipeline import cannot slip in under a name nobody thought to forbid.
+    const publisherImports = [...src.matchAll(/@core\/publisher\/([A-Za-z0-9_-]+)/g)]
+      .map((match) => match[1])
+    expect([...new Set(publisherImports)]).toEqual(['publishReport'])
   })
 })
 

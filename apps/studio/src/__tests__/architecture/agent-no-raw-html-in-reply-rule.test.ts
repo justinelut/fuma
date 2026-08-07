@@ -20,6 +20,9 @@ const src = readFileSync(PROMPT_FILE, 'utf8')
 
 describe('agent-no-raw-html-in-reply-rule gate', () => {
   it('contains the exact narrate-only rule prohibiting raw HTML/CSS/JSON in replies', () => {
-    expect(src).toContain('No raw HTML/CSS/JSON in the reply')
+    // Wording moved from "HTML/CSS/JSON" to "source" when the engine switched to TSX
+    // authoring: the rule is unchanged — the tools change the site and the reply narrates —
+    // but the artifact the model must not paste is now typed source, not markup.
+    expect(src).toContain('No raw source in the reply')
   })
 })

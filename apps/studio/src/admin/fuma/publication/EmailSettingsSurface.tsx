@@ -5,8 +5,7 @@ import type {
   EmailSettingsLevel,
   ResolvedEmailSettingsV2,
 } from '@core/fuma/publication/emailSettingsContracts'
-import { Button } from '@ui/components/Button'
-import styles from './EmailSettingsSurface.module.css'
+import { Button } from '@admin/fuma/ui/button'
 
 export type EmailSettingsSurfaceProps = Readonly<{
   resolved: ResolvedEmailSettingsV2
@@ -57,19 +56,19 @@ export function EmailSettingsSurface({ resolved, targetIds, canWrite, onChange }
     }
   }
 
-  return <section className={styles.surface} aria-labelledby="email-settings-title">
+  return <section className="grid gap-6 p-6 rounded-md border border-border bg-card [&>header]:flex [&>header]:items-start [&>header]:justify-between [&>header]:gap-4 [&>header_p]:text-muted-foreground [&_form]:grid [&_form]:gap-2 [&_fieldset]:grid [&_fieldset]:gap-2 [&_input]:focus-visible:ring-2 [&_input]:focus-visible:ring-ring [&_input]:focus-visible:outline-none" aria-labelledby="email-settings-title">
     <header>
       <div><p>Email delivery</p><h2 id="email-settings-title">Inherited settings</h2></div>
-      <span className={styles.provider}>OCI Email Delivery</span>
+      <span className="rounded-md border border-border px-2 py-1 text-sm font-semibold">OCI Email Delivery</span>
     </header>
 
-    <div className={styles.grid}>
+    <div className="grid gap-6 lg:grid-cols-2 [&>section]:grid [&>section]:min-w-0 [&>section]:content-start [&>section]:gap-4">
       <section aria-labelledby="resolved-settings-title">
         <h3 id="resolved-settings-title">Resolved values and provenance</h3>
-        <dl className={styles.provenance}>
+        <dl className="grid gap-2 [&>div]:grid [&>div]:gap-1 [&>div]:rounded-md [&>div]:border [&>div]:border-border [&>div]:bg-muted [&>div]:p-2 [&_dt]:font-semibold [&_dd]:m-0 [&_dd]:break-words">
           {RESETTABLE.map(({ key, label }) => <div key={key}>
             <dt>{label}</dt><dd>{resolved.values[key]}</dd>
-            <dd className={styles.meta}>From {resolved.provenance[key].level} · version {resolved.provenance[key].ordinal}{resolved.provenance[key].inherited ? ' · inherited' : ' · direct'}</dd>
+            <dd className="text-muted-foreground">From {resolved.provenance[key].level} · version {resolved.provenance[key].ordinal}{resolved.provenance[key].inherited ? ' · inherited' : ' · direct'}</dd>
           </div>)}
         </dl>
       </section>
@@ -90,7 +89,7 @@ export function EmailSettingsSurface({ resolved, targetIds, canWrite, onChange }
         <form onSubmit={reset}>
           <fieldset disabled={!canWrite}>
             <legend>Reset to inherited</legend>
-            <div className={styles.checks}>{RESETTABLE.map(({ key, label }) => <label key={key}><input type="checkbox" name={key} />{label}</label>)}</div>
+            <div className="grid gap-2">{RESETTABLE.map(({ key, label }) => <label key={key}><input type="checkbox" name={key} />{label}</label>)}</div>
             <Button type="submit" variant="secondary" size="sm">
               Reset selected overrides
             </Button>
@@ -98,6 +97,6 @@ export function EmailSettingsSurface({ resolved, targetIds, canWrite, onChange }
         </form>
       </section>
     </div>
-    <p className={styles.status} role="status" aria-live="polite">{status}</p>
+    <p className="text-sm text-muted-foreground" role="status" aria-live="polite">{status}</p>
   </section>
 }

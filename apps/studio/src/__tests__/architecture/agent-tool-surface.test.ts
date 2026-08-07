@@ -90,8 +90,12 @@ describe('agent-tool-surface gate', () => {
     expect(toolNames).toContain('site_clear_page_template')
   })
 
-  it('total tool count is 30 (document, HTML, node, CSS, code asset, page, template, token, snapshot, and payment proposal tools)', () => {
+  it('total tool count is 34 (four TSX authoring tools plus the thirty pre-existing ones)', () => {
+    // Grew from 30 when task 42 added site_author_module / site_edit_module /
+    // site_read_module / site_list_modules. The HTML tools are still counted because they
+    // remain declared until the canvas is rebuilt on the node union; deleting them before
+    // that would break the working builder.
     expect(toolNames).toContain('site_propose_payment_setup')
-    expect(toolNames).toHaveLength(30)
+    expect(toolNames).toHaveLength(34)
   })
 })

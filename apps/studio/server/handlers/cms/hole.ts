@@ -45,6 +45,7 @@ import { prefetchLoopData } from '../../publish/loopPrefetch'
 import { getOrRender } from '../../publish/renderCache'
 import { getPublishedNodeIndexForVersion } from '../../publish/publishedSnapshotCache'
 import { getPublishVersion } from '../../publish/publishState'
+import { mayServeShell, stampForSiteDocument } from '../../publish/publishStamp'
 import { HOLE_RUNTIME_JS } from '../../publish/holeRuntime'
 import { stampFormPageTokens } from '../../forms/formRuntime'
 
@@ -181,26 +182,37 @@ export async function handleHoleRequest(
     })
   }
 
-  // Version check — if the ?v= param doesn't match the current publish version,
-  // return a lightweight stale sentinel without caching. The next full page load
-  // will carry the correct version in its placeholder attributes.
-  const requestVersion = url.searchParams.get('v') ?? ''
+  // Load (memoised) snapshot and find the node's page in O(1).
+  //
+  // THE SNAPSHOT IS LOADED BEFORE THE FRESHNESS CHECK, deliberately, because the freshness check now
+  // compares against the PUBLISHED CONTENT rather than against an in-memory counter.
+  //
+  // The counter this replaced lived in process memory and started at 0, while the shells baked to
+  // disk carried the value the publishing process happened to hold. After any restart every shell
+  // therefore mismatched and this endpoint returned the stale sentinel for all of them — and the
+  // old comment's reasoning that "the next full page load will carry the correct version" was
+  // wrong, because the next page load serves the SAME baked shell from disk. It was a stuck state
+  // until somebody published again, with every dynamic region on every baked page silently empty.
+  //
+  // The load is memoised, so doing it first costs a map lookup on the common path.
   const currentVersion = getPublishVersion()
-  if (requestVersion !== String(currentVersion)) {
-    return new Response('<instatic-hole-stale data-instatic-stale="true"></instatic-hole-stale>', {
-      headers: {
-        'content-type': 'text/html; charset=utf-8',
-        'cache-control': 'no-store',
-      },
-    })
-  }
-
-  // Load (memoised) snapshot for this version and find the node's page in O(1).
   const snap = await getPublishedNodeIndexForVersion(ctx.db, currentVersion)
   if (!snap) {
     return new Response('Site not published', {
       status: 404,
       headers: { 'content-type': 'text/plain; charset=utf-8' },
+    })
+  }
+
+  // Freshness against the published content. Durable: identical in every process and across every
+  // restart, because it is derived from the stored document rather than from a variable.
+  const requestVersion = url.searchParams.get('v') ?? ''
+  if (!mayServeShell(requestVersion, stampForSiteDocument(snap.site), currentVersion)) {
+    return new Response('<instatic-hole-stale data-instatic-stale="true"></instatic-hole-stale>', {
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+      },
     })
   }
   const foundPage = snap.nodeIndex.get(nodeId)

@@ -17,6 +17,7 @@ import { Type } from '@core/utils/typeboxHelpers'
 import { describeAgentDocuments } from '@core/ai'
 import type { AiTool, ToolContext } from '../../runtime/types'
 import { getDraftSiteDocument } from '../../../repositories/publish'
+import { SELF_HOST_SITE_ID } from '../../../selfHost'
 
 export const documentMcpTools: AiTool[] = [
   {
@@ -28,7 +29,10 @@ export const documentMcpTools: AiTool[] = [
     inputSchema: Type.Object({}, { additionalProperties: false }),
     requiredCapabilities: ['site.read'],
     handler: async (_input, ctx: ToolContext) => {
-      const site = await getDraftSiteDocument(ctx.db)
+      // NOT YET TENANT-SCOPED, and deliberately explicit about it: MCP carries its scope on the
+      // session, not the URL, so it needs the session plumbing rather than the request resolver.
+      // Naming the legacy scope here keeps the gap visible at the call site.
+      const site = await getDraftSiteDocument(ctx.db, SELF_HOST_SITE_ID)
       if (!site) return { ok: false, error: 'No site found.' }
       return {
         currentDocument: null,

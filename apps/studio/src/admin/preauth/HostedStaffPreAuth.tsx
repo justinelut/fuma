@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import { useForm } from '@tanstack/react-form'
-import { Button } from '@ui/components/Button'
-import { Input } from '@ui/components/Input'
+import { Button } from '@admin/fuma/ui/button'
+import { Input } from '@admin/fuma/ui/input'
 import { DatabaseSolidIcon } from 'pixel-art-icons/icons/database-solid'
 import { LoaderIcon } from 'pixel-art-icons/icons/loader'
 import {
@@ -17,8 +17,6 @@ import {
 } from '@core/fuma/auth'
 import { getErrorMessage } from '@core/utils/errorMessage'
 import { useLocation, useNavigate } from '../lib/routing'
-import panelStyles from '../AdminEntry.module.css'
-import styles from './HostedStaffPreAuth.module.css'
 
 const MIN_PASSWORD_LENGTH = 12
 const MAX_PASSWORD_LENGTH = 128
@@ -229,19 +227,19 @@ export function HostedStaffPreAuth({ initialError, onAuthenticated }: HostedStaf
   const title = mfaPending ? 'Verify it is you' : copy.title
 
   return (
-    <main className={panelStyles.page}>
-      <section className={panelStyles.panel} aria-labelledby="hosted-auth-title">
-        <div className={styles.brandRow}>
-          <div className={styles.brandIcon} aria-hidden="true">
+    <main className="grid h-full min-h-0 w-full max-w-full justify-items-center overflow-y-auto overflow-x-hidden overscroll-y-contain content-center p-4 sm:p-8">
+      <section className="w-[min(100%,360px)] rounded-2xl bg-card p-10" aria-labelledby="hosted-auth-title">
+        <div className="mb-10 flex items-center gap-3 text-sm text-muted-foreground">
+          <div className="grid size-7 place-items-center rounded-md bg-accent text-foreground" aria-hidden="true">
             <DatabaseSolidIcon size={16} />
           </div>
           <span>Fuma</span>
         </div>
-        <h1 id="hosted-auth-title" className={panelStyles.title}>{title}</h1>
+        <h1 id="hosted-auth-title" className="mb-8 text-3xl font-semibold text-foreground">{title}</h1>
 
-        {completionMessage && <p className={styles.status} role="status">{completionMessage}</p>}
+        {completionMessage && <p className="mb-6 text-sm leading-relaxed text-muted-foreground" role="status">{completionMessage}</p>}
         {mfaPending && (
-          <p className={styles.status} role="status">
+          <p className="mb-6 text-sm leading-relaxed text-muted-foreground" role="status">
             {recoveryMode
               ? 'Enter one unused recovery code.'
               : 'Enter the six-digit code from your authenticator app.'}
@@ -249,15 +247,15 @@ export function HostedStaffPreAuth({ initialError, onAuthenticated }: HostedStaf
         )}
 
         {completion === 'verification-sent' || completion === 'reset-sent' || completion === 'reset-complete' ? (
-          <Button variant="primary" size="md" fullWidth onClick={() => go('/admin/login')}>
+          <Button className="w-full" variant="default" onClick={() => go('/admin/login')}>
             Return to sign in
           </Button>
         ) : (
           <>
             {(phase === 'login' || phase === 'signup') && !mfaPending && (
-              <div className={styles.socialGroup}>
-                <button className={styles.socialButton} type="button" disabled={googlePending} aria-busy={googlePending} onClick={() => void beginGoogleSignIn()}>
-                  <svg className={styles.googleMark} aria-hidden="true" viewBox="0 0 24 24">
+              <div className="mb-6 grid gap-4">
+                <button className="flex min-h-11 w-full items-center justify-center gap-3 rounded-md border border-border px-4 hover:border-muted-foreground hover:bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-wait disabled:opacity-65" type="button" disabled={googlePending} aria-busy={googlePending} onClick={() => void beginGoogleSignIn()}>
+                  <svg className="size-[18px] flex-none" aria-hidden="true" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.8 3-4.3 3-7.3Z" />
                     <path fill="#34A853" d="M12 22c2.7 0 5-.9 6.6-2.4L15.4 17c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22Z" />
                     <path fill="#FBBC05" d="M6.4 13.9A6 6 0 0 1 6.1 12c0-.7.1-1.3.3-1.9V7.5H3.1A10 10 0 0 0 2 12c0 1.6.4 3.1 1.1 4.5l3.3-2.6Z" />
@@ -265,11 +263,11 @@ export function HostedStaffPreAuth({ initialError, onAuthenticated }: HostedStaf
                   </svg>
                   <span>{googlePending ? 'Opening Google…' : 'Continue with Google'}</span>
                 </button>
-                <div className={styles.divider}><span>or continue with email</span></div>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border before:content-[''] after:h-px after:flex-1 after:bg-border after:content-['']"><span>or continue with email</span></div>
               </div>
             )}
             <form
-            className={styles.form}
+            className="grid gap-6"
             noValidate
             onSubmit={(event) => {
               event.preventDefault()
@@ -289,20 +287,20 @@ export function HostedStaffPreAuth({ initialError, onAuthenticated }: HostedStaf
                 {(field) => {
                   const fieldError = visibleFieldError(field.state.meta.isTouched, field.state.meta.errors)
                   return (
-                    <label className={styles.field} htmlFor={nameId}>
+                    <label className="grid gap-1 text-sm font-semibold text-muted-foreground" htmlFor={nameId}>
                       <span>Name</span>
                       <Input
                         id={nameId}
                         value={field.state.value}
                         onBlur={field.handleBlur}
                         onChange={(event) => field.handleChange(event.target.value)}
-                        invalid={fieldError !== null}
+                        aria-invalid={fieldError !== null}
                         aria-describedby={fieldError ? `${nameId}-error` : undefined}
                         required
                         maxLength={MAX_NAME_LENGTH}
                         autoComplete="name"
                       />
-                      {fieldError && <span id={`${nameId}-error`} role="alert" className={panelStyles.error}>{fieldError}</span>}
+                      {fieldError && <span id={`${nameId}-error`} role="alert" className="m-0 text-sm leading-snug text-destructive">{fieldError}</span>}
                     </label>
                   )
                 }}
@@ -321,21 +319,21 @@ export function HostedStaffPreAuth({ initialError, onAuthenticated }: HostedStaf
                 {(field) => {
                   const fieldError = visibleFieldError(field.state.meta.isTouched, field.state.meta.errors)
                   return (
-                    <label className={styles.field} htmlFor={emailId}>
+                    <label className="grid gap-1 text-sm font-semibold text-muted-foreground" htmlFor={emailId}>
                       <span>Email</span>
                       <Input
                         id={emailId}
                         value={field.state.value}
                         onBlur={field.handleBlur}
                         onChange={(event) => field.handleChange(event.target.value)}
-                        invalid={fieldError !== null}
+                        aria-invalid={fieldError !== null}
                         aria-describedby={fieldError ? `${emailId}-error` : undefined}
                         required
                         maxLength={MAX_EMAIL_LENGTH}
                         type="email"
                         autoComplete="email"
                       />
-                      {fieldError && <span id={`${emailId}-error`} role="alert" className={panelStyles.error}>{fieldError}</span>}
+                      {fieldError && <span id={`${emailId}-error`} role="alert" className="m-0 text-sm leading-snug text-destructive">{fieldError}</span>}
                     </label>
                   )
                 }}
@@ -354,14 +352,14 @@ export function HostedStaffPreAuth({ initialError, onAuthenticated }: HostedStaf
                 {(field) => {
                   const fieldError = visibleFieldError(field.state.meta.isTouched, field.state.meta.errors)
                   return (
-                    <label className={styles.field} htmlFor={passwordId}>
+                    <label className="grid gap-1 text-sm font-semibold text-muted-foreground" htmlFor={passwordId}>
                       <span>{phase === 'reset' ? 'New password' : 'Password'}</span>
                       <Input
                         id={passwordId}
                         value={field.state.value}
                         onBlur={field.handleBlur}
                         onChange={(event) => field.handleChange(event.target.value)}
-                        invalid={fieldError !== null}
+                        aria-invalid={fieldError !== null}
                         aria-describedby={fieldError ? `${passwordId}-error` : undefined}
                         required
                         minLength={phase === 'login' ? undefined : MIN_PASSWORD_LENGTH}
@@ -369,7 +367,7 @@ export function HostedStaffPreAuth({ initialError, onAuthenticated }: HostedStaf
                         type="password"
                         autoComplete={phase === 'login' ? 'current-password' : 'new-password'}
                       />
-                      {fieldError && <span id={`${passwordId}-error`} role="alert" className={panelStyles.error}>{fieldError}</span>}
+                      {fieldError && <span id={`${passwordId}-error`} role="alert" className="m-0 text-sm leading-snug text-destructive">{fieldError}</span>}
                     </label>
                   )
                 }}
@@ -389,14 +387,14 @@ export function HostedStaffPreAuth({ initialError, onAuthenticated }: HostedStaf
                 {(field) => {
                   const fieldError = visibleFieldError(field.state.meta.isTouched, field.state.meta.errors)
                   return (
-                    <label className={styles.field} htmlFor={confirmPasswordId}>
+                    <label className="grid gap-1 text-sm font-semibold text-muted-foreground" htmlFor={confirmPasswordId}>
                       <span>Confirm new password</span>
                       <Input
                         id={confirmPasswordId}
                         value={field.state.value}
                         onBlur={field.handleBlur}
                         onChange={(event) => field.handleChange(event.target.value)}
-                        invalid={fieldError !== null}
+                        aria-invalid={fieldError !== null}
                         aria-describedby={fieldError ? `${confirmPasswordId}-error` : undefined}
                         required
                         minLength={MIN_PASSWORD_LENGTH}
@@ -404,7 +402,7 @@ export function HostedStaffPreAuth({ initialError, onAuthenticated }: HostedStaf
                         type="password"
                         autoComplete="new-password"
                       />
-                      {fieldError && <span id={`${confirmPasswordId}-error`} role="alert" className={panelStyles.error}>{fieldError}</span>}
+                      {fieldError && <span id={`${confirmPasswordId}-error`} role="alert" className="m-0 text-sm leading-snug text-destructive">{fieldError}</span>}
                     </label>
                   )
                 }}
@@ -423,14 +421,14 @@ export function HostedStaffPreAuth({ initialError, onAuthenticated }: HostedStaf
                 {(field) => {
                   const fieldError = visibleFieldError(field.state.meta.isTouched, field.state.meta.errors)
                   return (
-                    <label className={styles.field} htmlFor={mfaCodeId}>
+                    <label className="grid gap-1 text-sm font-semibold text-muted-foreground" htmlFor={mfaCodeId}>
                       <span>{recoveryMode ? 'Recovery code' : 'Authentication code'}</span>
                       <Input
                         id={mfaCodeId}
                         value={field.state.value}
                         onBlur={field.handleBlur}
                         onChange={(event) => field.handleChange(event.target.value)}
-                        invalid={fieldError !== null}
+                        aria-invalid={fieldError !== null}
                         aria-describedby={fieldError ? `${mfaCodeId}-error` : undefined}
                         required
                         minLength={6}
@@ -438,27 +436,25 @@ export function HostedStaffPreAuth({ initialError, onAuthenticated }: HostedStaf
                         autoComplete="one-time-code"
                         inputMode={recoveryMode ? 'text' : 'numeric'}
                       />
-                      {fieldError && <span id={`${mfaCodeId}-error`} role="alert" className={panelStyles.error}>{fieldError}</span>}
+                      {fieldError && <span id={`${mfaCodeId}-error`} role="alert" className="m-0 text-sm leading-snug text-destructive">{fieldError}</span>}
                     </label>
                   )
                 }}
               </form.Field>
             )}
 
-            {error && <p role="alert" className={panelStyles.error}>{error}</p>}
+            {error && <p role="alert" className="m-0 text-sm leading-snug text-destructive">{error}</p>}
 
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => (
                 <>
-                  <Button
-                    variant="primary"
-                    size="md"
+                  <Button className="w-full"
+                    variant="default"
                     type="submit"
-                    fullWidth
                     disabled={isSubmitting || resending || (phase === 'reset' && !resetToken)}
                     aria-busy={isSubmitting}
                   >
-                    {isSubmitting && <LoaderIcon size={14} className={styles.spinIcon} aria-hidden="true" />}
+                    {isSubmitting && <LoaderIcon size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}
                     <span>
                       {mfaPending
                         ? isSubmitting ? 'Verifying' : 'Verify'
@@ -467,13 +463,13 @@ export function HostedStaffPreAuth({ initialError, onAuthenticated }: HostedStaf
                   </Button>
 
                   {mfaPending && (
-                    <Button variant="secondary" size="md" fullWidth disabled={isSubmitting || resending} onClick={toggleRecoveryMode}>
+                    <Button className="w-full" variant="secondary" disabled={isSubmitting || resending} onClick={toggleRecoveryMode}>
                       {recoveryMode ? 'Use authenticator code' : 'Use a recovery code'}
                     </Button>
                   )}
 
                   {canResend && phase === 'login' && !mfaPending && (
-                    <Button variant="secondary" size="md" fullWidth disabled={isSubmitting || resending} onClick={() => void resendVerification()}>
+                    <Button className="w-full" variant="secondary" disabled={isSubmitting || resending} onClick={() => void resendVerification()}>
                       Resend verification email
                     </Button>
                   )}
@@ -485,7 +481,7 @@ export function HostedStaffPreAuth({ initialError, onAuthenticated }: HostedStaf
         )}
 
         {!mfaPending && (
-          <nav className={styles.links} aria-label="Authentication options">
+          <nav className="mt-6 flex flex-wrap justify-center gap-1" aria-label="Authentication options">
             {phase !== 'login' && <Button variant="ghost" size="sm" onClick={() => go('/admin/login')}>Sign in</Button>}
             {phase !== 'signup' && <Button variant="ghost" size="sm" onClick={() => go('/admin/signup')}>Create account</Button>}
             {phase !== 'forgot' && phase !== 'reset' && <Button variant="ghost" size="sm" onClick={() => go('/admin/forgot-password')}>Forgot password?</Button>}

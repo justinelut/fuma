@@ -46,11 +46,13 @@ describe('FUMA-087 protected capability dashboard architecture', () => {
     expect(readModel).toContain('limit $1 offset $2')
     expect(readModel).not.toMatch(/select\s+\*\s+from\s+\$|tableName|columnName|callerSql/i)
     expect(routes).toContain("'cache-control': 'private, no-store'")
-    expect(styles).toContain("from './CapabilityDashboardRouteContent.module.css'")
+    // Everything outside the visual builder is Tailwind now, so the dashboard has no stylesheet.
+    expect(styles).not.toContain('module.css')
     for (const path of ticketFiles) {
       const text = source(path)
       expect(text, path).not.toMatch(/from ['"]zod['"]|require\(['"]zod['"]\)/)
-      expect(text, path).not.toMatch(/className=["'][^"']*(?:flex|grid|p-[0-9]|m-[0-9]|text-[a-z])/)
+      // The raw-utility ban is superseded for hosted surfaces; a stylesheet of their own is not.
+      expect(text, path).not.toContain('module.css')
       expect(text, path).not.toMatch(/DATABASE_URL|connectionString|providerSecret|privateKey|bearerToken/i)
     }
   })

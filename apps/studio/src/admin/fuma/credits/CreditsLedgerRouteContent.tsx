@@ -3,7 +3,6 @@ import type { FumaScopedShellReadyContext } from '../FumaScopedShell'
 import { AiCreditsHttpClient, type AiCreditsLedgerWire } from './client'
 import { CreditsLedger } from './CreditsLedger'
 import { AI_CREDITS_CAPABILITY_ID, AI_CREDITS_ROUTE_ID } from './registry'
-import styles from './CreditsLedger.module.css'
 
 export function CreditsLedgerRouteContent({ shell, client: providedClient }: Readonly<{
   shell: FumaScopedShellReadyContext
@@ -31,7 +30,7 @@ export function CreditsLedgerRouteContent({ shell, client: providedClient }: Rea
   }, [client, scopeKey, selected])
 
   if (!selected) return null
-  if (!state || state.scopeKey !== scopeKey) return <p className={styles.status} role="status">Loading AI credit ledger…</p>
-  if (state.error || !state.model) return <p className={styles.error} role="alert">{state.error ?? 'AI credit ledger could not be loaded.'}</p>
+  if (!state || state.scopeKey !== scopeKey) return <p className="m-10 text-sm text-muted-foreground" role="status">Loading AI credit ledger…</p>
+  if (state.error || !state.model) return <p className="m-10 text-sm text-destructive" role="alert">{state.error ?? 'AI credit ledger could not be loaded.'}</p>
   return <div data-testid="credits-ledger-route-content"><CreditsLedger model={state.model} /></div>
 }

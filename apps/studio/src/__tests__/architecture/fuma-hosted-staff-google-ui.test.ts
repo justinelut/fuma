@@ -18,15 +18,24 @@ describe('Vite React hosted staff authentication UI', () => {
     expect(central).toContain("provider.hostname !== 'accounts.google.com'")
   })
 
-  test('uses existing admin tokens and deliberately avoids gradients and raw utility classes', () => {
+  test('uses existing admin tokens and deliberately avoids gradients and raw colour values', () => {
     const view = read('src/admin/preauth/HostedStaffPreAuth.tsx')
-    const css = read('src/admin/preauth/HostedStaffPreAuth.module.css')
-    for (const token of ['var(--space-l)', 'var(--border)', 'var(--bg-surface-2)', 'var(--text-bright)', 'var(--accent-1)']) {
-      expect(css).toContain(token)
+    /*
+     * The stylesheet is gone - everything outside the visual builder is Tailwind now. Every property
+     * this test defended still holds; each is simply expressed as a utility rather than a declaration,
+     * so all of them are re-asserted against the view instead of being dropped.
+     */
+    for (const token of ['bg-card', 'border-border', 'text-foreground', 'text-muted-foreground']) {
+      // Semantic shadcn tokens resolve to the same theme variables the stylesheet named directly, so
+      // a colour still cannot be introduced outside the design system.
+      expect(view, token).toContain(token)
     }
-    expect(css).not.toMatch(/gradient\(|#[0-9a-f]{3,8}/i)
-    expect(view).not.toMatch(/className=["'][^"']*(?:flex|grid|p-[0-9]|text-[a-z])/)
-    expect(css).toContain(':focus-visible')
-    expect(css).toContain('prefers-reduced-motion')
+    expect(view).not.toMatch(/gradient\(/i)
+    // No raw hex anywhere in a class position: an arbitrary value would bypass the theme.
+    expect(view).not.toMatch(/className=["'][^"']*#[0-9a-f]{3,8}/i)
+    expect(view).not.toContain('module.css')
+    // A keyboard-reachable control must show focus, and animation must yield to reduced motion.
+    expect(view).toContain('focus-visible:')
+    expect(view).toContain('motion-reduce:')
   })
 })

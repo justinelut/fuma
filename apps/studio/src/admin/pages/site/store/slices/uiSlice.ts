@@ -13,6 +13,14 @@ export type LeftSidebarPanelId =
   | 'framework'
   | 'dependencies'
   | 'agent'
+  /**
+   * The React IR module list (task 51).
+   *
+   * A LISTING panel is legitimate where an insertion panel was not: it switches the whole active
+   * document rather than inserting React IR into the PageNode tree this store holds, so the two node
+   * models never meet inside one document.
+   */
+  | 'modules'
 /** Tabs inside the consolidated Framework panel. */
 export type FrameworkPanelTab = 'home' | 'colors' | 'typography' | 'spacing'
 /**
@@ -35,6 +43,16 @@ const PROPERTIES_PANEL_DEFAULT_WIDTH = 360
 export type ActiveDocument =
   | { kind: 'page'; pageId: string }
   | { kind: 'visualComponent'; vcId: string }
+  /**
+   * A React IR module open on the canvas (task 51).
+   *
+   * A THIRD DOCUMENT KIND rather than a sidebar panel, because the two documents cannot share a
+   * store: this store holds PageNode trees and a React module holds the node union from
+   * core/react-ir. Offering React-IR insertion from a panel beside a PageNode canvas would insert
+   * into a document that cannot hold it, and the failure would surface at save time far from the
+   * insert. Keyed by PATH because that is what the module store keys on - a module has no numeric id.
+   */
+  | { kind: 'reactModule'; path: string }
 
 export interface PanelState {
   collapsed: boolean
@@ -119,6 +137,8 @@ interface UiSlice {
   /** Whether the Manage Core Framework dialog is open. */
   frameworkManagerOpen: boolean
   dependenciesPanelOpen: boolean
+  /** The React module list. Follows the dependencies panel's own shape exactly. */
+  modulesPanelOpen: boolean
 
   /**
    * Plugin-registered editor panel currently open in the left sidebar, or
@@ -168,6 +188,7 @@ interface UiSlice {
   setFrameworkPanelTab: (tab: FrameworkPanelTab) => void
   setFrameworkManagerOpen: (open: boolean) => void
   setDependenciesPanelOpen: (open: boolean) => void
+  setModulesPanelOpen: (open: boolean) => void
   setLeftSidebarPanel: (panel: LeftSidebarPanelId | null) => void
   toggleLeftSidebarPanel: (panel: LeftSidebarPanelId) => void
 
@@ -286,6 +307,7 @@ function getActiveLeftSidebarPanel(state: EditorStore): LeftSidebarPanelId | nul
   if (state.selectorsPanelOpen) return 'selectors'
   if (state.frameworkPanelOpen) return 'framework'
   if (state.dependenciesPanelOpen) return 'dependencies'
+  if (state.modulesPanelOpen) return 'modules'
   if (state.isAgentOpen) return 'agent'
   return null
 }
@@ -315,6 +337,7 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
   frameworkPanelTab: 'home',
   frameworkManagerOpen: false,
   dependenciesPanelOpen: false,
+  modulesPanelOpen: false,
   activePluginPanelId: null,
   codeEditorPanelOpen: false,
   activeEditorFileId: null,
@@ -436,6 +459,7 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
   setFrameworkManagerOpen: (open) => set({ frameworkManagerOpen: open }),
 
   setDependenciesPanelOpen: (open) => set({ dependenciesPanelOpen: open }),
+  setModulesPanelOpen: (open) => set({ modulesPanelOpen: open }),
 
   setLeftSidebarPanel: (panel) =>
     set((state) => {
@@ -495,10 +519,14 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
         const prevDoc = state.activeDocument
         state.activeDocument = doc
 
-        if (doc?.kind === 'visualComponent') {
-          // Entering VC mode: capture the page we came from IF the previous
-          // activeDocument was null (the default page canvas). Coming from an
-          // explicit page doc or another VC → leave previousActivePageId as-is.
+        // Any document that is NOT a page needs somewhere to return to, so the capture covers
+        // reactModule as well as visualComponent. Keying it on 'visualComponent' alone would send a
+        // module through the else branch below and CLEAR the captured id, leaving no way back to the
+        // page the author started from.
+        if (doc?.kind === 'visualComponent' || doc?.kind === 'reactModule') {
+          // Capture the page we came from IF the previous activeDocument was null (the default page
+          // canvas). Coming from an explicit page doc or another non-page document → leave
+          // previousActivePageId as-is.
           if (prevDoc === null && state.activePageId !== null) {
             state.previousActivePageId = state.activePageId
           }

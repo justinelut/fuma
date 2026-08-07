@@ -28,12 +28,12 @@ import type { PublishedRuntimePackageImportmap } from '@core/publisher'
 import type { DbClient } from '../db/client'
 import type { BuiltRuntimeAssetFile } from '../publish/runtime/bundleScripts'
 import { getDraftSite } from './site'
-import { SELF_HOST_SITE_ID } from '../selfHost'
 import { listDataRows } from './data'
 import { pageFromRow } from '../../src/core/data/pageFromRow'
 import { visualComponentFromRow } from '../../src/core/data/componentFromRow'
 import { validateVisualComponents } from '../../src/core/persistence/validate'
 import { savePublishedRuntimeAssets } from './runtimeAsset'
+import { stampForSiteDocument } from '../publish/publishStamp'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,6 +43,16 @@ export interface PublishedPageSnapshot {
   cmsSnapshotVersion: 1
   /** id of the `data_rows` row for this page (was `pageId` in the old schema). */
   pageRowId: string
+  /**
+   * Durable stamp for the published content, used to judge whether a baked hole shell is fresh.
+   *
+   * Derived from the stored document rather than from a counter, because the counter it replaces
+   * lives in process memory: after a restart it is 0 while shells on disk still carry their old
+   * value, so every hole is rejected as stale and every dynamic region is silently empty until
+   * somebody publishes again. A hash of the stored bytes is identical in every process and across
+   * every restart by construction.
+   */
+  publishStamp: string
   site: SiteDocument
   runtimeAssets?: PublishedPageRuntimeAssets
   /**
@@ -129,6 +139,9 @@ function snapshotFromQueryRow(row: SnapshotQueryRow): PublishedPageSnapshot {
   return {
     cmsSnapshotVersion: 1,
     pageRowId: row.row_id,
+    // Stamped from the stored document. Canonical serialisation is what lets this agree with the
+    // stamp computed on the publish path, where the document has NOT been through jsonb's key sort.
+    publishStamp: stampForSiteDocument(row.site_json),
     site: row.site_json,
     ...(row.runtime_assets_json && row.runtime_assets_json.scripts.length > 0
       ? { runtimeAssets: row.runtime_assets_json }
@@ -148,8 +161,18 @@ function snapshotFromQueryRow(row: SnapshotQueryRow): PublishedPageSnapshot {
  * `pages` and `components` data rows. Returns `null` when no draft site
  * exists yet. Saved layouts are editor-only; publishing ignores them.
  */
-export async function getDraftSiteDocument(db: DbClient): Promise<SiteDocument | null> {
-  const shell = await getDraftSite(db, SELF_HOST_SITE_ID)
+export async function getDraftSiteDocument(
+  db: DbClient,
+  /**
+   * Which site's draft to assemble.
+   *
+   * REQUIRED rather than defaulted. A default would silently be the legacy shared scope for
+   * every caller that forgot, which is exactly how one site came to publish another site's
+   * content. Required means each call site is a visible decision.
+   */
+  siteDocumentId: string,
+): Promise<SiteDocument | null> {
+  const shell = await getDraftSite(db, siteDocumentId)
   if (!shell) return null
 
   const [pageRows, vcRows] = await Promise.all([
@@ -167,8 +190,12 @@ export async function getDraftSiteDocument(db: DbClient): Promise<SiteDocument |
   }
 }
 
-export async function getDraftPublishStatus(db: DbClient): Promise<DraftPublishStatus> {
-  const draftSite = await getDraftSiteDocument(db)
+export async function getDraftPublishStatus(
+  db: DbClient,
+  /** Threaded rather than defaulted, for the reason stated on getDraftSiteDocument. */
+  siteDocumentId: string,
+): Promise<DraftPublishStatus> {
+  const draftSite = await getDraftSiteDocument(db, siteDocumentId)
   if (!draftSite) {
     return {
       hasPublishedVersion: false,

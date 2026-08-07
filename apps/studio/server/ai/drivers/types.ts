@@ -115,6 +115,13 @@ export interface AiStreamRequest {
   readonly tools: AiTool[]
   readonly modelId: string
   /**
+   * Output-token budget for this call, when something has established a lower one than the
+   * driver's default. Set by the tool loop after a provider refused the default as
+   * unaffordable, carrying THE PROVIDER'S OWN affordable figure. Absent means the driver
+   * chooses, which is the normal path.
+   */
+  readonly maxOutputTokens?: number
+  /**
    * Capabilities of `modelId`, resolved once by the chat handler. Static
    * driver knowledge is the fast path; model-specific providers resolve the
    * selected model from their live metadata. The shared tool loop captures a

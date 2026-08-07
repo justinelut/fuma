@@ -22,6 +22,7 @@ import type { DbClient } from '../../db/client'
 import { requireCapability, requireStepUp } from '../../auth/authz'
 import { createAuditEvent } from '../../repositories/audit'
 import { getDraftPublishStatus } from '../../repositories/publish'
+import { resolveRequestSiteDocumentId } from '../../selfHost'
 import { publishDraftSite } from '../../publish/publishSite'
 import { jsonResponse, methodNotAllowed } from '../../http'
 import type { CmsHandlerOptions } from './shared'
@@ -41,7 +42,16 @@ export async function handlePublishRoutes(
     const stepUp = await requireStepUp(req, db, user)
     if (stepUp) return stepUp
 
-    const result = await publishDraftSite(db, user.id, options.uploadsDir)
+    // Refused rather than defaulted: publishing the shared document could put one tenant's
+    // content on another tenant's live site.
+    const publishSiteDocumentId = await resolveRequestSiteDocumentId(req)
+    if (publishSiteDocumentId === null) {
+      return jsonResponse(
+        { error: 'This request did not resolve to a site you may publish.' },
+        { status: 403 },
+      )
+    }
+    const result = await publishDraftSite(db, user.id, publishSiteDocumentId, options.uploadsDir)
     await createAuditEvent(db, {
       actorUserId: user.id,
       action: 'publish',
@@ -58,7 +68,18 @@ export async function handlePublishRoutes(
     if (user instanceof Response) return user
     if (req.method !== 'GET') return methodNotAllowed()
 
-    return jsonResponse(await getDraftPublishStatus(db))
+    {
+      // Publishing the shared document is how one site could go live carrying another site's
+      // content, so an unresolved request is refused rather than defaulted.
+      const siteDocumentId = await resolveRequestSiteDocumentId(req)
+      if (siteDocumentId === null) {
+        return jsonResponse(
+          { error: 'This request did not resolve to a site you may publish.' },
+          { status: 403 },
+        )
+      }
+      return jsonResponse(await getDraftPublishStatus(db, siteDocumentId))
+    }
   }
 
   return null

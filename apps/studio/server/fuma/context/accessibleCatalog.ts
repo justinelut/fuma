@@ -20,6 +20,7 @@ type OrganizationRow = Readonly<{
   id: string
   name: string
   status: 'active' | 'suspended'
+  owner_label: string | null
 }>
 
 type WorkspaceRow = Readonly<{
@@ -67,7 +68,20 @@ export class PostgresAccessibleContextCatalog {
 
     return await this.#db.transaction(async (db) => {
       const organizations = await db<OrganizationRow>`
-        select organization.id, organization.name, profile.status
+        select organization.id, organization.name, profile.status,
+          -- The owner is a membership row, so it is read as a correlated subquery rather than a join:
+          -- joining would multiply the organization row by its members and silently duplicate every
+          -- organization in the catalog. A limit of one with a stable order keeps the answer
+          -- deterministic if an organization somehow carries two owner rows.
+          (
+            select coalesce(nullif(trim(owner_account.name), ''), owner_account.email)
+            from auth_members owner_membership
+            join auth_users owner_account on owner_account.id=owner_membership.user_id
+            where owner_membership.organization_id=organization.id
+              and owner_membership.role='owner'
+            order by owner_membership.created_at, owner_membership.user_id
+            limit 1
+          ) as owner_label
         from auth_members membership
         join auth_organizations organization on organization.id=membership.organization_id
         join fuma_organization_profiles profile on profile.organization_id=organization.id
@@ -148,6 +162,11 @@ export class PostgresAccessibleContextCatalog {
           id: row.id,
           name: row.name,
           status: row.status,
+          // Omitted rather than sent as null: the schema forbids additional properties and an absent
+          // optional says "not known", where an empty string would render as an owner with no name.
+          ...(row.owner_label && row.owner_label.trim().length > 0
+            ? { ownerLabel: row.owner_label.trim() }
+            : {}),
         })),
         workspaces: workspaces.rows.map((row) => ({
           id: row.id,

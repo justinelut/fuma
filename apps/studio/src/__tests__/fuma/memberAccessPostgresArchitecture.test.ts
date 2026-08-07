@@ -80,10 +80,11 @@ describe('FUMA-039 PostgreSQL and architecture gates', () => {
     expect(composition).toContain('memberAccess,analytics:')
   })
 
-  test('Studio account UI uses CSS Modules and current accessible form primitives', async () => {
+  test('Studio account UI uses shared primitives and current accessible form primitives', async () => {
     const source = await Bun.file(new URL('../../admin/fuma/publication/MemberAccessSurface.tsx', import.meta.url)).text()
-    expect(source).toContain("from './MemberAccessSurface.module.css'")
-    for (const primitive of ["@ui/components/Button", "@ui/components/FormField", "@ui/components/Input", "@ui/components/Select"]) expect(source).toContain(primitive)
+    // The surface is Tailwind now; the accessible form primitives asserted below are the property.
+    expect(source).not.toContain('module.css')
+    for (const primitive of ["@admin/fuma/ui/button", "@ui/components/FormField", "@admin/fuma/ui/input", "@ui/components/Select"]) expect(source).toContain(primitive)
     expect(source).toContain('aria-labelledby="member-profile-title"')
     expect(source).toContain('<caption>')
     expect(source).not.toContain('style={{')

@@ -55,7 +55,10 @@ describe('FUMA-072 production architecture', () => {
     expect(shell).toContain('currentSession.session.impersonatedBy')
     expect(ui).toContain('Support session active')
     expect(ui).toContain('Isolated owner recovery')
-    expect(ui).not.toContain('className="flex')
+    // This asserted the surface stayed Tailwind-free, which held while Studio styled with CSS
+    // modules. Everything outside the visual builder is Tailwind now, so the property still worth
+    // holding is that the surface carries no stylesheet of its own.
+    expect(ui).not.toContain('module.css')
   })
 
   test('uses strict TypeBox only in the complete support graph', () => {

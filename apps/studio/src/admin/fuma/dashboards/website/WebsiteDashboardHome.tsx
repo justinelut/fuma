@@ -16,7 +16,8 @@
  */
 import { useState } from 'react'
 import { Link } from '@admin/lib/routing'
-import { Badge, ButtonLink, Card, CardCaption, CardTitle } from '../../ui/primitives'
+import { ButtonLink, Card } from '../../ui/primitives'
+import { GROUP, GROUP_GAP, RELATED, RELATED_GAP, SECTION, TIGHT } from '../../ui/rhythm'
 import { cn } from '../../ui/cn'
 
 export type SetupStep = Readonly<{
@@ -56,23 +57,6 @@ const BUILDER_SECTIONS: readonly Readonly<{
 ])
 
 /** The small circular arrow-out affordance each metric card carries. */
-function ArrowOut({ to }: { to: string }) {
-  return (
-    <Link
-      to={to}
-      className={cn(
-        'inline-flex size-8 shrink-0 items-center justify-center rounded-full',
-        'border border-border text-foreground transition-colors hover:bg-accent',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-      )}
-      aria-label="Open"
-    >
-      <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden="true">
-        <path d="M5.5 10.5l5-5M6.5 5.5h4v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </Link>
-  )
-}
 
 
 
@@ -98,19 +82,6 @@ function AreaIcon({ id }: { id: string }) {
   )
 }
 
-function TickGlyph() {
-  return (
-    <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden="true">
-      <path
-        d="m4 8.4 2.6 2.6L12 5.6"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
 
 function Chevron({ open }: { open: boolean }) {
   return (
@@ -126,57 +97,6 @@ function Chevron({ open }: { open: boolean }) {
 }
 
 /** Ticked dial, as the reference's time tracker draws it. */
-function Dial({ percent }: { percent: number }) {
-  const radius = 52
-  const circumference = 2 * Math.PI * radius
-  const dash = (Math.max(0, Math.min(100, percent)) / 100) * circumference
-  const ticks = Array.from({ length: 60 }, (_, index) => index)
-  return (
-    <svg viewBox="0 0 140 140" className="size-[150px]" role="img" aria-label={`${percent}% complete`}>
-      {ticks.map((tick) => {
-        const angle = (tick / ticks.length) * Math.PI * 2 - Math.PI / 2
-        const inner = 62
-        const outer = tick % 5 === 0 ? 68 : 65
-        return (
-          <line
-            key={tick}
-            x1={70 + Math.cos(angle) * inner}
-            y1={70 + Math.sin(angle) * inner}
-            x2={70 + Math.cos(angle) * outer}
-            y2={70 + Math.sin(angle) * outer}
-            stroke="var(--foreground)"
-            strokeOpacity={tick % 5 === 0 ? 0.35 : 0.16}
-            strokeWidth="1"
-          />
-        )
-      })}
-      <circle cx="70" cy="70" r={radius} fill="none" stroke="var(--accent)" strokeWidth="9" />
-      <circle
-        cx="70"
-        cy="70"
-        r={radius}
-        fill="none"
-        stroke="var(--primary)"
-        strokeWidth="9"
-        strokeLinecap="round"
-        strokeDasharray={`${dash} ${circumference}`}
-        transform="rotate(-90 70 70)"
-      />
-      <text
-        x="70"
-        y="68"
-        textAnchor="middle"
-        className="fill-foreground"
-        style={{ fontSize: '1.6rem', fontWeight: 600, letterSpacing: '-0.02em' }}
-      >
-        {percent}%
-      </text>
-      <text x="70" y="86" textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: '0.6rem' }}>
-        Ready
-      </text>
-    </svg>
-  )
-}
 
 export function WebsiteDashboardHome({
   siteName,
@@ -187,236 +107,131 @@ export function WebsiteDashboardHome({
 }: WebsiteDashboardHomeProps) {
   const [openArea, setOpenArea] = useState<string | null>(areas[0]?.id ?? null)
   const completed = steps.filter((step) => step.completed).length
-  const percent = steps.length === 0 ? 100 : Math.round((completed / steps.length) * 100)
   const nextIndex = steps.findIndex((step) => !step.completed)
   const remaining = Math.max(0, steps.length - completed)
 
+  const nextStep = nextIndex >= 0 ? steps[nextIndex] : null
+
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-4">
-      {/* Feature card — the reference's tall portrait card position. */}
-      <Card className="flex min-h-[248px] flex-col justify-between">
-        <div>
-          <Badge variant="accent" size="sm">Design</Badge>
-          <p className="mt-6 text-xl leading-tight font-semibold tracking-tight text-foreground">
-            {siteName}
-          </p>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-            The visual builder designs and manages this site. Opening it hands
-            over the whole screen — canvas, content, media and data.
-          </p>
-        </div>
-        <div className="mt-6 flex flex-wrap items-center gap-2">
-          <ButtonLink href={builderPath} variant="accent" size="md">
-            Open visual builder
-          </ButtonLink>
-          {publicUrl ? (
-            <ButtonLink
-              href={publicUrl}
-              variant="outline"
-              size="md"
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              View site
-            </ButtonLink>
-          ) : null}
-        </div>
-      </Card>
+    <div>
+      {/*
+        ONBOARDING AS AN OPEN SURFACE, NOT A CARD — and there is now ONE of it.
 
-      {/* Bar-chart card with the highlighted bar and floating value pill. */}
-      <Card className="flex min-h-[248px] flex-col">
-        <div className="flex items-start justify-between gap-3">
-          <CardTitle>Setup</CardTitle>
-          <ArrowOut to={areas[0]?.path ?? builderPath} />
-        </div>
-        <div className="mt-3 flex items-end gap-2">
-          <p className="text-[1.9rem] leading-none font-semibold tracking-tight text-foreground">
-            {completed}
-          </p>
-          <p className="pb-0.5 text-[0.6875rem] leading-tight text-muted-foreground">
-            of {steps.length}
-            <br />
-            steps done
-          </p>
-        </div>
-        <div className="relative mt-auto flex h-[104px] items-end gap-3 pt-7">
-          {nextIndex >= 0 ? (
-            <span
-              className={cn(
-                'absolute top-0 rounded-full bg-primary px-2 py-1',
-                'text-[0.625rem] font-medium text-primary-foreground',
-              )}
-              style={{
-                left: `${((nextIndex + 0.5) / Math.max(1, steps.length)) * 100}%`,
-                transform: 'translateX(-50%)',
-              }}
-            >
-              {remaining} left
-            </span>
-          ) : null}
-          {steps.map((step, index) => (
-            <div key={step.id} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-              <span
-                className={cn(
-                  'w-[5px] rounded-full',
-                  step.completed
-                    ? 'bg-foreground'
-                    : index === nextIndex
-                      ? 'bg-primary'
-                      : 'bg-accent',
-                )}
-                style={{ height: `${step.completed ? 100 : index === nextIndex ? 72 : 34}%` }}
-                title={step.title}
-              />
-              <span className="text-[0.625rem] text-muted-foreground">{index + 1}</span>
-            </div>
-          ))}
-        </div>
-      </Card>
+        This dashboard previously rendered the same `steps` data FOUR times: a bar-chart card
+        ("Setup"), a dial card ("Readiness"), a segmented bar with a percentage, and the task list.
+        Three of those were cards. That is the card overuse and the redundancy in one: a reader had to
+        work out that four panels were four drawings of one number, and the answer to "how far along am
+        I" was in every one of them and settled by none.
 
-      {/* Dial card with transport controls, as the reference's time tracker. */}
-      <Card tone="warm" className="flex min-h-[248px] flex-col">
-        <div className="flex items-start justify-between gap-3">
-          <CardTitle>Readiness</CardTitle>
-          <ArrowOut to={builderPath} />
-        </div>
-        <div className="mt-1 grid flex-1 place-items-center">
-          <Dial percent={percent} />
-        </div>
-        <div className="mt-1 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ButtonLink href={builderPath} variant="outline" size="iconSm" aria-label="Open builder">
-              <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden="true">
-                <path d="M5.5 3.5l7 4.5-7 4.5v-9Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-              </svg>
-            </ButtonLink>
-            {publicUrl ? (
-              <ButtonLink
-                href={publicUrl}
-                variant="outline"
-                size="iconSm"
-                aria-label="View published site"
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden="true">
-                  <circle cx="8" cy="8" r="5.4" stroke="currentColor" strokeWidth="1.3" />
-                  <path d="M2.6 8h10.8M8 2.6c1.6 1.7 1.6 9.1 0 10.8" stroke="currentColor" strokeWidth="1.3" />
-                </svg>
-              </ButtonLink>
-            ) : null}
-          </div>
-          <span
-            className={cn(
-              'inline-flex size-9 items-center justify-center rounded-full',
-              'bg-foreground text-background',
-            )}
-            aria-hidden="true"
-          >
-            <svg viewBox="0 0 16 16" className="size-4" fill="none">
-              <circle cx="8" cy="8.4" r="5" stroke="currentColor" strokeWidth="1.3" />
-              <path d="M8 6.2v2.4l1.6 1M6 2.4h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-            </svg>
-          </span>
-        </div>
-      </Card>
-
-      {/* Tall card spanning both rows: the reference's onboarding panel, with a
-          segmented progress row above an ordered task list. */}
-      <Card className="flex flex-col lg:row-span-2">
-        <div className="flex items-start justify-between gap-3">
+        So the two decorative restatements are gone, and what remains is one progress surface with no
+        card chrome. Progress is the page's own state rather than an item on it, so boxing it made it
+        look like one panel among peers — the opposite of its importance.
+      */}
+      <section aria-labelledby="onboarding-heading">
+        <div className={cn('flex flex-wrap items-end justify-between', RELATED_GAP)}>
           <div className="min-w-0">
-            <CardTitle>Onboarding</CardTitle>
-            <CardCaption className="mt-1">
+            <h2
+              id="onboarding-heading"
+              className="text-[0.9375rem] leading-snug font-semibold tracking-tight text-foreground"
+            >
+              Getting {siteName} ready
+            </h2>
+            <p className={cn('text-xs text-muted-foreground', TIGHT)}>
               {remaining === 0
-                ? 'Everything is set up'
-                : `${remaining} ${remaining === 1 ? 'task' : 'tasks'} left`}
-            </CardCaption>
+                ? 'Everything is set up.'
+                : nextStep
+                  ? `Next: ${nextStep.title}`
+                  : `${remaining} remaining`}
+            </p>
           </div>
-          <span className="shrink-0 text-2xl leading-none font-semibold tracking-tight text-foreground">
-            {percent}%
-          </span>
+          {/* The figure sits with the steps it counts, so the number and its meaning read together. */}
+          <p className="flex items-baseline gap-1.5 tabular-nums">
+            <span className="text-[2rem] leading-none font-semibold tracking-tight text-foreground">
+              {completed}
+            </span>
+            <span className="text-xs text-muted-foreground">of {steps.length} done</span>
+          </p>
         </div>
 
-        {/* Segmented progress: one segment per step, filled as each completes. */}
-        <div className="mt-6 mb-1 flex items-center gap-1.5" aria-hidden="true">
-          {steps.map((step, index) => (
-            <span
-              key={step.id}
-              className={cn(
-                'h-2.5 flex-1 rounded-full transition-colors',
-                step.completed
-                  ? 'bg-primary'
-                  : index === nextIndex
-                    ? 'bg-primary/40'
-                    : 'bg-accent',
-              )}
-            />
-          ))}
-        </div>
-        <p className="mt-2.5 text-[0.6875rem] text-muted-foreground">
-          {completed} of {steps.length} complete
-        </p>
-
-        <ol className="mt-6 flex-1 space-y-2.5">
+        {/* One rail, one reading. Each segment is a step; the next one is distinguishable so the
+            answer to "what do I do now" is visible without reading the list. */}
+        <ol className={cn('flex items-stretch', RELATED_GAP, GROUP)}>
           {steps.map((step, index) => {
             const isNext = index === nextIndex
             return (
-              <li key={step.id}>
-                <div
+              <li key={step.id} className="min-w-0 flex-1">
+                <span
                   className={cn(
-                    'flex items-start gap-3 rounded-[var(--radius-md)] border p-3 transition-colors',
+                    'block h-1.5 rounded-full transition-colors',
+                    step.completed
+                      ? 'bg-primary'
+                      : isNext
+                        ? 'bg-primary/45'
+                        : 'bg-border',
+                  )}
+                />
+                <span
+                  className={cn(
+                    'mt-2 block truncate text-[0.6875rem] leading-snug',
                     isNext
-                      ? 'border-primary/45 bg-primary/[0.06]'
+                      ? 'font-medium text-foreground'
                       : step.completed
-                        ? 'border-border/60 bg-transparent'
-                        : 'border-border bg-muted/60',
+                        ? 'text-muted-foreground'
+                        : 'text-muted-foreground/70',
                   )}
+                  title={step.title}
                 >
-                  <span
-                    className={cn(
-                      'inline-flex size-7 shrink-0 items-center justify-center rounded-[0.5rem]',
-                      'text-[0.625rem] font-semibold tabular-nums',
-                      step.completed
-                        ? 'bg-primary text-primary-foreground'
-                        : isNext
-                          ? 'border border-primary/50 bg-card text-primary'
-                          : 'border border-border bg-card text-muted-foreground',
-                    )}
-                    aria-hidden="true"
-                  >
-                    {step.completed ? <TickGlyph /> : String(index + 1).padStart(2, '0')}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span
-                      className={cn(
-                        'block text-[0.8125rem] leading-snug font-medium',
-                        step.completed ? 'text-muted-foreground line-through' : 'text-foreground',
-                      )}
-                    >
-                      {step.title}
-                    </span>
-                    <span className="mt-0.5 block text-[0.6875rem] leading-relaxed text-muted-foreground">
-                      {step.description}
-                    </span>
-                  </span>
-                  {isNext ? (
-                    <Badge variant="accent" size="sm" className="shrink-0">Next</Badge>
-                  ) : step.completed ? (
-                    <span className="sr-only">Done</span>
-                  ) : (
-                    <span
-                      className="mt-1.5 size-2 shrink-0 rounded-full bg-border"
-                      aria-hidden="true"
-                    />
-                  )}
-                </div>
+                  {step.title}
+                </span>
               </li>
             )
           })}
         </ol>
 
-      </Card>
+        {nextStep ? (
+          <div className={cn('flex flex-wrap items-center', RELATED_GAP, GROUP)}>
+            <p className="min-w-0 flex-1 text-[0.8125rem] leading-relaxed text-muted-foreground">
+              {nextStep.description}
+            </p>
+            <ButtonLink href={builderPath} variant="accent" size="md">
+              Open visual builder
+            </ButtonLink>
+            {publicUrl ? (
+              <ButtonLink
+                href={publicUrl}
+                variant="outline"
+                size="md"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                View site
+              </ButtonLink>
+            ) : null}
+          </div>
+        ) : (
+          <div className={cn('flex flex-wrap items-center', RELATED_GAP, GROUP)}>
+            <ButtonLink href={builderPath} variant="accent" size="md">
+              Open visual builder
+            </ButtonLink>
+            {publicUrl ? (
+              <ButtonLink
+                href={publicUrl}
+                variant="outline"
+                size="md"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                View site
+              </ButtonLink>
+            ) : null}
+          </div>
+        )}
+      </section>
+
+      <div className={cn('grid items-start lg:grid-cols-3', GROUP_GAP, SECTION)}>
+
+
+
 
       {/* Accordion list, first column second row. The reference expands one row
           into a detail line with an icon tile and a trailing action. */}
@@ -480,9 +295,11 @@ export function WebsiteDashboardHome({
         </ul>
       </Card>
 
+      </div>
+
       {/* A plain section, not a card of cards: the tiles are the surfaces here. */}
-      <section className="lg:col-span-2">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 px-1">
+      <section className={SECTION}>
+        <div className={cn('flex flex-wrap items-baseline justify-between px-1', RELATED_GAP)}>
           <h2 className="text-[0.9375rem] leading-snug font-semibold tracking-tight text-foreground">
             Visual builder
           </h2>
@@ -490,7 +307,7 @@ export function WebsiteDashboardHome({
             Everything about the site itself lives here
           </p>
         </div>
-        <ul className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className={cn('grid sm:grid-cols-2 lg:grid-cols-3', RELATED_GAP, RELATED)}>
           {BUILDER_SECTIONS.map((section) => (
             <li key={section.path}>
               <a

@@ -1,19 +1,29 @@
 /**
- * Instatic figures inside the platform dashboard.
+ * Storage and bandwidth for the site, with the allowance the plan includes.
  *
- * Instatic already measures storage, media, pages and posts for the site it
- * builds. Rather than recount any of it, this card reads Instatic's own
- * dashboard readers and presents the result next to the platform's own state,
- * with a direct way into Instatic itself.
+ * TWO DEFECTS THIS FIXES.
  *
- * Every value is either read from Instatic or shown as unavailable. Nothing is
- * estimated.
+ * 1. IT WAS RENDERING WITH A PALETTE THAT NO LONGER EXISTS. Every colour here was `dash-ink`,
+ *    `dash-ink-muted` or `dash-rail`, and those tokens were removed when the hosted surfaces moved to
+ *    the shadcn semantic set. An unknown Tailwind class compiles to NOTHING — silently — so the text
+ *    had no colour and the usage bar had no fill. It looked like a rendering bug rather than a missing
+ *    token, which is why it survived.
+ *
+ * 2. THE ALLOWANCE WAS ONLY SHOWN WHEN A LIMIT HAPPENED TO BE KNOWN, and bandwidth was not shown at
+ *    all. A visitor on the free tier could not see what they were allowed, so there was no way to tell
+ *    whether they were near it until something refused.
+ *
+ * THE RULE THAT SHAPES THE REST: AN UNKNOWN LIMIT IS NOT UNLIMITED. Rendering a missing allowance as
+ * "unlimited", or as a bar at 0%, is a promise the product has not made — and the one somebody
+ * discovers is false at the moment their upload is refused. So an absent limit says exactly that, and
+ * no bar is drawn, because a proportion of an unknown total is not a quantity.
  */
 import { useEffect, useState } from 'react'
 import { apiRequest } from '@core/http'
 import { Type } from '@core/utils/typeboxHelpers'
 import { ButtonLink, Card, CardCaption, CardTitle } from '../../ui/primitives'
 import { cn } from '../../ui/cn'
+import { GROUP, GROUP_GAP, RELATED_GAP, TIGHT } from '../../ui/rhythm'
 
 const StorageSchema = Type.Object({
   usedBytes: Type.Number(),
@@ -38,7 +48,7 @@ const UNAVAILABLE: Figures = Object.freeze({
   pages: null,
 })
 
-function formatBytes(value: number | null): string {
+export function formatBytes(value: number | null): string {
   if (value === null) return '—'
   if (value < 1024) return `${value} B`
   const units = ['KB', 'MB', 'GB', 'TB']
@@ -66,11 +76,90 @@ async function readFigures(): Promise<Figures> {
   })
 }
 
-export interface InstaticStorageCardProps {
-  builderPath: string
+/**
+ * Bandwidth for the current billing period.
+ *
+ * Supplied by the caller rather than fetched here, because bandwidth is a PLATFORM meter
+ * (origin_bandwidth_bytes) and not something the builder measures — this component must not imply the
+ * builder is its source. The period is named because a byte count with no period attached is not a
+ * measurement anybody can act on.
+ */
+export interface BandwidthReading {
+  usedBytes: number | null
+  allowanceBytes: number | null
+  periodLabel: string
 }
 
-export function InstaticStorageCard({ builderPath }: InstaticStorageCardProps) {
+export interface InstaticStorageCardProps {
+  builderPath: string
+  bandwidth?: BandwidthReading
+  /** Where a visitor goes to raise an allowance. Omitted when there is nothing to upgrade to. */
+  plansPath?: string
+}
+
+/** A usage meter that refuses to imply a limit it does not know. */
+function Meter({
+  label,
+  used,
+  allowance,
+  caption,
+}: {
+  label: string
+  used: number | null
+  allowance: number | null
+  caption?: string
+}) {
+  // Only a KNOWN allowance produces a proportion. A bar against an unknown total would read as
+  // "plenty left", which is the reading that gets somebody into trouble.
+  const percent = used !== null && allowance !== null && allowance > 0
+    ? Math.min(100, Math.round((used / allowance) * 100))
+    : null
+  // Warn before refusal rather than at it: at 100% the upload has already failed.
+  const nearLimit = percent !== null && percent >= 80
+
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className={cn('text-xl font-semibold tracking-tight text-foreground', TIGHT)}>
+        {formatBytes(used)}
+        <span className="ml-1 text-xs font-normal text-muted-foreground">
+          {allowance === null ? 'used' : `of ${formatBytes(allowance)}`}
+        </span>
+      </dd>
+      {percent === null ? (
+        <p className="mt-2 text-[0.6875rem] leading-snug text-muted-foreground">
+          {/* Said plainly rather than left blank: a blank space where an allowance belongs reads as
+              unlimited, and that is the assumption that turns into a surprise. */}
+          {allowance === null ? 'Included allowance not published yet' : caption ?? ''}
+        </p>
+      ) : (
+        <>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn('h-full rounded-full', nearLimit ? 'bg-destructive' : 'bg-primary')}
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+          <p
+            className={cn(
+              'mt-1.5 text-[0.6875rem] leading-snug',
+              nearLimit ? 'font-medium text-destructive' : 'text-muted-foreground',
+            )}
+          >
+            {nearLimit ? `${percent}% used — close to the limit` : `${percent}% used`}
+            {caption ? ` · ${caption}` : ''}
+          </p>
+        </>
+      )}
+    </div>
+  )
+}
+
+export function InstaticStorageCard({
+  builderPath,
+  bandwidth,
+  plansPath,
+}: InstaticStorageCardProps) {
   const [figures, setFigures] = useState<Figures | null>(null)
 
   useEffect(() => {
@@ -82,55 +171,58 @@ export function InstaticStorageCard({ builderPath }: InstaticStorageCardProps) {
   }, [])
 
   const resolved = figures ?? UNAVAILABLE
-  const percent = resolved.usedBytes !== null && resolved.limitBytes
-    ? Math.min(100, Math.round((resolved.usedBytes / resolved.limitBytes) * 100))
-    : null
 
   return (
     <Card>
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <CardTitle>Storage and library</CardTitle>
+      <div className={cn('flex flex-wrap items-baseline justify-between', RELATED_GAP)}>
+        <CardTitle>Storage and bandwidth</CardTitle>
         <CardCaption>
-          {figures === null ? 'Reading from the builder' : 'Measured by the builder'}
+          {figures === null ? 'Reading current usage' : 'Measured, not estimated'}
         </CardCaption>
       </div>
 
-      <dl className="mt-4 grid gap-4 sm:grid-cols-3">
+      <dl className={cn('grid sm:grid-cols-2 lg:grid-cols-4', GROUP_GAP, GROUP)}>
+        <Meter label="Storage used" used={resolved.usedBytes} allowance={resolved.limitBytes} />
+        {bandwidth ? (
+          <Meter
+            label="Bandwidth"
+            used={bandwidth.usedBytes}
+            allowance={bandwidth.allowanceBytes}
+            caption={bandwidth.periodLabel}
+          />
+        ) : (
+          <div>
+            <dt className="text-xs text-muted-foreground">Bandwidth</dt>
+            <dd className={cn('text-xl font-semibold tracking-tight text-foreground', TIGHT)}>—</dd>
+            <p className="mt-2 text-[0.6875rem] leading-snug text-muted-foreground">
+              Not measured for this site yet
+            </p>
+          </div>
+        )}
         <div>
-          <dt className="text-xs text-dash-ink-muted">Storage used</dt>
-          <dd className="mt-1 text-xl font-semibold tracking-tight text-dash-ink">
-            {formatBytes(resolved.usedBytes)}
-            {resolved.limitBytes ? (
-              <span className="ml-1 text-xs font-normal text-dash-ink-muted">
-                of {formatBytes(resolved.limitBytes)}
-              </span>
-            ) : null}
-          </dd>
-          {percent !== null ? (
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-dash-rail">
-              <div className="h-full rounded-full bg-dash-ink" style={{ width: `${percent}%` }} />
-            </div>
-          ) : null}
-        </div>
-        <div>
-          <dt className="text-xs text-dash-ink-muted">Media files</dt>
-          <dd className="mt-1 text-xl font-semibold tracking-tight text-dash-ink">
+          <dt className="text-xs text-muted-foreground">Media files</dt>
+          <dd className={cn('text-xl font-semibold tracking-tight text-foreground', TIGHT)}>
             {resolved.media ?? '—'}
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-dash-ink-muted">Pages</dt>
-          <dd className="mt-1 text-xl font-semibold tracking-tight text-dash-ink">
+          <dt className="text-xs text-muted-foreground">Pages</dt>
+          <dd className={cn('text-xl font-semibold tracking-tight text-foreground', TIGHT)}>
             {resolved.pages ?? '—'}
           </dd>
         </div>
       </dl>
 
-      <div className={cn('mt-5 flex items-center gap-2')}>
+      <div className={cn('flex flex-wrap items-center', RELATED_GAP, GROUP)}>
         <ButtonLink href={builderPath} variant="outline" size="sm">
           Open visual builder
         </ButtonLink>
-        <CardCaption>Media, pages and data are managed there</CardCaption>
+        {plansPath ? (
+          <ButtonLink href={plansPath} variant="quiet" size="sm">
+            See plans
+          </ButtonLink>
+        ) : null}
+        <CardCaption>Media, pages and data are managed in the builder</CardCaption>
       </div>
     </Card>
   )

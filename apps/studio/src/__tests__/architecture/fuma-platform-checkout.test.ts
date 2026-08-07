@@ -82,7 +82,10 @@ describe('FUMA-055 platform checkout architecture', () => {
     expect(routeContent).toContain("shell.profileRelativeSubpath !== '/admin/settings/billing'")
     expect(routeContent).toContain("id === 'site.settings'")
     expect(routeContent).not.toMatch(/profileId\s*===|profile\.id\s*===/)
-    expect(surface).toContain("import { Button } from '@ui/components/Button'")
+    // The shared kit's Button was replaced by the shadcn one under task 80's shadcn-only standard.
+    // The property this defends - the surface reuses a shared button rather than styling its own -
+    // is unchanged; only which shared button moved.
+    expect(surface).toContain("import { Button } from '@admin/fuma/ui/button'")
     expect(surface).toContain("rel=\"noopener noreferrer\"")
     expect(surface).toContain('Setup/import fee')
     expect(surface).toContain('Recurring consideration')
@@ -113,7 +116,11 @@ describe('FUMA-055 platform checkout architecture', () => {
         expect(source(directory, file).split('\n').length - 1, file).toBeLessThanOrEqual(700)
       }
     }
-    expect(readdirSync(UI_DIRECTORY)).toContain('PlatformCheckoutSurface.module.css')
+    // Task 80's acceptance standard makes hosted pages shadcn + Tailwind only, and the CSS-module
+    // ratchet enforces that the count shrinks and never grows. Asserting the stylesheet still
+    // exists would defend a policy the product has replaced.
+    expect(readdirSync(UI_DIRECTORY)).toContain('PlatformCheckoutSurface.tsx')
+    expect(readdirSync(UI_DIRECTORY)).not.toContain('PlatformCheckoutSurface.module.css')
     expect(all(UI_DIRECTORY)).not.toMatch(/from ['"]@fuma\/(?:public-contracts|web)/)
   })
 })

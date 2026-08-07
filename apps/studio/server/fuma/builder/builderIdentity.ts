@@ -166,6 +166,15 @@ export type BuilderSessionAuthority = Readonly<{
    * routing state rather than assumed to be the current origin.
    */
   resolvePublicOrigin?: (request: Request) => Promise<string | null>
+  /**
+   * The plan's page allowance for the site this request is opening.
+   *
+   * OPTIONAL, following resolvePublicOrigin's own shape: a self-hosted install has no plan, and
+   * omitting the field is read by the builder as an unknown limit - which ALLOWS pages. Over-allowing
+   * is a billing discrepancy that can be reconciled; blocking is not recoverable, because the work
+   * does not happen.
+   */
+  resolvePageAllowance?: (request: Request) => Promise<Readonly<{ limit: number | null; planName: string | null }> | null>
   handlesProductRequest(request: Request): boolean
   store: PostgresBuilderIdentityStore
 }>
@@ -221,8 +230,17 @@ export function createBuilderSessionBoundary(
     const publicOrigin = input.resolvePublicOrigin
       ? await input.resolvePublicOrigin(request)
       : null
+    const pageAllowance = input.resolvePageAllowance
+      ? await input.resolvePageAllowance(request)
+      : null
     return new Response(
-      JSON.stringify({ user: toPublicUser(bound), publicOrigin }),
+      JSON.stringify({
+        user: toPublicUser(bound),
+        publicOrigin,
+        // Omitted rather than sent as null when there is no plan, so the envelope a self-hosted
+        // install returns is byte-for-byte what it was.
+        ...(pageAllowance === null ? {} : { pageAllowance }),
+      }),
       { status: 200, headers },
     )
   }

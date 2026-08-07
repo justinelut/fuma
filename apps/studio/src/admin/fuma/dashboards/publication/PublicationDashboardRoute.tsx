@@ -140,7 +140,7 @@ export function PublicationDashboardRoute({
       {shell.profileRelativeSubpath !== PUBLICATION_DASHBOARD_SUBPATH ? children : (
       <PublicationDashboardHome
         kpis={kpis(figures)}
-        memberSeries={[]}
+        readSeries={figures.dailyReadSeries}
         reads={{
           total: figures.siteReads,
           postShareSeries: figures.postReads === null

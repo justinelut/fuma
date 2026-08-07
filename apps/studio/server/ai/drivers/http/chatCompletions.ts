@@ -349,6 +349,17 @@ export function makeChatCompletionsAdapter(opts: {
         stream: true,
         stream_options: { include_usage: true },
       }
+      // max_tokens is sent ONLY when something established a budget - normally nothing has,
+      // and the provider's own default applies exactly as before.
+      //
+      // Deliberately NOT defaulted to a number of our choosing: a value above a model's own
+      // output ceiling is a hard 400 on OpenAI-compatible providers, so a blanket default
+      // would break every model whose ceiling is lower than whatever we picked. The cost of
+      // omitting it is that the provider reserves the model's maximum against the balance,
+      // which is what makes an affordability refusal possible - and that refusal now carries
+      // the provider's affordable figure and is retried with it, which fixes the case without
+      // introducing a failure mode for models we cannot enumerate.
+      if (req.maxOutputTokens !== undefined) body.max_tokens = req.maxOutputTokens
       if (req.tools.length > 0) {
         body.tools = req.tools.map((t) => ({
           type: 'function',

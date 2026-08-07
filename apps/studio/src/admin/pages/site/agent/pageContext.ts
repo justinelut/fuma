@@ -16,6 +16,15 @@ import { documentRefForPage, type AgentDocumentRef } from '@core/ai'
 
 export function buildCurrentPageContext(get: () => EditorStore): SiteAgentSnapshot | undefined {
   const state = get()
+  // A React IR module is open, so there is NO PageNode document to describe. Returning the previously
+  // open page instead would tell the model it is looking at a page the author is not, and the HTML
+  // tools already refuse in that state - so the description and the tools would disagree.
+  //
+  // `undefined` is the existing escape hatch: the chat handler falls back to its empty snapshot, which
+  // is the honest answer. The model still has the TSX authoring tools, which address a module by PATH
+  // rather than through this snapshot.
+  if (state.activeDocument?.kind === 'reactModule') return undefined
+
   const activePage =
     state.site?.pages.find((p) => p.id === state.activePageId) ?? state.site?.pages[0]
   if (!activePage || !state.site) return undefined

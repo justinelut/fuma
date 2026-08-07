@@ -24,6 +24,7 @@
 
 import { Type, withFallback, type Static } from '@core/utils/typeboxHelpers'
 import { ExpressionSchema } from './expression'
+import { MotionAnimationSchema, MotionTransitionSchema, type MotionAnimation } from './motion'
 
 /** Bumped when a stored node shape changes incompatibly. */
 export const REACT_IR_VERSION = 1
@@ -93,6 +94,50 @@ const NodeCommonSchema = Type.Object({
  * An intrinsic element: `div`, `section`, `a`. Becomes a JSX element with the
  * same tag.
  */
+/**
+ * AnimatePresence configuration.
+ *
+ * `mode` matters more than it looks: the default lets entering and exiting elements
+ * overlap, `wait` holds the new one until the old has gone, and `popLayout` takes the
+ * exiting element out of layout flow so siblings do not jump around it.
+ */
+export const PresenceSchema = Type.Object({
+  mode: Type.Optional(Type.Union([
+    Type.Literal('sync'),
+    Type.Literal('wait'),
+    Type.Literal('popLayout'),
+  ])),
+  /** Skip the enter animation on first mount, for content already on screen. */
+  initial: Type.Optional(Type.Boolean()),
+}, { additionalProperties: false })
+export type Presence = Static<typeof PresenceSchema>
+
+/**
+ * Module-level Motion configuration, emitted as `MotionConfig` around the root.
+ *
+ * `reducedMotion: 'user'` is the default and the reason this exists: it makes Motion
+ * respect the operating-system preference for every descendant at once, rather than
+ * depending on each animation being written carefully.
+ */
+export const MotionConfigSchema = Type.Object({
+  reducedMotion: Type.Optional(Type.Union([
+    /** Respect the OS preference. The default. */
+    Type.Literal('user'),
+    /** Always reduce, for a deliberately calm site. */
+    Type.Literal('always'),
+    /**
+     * Never reduce. Accepted because Motion accepts it, but it overrides an
+     * accessibility preference and should be a considered choice.
+     */
+    Type.Literal('never'),
+  ], { default: 'user' })),
+  /** Default transition inherited by every descendant. */
+  transition: Type.Optional(MotionTransitionSchema),
+  /** Nonce for a strict Content-Security-Policy. */
+  nonce: Type.Optional(Type.String({ maxLength: 128 })),
+}, { additionalProperties: false })
+export type MotionConfig = Static<typeof MotionConfigSchema>
+
 const ElementNodeSchema = Type.Composite([
   NodeCommonSchema,
   Type.Object({
@@ -106,6 +151,24 @@ const ElementNodeSchema = Type.Composite([
      * become the styling system again.
      */
     style: Type.Optional(Type.Record(Type.String(), Type.String())),
+    /**
+     * Motion animation. Present means the tag becomes a `motion.` element and the
+     * module it lives in needs a client boundary.
+     */
+    animation: Type.Optional(MotionAnimationSchema),
+    /**
+     * Wrap this element's children in `AnimatePresence`.
+     *
+     * Declared on the parent rather than the exiting child because React unmounts
+     * the child immediately otherwise — AnimatePresence has to be the thing that
+     * outlives it in order to keep it mounted through its exit.
+     */
+    presence: Type.Optional(PresenceSchema),
+    /**
+     * Turn this element into a `Reorder.Item`, draggable within a reorder group.
+     * The value identifies the item to Motion and must be stable across renders.
+     */
+    reorderValue: Type.Optional(ExpressionSchema),
   }, { additionalProperties: false }),
 ])
 
@@ -133,6 +196,8 @@ const ComponentCallNodeSchema = Type.Composite([
     props: Type.Optional(Type.Record(Type.String(), AttributeValueSchema)),
     slots: Type.Optional(Type.Record(Type.String(), Type.Array(NodeIdSchema))),
     classTokens: ClassTokensSchema,
+    /** Motion animation, wrapping the component through `motion.create`. */
+    animation: Type.Optional(MotionAnimationSchema),
   }, { additionalProperties: false }),
 ])
 
@@ -187,6 +252,18 @@ const RepeatNodeSchema = Type.Composite([
     key: Type.String({ minLength: 1, maxLength: 128 }),
     /** Root ids of each body template, cycled across rows. */
     variants: Type.Array(NodeIdSchema, { minItems: 1, maxItems: 8 }),
+    /**
+     * Render as a `Reorder.Group` so rows can be dragged into a new order.
+     *
+     * Declared here rather than on the item because Motion needs the group to own
+     * the ordered values and the change handler — a `Reorder.Item` with no group
+     * above it does nothing.
+     */
+    reorder: Type.Optional(Type.Object({
+      axis: Type.Union([Type.Literal('x'), Type.Literal('y')]),
+      /** Element the group renders as. */
+      as: Type.Optional(Type.String({ minLength: 1, maxLength: 64 })),
+    }, { additionalProperties: false })),
   }, { additionalProperties: false }),
 ])
 
@@ -236,6 +313,14 @@ const OpaqueCodeNodeSchema = Type.Composite([
     sourceHash: Type.String({ pattern: '^[a-f0-9]{64}$' }),
     /** Why it is opaque, shown to the author rather than left mysterious. */
     reason: Type.Optional(Type.String({ maxLength: 512 })),
+    /**
+     * The preserved source declares `'use client'`.
+     *
+     * Recorded because the directive is invisible once the region is opaque, and a
+     * boundary that is not visible cannot be accounted for — the module importing
+     * this region becomes client code whether or not anyone noticed.
+     */
+    clientOnly: Type.Optional(Type.Boolean()),
   }, { additionalProperties: false }),
 ])
 
@@ -295,6 +380,40 @@ export const ReactIrModuleSchema = Type.Object({
     Type.Literal('component'),
   ]),
   boundary: withFallback(ClientBoundarySchema, 'server'),
+  /**
+   * Motion configuration for everything in this module.
+   *
+   * Held at module level because `MotionConfig` wraps a subtree, and the setting
+   * that matters most — respecting the reduced-motion preference — should apply to
+   * every animation at once rather than each remembering.
+   */
+  motionConfig: Type.Optional(MotionConfigSchema),
+  /**
+   * Verbatim top-level statements the IR does not model, preserved across a save.
+   *
+   * A Next page routinely carries `export const metadata`, `export const revalidate`, a
+   * type alias or a helper. None of that is part of the tree, and regenerating from the
+   * tree alone DELETED it — so a designer nudging a heading on the canvas silently stripped
+   * the page's title and changed its caching. Kept as source text rather than modelled,
+   * because the engine has no business understanding arbitrary module code; it only has to
+   * not destroy it.
+   *
+   * Import declarations are excluded: the generator computes those from the tree, and
+   * keeping them here too would emit each one twice.
+   *
+   * Optional rather than defaulted, because `withFallback` attaches a default without making
+   * the field optional to `Value.Check` — and an absent preamble is a meaningful state
+   * (a module with no preserved code) rather than a value every construction site must
+   * remember to pass.
+   */
+  preamble: Type.Optional(Type.Array(Type.String({ maxLength: 20_000 }), { maxItems: 200 })),
+  /**
+   * The developer's own import declarations, kept so a preserved statement's types resolve.
+   *
+   * The generator emits only the specifiers it would not produce from the tree, so nothing
+   * appears twice.
+   */
+  preservedImports: Type.Optional(Type.Array(Type.String({ maxLength: 2000 }), { maxItems: 200 })),
   /** Props this module declares, for components. */
   propsInterface: withFallback(Type.Array(Type.Object({
     name: Type.String({ minLength: 1, maxLength: 128 }),
@@ -306,6 +425,18 @@ export const ReactIrModuleSchema = Type.Object({
       Type.Literal('url'),
       Type.Literal('media'),
       Type.Literal('enum'),
+      /**
+       * A callback the module receives. Needed because some primitives are
+       * controlled — a reorder group cannot persist a new order itself, and
+       * generating a handler would be inventing application behaviour.
+       */
+      Type.Literal('handler'),
+      /**
+       * An array of rows. A repeat node maps over its source, so that source has
+       * to be typed as a collection — declaring it as a node would generate a
+       * .map() call on a ReactNode and the generated file would not compile.
+       */
+      Type.Literal('collection'),
     ]),
     required: withFallback(Type.Boolean(), false),
     /** Permitted values, for enum props. */
@@ -328,6 +459,11 @@ export function isLocked(node: ReactIrNode): boolean {
 
 export function isHidden(node: ReactIrNode): boolean {
   return node.hidden === true
+}
+
+/** The animation on a node that can carry one, or undefined. */
+export function animationOf(node: ReactIrNode): MotionAnimation | undefined {
+  return hasClassTokens(node) ? node.animation : undefined
 }
 
 /** Class tokens for a node that can carry them, defaulting to none. */

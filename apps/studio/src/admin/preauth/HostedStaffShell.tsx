@@ -8,6 +8,7 @@ import { CreditsLedgerRouteContent, creditsAdminRegistry } from '../fuma/credits
 import { PlatformCheckoutRouteContent } from '../fuma/billing'
 import { QuotaSelfServiceRouteContent } from '../fuma/usage'
 import { McpScopedRouteContent } from '../fuma/mcp'
+import { WebsiteAnalyticsRouteContent } from '../fuma/analytics/WebsiteAnalyticsRouteContent'
 import { ComponentCatalogRouteContent } from '../fuma/components'
 import { SupportOperationsRouteContent, type SupportClientTarget } from '../fuma/supportOperations'
 import { ExpertDiscoveryRouteContent } from '../fuma/expertDiscovery'
@@ -35,12 +36,10 @@ import {
 import { logoutHostedStaff, type HostedStaffSession } from '@core/fuma/auth'
 import { getErrorMessage } from '@core/utils/errorMessage'
 import { Value } from '@core/utils/typeboxHelpers'
-import { Button } from '@ui/components/Button'
-import panelStyles from '../AdminEntry.module.css'
+import { Button } from '@admin/fuma/ui/button'
 import { HostedStaffSecurity } from './HostedStaffSecurity'
 import { HostedThemeProvider } from '../fuma/ui/theme'
 import { PlatformDashboard } from '../fuma/dashboards/PlatformDashboard'
-import styles from './HostedStaffShell.module.css'
 
 const EMPTY_ACCESSIBLE_CONTEXT_CATALOG: AccessibleContextCatalog = {
   organizations: [],
@@ -207,16 +206,16 @@ export function HostedStaffShell({
 
   if (catalogValidation.kind !== 'valid') {
     return (
-      <div className={`${panelStyles.page} ${styles.page}`}>
+      <div className="grid h-full min-h-0 w-full max-w-full justify-items-center overflow-y-auto overflow-x-hidden overscroll-y-contain content-center p-4 sm:p-8">
         <section
-          className={`${panelStyles.panel} ${styles.shell}`}
+          className="w-[min(100%,920px)] min-w-0 max-w-full rounded-2xl bg-card p-10"
           aria-labelledby="hosted-context-error-title"
           role="alert"
         >
-          <h2 id="hosted-context-error-title" className={panelStyles.title}>
+          <h2 id="hosted-context-error-title" className="mb-8 text-3xl font-semibold text-foreground">
             Scoped context unavailable
           </h2>
-          <p className={styles.copy}>
+          <p className="mb-3 text-sm text-muted-foreground leading-relaxed">
             The supplied accessible context catalog did not match its validated contract.
           </p>
         </section>
@@ -229,20 +228,20 @@ export function HostedStaffShell({
   // one action that must happen first.
   if (needsOnboarding && !accountRoute) {
     return (
-      <div className={`${panelStyles.page} ${styles.page}`}>
+      <div className="grid h-full min-h-0 w-full max-w-full justify-items-center overflow-y-auto overflow-x-hidden overscroll-y-contain content-center p-4 sm:p-8">
         <HostedSiteOnboarding catalog={catalogValidation.catalog} />
       </div>
     )
   }
 
   const identityBar = (
-    <div className={styles.identityBar}>
-      <div className={styles.identityText}>
-        <p className={styles.eyebrow}>Fuma staff</p>
-        <p className={styles.identity}>{currentSession.user.email}</p>
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
+      <div className="grid min-w-0 gap-1 [&_p]:m-0">
+        <p className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">Fuma staff</p>
+        <p className="-mt-6 break-words text-sm text-muted-foreground">{currentSession.user.email}</p>
       </div>
-      <div className={styles.identityActions}>
-        {!accountRoute && <a className={styles.accountLink} href={ACCOUNT_PATH}>Account</a>}
+      <div className="flex items-center gap-3">
+        {!accountRoute && <a className="inline-flex min-h-8 items-center font-medium no-underline text-sm text-muted-foreground" href={ACCOUNT_PATH}>Account</a>}
         <Button
           variant="secondary"
           size="sm"
@@ -258,20 +257,20 @@ export function HostedStaffShell({
 
   if (accountRoute) {
     return (
-      <div className={`${panelStyles.page} ${styles.page}`}>
-        <section className={`${panelStyles.panel} ${styles.shell}`} aria-labelledby="hosted-shell-title">
+      <div className="grid h-full min-h-0 w-full max-w-full justify-items-center overflow-y-auto overflow-x-hidden overscroll-y-contain content-center p-4 sm:p-8">
+        <section className="w-[min(100%,920px)] min-w-0 max-w-full rounded-2xl bg-card p-10" aria-labelledby="hosted-shell-title">
           {identityBar}
-          <h1 id="hosted-shell-title" className={panelStyles.title}>Welcome, {currentSession.user.name}</h1>
-          <p className={styles.copy}>
+          <h1 id="hosted-shell-title" className="mb-8 text-3xl font-semibold text-foreground">Welcome, {currentSession.user.name}</h1>
+          <p className="mb-3 text-sm text-muted-foreground leading-relaxed">
             Manage the security of your hosted staff identity and active devices.
           </p>
           {currentSession.session.impersonatedBy ? (
-            <div className={styles.supportBanner} role="alert">
+            <div className="grid gap-1 rounded-md border-2 border-amber-600 bg-amber-50 p-3 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100" role="alert">
               <strong>Support session active</strong>
               <span>Actions are performed as this account by {currentSession.session.impersonatedBy} and are audited.</span>
             </div>
           ) : null}
-          {error && <p className={panelStyles.error} role="alert">{error}</p>}
+          {error && <p className="m-0 text-sm leading-snug text-destructive" role="alert">{error}</p>}
           <HostedStaffSecurity session={currentSession} onSessionChange={setCurrentSession} />
         </section>
       </div>
@@ -280,7 +279,7 @@ export function HostedStaffShell({
 
   if (supportTarget) {
     return (
-      <div className={`${panelStyles.page} ${styles.page}`}>
+      <div className="grid h-full min-h-0 w-full max-w-full justify-items-center overflow-y-auto overflow-x-hidden overscroll-y-contain content-center p-4 sm:p-8">
         <SupportOperationsRouteContent
           target={supportTarget}
           pathname={pathname}
@@ -291,21 +290,21 @@ export function HostedStaffShell({
   }
   if (expertTarget) {
     return (
-      <div className={`${panelStyles.page} ${styles.page}`}>
+      <div className="grid h-full min-h-0 w-full max-w-full justify-items-center overflow-y-auto overflow-x-hidden overscroll-y-contain content-center p-4 sm:p-8">
         <ExpertDiscoveryRouteContent target={expertTarget} />
       </div>
     )
   }
   if (paidHandoffTarget) {
     return (
-      <div className={`${panelStyles.page} ${styles.page}`}>
+      <div className="grid h-full min-h-0 w-full max-w-full justify-items-center overflow-y-auto overflow-x-hidden overscroll-y-contain content-center p-4 sm:p-8">
         <PaidHandoffRouteContent target={paidHandoffTarget} />
       </div>
     )
   }
   if (capabilityTarget) {
     return (
-      <div className={`${panelStyles.page} ${styles.page}`}>
+      <div className="grid h-full min-h-0 w-full max-w-full justify-items-center overflow-y-auto overflow-x-hidden overscroll-y-contain content-center p-4 sm:p-8">
         <PlatformCapabilityInventoryRouteContent
           target={capabilityTarget}
           impersonatedBy={currentSession.session.impersonatedBy ?? null}
@@ -334,7 +333,7 @@ export function HostedStaffShell({
 
   const scopedShell = (
     <>
-      {error && <p className={panelStyles.error} role="alert">{error}</p>}
+      {error && <p className="m-0 text-sm leading-snug text-destructive" role="alert">{error}</p>}
       <FumaScopedShell
         registry={creditsAdminRegistry}
         catalog={catalogValidation.catalog}
@@ -349,6 +348,7 @@ export function HostedStaffShell({
             <PublicationRouteContent shell={shell} permissionDecisions={permissionDecisions} />
             <CreditsLedgerRouteContent shell={shell} />
             <DomainsRouteContent shell={shell} permissionDecisions={permissionDecisions} />
+            <WebsiteAnalyticsRouteContent shell={shell} permissionDecisions={permissionDecisions} />
             <OrganizationManagementRouteContent shell={shell} />
             <ComponentCatalogRouteContent shell={shell} permissionDecisions={permissionDecisions} />
             <McpScopedRouteContent shell={shell} permissionDecisions={permissionDecisions} />
@@ -408,5 +408,5 @@ export function HostedStaffShell({
   // would box it inside the generic layout.
   return dashboardLayout === 'bare'
     ? <HostedThemeProvider>{scopedShell}</HostedThemeProvider>
-    : <div className={`${panelStyles.page} ${styles.page}`}>{scopedShell}</div>
+    : <div className="grid h-full min-h-0 w-full max-w-full justify-items-center overflow-y-auto overflow-x-hidden overscroll-y-contain content-center p-4 sm:p-8">{scopedShell}</div>
 }

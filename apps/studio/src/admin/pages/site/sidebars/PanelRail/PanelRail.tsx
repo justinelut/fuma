@@ -93,6 +93,7 @@ export function PanelRail({
   const selectorsOpen = useEditorStore((s) => s.selectorsPanelOpen)
   const frameworkOpen = useEditorStore((s) => s.frameworkPanelOpen)
   const dependenciesOpen = useEditorStore((s) => s.dependenciesPanelOpen)
+  const modulesOpen = useEditorStore((s) => s.modulesPanelOpen)
   const agentOpen = useEditorStore((s) => s.isAgentOpen)
   const activePluginPanelId = useEditorStore((s) => s.activePluginPanelId)
 
@@ -117,6 +118,7 @@ export function PanelRail({
     selectors: selectorsOpen,
     framework: frameworkOpen,
     dependencies: dependenciesOpen,
+    modules: modulesOpen,
   } satisfies Record<LeftSidebarPanelId, boolean>
 
   // Read-only callers (Viewer / Client) see only the Explorer panel (the

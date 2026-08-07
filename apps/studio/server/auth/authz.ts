@@ -62,6 +62,18 @@ export function setHostedBuilderIdentityResolver(
   hostedBuilderIdentityResolver = resolver
 }
 
+/**
+ * Whether hosted identities are bridged into the CMS on this installation.
+ *
+ * Read by the step-up handler to know that NO CMS staff password is usable: every hosted
+ * identity's CMS user is created with `unusablePasswordHash()`, so verifying a submitted
+ * password against it can only ever fail. Following the same module-level precedent as the
+ * resolver itself - null means self-host, and self-host behaviour is unchanged.
+ */
+export function hostedIdentityBridgeActive(): boolean {
+  return hostedBuilderIdentityResolver !== null
+}
+
 export async function requireAuthenticatedUser(
   req: Request,
   db: DbClient,

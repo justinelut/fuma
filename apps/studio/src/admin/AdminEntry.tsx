@@ -18,6 +18,7 @@ import {
   resolveBuilderScope,
 } from './fuma/builder/builderScope'
 import { AccessibleContextCatalogSchema, type AccessibleContextCatalog } from '@core/fuma'
+import { BUILDER_OWNED_SECTIONS } from '@core/fuma/builder/sectionOwnership'
 import { Value } from '@core/utils/typeboxHelpers'
 
 // AuthenticatedAdmin lives in its own chunk so the cold /admin login screen
@@ -88,25 +89,20 @@ function scopedBuilderTarget(pathname: string): BuilderSessionScope | null {
 /**
  * Sections Instatic owns outright.
  *
- * The hosted product deliberately has no media manager, no page editor, no
- * data workspace and no insights grid of its own — Instatic already ships all
- * of them, so reaching any of these paths hands the viewport to Instatic for
- * the site currently being worked on.
+ * The hosted product deliberately has no media manager, no page editor and no
+ * data workspace of its own — Instatic already ships all of them, so reaching
+ * any of these paths hands the viewport to Instatic for the site currently
+ * being worked on.
  *
- * `account` and `users` are excluded: staff identity, roles, devices and
- * step-up policy are platform concerns owned by Better Auth, so they stay on
- * the platform rather than being served by the builder's native auth surfaces.
+ * DERIVED from sectionOwnership.ts rather than restated here. This set and the
+ * builder navigation's own list previously disagreed: the navigation excluded
+ * only `users` while this set still handed `dashboard` and `ai` to the builder,
+ * so the platform's dashboard and the builder's dashboard were both reachable.
+ * Two lists deciding one question is how that gap opened.
  */
-const INSTATIC_OWNED_SECTIONS: ReadonlySet<AdminSection> = new Set<AdminSection>([
-  'dashboard',
-  'site',
-  'content',
-  'data',
-  'media',
-  'plugins',
-  'ai',
-  'pluginPage',
-])
+const INSTATIC_OWNED_SECTIONS: ReadonlySet<AdminSection> = new Set<AdminSection>(
+  BUILDER_OWNED_SECTIONS,
+)
 
 function validatedCatalog(value: unknown): AccessibleContextCatalog | null {
   return Value.Check(AccessibleContextCatalogSchema, value) ? value : null

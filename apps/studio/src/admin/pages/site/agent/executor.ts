@@ -16,11 +16,15 @@
  * Constraint #299 — richtext props are sanitized via DOMPurify before storage.
  */
 
+import { reviewPageCreation } from '@core/fuma/builder/pageAllowance'
 import { Type, parseValue } from '@core/utils/typeboxHelpers'
 import {
   aiToolError,
   aiToolOk,
   type AiToolOutput,
+  AuthorModuleToolInputSchema,
+  EditModuleToolInputSchema,
+  ReadModuleToolInputSchema,
   InsertHtmlInputSchema,
   GetNodeHtmlInputSchema,
   ReadDocumentInputSchema,
@@ -73,6 +77,13 @@ import { importHtml } from '@core/htmlImport'
 import type { BaseNode, PageTemplateConfig } from '@core/page-tree'
 import { renderNode, type RenderConfig, type RenderAccumulators } from '@core/publisher'
 import { getAgentStoreApi } from './storeRef'
+import {
+  executeAuthorModule,
+  executeEditModule,
+  executeListModules,
+  executeReadModule,
+  getAgentModuleWorkspace,
+} from './tsxAuthoringTools'
 import {
   runSetColorTokens,
   runSetFontTokens,
@@ -472,6 +483,10 @@ function runRemoveClass(input: RemoveClassInput): AiToolOutput {
 }
 
 function runAddPage(input: AddPageInput): AiToolOutput {
+  // The plan limit is consulted BEFORE creating, and here as well as in the explorer, because a
+  // limit the AI can walk past is not a limit - and the AI is the path that adds pages fastest.
+  const verdict = reviewPageCreation(getStoreState().site?.pages ?? [])
+  if (!verdict.allowed) return aiToolError(verdict.message ?? 'The plan page limit has been reached.')
   const page = getStoreState().addPage(input.title, input.slug)
   // rootNodeId is the parent to pass to insertHtml — a pageId is NOT a node id.
   // addPage also makes the new page active, so the insert targets it.
@@ -510,6 +525,10 @@ function runDuplicatePage(input: DuplicatePageInput): AiToolOutput {
   if (!site.pages.some((p) => p.id === input.pageId)) {
     return aiToolError(`Page not found: ${input.pageId}`)
   }
+  // Duplicating is adding. Exempting it would make the limit avoidable by copying rather than
+  // creating, which is the same page count by a different verb.
+  const duplicateVerdict = reviewPageCreation(store.site?.pages ?? [])
+  if (!duplicateVerdict.allowed) return aiToolError(duplicateVerdict.message ?? 'The plan page limit has been reached.')
   const newPage = store.duplicatePage(input.pageId, input.title, input.slug)
   return aiToolOk({ pageId: newPage.id })
 }
@@ -655,6 +674,27 @@ export async function executeAgentTool(
         const breakpointId = parsed.breakpointId ?? getStoreState().activeBreakpointId
         return await runRenderSnapshotAtBreakpoint({ ...parsed, breakpointId })
       }
+      // TSX authoring. These write typed React source through the module
+      // workspace, which validates using the same reader the canvas uses — so
+      // anything the agent writes is something the canvas can open.
+      case 'site_author_module':
+        return await executeAuthorModule(
+          getAgentModuleWorkspace(),
+          parseValue(AuthorModuleToolInputSchema, rawInput),
+        )
+      case 'site_edit_module':
+        return await executeEditModule(
+          getAgentModuleWorkspace(),
+          parseValue(EditModuleToolInputSchema, rawInput),
+        )
+      case 'site_read_module':
+        return await executeReadModule(
+          getAgentModuleWorkspace(),
+          parseValue(ReadModuleToolInputSchema, rawInput),
+        )
+      case 'site_list_modules':
+        return await executeListModules(getAgentModuleWorkspace())
+
       default:
         return aiToolError(`Unknown instatic tool: ${toolName}`)
     }

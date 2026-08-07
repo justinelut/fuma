@@ -40,12 +40,14 @@ describe('FUMA-031 revision architecture',()=>{
     for(const forbidden of ['organizationId','workspaceId','siteId','ownerKey','profileId','actorId'])expect(periodic).not.toContain(forbidden)
     for(const job of ['publication.revision-periodic','publication.revision-retention','publication.revision-gc'])expect(handlers).toContain(job)
   })
-  test('keeps Studio history in the current CSS Module/primitives and exposes labelled keyboard-accessible diff/restore controls',async()=>{
-    const workspace=await read('src/admin/fuma/publication/PublicationWorkspace.tsx');const css=await read('src/admin/fuma/publication/PublicationWorkspace.module.css')
-    expect(workspace).toContain("import { Button } from '@ui/components/Button'")
-    expect(workspace).toContain("import styles from './PublicationWorkspace.module.css'")
+  test('keeps Studio history on the shared primitives and exposes labelled keyboard-accessible diff/restore controls',async()=>{
+    const workspace=await read('src/admin/fuma/publication/PublicationWorkspace.tsx')
+    expect(workspace).toContain("import { Button } from '@admin/fuma/ui/button'")
+    expect(workspace).not.toContain('module.css')
     for(const token of ['aria-labelledby="revision-history-title"','aria-label="Revision differences"','tabIndex={0}','Review restore','Restore as new head','Existing revisions remain immutable'])expect(workspace).toContain(token)
-    expect(css).toContain('.history{');expect(css).toContain('.diff:focus-visible')
+    /* The workspace is Tailwind now. Both properties survive: a history region exists, and the diff
+   region is focusable so it must show focus. */
+expect(workspace).toContain('revision-history-title');expect(workspace).toContain('focus-visible:')
     expect(workspace).not.toMatch(/window\.confirm|window\.alert/)
   })
 })

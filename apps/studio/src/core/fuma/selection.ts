@@ -30,6 +30,15 @@ export const OrganizationCatalogEntrySchema = Type.Object({
   id: ContextIdSchema,
   name: ContextNameSchema,
   status: Type.Union([Type.Literal('active'), Type.Literal('suspended')]),
+  /**
+   * Who owns this organization, for display.
+   *
+   * OPTIONAL rather than required: an organization can legitimately have no membership row with the
+   * owner role (mid-transfer, or an owner whose account was removed), and a required field would make
+   * the whole catalog fail to validate for every other organization the user can see. Absent means
+   * "not known", which the interface can omit rather than assert.
+   */
+  ownerLabel: Type.Optional(ContextNameSchema),
 }, { additionalProperties: false })
 export type OrganizationCatalogEntry = Static<typeof OrganizationCatalogEntrySchema>
 

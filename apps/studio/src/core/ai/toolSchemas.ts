@@ -53,7 +53,54 @@ export const AgentDocumentRefSchema = Type.Union([
 export type AgentDocumentRef = Static<typeof AgentDocumentRefSchema>
 
 // ---------------------------------------------------------------------------
-// HTML-native write tools
+// TSX authoring tools
+//
+// These replace the HTML-native pair below. A model writes the source the site is
+// built from, and it is read back through the same reader a person's hand edits go
+// through — so there is one accepted subset and one set of diagnostics rather than
+// an importer quietly reinterpreting what was written.
+//
+// The HTML tools remain declared until the canvas edits the React node union
+// (they are still what the current executor implements), but nothing new should be
+// built on them.
+// ---------------------------------------------------------------------------
+
+const ModuleKindSchema = Type.Union([
+  Type.Literal('page'),
+  Type.Literal('layout'),
+  Type.Literal('component'),
+])
+
+export const AuthorModuleToolInputSchema = Type.Object({
+  path: Type.String({ minLength: 1, maxLength: 512 }),
+  kind: ModuleKindSchema,
+  /** Complete TSX. Whole files only: reproducing an exact span is unreliable. */
+  source: Type.String({ minLength: 1, maxLength: 200_000 }),
+})
+export type AuthorModuleToolInput = Static<typeof AuthorModuleToolInputSchema>
+
+export const EditModuleToolInputSchema = Type.Object({
+  path: Type.String({ minLength: 1, maxLength: 512 }),
+  source: Type.String({ minLength: 1, maxLength: 200_000 }),
+  /**
+   * Hash from the preceding read. Supplying it turns a blind overwrite into a
+   * detected conflict, which is the difference between losing an edit and being
+   * told to reapply one.
+   */
+  baseHash: Type.Optional(Type.String({ minLength: 64, maxLength: 64 })),
+})
+export type EditModuleToolInput = Static<typeof EditModuleToolInputSchema>
+
+export const ReadModuleToolInputSchema = Type.Object({
+  path: Type.String({ minLength: 1, maxLength: 512 }),
+})
+export type ReadModuleToolInput = Static<typeof ReadModuleToolInputSchema>
+
+export const ListModulesToolInputSchema = Type.Object({})
+export type ListModulesToolInput = Static<typeof ListModulesToolInputSchema>
+
+// ---------------------------------------------------------------------------
+// HTML-native write tools (superseded by the TSX tools above)
 // ---------------------------------------------------------------------------
 
 export const InsertHtmlInputSchema = Type.Object({

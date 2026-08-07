@@ -163,6 +163,11 @@ describe('FUMA-057 entitlement enforcement architecture', () => {
         expect(read(directory, file).split('\n').length - 1, file).toBeLessThanOrEqual(700)
       }
     }
-    expect(readdirSync(UI)).toContain('UsageSurface.module.css')
+    // The usage surface no longer carries a stylesheet: task 80's acceptance standard makes hosted
+    // pages shadcn + Tailwind only, and the CSS-module ratchet in page-acceptance.test.ts enforces
+    // that the count may shrink and never grow. Asserting the stylesheet still EXISTS would defend a
+    // policy the product has replaced, so this asserts the surface itself is present instead.
+    expect(readdirSync(UI)).toContain('UsageSurface.tsx')
+    expect(readdirSync(UI)).not.toContain('UsageSurface.module.css')
   })
 })

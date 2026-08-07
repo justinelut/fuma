@@ -33,7 +33,14 @@ export function classifyHttpError(
 }
 
 export interface ProviderHttpFailure {
-  kind: 'replayOverflow' | 'generic'
+  kind: 'replayOverflow' | 'budgetTooLarge' | 'generic'
+  /**
+   * Output tokens the account can currently afford, when the provider states it.
+   * Present ONLY for 'budgetTooLarge' - it is the provider's own number, never
+   * an estimate of ours, because retrying against a guess either fails again or
+   * truncates the answer.
+   */
+  affordableTokens?: number
   message: string
 }
 
@@ -52,6 +59,23 @@ export function classifyHttpFailure(
     }
   }
   if (status === 402 || status === 429) {
+    // AN AFFORDABILITY REFUSAL IS NOT AN EMPTY BALANCE, and the two need opposite
+    // advice. Providers reserve the FULL requested output budget against the
+    // balance before generating, so an account with real credit is refused
+    // outright when the reservation alone exceeds it - OpenRouter says so
+    // literally: "This request requires more credits, or fewer max_tokens. You
+    // requested up to 65536 tokens, but can only afford 3312."
+    // Telling that user to top up sends them to buy credits they already have,
+    // while the actual fix is to ask for less. And because the provider states
+    // the affordable figure, the request is RETRYABLE rather than terminal.
+    const affordable = affordableOutputTokens(bodyText, detail ?? '')
+    if (affordable !== null) {
+      return {
+        kind: 'budgetTooLarge',
+        affordableTokens: affordable,
+        message: `${providerLabel} refused the request because the output budget it reserves costs more than this account can currently afford (it can afford about ${affordable} output tokens). Retrying with a smaller budget.`,
+      }
+    }
     return {
       kind: 'generic',
       message: `${providerLabel} quota or rate limit reached${detail ? `: ${detail}` : ''}. Check your account balance.`,
@@ -109,4 +133,21 @@ function extractErrorMessage(bodyText: string): string | null {
     // Not JSON — fall through to the raw text.
   }
   return trimmed.slice(0, 200)
+}
+
+/**
+ * The output-token budget the account can afford, read from the provider's own message.
+ *
+ * Deliberately returns null rather than a guess when the provider does not say. A guessed
+ * budget produces one of two bad outcomes: too high and the retry fails identically, too low
+ * and the answer is truncated, which reads as the model failing rather than as a billing limit.
+ */
+export function affordableOutputTokens(bodyText: string, detail: string): number | null {
+  const haystack = `${detail} ${bodyText}`
+  // "can only afford 3312" is the phrasing; the number is what makes a retry possible.
+  const match = /can only afford\s+(\d+)/i.exec(haystack)
+  if (!match) return null
+  const value = Number(match[1])
+  if (!Number.isSafeInteger(value) || value <= 0) return null
+  return value
 }

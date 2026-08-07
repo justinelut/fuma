@@ -138,6 +138,7 @@ export async function handleDashboardRoutes(
 
   const ctx: DashboardRequestContext = {
     timeZone: resolveTimeZone(url.searchParams.get('tz')),
+    request: req,
   }
   const body = await endpoint.reader(db, options, ctx)
   return jsonResponse(body)

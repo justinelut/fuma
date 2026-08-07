@@ -49,7 +49,9 @@ import {
 } from './staticArtefact'
 import { buildPublishedSiteCssBundle } from './siteCssBundle'
 import { bakePublishedDataRowArtefacts } from './bakeDataRows'
-import { bumpPublishVersion, getPublishVersion, withPublishLock } from './publishState'
+import { bumpPublishVersion, getPublishVersion } from './publishState'
+import { stampForSiteDocument } from './publishStamp'
+import { withSitePublishLock } from './sitePublishState'
 
 interface PublishResult {
   publishedPages: number
@@ -70,6 +72,8 @@ function createSnapshot(
   return {
     cmsSnapshotVersion: 1,
     pageRowId,
+    // Memoised on the shared site object, so this is computed once per publish rather than per page.
+    publishStamp: stampForSiteDocument(site),
     site,
     ...(runtimeAssets && runtimeAssets.scripts.length > 0 ? { runtimeAssets } : {}),
     ...(runtimePackageImportmap ? { runtimePackageImportmap } : {}),
@@ -79,16 +83,33 @@ function createSnapshot(
 export async function publishDraftSite(
   db: DbClient,
   adminUserId: string,
+  /**
+   * Which site to publish.
+   *
+   * Required and positioned before the optional argument so it cannot be omitted by accident.
+   * Publishing the shared legacy document is how one tenant's site could go live carrying
+   * another tenant's content.
+   */
+  siteDocumentId: string,
   uploadsDir?: string,
 ): Promise<PublishResult> {
   // Serialize against every other publish so the version read→bake→bump window
   // can't interleave and mis-stamp baked hole shells (ISS-038).
-  return withPublishLock(() => publishDraftSiteLocked(db, adminUserId, uploadsDir))
+  // Serialized PER SITE rather than process-wide. Two publishes of the SAME site must not
+  // interleave (ISS-038: overlapping read-version -> bake -> bump windows leave baked hole shells
+  // permanently mis-stamped). Two publishes of DIFFERENT sites share no version, no cache entries
+  // and no artefact slots, so making them wait for each other costs every tenant the latency of
+  // every other tenant — and becomes a hard blocker once publishing runs a per-tenant build.
+  return withSitePublishLock(
+    siteDocumentId,
+    () => publishDraftSiteLocked(db, adminUserId, siteDocumentId, uploadsDir),
+  )
 }
 
 async function publishDraftSiteLocked(
   db: DbClient,
   adminUserId: string,
+  siteDocumentId: string,
   uploadsDir?: string,
 ): Promise<PublishResult> {
   // ── Phase 1: read inputs + run every expensive non-DB build ──────────────
@@ -97,7 +118,7 @@ async function publishDraftSiteLocked(
   // locks and delay concurrent writes. `withPublishLock` already
   // serializes publishes, and version numbers are only allocated by publish
   // paths under that same lock, so reading outside the transaction is stable.
-  const site = await getDraftSiteDocument(db)
+  const site = await getDraftSiteDocument(db, siteDocumentId)
   if (!site) throw new Error('draft site not found')
 
   const runtime = normalizeSiteRuntimeConfig(site.runtime)

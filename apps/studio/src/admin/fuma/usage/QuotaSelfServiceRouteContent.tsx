@@ -5,7 +5,6 @@ import type { FumaScopedShellReadyContext } from '../FumaScopedShell'
 import { QuotaSelfServiceHttpClient } from './client'
 import type { QuotaSelfServiceWire } from './contracts'
 import { UsageSurface } from './UsageSurface'
-import styles from './UsageSurface.module.css'
 
 function allowsSiteWrite(
   decisions: readonly PermissionDecision[],
@@ -69,10 +68,10 @@ export function QuotaSelfServiceRouteContent({
 
   if (!selected || !allowed) return null
   if (!loaded || loaded.scopeKey !== scopeKey) {
-    return <p className={styles.status} role="status">Loading account usage…</p>
+    return <p className="text-sm text-muted-foreground" role="status">Loading account usage…</p>
   }
-  if (loaded.error) return <p className={styles.error} role="alert">{loaded.error}</p>
-  if (!loaded.model) return <p className={styles.status} role="status">Loading account usage…</p>
+  if (loaded.error) return <p className="text-sm text-destructive" role="alert">{loaded.error}</p>
+  if (!loaded.model) return <p className="text-sm text-muted-foreground" role="status">Loading account usage…</p>
   const model = loaded.model
   const canWrite = allowsSiteWrite(permissionDecisions, shell)
   if (path === '/admin/settings/usage' || model.billing === null) {

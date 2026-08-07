@@ -12,7 +12,7 @@
 import type { DbClient } from '../../db/client'
 import { requireCapability } from '../../auth/authz'
 import { getDraftSite } from '../../repositories/site'
-import { SELF_HOST_SITE_ID } from '../../selfHost'
+import { resolveRequestSiteDocumentId } from '../../selfHost'
 import { jsonResponse, methodNotAllowed } from '../../http'
 
 export async function handleSiteRoutes(req: Request, db: DbClient): Promise<Response | null> {
@@ -23,7 +23,17 @@ export async function handleSiteRoutes(req: Request, db: DbClient): Promise<Resp
   const user = await requireCapability(req, db, 'site.read')
   if (user instanceof Response) return user
 
-  const shell = await getDraftSite(db, SELF_HOST_SITE_ID)
+  // Refused rather than defaulted: reading the legacy document here would show one customer
+  // another customer's site in the builder.
+  const siteDocumentId = await resolveRequestSiteDocumentId(req)
+  if (siteDocumentId === null) {
+    return jsonResponse(
+      { error: 'This request did not resolve to a site you may read.' },
+      { status: 403 },
+    )
+  }
+
+  const shell = await getDraftSite(db, siteDocumentId)
   if (!shell) return jsonResponse({ error: 'draft site not found' }, { status: 404 })
   return jsonResponse({ site: shell })
 }

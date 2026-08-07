@@ -1,7 +1,7 @@
 import { useEffect, useId, useReducer, type FormEvent } from 'react'
 import { useForm } from '@tanstack/react-form'
-import { Button } from '@ui/components/Button'
-import { Input } from '@ui/components/Input'
+import { Button } from '@admin/fuma/ui/button'
+import { Input } from '@admin/fuma/ui/input'
 import { pushToast } from '@ui/components/Toast'
 import {
   beginHostedStaffTotp,
@@ -21,7 +21,6 @@ import {
   type HostedTotpSetup,
 } from '@core/fuma/auth'
 import { getErrorMessage } from '@core/utils/errorMessage'
-import styles from './HostedStaffSecurity.module.css'
 
 interface HostedStaffSecurityProps {
   session: HostedStaffSession
@@ -339,13 +338,13 @@ export function HostedStaffSecurity({ session, onSessionChange }: HostedStaffSec
   }
 
   return (
-    <div className={styles.grid}>
-      {state.status && <p className={styles.status} role="status">{state.status}</p>}
+    <div className="grid w-full gap-3">
+      {state.status && <p className="text-sm text-muted-foreground" role="status">{state.status}</p>}
 
-      <section className={styles.card} aria-labelledby="hosted-reauth-title">
+      <section className="grid min-w-0 gap-3 rounded-md bg-card p-6 [&_h2]:text-base [&_h2]:text-foreground [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted-foreground [&_label]:text-sm [&_label]:text-muted-foreground" aria-labelledby="hosted-reauth-title">
         <h2 id="hosted-reauth-title">Reauthenticate</h2>
         <p>Sensitive staff controls require a session created within the last five minutes.</p>
-        <form className={styles.form} onSubmit={submitReauthentication}>
+        <form className="grid gap-1 [&_label]:grid [&_label]:gap-1" onSubmit={submitReauthentication}>
           {!state.reauthPending ? (
             <reauthForm.Field name="password">
               {(field) => (
@@ -381,8 +380,8 @@ export function HostedStaffSecurity({ session, onSessionChange }: HostedStaffSec
               )}
             </reauthForm.Field>
           )}
-          <div className={styles.actions}>
-            <Button type="submit" variant="primary" size="sm" disabled={state.busy}>
+          <div className="flex flex-wrap items-center gap-1">
+            <Button type="submit" variant="default" size="sm" disabled={state.busy}>
               {state.reauthPending ? 'Verify challenge' : 'Reauthenticate'}
             </Button>
             {state.reauthPending && (
@@ -394,18 +393,18 @@ export function HostedStaffSecurity({ session, onSessionChange }: HostedStaffSec
         </form>
       </section>
 
-      <section className={styles.card} aria-labelledby="hosted-mfa-title">
-        <div className={styles.headingRow}>
+      <section className="grid min-w-0 gap-3 rounded-md bg-card p-6 [&_h2]:text-base [&_h2]:text-foreground [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted-foreground [&_label]:text-sm [&_label]:text-muted-foreground" aria-labelledby="hosted-mfa-title">
+        <div className="flex flex-wrap items-center justify-between gap-1">
           <h2 id="hosted-mfa-title">Two-factor authentication</h2>
-          <span className={session.user.twoFactorEnabled ? styles.enabled : styles.inactive}>
+          <span className={`rounded-md px-1 py-0.5 text-xs font-semibold ${session.user.twoFactorEnabled ? 'bg-primary/10 text-primary' : 'bg-card text-muted-foreground'}`}>
             {session.user.twoFactorEnabled ? 'Enabled' : 'Not enabled'}
           </span>
         </div>
-        <form className={styles.form} onSubmit={submitMfa}>
+        <form className="grid gap-1 [&_label]:grid [&_label]:gap-1" onSubmit={submitMfa}>
           {state.setup ? (
             <>
               <p>Open this TOTP URI in your authenticator, then enter the generated code.</p>
-              <p className={styles.uri}>{state.setup.totpURI}</p>
+              <p className="break-all font-mono text-xs">{state.setup.totpURI}</p>
               <mfaForm.Field name="code">
                 {(field) => (
                   <label htmlFor={mfaCodeId}>
@@ -422,8 +421,8 @@ export function HostedStaffSecurity({ session, onSessionChange }: HostedStaffSec
                   </label>
                 )}
               </mfaForm.Field>
-              <div className={styles.actions}>
-                <Button type="submit" name="mfa-action" value="complete" variant="primary" size="sm" disabled={state.busy}>
+              <div className="flex flex-wrap items-center gap-1">
+                <Button type="submit" name="mfa-action" value="complete" variant="default" size="sm" disabled={state.busy}>
                   Enable two-factor
                 </Button>
                 <Button
@@ -459,7 +458,7 @@ export function HostedStaffSecurity({ session, onSessionChange }: HostedStaffSec
                 )}
               </mfaForm.Field>
               <p>Confirm your current password before enrolling, disabling MFA, or rotating recovery codes.</p>
-              <div className={styles.actions}>
+              <div className="flex flex-wrap items-center gap-1">
                 {!session.user.twoFactorEnabled && (
                   <Button type="submit" name="mfa-action" value="enroll" variant="secondary" size="sm" disabled={state.busy}>
                     Start setup
@@ -480,34 +479,34 @@ export function HostedStaffSecurity({ session, onSessionChange }: HostedStaffSec
           )}
         </form>
         {state.recoveryCodes.length > 0 && (
-          <div className={styles.recoveryBlock}>
+          <div className="grid gap-2">
             <strong>Save these one-time recovery codes now.</strong>
-            <ul className={styles.codes} aria-label="Recovery codes">
+            <ul className="m-0 grid list-none gap-1 p-0" aria-label="Recovery codes">
               {state.recoveryCodes.map((recoveryCode) => <li key={recoveryCode}><code>{recoveryCode}</code></li>)}
             </ul>
           </div>
         )}
       </section>
 
-      <section className={styles.card} aria-labelledby="hosted-sessions-title">
-        <div className={styles.headingRow}>
+      <section className="grid min-w-0 gap-3 rounded-md bg-card p-6 [&_h2]:text-base [&_h2]:text-foreground [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted-foreground [&_label]:text-sm [&_label]:text-muted-foreground" aria-labelledby="hosted-sessions-title">
+        <div className="flex flex-wrap items-center justify-between gap-1">
           <h2 id="hosted-sessions-title">Device sessions</h2>
           <Button variant="ghost" size="sm" disabled={state.busy} onClick={() => void run(refreshSessions, 'Could not refresh device sessions')}>Refresh</Button>
         </div>
-        <div className={styles.actions}>
+        <div className="flex flex-wrap items-center gap-1">
           <Button variant="secondary" size="sm" disabled={state.busy} onClick={() => void revokeOthers()}>Sign out other devices</Button>
         </div>
         {state.sessions.length === 0 ? (
           <p>No device sessions found.</p>
         ) : (
-          <ul className={styles.list}>
+          <ul className="m-0 grid list-none gap-1 p-0 text-sm text-muted-foreground [&_li]:flex [&_li]:items-center [&_li]:justify-between [&_li]:gap-3 [&_li]:border-t [&_li]:border-border [&_li]:py-2 [&_li>span]:grid [&_li>span]:min-w-0 [&_li>span]:gap-0.5">
             {state.sessions.map((device) => {
               const current = device.id === session.session.id
               return (
                 <li key={device.id}>
                   <span>
                     {device.userAgent || 'Unknown device'}
-                    {current && <strong className={styles.current}>Current device</strong>}
+                    {current && <strong className="rounded-md px-1 py-0.5 text-xs font-semibold bg-muted text-foreground">Current device</strong>}
                     <small>Expires {new Date(device.expiresAt).toLocaleString()}</small>
                   </span>
                   <Button variant="ghost" size="sm" disabled={state.busy} onClick={() => void revokeSession(device.token)}>Revoke</Button>
@@ -519,8 +518,8 @@ export function HostedStaffSecurity({ session, onSessionChange }: HostedStaffSec
       </section>
 
       {session.user.role === 'admin' && (
-        <section className={styles.card} aria-labelledby="hosted-admin-title">
-          <div className={styles.headingRow}>
+        <section className="grid min-w-0 gap-3 rounded-md bg-card p-6 [&_h2]:text-base [&_h2]:text-foreground [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-muted-foreground [&_label]:text-sm [&_label]:text-muted-foreground" aria-labelledby="hosted-admin-title">
+          <div className="flex flex-wrap items-center justify-between gap-1">
             <h2 id="hosted-admin-title">Staff controls</h2>
             <Button variant="ghost" size="sm" disabled={state.busy} onClick={() => void loadUsers()}>Refresh</Button>
           </div>
@@ -528,7 +527,7 @@ export function HostedStaffSecurity({ session, onSessionChange }: HostedStaffSec
           {state.users.length === 0 ? (
             <p>No staff accounts found.</p>
           ) : (
-            <ul className={styles.list}>
+            <ul className="m-0 grid list-none gap-1 p-0 text-sm text-muted-foreground [&_li]:flex [&_li]:items-center [&_li]:justify-between [&_li]:gap-3 [&_li]:border-t [&_li]:border-border [&_li]:py-2 [&_li>span]:grid [&_li>span]:min-w-0 [&_li>span]:gap-0.5">
               {state.users.map((user) => (
                 <li key={user.id}>
                   <span>

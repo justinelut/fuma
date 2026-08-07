@@ -30,7 +30,7 @@ function Figure({
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xl leading-none font-semibold tracking-tight text-foreground">
+      <p className="mt-1.5 text-xl leading-none font-semibold tracking-tight text-foreground">
         {value}
       </p>
       {detail ? <p className="mt-1.5 text-[0.6875rem] text-muted-foreground">{detail}</p> : null}
@@ -68,7 +68,7 @@ export function SiteOverviewCards({ builderPath }: SiteOverviewCardsProps) {
     <div className="grid gap-4 lg:grid-cols-4">
       <Card>
         <CardTitle>Pages</CardTitle>
-        <div className="mt-4 space-y-3">
+        <div className="mt-6 space-y-3">
           <Figure
             label="Published"
             value={pages ? String(pages.published) : '—'}
@@ -86,7 +86,7 @@ export function SiteOverviewCards({ builderPath }: SiteOverviewCardsProps) {
 
       <Card tone="warm">
         <CardTitle>Posts</CardTitle>
-        <div className="mt-4">
+        <div className="mt-6">
           <Figure
             label="Total"
             value={posts ? String(posts.total) : '—'}
@@ -103,11 +103,11 @@ export function SiteOverviewCards({ builderPath }: SiteOverviewCardsProps) {
           <CardTitle>Media</CardTitle>
           <CardCaption>Managed in the visual builder</CardCaption>
         </div>
-        <dl className="mt-4 grid grid-cols-2 gap-4">
+        <dl className="mt-6 grid grid-cols-2 gap-4">
           <Figure label="Files" value={media ? String(media.count) : '—'} />
           <Figure label="Size" value={formatBytes(media?.totalBytes ?? null)} />
         </dl>
-        <div className="mt-5">
+        <div className="mt-6">
           <ButtonLink href={builderPath} variant="outline" size="sm">
             Open visual builder
           </ButtonLink>

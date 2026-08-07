@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { buildScopedAdminUrl, type AccessibleContextCatalog } from '@core/fuma'
 import { Type, safeParseValue, type Static } from '@core/utils/typeboxHelpers'
 import { getErrorMessage } from '@core/utils/errorMessage'
-import { Button } from '@ui/components/Button'
-import styles from './HostedSiteOnboarding.module.css'
+import { Button } from '@admin/fuma/ui/button'
 
 const OrganizationResponseSchema = Type.Object({
   id: Type.String({ minLength: 1 }),
@@ -125,12 +124,12 @@ export function HostedSiteOnboarding({
   }
 
   return (
-    <section className={styles.onboarding} aria-labelledby="fuma-onboarding-title">
-      <div className={styles.intro}>
-        <p className={styles.eyebrow}>Your first Fuma site</p>
+    <section className="grid w-full min-w-0 overflow-hidden rounded-2xl border border-border bg-card text-foreground md:grid-cols-[minmax(16rem,0.85fr)_minmax(20rem,1.15fr)]" aria-labelledby="fuma-onboarding-title">
+      <div className="border-b border-border p-6 text-foreground sm:p-10 md:border-b-0 md:border-r [&_h2]:max-w-[18ch] [&_h2]:text-3xl [&_h2]:font-semibold [&_h2]:leading-tight [&_h2]:text-foreground">
+        <p className="mb-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Your first Fuma site</p>
         <h2 id="fuma-onboarding-title">Give the editor somewhere real to work.</h2>
         <p>Name the organization that owns the work, then create its first site. The default workspace is created for you.</p>
-        <ol className={styles.rail} aria-label="Site setup progress">
+        <ol className="m-0 mt-12 grid list-none p-0 [&_li]:grid [&_li]:grid-cols-[2rem_1fr] [&_li]:gap-x-3 [&_li]:border-t [&_li]:border-border [&_li]:py-4 [&_li]:text-muted-foreground [&_li>span]:row-span-2 [&_li>span]:font-mono [&_li>span]:text-xs [&_strong]:text-sm [&_strong]:text-muted-foreground" aria-label="Site setup progress">
           <li
             data-state={needsOrganization ? (step === 'organization' ? 'current' : 'complete') : 'complete'}
             aria-current={step === 'organization' ? 'step' : undefined}
@@ -145,7 +144,7 @@ export function HostedSiteOnboarding({
           </li>
         </ol>
       </div>
-      <div className={styles.form}>
+      <div className="grid content-center gap-6 p-6 sm:p-10 [&_input]:min-h-11 [&_input]:w-full [&_input]:rounded-md [&_input]:border [&_input]:border-input [&_input]:bg-transparent [&_input]:p-3 [&_select]:min-h-11 [&_select]:w-full [&_select]:rounded-md [&_select]:border [&_select]:border-input [&_select]:bg-transparent [&_select]:p-3 [&_label]:grid [&_label]:gap-1 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-muted-foreground [&_fieldset]:m-0 [&_fieldset]:grid [&_fieldset]:grid-cols-2 [&_fieldset]:gap-3 [&_fieldset]:border-0 [&_fieldset]:p-0 [&_legend]:mb-1 [&_legend]:text-sm [&_legend]:font-semibold [&_legend]:text-muted-foreground">
         {step === 'organization' ? (
           <>
             <label>
@@ -158,14 +157,14 @@ export function HostedSiteOnboarding({
                 disabled={busy}
               />
             </label>
-            <Button variant="primary" disabled={!organizationReady || busy} onClick={() => setStep('site')}>
+            <Button variant="default" disabled={!organizationReady || busy} onClick={() => setStep('site')}>
               Continue
             </Button>
           </>
         ) : (
           <>
             {needsOrganization ? (
-              <p className={styles.selectedOrganization}><span>Organization</span><strong>{organizationName.trim()}</strong></p>
+              <p className="text-sm [&_span]:font-semibold [&_span]:text-muted-foreground"><span>Organization</span><strong>{organizationName.trim()}</strong></p>
             ) : activeOrganizations.length > 1 ? (
               <label>
                 Organization
@@ -174,7 +173,7 @@ export function HostedSiteOnboarding({
                 </select>
               </label>
             ) : (
-              <p className={styles.selectedOrganization}><span>Organization</span><strong>{activeOrganizations[0]?.name}</strong></p>
+              <p className="text-sm [&_span]:font-semibold [&_span]:text-muted-foreground"><span>Organization</span><strong>{activeOrganizations[0]?.name}</strong></p>
             )}
             <label>
               Site name
@@ -182,28 +181,28 @@ export function HostedSiteOnboarding({
             </label>
             <label>
               Site address
-              <span className={styles.slugInput}>
+              <span className="font-mono">
                 <input value={siteSlug} onChange={(event) => setSiteSlug(event.target.value)} placeholder={slug(siteName) || 'acme-studio'} disabled={busy} />
                 <small>.trimly.co.ke</small>
               </span>
             </label>
             <fieldset disabled={busy}>
               <legend>What are you building?</legend>
-              <label className={profileId === 'website' ? styles.profileActive : styles.profile}>
+              <label className={`grid min-w-0 gap-2 rounded-md border p-4 [&_strong]:text-sm [&_strong]:text-foreground ${profileId === 'website' ? 'border-muted-foreground bg-accent/40' : 'border-border'}`}>
                 <input type="radio" name="profile" value="website" checked={profileId === 'website'} onChange={() => setProfileId('website')} />
                 <strong>Website</strong><span>Pages, forms, data, media and visual design.</span>
               </label>
-              <label className={profileId === 'publication' ? styles.profileActive : styles.profile}>
+              <label className={`grid min-w-0 gap-2 rounded-md border p-4 [&_strong]:text-sm [&_strong]:text-foreground ${profileId === 'publication' ? 'border-muted-foreground bg-accent/40' : 'border-border'}`}>
                 <input type="radio" name="profile" value="publication" checked={profileId === 'publication'} onChange={() => setProfileId('publication')} />
                 <strong>Publication</strong><span>Editorial workflow, members and newsletters.</span>
               </label>
             </fieldset>
-            {error ? <p className={styles.error} role="alert">{error}</p> : null}
-            <div className={styles.actions}>
+            {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
+            <div className="flex flex-wrap gap-3">
               {needsOrganization ? (
                 <Button variant="secondary" disabled={busy} onClick={() => setStep('organization')}>Back</Button>
               ) : null}
-              <Button variant="primary" disabled={!canContinue || busy} onClick={() => void create()}>
+              <Button variant="default" disabled={!canContinue || busy} onClick={() => void create()}>
                 {busy ? 'Creating your site…' : 'Create site and open editor'}
               </Button>
             </div>

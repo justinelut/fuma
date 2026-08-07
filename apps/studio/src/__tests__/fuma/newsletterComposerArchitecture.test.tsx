@@ -96,7 +96,7 @@ describe('FUMA-044 migration and architecture gates', () => {
     expect(all).not.toMatch(/\bzod\b/i)
     expect(all).not.toMatch(/from ['"]@fuma\/(?:web|control)/)
     expect(all).not.toMatch(/shared\/ui|tailwind/i)
-    expect(surface).toContain("from '@ui/components/Button'")
+    expect(surface).toContain("from '@admin/fuma/ui/button'")
     expect(sources[2]).not.toMatch(/transaction[\s\S]{0,300}transaction/)
   })
 
@@ -109,8 +109,11 @@ describe('FUMA-044 migration and architecture gates', () => {
     const denied = renderToStaticMarkup(<NewsletterComposerSurface {...({ newsletters: [], newsletter: null, draft: null, segments: [], settings: null, senderVerification: null, canRead: false, canWrite: false, canSend: false, onSelect() {}, async onSaveProfile() { throw new Error() }, async onAutosave() { throw new Error() }, async onEstimate() { throw new Error() }, async onReadiness() { throw new Error() }, onEditSettings() {} })} />)
     expect(denied).toContain('do not have permission')
     expect(denied).not.toContain('Audience query')
-    const css = await Bun.file(new URL('../../admin/fuma/publication/NewsletterComposerSurface.module.css', import.meta.url)).text()
-    expect(css).toContain(':focus-visible')
-    expect(css).toContain('@media(max-width:900px)')
+    // The surface is Tailwind now. Both properties it defended still hold, as utilities: a
+    // keyboard-reachable control shows focus, and the two-column layout collapses.
+    const view = await Bun.file(new URL('../../admin/fuma/publication/NewsletterComposerSurface.tsx', import.meta.url)).text()
+    expect(view).toContain('focus-visible')
+    expect(view).toContain('lg:grid-cols-')
+    expect(view).not.toContain('module.css')
   })
 })

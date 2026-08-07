@@ -31,7 +31,15 @@ export type PostRow = Readonly<{
 
 export interface PublicationDashboardHomeProps {
   kpis: readonly Kpi[]
-  memberSeries: readonly SeriesPoint[]
+  /**
+   * Reads per day across the range.
+   *
+   * NAMED FOR WHAT IT IS. This panel previously said "Total members" while being handed an empty
+   * array, and the only daily series the analytics produce counts READ EVENTS, not member snapshots -
+   * there is no per-day member count anywhere in the reader. Plotting reads under a members heading
+   * would have been a number that looked authoritative and meant something else.
+   */
+  readSeries: readonly SeriesPoint[]
   reads: Readonly<{
     /** Total site reads in range, the headline for the first cell. */
     total: number | null
@@ -80,8 +88,8 @@ function AreaChart({ points }: { points: readonly SeriesPoint[] }) {
   const gradientId = useId()
   if (points.length < 2) {
     return (
-      <div className="mt-4 grid h-[190px] place-items-center rounded-md border border-dashed border-border">
-        <p className="text-xs text-muted-foreground">No member history yet</p>
+      <div className="mt-6 grid h-[190px] place-items-center rounded-md border border-dashed border-border">
+        <p className="text-xs text-muted-foreground">No reads measured in this range yet</p>
       </div>
     )
   }
@@ -91,8 +99,8 @@ function AreaChart({ points }: { points: readonly SeriesPoint[] }) {
     .map((point, index) => `${index * step},${40 - (point.value / max) * 34}`)
     .join(' ')
   return (
-    <div className="mt-4">
-      <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="h-[190px] w-full" role="img" aria-label="Total members over time">
+    <div className="mt-6">
+      <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="h-[190px] w-full" role="img" aria-label="Reads per day over the selected range">
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--chart-3)" stopOpacity="0.42" />
@@ -108,7 +116,7 @@ function AreaChart({ points }: { points: readonly SeriesPoint[] }) {
           vectorEffect="non-scaling-stroke"
         />
       </svg>
-      <div className="mt-2 flex justify-between text-[0.6875rem] text-muted-foreground">
+      <div className="mt-3 flex justify-between text-[0.6875rem] text-muted-foreground">
         <span>{points[0]?.label}</span>
         <span>{points[points.length - 1]?.label}</span>
       </div>
@@ -156,7 +164,7 @@ function Bars({ points }: { points: readonly SeriesPoint[] }) {
 
 export function PublicationDashboardHome({
   kpis,
-  memberSeries,
+  readSeries,
   reads,
   engagement,
   recentPosts,
@@ -170,7 +178,7 @@ export function PublicationDashboardHome({
           {kpis.map((kpi) => (
             <div key={kpi.id}>
               <dt className="text-xs text-muted-foreground">{kpi.label}</dt>
-              <dd className="mt-2 flex items-baseline text-[1.75rem] leading-none font-semibold tracking-tight">
+              <dd className="mt-3 flex items-baseline text-[1.75rem] leading-none font-semibold tracking-tight">
                 {formatCount(kpi.value)}
                 <Delta value={kpi.deltaPercent} />
               </dd>
@@ -180,22 +188,22 @@ export function PublicationDashboardHome({
       </Panel>
 
       <Panel>
-        <p className="text-xs text-muted-foreground">Total members</p>
-        <AreaChart points={memberSeries} />
+        <p className="text-xs text-muted-foreground">Reads per day</p>
+        <AreaChart points={readSeries} />
       </Panel>
 
       <Panel>
         <div className="grid gap-6 sm:grid-cols-3">
           <div>
             <p className="text-xs text-muted-foreground">Reads</p>
-            <p className="mt-2 text-[1.5rem] leading-none font-semibold tracking-tight">
+            <p className="mt-3 text-[1.5rem] leading-none font-semibold tracking-tight">
               {formatCount(reads.total)}
             </p>
             <Sparkline points={reads.postShareSeries} />
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Newsletter opens</p>
-            <div className="mt-2 flex items-center gap-3 text-[0.6875rem] text-muted-foreground">
+            <div className="mt-3 flex items-center gap-3 text-[0.6875rem] text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <span className="size-1.5 rounded-full bg-chart-5" />Per newsletter
               </span>
@@ -204,7 +212,7 @@ export function PublicationDashboardHome({
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Read sources</p>
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-[0.6875rem] text-muted-foreground">
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-[0.6875rem] text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <span className="size-1.5 rounded-full bg-chart-5" />Members
               </span>
@@ -216,7 +224,7 @@ export function PublicationDashboardHome({
               <p className="mt-3 text-xs text-muted-foreground">No reads recorded in range</p>
             ) : (
               <>
-                <div className="mt-5 flex h-1.5 overflow-hidden rounded-full bg-accent">
+                <div className="mt-6 flex h-1.5 overflow-hidden rounded-full bg-accent">
                   <span className="bg-chart-5" style={{ width: `${reads.paidShare}%` }} />
                   <span className="flex-1 bg-chart-3" />
                 </div>
@@ -238,28 +246,28 @@ export function PublicationDashboardHome({
         <dl className="grid gap-6 sm:grid-cols-3">
           <div>
             <dt className="text-xs text-muted-foreground">Newsletter open rate</dt>
-            <dd className="mt-2 text-[1.5rem] leading-none font-semibold tracking-tight">
+            <dd className="mt-3 text-[1.5rem] leading-none font-semibold tracking-tight">
               {engagement.openRate === null ? '—' : `${engagement.openRate}%`}
             </dd>
-            <p className="mt-1 text-[0.6875rem] text-muted-foreground">
+            <p className="mt-1.5 text-[0.6875rem] text-muted-foreground">
               Opens against sends in range
             </p>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">Click rate</dt>
-            <dd className="mt-2 text-[1.5rem] leading-none font-semibold tracking-tight">
+            <dd className="mt-3 text-[1.5rem] leading-none font-semibold tracking-tight">
               {engagement.clickRate === null ? '—' : `${engagement.clickRate}%`}
             </dd>
-            <p className="mt-1 text-[0.6875rem] text-muted-foreground">
+            <p className="mt-1.5 text-[0.6875rem] text-muted-foreground">
               Clicks against opens in range
             </p>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">Members</dt>
-            <dd className="mt-2 text-[1.5rem] leading-none font-semibold tracking-tight">
+            <dd className="mt-3 text-[1.5rem] leading-none font-semibold tracking-tight">
               {formatCount(engagement.members)}
             </dd>
-            <p className="mt-1 text-[0.6875rem] text-muted-foreground">
+            <p className="mt-1.5 text-[0.6875rem] text-muted-foreground">
               Active member accounts
             </p>
           </div>

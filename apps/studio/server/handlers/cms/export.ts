@@ -41,7 +41,7 @@ import { join } from 'node:path'
 import type { DbClient } from '../../db/client'
 import { requireCapability } from '../../auth/authz'
 import { getDraftSite } from '../../repositories/site'
-import { SELF_HOST_SITE_ID } from '../../selfHost'
+import { resolveRequestSiteDocumentId } from '../../selfHost'
 import { listDataTables } from '../../repositories/data/tables'
 import { listDataRows } from '../../repositories/data/rows'
 import { listExportableRedirects } from '../../repositories/data/publish'
@@ -171,7 +171,17 @@ export async function handleExportRoute(
   }
 
   // Always load the site shell — needed for sourceSiteName even when includeSite=false
-  const shell = await getDraftSite(db, SELF_HOST_SITE_ID)
+  // Exporting the wrong tenant would hand one customer another customer's whole design, so a
+  // request that does not resolve is refused rather than served the default document.
+  const siteDocumentId = await resolveRequestSiteDocumentId(req)
+  if (siteDocumentId === null) {
+    return jsonResponse(
+      { error: 'This request did not resolve to a site you may export.' },
+      { status: 403 },
+    )
+  }
+
+  const shell = await getDraftSite(db, siteDocumentId)
   if (!shell) {
     return jsonResponse({ error: 'Site not initialised — run setup before exporting' }, { status: 404 })
   }

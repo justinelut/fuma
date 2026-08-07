@@ -55,3 +55,13 @@
     font-size: var(--text-xs);
     line-height: 1.35;
 }
+
+/* Wrapper for the React IR canvas document. The builder deliberately keeps CSS modules — its
+   stylesheets ARE its base element styles because the hosted Tailwind build ships no preflight, so a
+   utility-class wrapper here would be styled by nothing. */
+.reactModuleCanvas {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: auto;
+}

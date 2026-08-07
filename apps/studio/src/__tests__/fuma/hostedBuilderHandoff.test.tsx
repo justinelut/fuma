@@ -9,6 +9,7 @@ import {
 } from '@admin/fuma/builder/builderScope'
 import { resolveBuilderCmsRole } from '../../../server/fuma/builder/builderIdentity'
 import { fumaLaunchRegistry, type AccessibleContextCatalog } from '@core/fuma'
+import { BUILDER_OWNED_SECTIONS } from '@core/fuma/builder/sectionOwnership'
 
 const SCOPE = Object.freeze({
   organizationId: 'organization-a',
@@ -110,22 +111,27 @@ describe('hosted builder handoff', () => {
       .toBe('/admin/organizations/organization-a/workspaces/workspace-a/sites/site-a')
   })
 
-  it('routes every Instatic-owned section to Instatic rather than a hosted page', () => {
+  it('routes every builder-owned section to Instatic, and no platform-owned one', () => {
     const source = readFileSync(
       new URL('../../admin/AdminEntry.tsx', import.meta.url),
       'utf8',
     )
-    for (const section of [
-      'dashboard', 'site', 'content', 'data', 'media', 'plugins', 'ai',
-    ]) {
-      expect(source).toContain(`'${section}'`)
-    }
-    // Staff identity and roles are platform concerns owned by Better Auth and
-    // must not be handed to the builder's native auth surfaces.
-    const owned = /INSTATIC_OWNED_SECTIONS[^\]]*\]/s.exec(source)?.[0] ?? ''
-    expect(owned).not.toContain("'account'")
-    expect(owned).not.toContain("'users'")
+    // The set is now DERIVED from one list rather than restated here, so this
+    // asserts the derivation instead of re-listing the members. Restating them
+    // is what let the navigation and the router disagree about `dashboard`.
+    expect(source).toContain('BUILDER_OWNED_SECTIONS')
     expect(source).toContain('INSTATIC_OWNED_SECTIONS.has(section)')
+    for (const section of ['site', 'content', 'data', 'media', 'plugins', 'pluginPage']) {
+      expect(BUILDER_OWNED_SECTIONS).toContain(section)
+    }
+    // Staff identity, the dashboards, AI configuration and the account are
+    // platform concerns. Asserted against the list itself rather than by
+    // scanning the file: the previous version matched the literal set with a
+    // regex, and once the set became a derivation the regex matched nothing, so
+    // the refusal would have passed no matter what was added.
+    for (const section of ['account', 'users', 'dashboard', 'ai']) {
+      expect(BUILDER_OWNED_SECTIONS).not.toContain(section)
+    }
   })
 
   it('keeps Instatic-owned surfaces out of hosted navigation', () => {

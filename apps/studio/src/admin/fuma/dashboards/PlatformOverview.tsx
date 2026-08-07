@@ -40,7 +40,7 @@ function Figure({
   return (
     <div className="min-w-0">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate text-xl leading-none font-semibold tracking-tight text-foreground">
+      <p className="mt-1.5 truncate text-xl leading-none font-semibold tracking-tight text-foreground">
         {value}
       </p>
       {detail ? (
@@ -74,7 +74,7 @@ export function PlatformOverview({ catalog, planPath }: PlatformOverviewProps) {
                 : 'Measurements unavailable'}
           </CardCaption>
         </div>
-        <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Figure
             label="Storage used"
             value={formatBytes(storage?.totalBytes ?? null)}
@@ -101,7 +101,7 @@ export function PlatformOverview({ catalog, planPath }: PlatformOverviewProps) {
           />
         </dl>
         {planPath ? (
-          <p className="mt-5 text-xs text-muted-foreground">
+          <p className="mt-6 text-xs text-muted-foreground">
             Limits follow your plan.{' '}
             <Link
               to={planPath}
@@ -115,7 +115,7 @@ export function PlatformOverview({ catalog, planPath }: PlatformOverviewProps) {
 
       <div>
         <h2 className="text-sm font-semibold tracking-tight text-foreground">Your sites</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-1.5 text-xs text-muted-foreground">
           Each site opens its own dashboard, shaped by what it is for.
         </p>
         {sites.length === 0 ? (
@@ -149,7 +149,7 @@ export function PlatformOverview({ catalog, planPath }: PlatformOverviewProps) {
                       <span className="block truncate text-sm font-medium text-foreground">
                         {site.name}
                       </span>
-                      <span className="mt-1 block truncate text-[0.6875rem] text-muted-foreground">
+                      <span className="mt-1.5 block truncate text-[0.6875rem] text-muted-foreground">
                         {organization?.name ?? site.organizationId} / {workspace?.name ?? site.workspaceId}
                       </span>
                     </span>

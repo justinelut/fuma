@@ -50,6 +50,8 @@ import { handlePluginsRoutes } from './plugins'
 import { handleDataRoutes } from './data'
 import { handleDashboardRoutes } from './dashboard'
 import { handleFontsRoutes } from './fonts'
+import { handleCanvasRoutes } from './canvas'
+import { handleEditorModuleRoutes } from './editorModules'
 import { handlePublishRoutes } from './publish'
 import { handleExportRoute } from './export'
 import { handleImportPreviewRoute } from './importPreview'
@@ -110,6 +112,13 @@ export async function handleCmsRequest(
     // under `/data/...` can never accidentally shadow it.
     ?? (await handleDashboardRoutes(req, db, options))
     ?? (await handleFontsRoutes(req, db, options))
+    // Canvas stylesheet compilation. Mounted under its own `/canvas/` prefix so it
+    // cannot collide with any existing route, and after fonts because both serve the
+    // styling surface and this is the newer of the two.
+    ?? (await handleCanvasRoutes(req, db))
+    // Registered beside canvas because both serve the React engine's editing surface and both
+    // sit behind this file's existing origin/CSRF check.
+    ?? (await handleEditorModuleRoutes(req, db))
     ?? (await handlePublishRoutes(req, db, options))
     // Export and import are registered after data routes so their exact paths
     // `/export` and `/import` cannot conflict with any `/data/...` sub-routes.

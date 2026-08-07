@@ -93,7 +93,11 @@ describe('publication dashboard route', () => {
     renderRoute(figures())
     const navigation = screen.getByRole('navigation', { name: 'Publication navigation' })
     expect(navigation).toBeDefined()
-    expect(screen.getByText('The Weekly')).toBeDefined()
+    // The name appears on both the wide sidebar and the narrow-viewport bar. The narrow bar showed
+    // only the publication's first letter before, which does not tell you which publication you are
+    // in — so the duplication is deliberate, following the same getAllByText handling this file
+    // already uses for the KPI/chart label pair below.
+    expect(screen.getAllByText('The Weekly').length).toBeGreaterThan(0)
     expect(screen.getByRole('link', { name: 'New post' })).toBeDefined()
     for (const child of ['Drafts', 'Scheduled', 'Published', 'Free posts', 'Paid posts']) {
       expect(screen.getByText(child)).toBeDefined()

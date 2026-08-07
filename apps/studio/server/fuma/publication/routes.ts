@@ -43,6 +43,7 @@ import {
   PublicationWorkflowHistoryEventSchema,
   PublicationWorkflowInboxSchema,
   PublicationMemberSchema,
+  type PublicationMember,
   PublicationPresenceStateSchema,
   PublicationPresentationDecisionSchema,
   PublicationIdSchema,
@@ -62,7 +63,7 @@ import {
 import { Type, safeParseValue, type Static, type TSchema } from '@core/utils/typeboxHelpers'
 import { readValidatedBody } from '../../http'
 import type { FumaScopedRouteDeclaration, FumaScopedRouteHandlerInput } from '../context'
-import { bindPublicationScope } from './scope'
+import { bindPublicationScope, type PublicationRepositoryScope } from './scope'
 import type { PublicationCollaborationService, PublicationPresenceService } from './collaboration'
 import type { PublicationRevisionService } from './revisions'
 import { decidePublicationPresentation } from './presentation'
@@ -147,6 +148,24 @@ export type PublicationRoutePorts = Readonly<{
   campaigns: PublicationCampaignService
   deliverability: PublicationDeliverabilityService
   deliverabilityControls: PublicationDeliverabilityControlService
+  /**
+   * The member AUTH realm, read so the directory can report whether a member can actually sign in.
+   *
+   * OPTIONAL, so every existing composition site is unchanged and a deployment without it keeps
+   * working. When it is absent the directory says so rather than reporting the publication account's
+   * own 'active' as the whole truth - a member who registered and was never activated would otherwise
+   * be counted in an audience figure somebody prices a tier against.
+   */
+  memberIdentities?: Readonly<{
+    listIdentities(
+      scope: PublicationRepositoryScope,
+      page?: Readonly<{ limit?: number }>,
+    ): Promise<readonly Readonly<{
+      memberIdentityId: string
+      email: string
+      state: 'active' | 'disabled' | 'activation-required'
+    }>[]>
+  }>
   now?: () => Date
 }>
 
@@ -175,6 +194,68 @@ async function body<T extends TSchema>(input: FumaScopedRouteHandlerInput, schem
   if (result === null) throw new TypeError('Request body is invalid.')
   return result
 }
+/**
+ * A directory row: the publication profile plus whether the credential can sign in.
+ *
+ * `identityState` is OPTIONAL because a website-profile member exists as an auth identity with no
+ * publication account and the reverse is also possible, so a row demanding both would be unusable for
+ * one of the two profiles.
+ */
+const MemberDirectoryRowSchema = Type.Object({
+  memberId: Type.String(),
+  name: Type.String(),
+  email: Type.String(),
+  /**
+   * The SUBSCRIPTION status, which is what the publication record actually holds. It is deliberately
+   * NOT renamed to something that sounds like sign-in capability: 'active' here means a current
+   * subscriber, and a member can be an active subscriber who has never been able to sign in.
+   */
+  subscriptionStatus: Type.Union([
+    Type.Literal('active'), Type.Literal('complimentary'),
+    Type.Literal('blocked'), Type.Literal('unsubscribed'),
+  ]),
+  identityState: Type.Optional(Type.Union([
+    Type.Literal('active'), Type.Literal('disabled'), Type.Literal('activation-required'),
+  ])),
+}, { additionalProperties: false })
+
+const MemberDirectorySchema = Type.Object({
+  /**
+   * FALSE when the auth realm was not read, so a caller can say "sign-in status not available"
+   * instead of presenting the account state as the whole answer.
+   */
+  identityStateAvailable: Type.Boolean(),
+  rows: Type.Array(MemberDirectoryRowSchema, { maxItems: 100000 }),
+}, { additionalProperties: false })
+
+/**
+ * Joins the two records ON EMAIL, which is the field they genuinely share - the publication member
+ * carries `accountId` for a reader account, not an identity id, so there is no key to join on directly.
+ *
+ * A member with no matching identity gets NO identityState rather than a guessed one: the honest
+ * reading is that this listing could not determine whether they can sign in, and defaulting to
+ * 'active' is precisely the overcount this route exists to remove.
+ */
+function buildDirectoryRows(
+  members: readonly PublicationMember[],
+  identities: readonly Readonly<{ email: string, state: 'active' | 'disabled' | 'activation-required' }>[] | null,
+): readonly Static<typeof MemberDirectoryRowSchema>[] {
+  const byEmail = new Map<string, 'active' | 'disabled' | 'activation-required'>()
+  // Lowercased on both sides, because an address differing only in case is the same mailbox and a
+  // strict comparison would report a matched member as having no identity at all.
+  for (const identity of identities ?? []) byEmail.set(identity.email.toLowerCase(), identity.state)
+  return members.map((member) => {
+    const identityState = byEmail.get(member.email.toLowerCase())
+    return {
+      memberId: member.memberId,
+      name: member.name,
+      email: member.email,
+      subscriptionStatus: member.status,
+      ...(identityState === undefined ? {} : { identityState }),
+    }
+  })
+}
+
 function scoped(input: FumaScopedRouteHandlerInput) { return bindPublicationScope(input.repositoryScope, input.context.profile.id) }
 function memberPage(input:FumaScopedRouteHandlerInput):Static<typeof MemberPageQuerySchema>{const values=query(input);const rawLimit=values.get('limit');const parsed=safeParseValue(MemberPageQuerySchema,{limit:rawLimit===null?100:Number(rawLimit),afterId:values.get('afterId')});if(!parsed.ok)throw new TypeError('Member page query is invalid.');return parsed.value}
 function consentStateQuery(input:FumaScopedRouteHandlerInput):Static<typeof MemberConsentStateQuerySchema>{const parsed=safeParseValue(MemberConsentStateQuerySchema,{newsletterId:query(input).get('newsletterId')});if(!parsed.ok)throw new TypeError('Consent state query is invalid.');return parsed.value}
@@ -251,6 +332,26 @@ export function createPublicationScopedRouteDeclarations(ports: PublicationRoute
     route('POST', '/publication/member-privacy/export', 'publication.members.read', async (input) => {const command=await body(input,MemberPrivacyExportSchema);return json(PublicationMemberExportSchema,await ports.memberAccess.export(scoped(input),command.accountId,'staff'))}),
     route('POST', '/publication/member-privacy/deletion', 'publication.members.write', async (input) => {const command=await body(input,MemberPrivacyDeletionSchema);return json(PublicationPrivacyRequestSchema,await ports.memberAccess.requestDeletion(scoped(input),command.accountId,'staff',command.reason),202)}),
     route('POST', '/publication/member-privacy/deletion/complete', 'publication.members.write', async (input) => json(PublicationPrivacyRequestSchema,await ports.memberAccess.completeDeletion(scoped(input),await body(input,PublicationPrivacyRequestSchema)))),
+    /**
+     * The members DIRECTORY: the publication account joined to the auth identity.
+     *
+     * Separate from GET /publication/members rather than replacing it, because that route's shape is
+     * what the existing audience surface consumes and widening it would change every reader at once.
+     */
+    route('GET', '/publication/member-directory', 'publication.members.read', async (input) => {
+      const scope = scoped(input)
+      const accounts = await ports.store.listMembers(scope)
+      // Absent port means the identity realm was not supplied. Reported as a FACT rather than
+      // resolved optimistically: claiming every account is signed-in-capable is the exact overcount
+      // this route exists to remove.
+      const identities = ports.memberIdentities
+        ? await ports.memberIdentities.listIdentities(scope)
+        : null
+      return json(MemberDirectorySchema, {
+        identityStateAvailable: identities !== null,
+        rows: buildDirectoryRows(accounts, identities),
+      })
+    }),
     route('GET', '/publication/members', 'publication.members.read', async (input) => json(MemberListSchema,{members:await ports.store.listMembers(scoped(input))})),
     route('POST', '/publication/members', 'publication.members.write', async (input) => json(PublicationMemberSchema, await ports.audience.saveMember(scoped(input), await body(input, PublicationMemberSchema)))),
     route('GET', '/publication/segments', 'publication.members.read', async (input) => json(SegmentListSchema, { segments: await ports.store.listSegments(scoped(input)) })),

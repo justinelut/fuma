@@ -54,8 +54,10 @@ describe('FUMA-037 Dynamic Publication architecture', () => {
     expect(routes).toContain('createDynamicPublicationScopedRouteDeclarations')
     expect(routes).toContain('DynamicPublicationPublicBoundary')
     expect(routes).toContain('scopeForHost')
-    expect(editor).toContain("@ui/components/Button")
-    expect(editor).toContain("./DynamicPublicationTemplateEditor.module.css")
+    // The editor reuses a SHARED button rather than styling its own - the property that matters -
+    // and no longer carries a stylesheet, per task 80's shadcn-only standard.
+    expect(editor).toContain("@admin/fuma/ui/button")
+    expect(editor).not.toContain("module.css")
     expect(`${routes}\n${editor}`).not.toMatch(/apps\/(?:web|control-surfaces)|tailwind|@fuma\/ui/)
   })
 })

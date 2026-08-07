@@ -16,11 +16,13 @@ import { join } from 'node:path'
 import type { DbClient } from '../../../db/client'
 import type { CmsHandlerOptions } from '../shared'
 import { coerceBytes } from './shared'
-import type { StorageStats } from './types'
+import { hostedStorageAllowanceBytes } from '../../../fuma/entitlements/storageAllowanceBridge'
+import type { DashboardRequestContext, StorageStats } from './types'
 
 export async function readStorageStats(
   db: DbClient,
   options: CmsHandlerOptions,
+  ctx: DashboardRequestContext,
 ): Promise<StorageStats> {
   const [mediaResult, pluginBytes, databaseBytes] = await Promise.all([
     db<{
@@ -43,12 +45,19 @@ export async function readStorageStats(
     readDatabaseBytes(db),
   ])
 
+  // Resolved through the hosted bridge, which is null by default - so a self-hosted install
+  // reports no limit, which is the truth rather than a placeholder.
+  const allowanceBytes = await hostedStorageAllowanceBytes(ctx.request)
+
   const totals = mediaResult.rows[0]
   const imageBytes = coerceBytes(totals?.image_bytes)
   const videoBytes = coerceBytes(totals?.video_bytes)
   const documentBytes = coerceBytes(totals?.document_bytes)
 
   return {
+    // Resolved through the hosted bridge, which is null by default - so a self-hosted install
+    // reports no limit, which is the truth rather than a placeholder.
+    limitBytes: allowanceBytes,
     imageBytes,
     videoBytes,
     documentBytes,

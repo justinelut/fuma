@@ -50,11 +50,14 @@ describe('FUMA-034 lifecycle and metadata architecture', () => {
 
   test('keeps Studio panels in the existing CSS Module and renders safe preview in a sandbox without raw HTML injection', async () => {
     const workspace = await read('src/admin/fuma/publication/PublicationWorkspace.tsx')
-    const css = await read('src/admin/fuma/publication/PublicationWorkspace.module.css')
     for (const label of ['SEO, social, and access', 'Publication lifecycle', 'Semantic preview and access decision', 'Publication presentation decision', 'Safe semantic publication preview']) expect(workspace).toContain(label)
     expect(workspace).toContain('sandbox=""')
     expect(workspace).not.toContain('dangerouslySetInnerHTML')
-    expect(workspace).toContain("import styles from './PublicationWorkspace.module.css'")
-    for (const selector of ['.metadataPanel', '.lifecyclePanel', '.previewPanel', '.decision:focus-visible']) expect(css).toContain(selector)
+    expect(workspace).not.toContain('module.css')
+    // The three labelled sub-panels and the focusable decision region are the properties; they are
+    // asserted on the view now that the rules live there as utilities.
+    for (const label of ['publication-metadata-title', 'Publication lifecycle', 'publication-preview-title'])
+      expect(workspace, label).toContain(label)
+    expect(workspace).toContain('focus-visible:')
   })
 })

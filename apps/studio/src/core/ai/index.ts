@@ -42,6 +42,10 @@ export type {
   AiUserImageSourceMimeType,
 } from './userImage'
 export {
+  AuthorModuleToolInputSchema,
+  EditModuleToolInputSchema,
+  ReadModuleToolInputSchema,
+  ListModulesToolInputSchema,
   InsertHtmlInputSchema,
   GetNodeHtmlInputSchema,
   AgentDocumentRefSchema,
@@ -76,6 +80,10 @@ export {
   SiteProposePaymentSetupInputSchema,
 } from './toolSchemas'
 export type {
+  AuthorModuleToolInput,
+  EditModuleToolInput,
+  ReadModuleToolInput,
+  ListModulesToolInput,
   InsertHtmlInput,
   GetNodeHtmlInput,
   AgentDocumentRef,

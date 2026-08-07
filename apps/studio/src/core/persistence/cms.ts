@@ -16,6 +16,7 @@ import { visualComponentFromRow } from '@core/data/componentFromRow'
 import { savedLayoutFromRow } from '@core/data/layoutFromRow'
 import type { VisualComponent } from '@core/visualComponents'
 import type { SavedLayout } from '@core/layouts'
+import { activeBuilderScopeQuery, builderScopeSearch } from '@core/fuma/builder/builderScope'
 
 const defaultFetch: FetchLike = (input, init) => globalThis.fetch(input, init)
 
@@ -79,6 +80,9 @@ export class CmsAdapter implements IPersistenceAdapter {
     await apiRequest(`${this.basePath}/site-document`, {
       method: 'PUT',
       body,
+      // Carries the hosted builder's site scope so the server writes THIS site's document.
+      // Empty when self-hosted, so the request is byte-for-byte what it always was.
+      query: activeBuilderScopeQuery(),
       schema: CmsSiteDocumentSaveEnvelopeSchema,
       fetchImpl: this.fetchImpl,
       fallbackMessage: 'Site save failed',
@@ -100,7 +104,9 @@ export class CmsAdapter implements IPersistenceAdapter {
   async loadSite(): Promise<SiteDocument | undefined> {
     // Parallel fetch — all four are GETs with no dependency on each other
     const [shellRes, pagesRes, componentsRes, layoutsRes] = await Promise.all([
-      this.fetchImpl(`${this.basePath}/site`, {
+      // The shell read carries the builder's site scope for the same reason the save does: the
+      // server must read THIS site's document rather than the one shared legacy document.
+      this.fetchImpl(`${this.basePath}/site${builderScopeSearch()}`, {
         method: 'GET',
         credentials: 'include',
       }),

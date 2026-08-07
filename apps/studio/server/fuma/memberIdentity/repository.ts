@@ -1,6 +1,7 @@
 import type {
   MemberConsentEvent,
   MemberCredentialRecord,
+  MemberIdentity,
   MemberIdentityScope,
   MemberImportReceipt,
   MemberSessionRecord,
@@ -12,9 +13,38 @@ export type ResolvedMemberSession = Readonly<{
   session: MemberSessionRecord
 }>
 
+/**
+ * One page of the directory. Bounded so a caller cannot ask for an unbounded scan of a site with
+ * hundreds of thousands of members.
+ */
+export type MemberIdentityPage = Readonly<{
+  limit?: number
+  after?: Readonly<{ createdAt: string; memberIdentityId: string }>
+}>
+
+/** Largest page the repository will return, whatever a caller asks for. */
+export const MAX_IDENTITY_PAGE = 200
+
 export interface MemberIdentityRepository {
   createIdentity(scope: MemberIdentityScope, record: MemberCredentialRecord, consent: readonly MemberConsentEvent[]): Promise<boolean>
   findIdentityByEmail(scope: MemberIdentityScope, normalizedEmail: string): Promise<MemberCredentialRecord | null>
+  /**
+   * List the identities of ONE site, for the members directory.
+   *
+   * RETURNS IDENTITIES WITHOUT CREDENTIALS, deliberately, and that is the difference from
+   * findIdentityByEmail. That one returns a MemberCredentialRecord because verifying a password needs
+   * the hash; a LIST is read in order to be displayed, so carrying hashes would put every member's
+   * hash one serialisation mistake away from an admin response. The return type makes that impossible
+   * rather than merely discouraged.
+   *
+   * KEYSET rather than offset pagination: members register while somebody is paging, and an offset
+   * over a growing table silently skips or repeats rows at a page boundary. `after` is the last
+   * (createdAt, memberIdentityId) pair already seen.
+   */
+  listIdentities(
+    scope: MemberIdentityScope,
+    page?: MemberIdentityPage,
+  ): Promise<readonly MemberIdentity[]>
   createSession(scope: MemberIdentityScope, session: MemberSessionRecord): Promise<boolean>
   resolveSession(scope: MemberIdentityScope, tokenHashSha256: string): Promise<ResolvedMemberSession | null>
   rotateSession(scope: MemberIdentityScope, previousSessionId: string, next: MemberSessionRecord, revokedAt: string): Promise<boolean>
@@ -55,6 +85,27 @@ export class MemoryMemberIdentityRepository implements MemberIdentityRepository 
   findIdentityByEmail(scope: MemberIdentityScope, normalizedEmail: string): Promise<MemberCredentialRecord | null> {
     const found = this.identities.get(`${scopeKey(scope)}\u0000${normalizedEmail}`)
     return Promise.resolve(found && samePublicationScope(found.scope, scope) ? clone(found.value) : null)
+  }
+
+  listIdentities(scope: MemberIdentityScope, page?: MemberIdentityPage): Promise<readonly MemberIdentity[]> {
+    const limit = Math.min(page?.limit ?? MAX_IDENTITY_PAGE, MAX_IDENTITY_PAGE)
+    const mine = [...this.identities.values()]
+      .filter((entry) => samePublicationScope(entry.scope, scope))
+      .map((entry) => entry.value.identity)
+      // Ordered by (createdAt, id) so a page boundary is stable when two members were created in the
+      // same millisecond - without the tiebreak one of them can be skipped or repeated.
+      .sort((a, b) =>
+        a.createdAt === b.createdAt
+          ? a.memberIdentityId.localeCompare(b.memberIdentityId)
+          : a.createdAt.localeCompare(b.createdAt))
+    const after = page?.after
+    const start = after === undefined
+      ? 0
+      : mine.findIndex((row) =>
+        row.createdAt > after.createdAt
+        || (row.createdAt === after.createdAt && row.memberIdentityId > after.memberIdentityId))
+    if (start < 0) return Promise.resolve(Object.freeze([]))
+    return Promise.resolve(Object.freeze(mine.slice(start, start + limit).map((row) => clone(row))))
   }
 
   async createSession(scope: MemberIdentityScope, session: MemberSessionRecord): Promise<boolean> {

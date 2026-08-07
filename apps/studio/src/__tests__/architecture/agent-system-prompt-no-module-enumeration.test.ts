@@ -35,12 +35,18 @@ describe('agent-system-prompt-no-module-enumeration gate', () => {
     expect(src).not.toContain('base.text')
   })
 
-  it('references site_insert_html in the static prefix', () => {
+  it('references site_author_module in the static prefix', () => {
     // The HTML-native tool must be described so the agent knows to use it.
-    expect(src).toContain('site_insert_html')
+    // Replaced site_insert_html when the engine stopped authoring HTML. The prompt must name
+    // the tool the model is actually expected to reach for, or it will describe a workflow the
+    // executor does not implement.
+    expect(src).toContain('site_author_module')
   })
 
-  it('contains the "Structure as HTML, styling as CSS" guideline', () => {
-    expect(src).toContain('Structure as HTML, styling as CSS')
+  it('states the typed-React authoring guideline', () => {
+    // The old guideline was "Structure as HTML, styling as CSS". Under the React engine the
+    // canonical artifact is typed TSX with Tailwind classes, so asserting the old phrase would
+    // hold the prompt to a model the engine no longer has.
+    expect(src).toContain('Author typed React source')
   })
 })

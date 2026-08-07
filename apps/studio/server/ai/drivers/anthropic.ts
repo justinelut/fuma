@@ -235,7 +235,9 @@ const anthropicAdapter: ProviderAdapter<AnthropicMessage> = {
   buildRequestBody(messages, req) {
     const body: Record<string, unknown> = {
       model: req.modelId,
-      max_tokens: MAX_OUTPUT_TOKENS,
+      // A lower budget wins when one has been established (the account could not afford
+      // the default), because the alternative is refusing the turn outright.
+      max_tokens: req.maxOutputTokens ?? MAX_OUTPUT_TOKENS,
       system: buildSystemBlocks(req.systemPrompt),
       messages,
       stream: true,

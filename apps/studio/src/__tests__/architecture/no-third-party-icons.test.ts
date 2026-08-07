@@ -72,11 +72,19 @@ function collectProdFiles(): string[] {
 // ---------------------------------------------------------------------------
 
 // NOTE: strings are split so that this test file itself doesn't self-match.
+/**
+ * Lucide is deliberately ABSENT from this list.
+ *
+ * It is the sanctioned icon set for the hosted Fuma admin and for generated sites, because
+ * those surfaces are built from shadcn components and Lucide is shadcn's own default — using
+ * anything else there means every shadcn component ships an icon that does not match the rest
+ * of the interface. Pinned to one version across both apps so an icon cannot differ between
+ * the admin and a tenant's site.
+ *
+ * The constraint this file exists for still holds: no OTHER icon library may be added. That is
+ * what stops the supply-chain and visual sprawl the rule was written against.
+ */
 const BANNED_PACKAGES: { name: string; pattern: RegExp }[] = [
-  {
-    name: 'lucide' + '-react',
-    pattern: new RegExp(`from\\s+['"]lucide` + `-react['"]|require\\s*\\(\\s*['"]lucide` + `-react['"]\\s*\\)`),
-  },
   {
     name: '@heroicons' + '/react',
     pattern: new RegExp(`from\\s+['"]@heroicons` + `/`),
@@ -112,22 +120,16 @@ const BANNED_PACKAGES: { name: string; pattern: RegExp }[] = [
 // ---------------------------------------------------------------------------
 
 describe('Constraint #348 — No third-party icon libraries in production src/', () => {
-  it('no production file imports from lucide-react (dead dep removed in Task #349)', () => {
-    const allFiles = collectProdFiles()
-    const bannedPkg = BANNED_PACKAGES[0] // lucide-react
-    const violations = allFiles.filter((f) => {
-      try { return bannedPkg.pattern.test(readFileSync(f, 'utf8')) } catch { return false }
-    })
-    if (violations.length > 0) {
-      const rel = violations.map((f) => f.replace(SRC_ROOT, 'src/'))
-      throw new Error(
-        `[Constraint #348] "${bannedPkg.name}" found in production source.\n` +
-        `Use pixel-art-icons from 'pixel-art-icons/icons/<name>'.\n` +
-        `Violating files:\n` +
-        rel.map((f) => `  ${f}`).join('\n')
-      )
+  it('does not ban Lucide, which is the sanctioned set for shadcn surfaces', () => {
+    // Asserted as an absence so re-adding it to the ban list is a deliberate, visible act
+    // rather than something that silently breaks every shadcn-composed panel.
+    expect(BANNED_PACKAGES.map((pkg) => pkg.name)).not.toContain('lucide-react')
+  })
+
+  it('still bans every other icon library, which is what the constraint is for', () => {
+    for (const name of ['@heroicons/react', 'react-icons', '@tabler/icons-react']) {
+      expect(BANNED_PACKAGES.map((pkg) => pkg.name)).toContain(name)
     }
-    expect(violations).toHaveLength(0)
   })
 
   it('no production file imports from any banned icon package', () => {

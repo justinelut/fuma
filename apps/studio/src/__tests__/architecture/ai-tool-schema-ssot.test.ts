@@ -32,7 +32,11 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { siteWriteTools } from '../../../server/ai/tools/site/writeTools'
 import {
+  AuthorModuleToolInputSchema,
+  EditModuleToolInputSchema,
   InsertHtmlInputSchema,
+  ListModulesToolInputSchema,
+  ReadModuleToolInputSchema,
   GetNodeHtmlInputSchema,
   ReadDocumentInputSchema,
   OpenDocumentInputSchema,
@@ -68,6 +72,12 @@ const PROJECT_ROOT = join(import.meta.dir, '../../../')
 
 /** Tool name → the canonical leaf schema the registry MUST reference. */
 const EXPECTED_SCHEMA_BY_TOOL = {
+  // TSX authoring (task 42/44). Ordered first because writeTools declares them ahead of the
+  // superseded HTML tools, which remain only until the canvas is rebuilt on the node union.
+  site_author_module: AuthorModuleToolInputSchema,
+  site_edit_module: EditModuleToolInputSchema,
+  site_read_module: ReadModuleToolInputSchema,
+  site_list_modules: ListModulesToolInputSchema,
   site_insert_html: InsertHtmlInputSchema,
   site_get_node_html: GetNodeHtmlInputSchema,
   site_read_document: ReadDocumentInputSchema,

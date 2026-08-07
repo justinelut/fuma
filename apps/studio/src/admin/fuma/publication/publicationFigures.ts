@@ -35,6 +35,15 @@ export type PublicationFigures = Readonly<{
   memberSources: readonly Readonly<{ source: string, reads: number }>[]
   /** Per-newsletter opens, for the bar series. */
   newsletterSeries: readonly Readonly<{ label: string, value: number }>[]
+  /**
+   * Reads per day across the whole range, for the trend chart.
+   *
+   * EVERY day in the range is present, including days with no activity. The reader returns only days
+   * that HAVE rows, so plotting its output directly would place a quiet Tuesday next to the following
+   * Friday as if they were consecutive - the line would misreport both the shape of the trend and how
+   * long it covers. Filling the gaps is what makes the x-axis mean elapsed time.
+   */
+  dailyReadSeries: readonly Readonly<{ label: string, value: number }>[]
   /** Published posts, most recent first, with engagement where measured. */
   posts: readonly Readonly<{
     id: string
@@ -45,6 +54,40 @@ export type PublicationFigures = Readonly<{
   }>[]
   range: PublicationAnalyticsRange
 }>
+
+/**
+ * Every day from `from` up to and including `to`, in order.
+ *
+ * Built from the RANGE rather than from the returned rows, so a day with no events becomes a zero
+ * rather than disappearing.
+ */
+export function daysInRange(range: PublicationAnalyticsRange): readonly string[] {
+  const days: string[] = []
+  const start = new Date(`${range.from}T00:00:00Z`)
+  const end = new Date(`${range.to}T00:00:00Z`)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return Object.freeze([])
+  for (let cursor = start; cursor <= end; cursor = new Date(cursor.getTime() + 86_400_000)) {
+    days.push(cursor.toISOString().slice(0, 10))
+  }
+  return Object.freeze(days)
+}
+
+/**
+ * Reads per day, gap-filled across the range.
+ *
+ * The label is the day of the month, because thirty full dates on one axis is unreadable and the
+ * range is already stated above the chart.
+ */
+export function dailyReadSeriesFrom(
+  range: PublicationAnalyticsRange,
+  daily: readonly Readonly<{ day: string, siteReads: number, postReads: number }>[],
+): readonly Readonly<{ label: string, value: number }>[] {
+  const byDay = new Map(daily.map((row) => [row.day, row.siteReads + row.postReads]))
+  return Object.freeze(daysInRange(range).map((day) => Object.freeze({
+    label: String(Number(day.slice(8, 10))),
+    value: byDay.get(day) ?? 0,
+  })))
+}
 
 function isoDate(value: Date): string {
   return value.toISOString().slice(0, 10)
@@ -70,6 +113,7 @@ export function emptyPublicationFigures(
     newsletterClicks: null,
     memberSources: Object.freeze([]),
     newsletterSeries: Object.freeze([]),
+    dailyReadSeries: Object.freeze([]),
     posts: Object.freeze([]),
     range,
   })
@@ -137,6 +181,7 @@ export async function readPublicationFigures(
       source: metric.source,
       reads: metric.reads,
     }))),
+    dailyReadSeries: dailyReadSeriesFrom(range, report?.daily ?? []),
     newsletterSeries: Object.freeze((report?.newsletters ?? []).slice(0, 24).map((metric) => Object.freeze({
       label: newsletterNames.get(metric.newsletterId) ?? metric.newsletterId,
       value: metric.opens,

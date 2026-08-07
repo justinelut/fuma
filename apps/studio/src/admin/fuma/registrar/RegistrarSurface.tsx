@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { getErrorMessage } from '@core/utils/errorMessage'
-import { Button } from '@ui/components/Button'
+import { Button } from '@admin/fuma/ui/button'
 import type { RegistrarHttpClient } from './contracts'
 import type {
   RegistrarContactWire,
@@ -9,7 +9,6 @@ import type {
   RegistrarRegistrationWire,
   RegistrarRenewalReceiptWire,
 } from './contracts'
-import styles from './RegistrarSurface.module.css'
 
 export type RegistrarSurfaceProps = Readonly<{
   client: RegistrarHttpClient
@@ -134,38 +133,38 @@ export function RegistrarSurface({ client, canWrite }: RegistrarSurfaceProps) {
 
   const matchingRegistration = registrations.find((entry) => entry.hostname === quote?.hostname)
   return (
-    <section className={styles.surface} aria-labelledby="registrar-title">
-      <header className={styles.header}>
-        <div><p className={styles.eyebrow}>Fuma-managed registration</p><h2 id="registrar-title">Domain registrar</h2></div>
-        <span className={styles.currency}>KES only</span>
+    <section className="grid min-w-0 gap-6 rounded-md bg-muted/40 p-8 text-foreground" aria-labelledby="registrar-title">
+      <header className="flex items-center justify-between gap-4">
+        <div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fuma-managed registration</p><h2 id="registrar-title">Domain registrar</h2></div>
+        <span className="rounded-md border border-border px-3 py-1 text-xs font-semibold text-muted-foreground">KES only</span>
       </header>
-      <p className={styles.intro}>Search first, then confirm the exact hostname, amount, terms, and registration period. Provider timeouts remain ambiguous until reconciled; a successful purchase hands the domain to managed DNS without exposing provider credentials.</p>
-      {!canWrite ? <p className={styles.notice}>Read-only access. Site settings write permission and fresh step-up are required to confirm.</p> : null}
-      <form className={styles.form} onSubmit={(event) => { void search(event) }}>
+      <p className="text-sm leading-relaxed text-muted-foreground">Search first, then confirm the exact hostname, amount, terms, and registration period. Provider timeouts remain ambiguous until reconciled; a successful purchase hands the domain to managed DNS without exposing provider credentials.</p>
+      {!canWrite ? <p className="text-sm leading-relaxed text-muted-foreground">Read-only access. Site settings write permission and fresh step-up are required to confirm.</p> : null}
+      <form className="grid items-end gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(7rem,1fr)_auto] [&_input]:min-h-11 [&_input]:w-full [&_input]:rounded-md [&_input]:border [&_input]:border-input [&_input]:bg-transparent [&_input]:p-3 [&_select]:min-h-11 [&_select]:w-full [&_select]:rounded-md [&_select]:border [&_select]:border-input [&_select]:bg-transparent [&_select]:p-3 [&_label]:grid [&_label]:gap-1 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-muted-foreground" onSubmit={(event) => { void search(event) }}>
         <label>Domain name<input required value={hostname} onChange={(event) => setHostname(event.target.value)} placeholder="example.co.ke" /></label>
         <label>Period (years)<input required min="1" max="10" inputMode="numeric" value={periodYears} onChange={(event) => setPeriodYears(event.target.value)} /></label>
-        <Button type="submit" variant="primary" size="md" disabled={busy}>Search and quote</Button>
+        <Button type="submit" variant="default" disabled={busy}>Search and quote</Button>
       </form>
       {quote ? (
-        <section className={styles.quote} aria-labelledby="registrar-quote-title">
-          <header><div><p className={styles.eyebrow}>Expires {new Date(quote.expiresAt).toLocaleString()}</p><h3 id="registrar-quote-title">{quote.hostname}</h3></div><strong>{matchingRegistration ? money(quote.renewalAmountMinor) : money(quote.registrationAmountMinor)}</strong></header>
+        <section className="grid gap-6 rounded-md border border-border bg-card p-8 [&_header]:flex [&_header]:items-center [&_header]:justify-between [&_header]:gap-4 [&_h3]:text-foreground [&_strong]:text-foreground" aria-labelledby="registrar-quote-title">
+          <header><div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Expires {new Date(quote.expiresAt).toLocaleString()}</p><h3 id="registrar-quote-title">{quote.hostname}</h3></div><strong>{matchingRegistration ? money(quote.renewalAmountMinor) : money(quote.registrationAmountMinor)}</strong></header>
           <dl><div><dt>Currency</dt><dd>{quote.currency}</dd></div><div><dt>Period</dt><dd>{quote.periodYears} year(s)</dd></div><div><dt>Minor units</dt><dd>{matchingRegistration ? quote.renewalAmountMinor : quote.registrationAmountMinor}</dd></div><div><dt>Terms hash</dt><dd title={quote.termsHash}>{quote.termsHash.slice(0, 16)}…</dd></div></dl>
           {!matchingRegistration ? (
-            <div className={styles.contacts}>
+            <div className="grid items-end gap-4 sm:grid-cols-2 [&_input]:min-h-11 [&_input]:w-full [&_input]:rounded-md [&_input]:border [&_input]:border-input [&_input]:bg-transparent [&_input]:p-3 [&_select]:min-h-11 [&_select]:w-full [&_select]:rounded-md [&_select]:border [&_select]:border-input [&_select]:bg-transparent [&_select]:p-3 [&_label]:grid [&_label]:gap-1 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-muted-foreground">
               <label>Registrant name<input required value={contact.name} onChange={(event) => setContact({ ...contact, name: event.target.value })} /></label>
               <label>Email<input required type="email" value={contact.email} onChange={(event) => setContact({ ...contact, email: event.target.value })} /></label>
               <label>Kenyan phone<input required value={contact.phoneE164} onChange={(event) => setContact({ ...contact, phoneE164: event.target.value })} /></label>
               <label>Address<input required value={contact.address} onChange={(event) => setContact({ ...contact, address: event.target.value })} /></label>
             </div>
           ) : null}
-          <label className={styles.confirm}>Type <code>{matchingRegistration ? `RENEW ${quote.hostname}` : `PURCHASE ${quote.hostname}`}</code><input required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label>
-          <label className={styles.confirm}>Fresh step-up proof<input required type="password" autoComplete="one-time-code" value={stepUpProof} onChange={(event) => setStepUpProof(event.target.value)} /></label>
-          <Button type="button" variant="primary" size="md" disabled={!canWrite || busy} onClick={() => { if (matchingRegistration) void renew(matchingRegistration); else void purchase() }}>{matchingRegistration ? 'Confirm exact renewal' : 'Confirm exact purchase'}</Button>
+          <label className="grid gap-1 text-sm font-semibold text-muted-foreground [&_code]:font-mono [&_input]:min-h-11 [&_input]:w-full [&_input]:rounded-md [&_input]:border [&_input]:border-input [&_input]:bg-transparent [&_input]:p-3 [&_select]:min-h-11 [&_select]:w-full [&_select]:rounded-md [&_select]:border [&_select]:border-input [&_select]:bg-transparent [&_select]:p-3 [&_label]:grid [&_label]:gap-1 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-muted-foreground">Type <code>{matchingRegistration ? `RENEW ${quote.hostname}` : `PURCHASE ${quote.hostname}`}</code><input required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label>
+          <label className="grid gap-1 text-sm font-semibold text-muted-foreground [&_code]:font-mono [&_input]:min-h-11 [&_input]:w-full [&_input]:rounded-md [&_input]:border [&_input]:border-input [&_input]:bg-transparent [&_input]:p-3 [&_select]:min-h-11 [&_select]:w-full [&_select]:rounded-md [&_select]:border [&_select]:border-input [&_select]:bg-transparent [&_select]:p-3 [&_label]:grid [&_label]:gap-1 [&_label]:text-sm [&_label]:font-semibold [&_label]:text-muted-foreground">Fresh step-up proof<input required type="password" autoComplete="one-time-code" value={stepUpProof} onChange={(event) => setStepUpProof(event.target.value)} /></label>
+          <Button type="button" variant="default" disabled={!canWrite || busy} onClick={() => { if (matchingRegistration) void renew(matchingRegistration); else void purchase() }}>{matchingRegistration ? 'Confirm exact renewal' : 'Confirm exact purchase'}</Button>
         </section>
       ) : null}
-      {receipt ? <p className={styles.receipt} role="status">Receipt <code>{receipt.receiptId}</code> · {money(receipt.amountMinor)} · expires {new Date(receipt.expiresAt).toLocaleDateString()}</p> : null}
-      {status ? <p className={styles.status} role="status">{status}</p> : null}
-      {error ? <p className={styles.error} role="alert">{error}</p> : null}
+      {receipt ? <p className="text-sm leading-relaxed text-muted-foreground [&_code]:font-mono" role="status">Receipt <code>{receipt.receiptId}</code> · {money(receipt.amountMinor)} · expires {new Date(receipt.expiresAt).toLocaleDateString()}</p> : null}
+      {status ? <p className="text-sm leading-relaxed text-muted-foreground" role="status">{status}</p> : null}
+      {error ? <p className="rounded-md border-l-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive" role="alert">{error}</p> : null}
     </section>
   )
 }
