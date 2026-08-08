@@ -24,7 +24,39 @@
  *    declared token.
  */
 
-import { compile } from 'tailwindcss'
+// Imported LAZILY, inside createCompiler, rather than at module scope.
+//
+// This module is reachable from server/index.ts through the canvas CSS route, so a top-level import made
+// Tailwind's resolvability a condition of the SERVER STARTING. It resolved in the monorepo through the
+// hoisted workspace node_modules, but the production image installs with `--production` and tailwindcss
+// was declared as a DEV dependency - so the studio pod crash-looped on
+// `Cannot find package 'tailwindcss'` and the whole platform was down, to serve one endpoint.
+//
+// The dependency is now declared in `dependencies` where it belongs, which is the real fix. This lazy
+// import is the second half: a dependency that only one feature needs must not be able to stop the
+// server from booting. A canvas that cannot compile CSS is a degraded canvas; a server that will not
+// start is every site offline.
+type TailwindCompile = (
+  stylesheet: string,
+  options: { base: string; loadStylesheet: (id: string, base: string) => Promise<{ base: string; content: string }> },
+) => Promise<{ build: (candidates: string[]) => string }>
+
+let compileFn: TailwindCompile | null = null
+
+async function loadTailwindCompile(): Promise<TailwindCompile> {
+  if (compileFn) return compileFn
+  try {
+    const mod = (await import('tailwindcss')) as unknown as { compile: TailwindCompile }
+    compileFn = mod.compile
+    return compileFn
+  } catch (error) {
+    throw new Error(
+      'The canvas cannot compile Tailwind because the `tailwindcss` package could not be loaded. ' +
+      'It must be a runtime dependency of apps/studio, not a dev dependency. ' +
+      `Underlying error: ${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+}
 
 export type CompiledCanvasCss = Readonly<{
   css: string
@@ -143,6 +175,7 @@ export async function compileCanvasCss(
 }
 
 async function createCompiler(stylesheet: string): Promise<CachedCompiler> {
+  const compile = await loadTailwindCompile()
   const compiler = await compile(stylesheet, { base: RESOLVE_BASE, loadStylesheet })
   return { build: (candidates) => compiler.build(candidates) }
 }
