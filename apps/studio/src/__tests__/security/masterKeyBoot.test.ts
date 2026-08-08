@@ -18,8 +18,7 @@ import { describe, expect, it, afterEach } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  MasterKeyConfigurationError,
-  verifyMasterKeyAtBoot,
+  reportMasterKeyAtBoot,
   __resetMasterKeyCacheForTesting,
 } from '../../../server/secrets/masterKey'
 
@@ -54,44 +53,52 @@ describe('the master key is established at boot, not on first use', () => {
     __resetMasterKeyCacheForTesting()
     const fingerprint = await withEnv(
       { INSTATIC_SECRET_KEY: VALID_KEY },
-      () => verifyMasterKeyAtBoot(),
+      () => reportMasterKeyAtBoot(),
     )
     expect(typeof fingerprint).toBe('string')
     expect(fingerprint.length).toBeGreaterThan(8)
   })
 
-  it('REFUSES in production when the key is absent, naming the remedy', async () => {
+  it('REPORTS rather than crashing when the key is absent, so a misconfiguration is not an outage', async () => {
     __resetMasterKeyCacheForTesting()
-    let failure: unknown = null
+    const errors: string[] = []
+    const original = console.error
+    console.error = (...args: unknown[]) => { errors.push(args.map(String).join(' ')) }
+    let returned: string | null = 'unset'
     try {
-      await withEnv(
+      returned = await withEnv(
         { INSTATIC_SECRET_KEY: undefined, NODE_ENV: 'production' },
-        () => verifyMasterKeyAtBoot(),
+        () => reportMasterKeyAtBoot(),
       )
-    } catch (error) {
-      failure = error
+    } finally {
+      console.error = original
     }
-    expect(failure).toBeInstanceOf(MasterKeyConfigurationError)
-    const message = failure instanceof Error ? failure.message : ''
-    // A refusal that does not say how to fix it sends an operator reading source during an incident.
-    expect(message).toContain('INSTATIC_SECRET_KEY')
-    expect(message).toContain('generate-secret-key')
+    // NULL, not a throw. Refusing to boot took the studio into CrashLoopBackOff and every hosted site
+    // with it, to protect two features that already fail closed.
+    expect(returned).toBeNull()
+    const joined = errors.join(' ')
+    expect(joined).toContain('INSTATIC_SECRET_KEY')
+    expect(joined).toContain('generate-secret-key')
+    // Names both affected features, because the defect was that this surfaced as a broken page instead.
+    expect(joined.toLowerCase()).toContain('mfa')
   })
 
-  it('REFUSES a malformed key rather than accepting it as configuration', async () => {
+  it('reports a malformed key without crashing', async () => {
     __resetMasterKeyCacheForTesting()
-    let failure: unknown = null
+    const original = console.error
+    let saw = false
+    console.error = () => { saw = true }
+    let returned: string | null = 'unset'
     try {
-      await withEnv(
+      returned = await withEnv(
         { INSTATIC_SECRET_KEY: 'not-base64-and-not-32-bytes', NODE_ENV: 'production' },
-        () => verifyMasterKeyAtBoot(),
+        () => reportMasterKeyAtBoot(),
       )
-    } catch (error) {
-      failure = error
+    } finally {
+      console.error = original
     }
-    // Rethrown as a CONFIGURATION error, so the boot failure names the cause rather than surfacing as a
-    // stray WebCrypto error from whichever call site happened to run first.
-    expect(failure).toBeInstanceOf(MasterKeyConfigurationError)
+    expect(returned).toBeNull()
+    expect(saw).toBe(true)
   })
 
   it('performs a real encrypt/decrypt ROUND TRIP, not merely a key import', async () => {
@@ -106,7 +113,7 @@ describe('the master key is established at boot, not on first use', () => {
     const source = readFileSync(join(SERVER, 'secrets', 'masterKey.ts'), 'utf8')
     // BOUNDED to this function. Slicing to end-of-file also captured `readMasterKeyBytes`, which reads
     // process.env legitimately - the scan then measured more than it claimed and failed on correct code.
-    const start = source.indexOf('export async function verifyMasterKeyAtBoot')
+    const start = source.indexOf('export async function reportMasterKeyAtBoot')
     const verifier = source.slice(start, source.indexOf('export function __resetMasterKeyCacheForTesting', start))
     expect(verifier).toContain('fingerprint')
     // A rotated key is not a configuration error - the process works, it just cannot read older rows -
@@ -121,12 +128,12 @@ describe('the master key is established at boot, not on first use', () => {
 describe('the verification is wired into boot, and only for production', () => {
   it('server/index.ts calls it', () => {
     const index = readFileSync(join(SERVER, 'index.ts'), 'utf8')
-    expect(index).toContain('verifyMasterKeyAtBoot()')
+    expect(index).toContain('reportMasterKeyAtBoot()')
   })
 
   it('runs BEFORE migrations, so a misconfigured deploy does not alter the schema first', () => {
     const index = readFileSync(join(SERVER, 'index.ts'), 'utf8')
-    const verify = index.indexOf('verifyMasterKeyAtBoot()')
+    const verify = index.indexOf('reportMasterKeyAtBoot()')
     const migrate = index.indexOf('await runMigrations(db, migrations)')
     expect(verify).toBeGreaterThan(-1)
     expect(migrate).toBeGreaterThan(-1)
@@ -136,7 +143,7 @@ describe('the verification is wired into boot, and only for production', () => {
   it('is gated on production, so a self-hosted dev boot keeps its auto-created key', () => {
     const index = readFileSync(join(SERVER, 'index.ts'), 'utf8')
     const guard = index.indexOf("process.env.NODE_ENV === 'production'")
-    const verify = index.indexOf('verifyMasterKeyAtBoot()')
+    const verify = index.indexOf('reportMasterKeyAtBoot()')
     expect(guard).toBeGreaterThan(-1)
     expect(guard).toBeLessThan(verify)
     // The dev fallback must still exist, or `bun run dev` would demand a key nobody has set.

@@ -284,8 +284,26 @@ jobs:
               sudo kubectl -n $NS get pods -o wide
               sudo kubectl -n $NS describe deployment/fuma-studio | tail -40
               sudo kubectl -n $NS get events --sort-by=.lastTimestamp | tail -30
-              sudo kubectl -n $NS logs deployment/fuma-studio --tail=200 --all-containers=true || true
-              sudo kubectl -n $NS logs deployment/fuma-studio --tail=100 --previous || true
+              # Log the NOT-READY pods by name, never `logs deployment/...`.
+              #
+              # During a failed rollout there are two ReplicaSets, so kubectl picks one pod for the
+              # deployment ("Found 2 pods, using pod/x") and it is usually the OLD HEALTHY one. That made
+              # this block print a working pod's output and no crash at all - useless at exactly the moment
+              # it is needed, which is how a CrashLoopBackOff reached a human with no reason attached.
+              crashing=$(sudo kubectl -n $NS get pods -l app=fuma-studio \
+                -o jsonpath='{range .items[?(@.status.containerStatuses[0].ready==false)]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
+              if [ -z "$crashing" ]; then
+                crashing=$(sudo kubectl -n $NS get pods -l app=fuma-studio -o name 2>/dev/null | sed 's|pod/||' || true)
+              fi
+              for p in $crashing; do
+                echo "──────── $p (current) ────────"
+                sudo kubectl -n $NS logs "$p" --tail=200 --all-containers=true || true
+                echo "──────── $p (previous crash) ────────"
+                sudo kubectl -n $NS logs "$p" --tail=200 --all-containers=true --previous || true
+                echo "──────── $p (terminated state) ────────"
+                sudo kubectl -n $NS get pod "$p" \
+                  -o jsonpath='{range .status.containerStatuses[*]}{.name}{" exit="}{.lastState.terminated.exitCode}{" reason="}{.lastState.terminated.reason}{" msg="}{.lastState.terminated.message}{"\n"}{end}' || true
+              done
               exit 1
             fi
             sudo kubectl rollout status deployment/fuma-worker -n $NS --timeout=6m || true

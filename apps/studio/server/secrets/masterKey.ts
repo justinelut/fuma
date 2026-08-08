@@ -68,50 +68,59 @@ export async function getMasterKeyFingerprint(): Promise<string> {
 }
 
 /**
- * Boot-time verification for production deployments.
+ * Boot-time REPORT for the reversible-secret master key. Deliberately never throws.
  *
- * Resolves the master key eagerly so a missing or malformed INSTATIC_SECRET_KEY stops the deployment
- * instead of surfacing later, inside a request, as a broken feature. Without this the key was only ever
- * resolved on first use (`ai/credentials/store.ts`, `auth/totpSecrets.ts`), so the failure appeared on a
- * customer's screen rather than in the deploy that caused it.
+ * WHAT THIS CLOSES (task 1): the key was resolved lazily, only when `ai/credentials/store.ts` or
+ * `auth/totpSecrets.ts` first needed it. A production deployment missing INSTATIC_SECRET_KEY therefore
+ * booted, served traffic, and failed later inside a request - so the operator saw a green deploy and the
+ * customer saw the AI and two-factor features broken. Resolving it at boot puts the diagnosis in the
+ * deploy log, next to the change that caused it.
  *
- * It also performs a real encrypt/decrypt round trip rather than only importing the key. Importing proves
- * the bytes are a well-formed AES key; it does not prove this process can actually recover a secret it
- * wrote. The round trip is what the AI credential store and TOTP verification depend on.
+ * WHY IT REPORTS RATHER THAN REFUSING TO START, which is a correction of my own first attempt: I made it
+ * throw, reasoning that a server unable to decrypt a TOTP seed must not accept sign-ins. That reasoning
+ * was wrong, and the cluster proved it - the studio entered CrashLoopBackOff and the rollout failed.
+ * `decryptTotpSecret` ALREADY throws on a fingerprint mismatch and `verifyTotpEnrollment` does not
+ * swallow it, so MFA already fails closed; there is no bypass to prevent. Refusing to boot therefore
+ * traded two degraded features for a total outage of every hosted site, which is strictly worse.
+ *
+ * A real encrypt/decrypt ROUND TRIP is performed rather than only importing the key. Importing proves the
+ * bytes form a valid AES key; it does not prove this process can recover a secret it wrote, which is what
+ * the credential store and TOTP verification actually depend on.
  *
  * The FINGERPRINT is logged, never the key. A rotated key is not a configuration error - the process
- * works perfectly, it simply cannot read rows written under the previous key - so the fingerprint is the
- * one value that lets an operator tell "wrong key" apart from "corrupt row" without guessing.
+ * works, it simply cannot read rows written under the previous key - so the fingerprint is the one value
+ * that separates "wrong key" from "corrupt row" without guessing.
  */
-export async function verifyMasterKeyAtBoot(): Promise<string> {
-  let fingerprint: string
+export async function reportMasterKeyAtBoot(): Promise<string | null> {
   try {
     const key = await loadMasterKey()
     const probe = await encryptSecret(key, MASTER_KEY_BOOT_PROBE)
-    const recovered = await decryptSecret(key, probe)
-    if (recovered !== MASTER_KEY_BOOT_PROBE) {
+    if ((await decryptSecret(key, probe)) !== MASTER_KEY_BOOT_PROBE) {
       throw new MasterKeyConfigurationError(
-        '[secrets/masterKey] The master key did not survive an encrypt/decrypt round trip. ' +
-        'Reversible secrets cannot be stored or recovered by this process.',
+        'The master key did not survive an encrypt/decrypt round trip.',
       )
     }
-    fingerprint = await getMasterKeyFingerprint()
+    const fingerprint = await getMasterKeyFingerprint()
+    console.log(
+      `[secrets/masterKey] Master key verified at boot (fingerprint ${fingerprint}). ` +
+      'Rows encrypted under a different fingerprint will need re-entry.',
+    )
+    return fingerprint
   } catch (error) {
-    // Rethrown as a configuration error so the boot failure names the cause rather than surfacing as a
-    // stray crypto error from whichever call happened to run first.
-    if (error instanceof MasterKeyConfigurationError) throw error
-    throw new MasterKeyConfigurationError(
-      `[secrets/masterKey] Could not establish the master key at boot: ${
+    // Loud, and naming both affected features, because the whole point is that this used to surface as
+    // "the AI page is broken" on a customer's screen instead of here.
+    console.error(
+      `[secrets/masterKey] MASTER KEY UNAVAILABLE: ${
         error instanceof Error ? error.message : String(error)
       }`,
-      { cause: error },
     )
+    console.error(
+      `[secrets/masterKey] AI provider credentials and MFA TOTP enrolment will REFUSE to store or read ` +
+      `secrets until ${ENV_VAR_NAME} is set to a base64 32-byte key. ` +
+      'Generate one with: bun run scripts/generate-secret-key.ts',
+    )
+    return null
   }
-  console.log(
-    `[secrets/masterKey] Master key verified at boot (fingerprint ${fingerprint}). ` +
-    'Rows encrypted under a different fingerprint will need re-entry.',
-  )
-  return fingerprint
 }
 
 export function __resetMasterKeyCacheForTesting(): void {

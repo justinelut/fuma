@@ -1,6 +1,6 @@
 import { createDbClient } from './db'
 import { runMigrations } from './db/runMigrations'
-import { verifyMasterKeyAtBoot } from './secrets/masterKey'
+import { reportMasterKeyAtBoot } from './secrets/masterKey'
 import { runHostedMigrations } from './fuma/db/hostedMigrationRunner'
 import { assertFumaHostedDatabaseUrl, assertFumaHostedStartup } from './fuma/startupGuard'
 import { syncSystemRoles } from './repositories/roles'
@@ -195,9 +195,10 @@ configurePublicOrigins(config.publicOrigins)
 // server that cannot decrypt a second factor must not accept sign-ins; refusing to start is safer than
 // serving while an authentication factor cannot be verified.
 //
-// Production only, so a self-hosted `bun run dev` keeps the auto-created dev key and is unchanged.
+// Production only, so a self-hosted `bun run dev` keeps its auto-created dev key and is unchanged.
+// REPORTS, never refuses: see reportMasterKeyAtBoot for why refusing to boot was the wrong call.
 if (process.env.NODE_ENV === 'production') {
-  await verifyMasterKeyAtBoot()
+  await reportMasterKeyAtBoot()
 }
 
 const { db, migrations } = createDbClient(config.databaseUrl)
