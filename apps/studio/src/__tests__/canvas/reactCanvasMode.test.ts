@@ -17,6 +17,14 @@ const SITE = join(import.meta.dir, '..', '..', 'admin', 'pages', 'site')
 const uiSlice = readFileSync(join(SITE, 'store/slices/uiSlice.ts'), 'utf8')
 const canvasRoot = readFileSync(join(SITE, 'canvas/CanvasRoot.tsx'), 'utf8')
 const documentTools = readFileSync(join(SITE, 'agent/documentTools.ts'), 'utf8')
+const canvasLayout = readFileSync(
+  join(SITE, '..', '..', 'layouts', 'AdminCanvasLayout', 'AdminCanvasLayout.tsx'),
+  'utf8',
+)
+const canvasBody = readFileSync(
+  join(SITE, '..', '..', 'layouts', 'AdminCanvasLayout', 'AdminCanvasEditorBody.tsx'),
+  'utf8',
+)
 
 describe('the module is a document kind, not a panel', () => {
   it('declares reactModule alongside the existing kinds', () => {
@@ -130,5 +138,23 @@ describe('the AI is not told it is looking at a page it is not', () => {
     const toolSchemas = readFileSync(
       join(SITE, '..', '..', '..', 'core', 'ai', 'toolSchemas.ts'), 'utf8')
     expect(toolSchemas).not.toContain("Type.Literal('reactModule')")
+  })
+})
+
+
+describe('React mode owns its chrome instead of borrowing PageNode controls', () => {
+  it('does not mount the legacy right sidebar or floating properties panel', () => {
+    expect(canvasBody).toContain("const hasRightSidebar = !reactMode && rightSidebarExpanded")
+    expect(canvasBody).toContain("canSaveSite && !reactMode && propertiesPanelMode === 'floating'")
+    expect(canvasBody).toContain('{!reactMode && (')
+    expect(canvasBody).toContain('<RightSidebar')
+  })
+
+  it('replaces legacy zoom and publish controls with a React workspace fact', () => {
+    const rightSlot = canvasLayout.slice(canvasLayout.indexOf('rightSlot={('))
+    expect(rightSlot).toContain('reactMode ? (')
+    expect(rightSlot).toContain('React source workspace')
+    expect(rightSlot.indexOf('reactMode ? (')).toBeLessThan(rightSlot.indexOf('<ZoomControls />'))
+    expect(rightSlot.indexOf('reactMode ? (')).toBeLessThan(rightSlot.indexOf('<PublishButton'))
   })
 })

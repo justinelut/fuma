@@ -53,6 +53,18 @@ describe('rendering elements', () => {
     expect(container.querySelector(`[${CANVAS_NODE_ATTRIBUTE}="title"]`)).not.toBeNull()
   })
 
+  it('marks selected nodes without marking their unselected siblings', () => {
+    const module = moduleOf({
+      root: element('root', 'section', ['title']),
+      title: element('title', 'h1'),
+    })
+    const { container } = renderModule(module, { selectedNodeIds: new Set(['title']) })
+    expect(container.querySelector('[data-node-id="title"]')?.getAttribute('data-canvas-selected'))
+      .toBe('true')
+    expect(container.querySelector('[data-node-id="root"]')?.hasAttribute('data-canvas-selected'))
+      .toBe(false)
+  })
+
   it('nests children inside their parent', () => {
     const { container } = renderModule(moduleOf({
       root: element('root', 'section', ['title']),

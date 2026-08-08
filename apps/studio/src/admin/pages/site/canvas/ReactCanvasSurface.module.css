@@ -1,0 +1,688 @@
+.workbench {
+  --react-accent: var(--accent-3);
+  --react-accent-soft: color-mix(in srgb, var(--react-accent) 12%, transparent);
+  --react-grid: color-mix(in srgb, var(--overlay) 4%, transparent);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-body);
+  color: var(--text);
+}
+
+.commandBar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-width: 0;
+  min-height: 52px;
+  align-items: center;
+  gap: var(--space-l);
+  padding: var(--space-s) var(--space-xl);
+  border-bottom: 1px solid var(--border-muted);
+  background: color-mix(in srgb, var(--bg-surface) 92%, transparent);
+  box-shadow: 0 10px 30px var(--scrim-20);
+}
+
+.documentIdentity {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.documentIdentityTop {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-s);
+}
+
+.documentKind {
+  color: var(--react-accent);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.documentPath {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-bright);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: var(--text-xs);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.documentMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-subtle);
+  font-size: 10px;
+}
+
+.technologyPill,
+.boundaryPill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 7px;
+  border: 1px solid color-mix(in srgb, var(--react-accent) 24%, var(--border));
+  border-radius: 999px;
+  background: var(--react-accent-soft);
+  color: color-mix(in srgb, var(--react-accent) 82%, var(--text));
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.boundaryPill {
+  border-color: var(--border);
+  background: var(--bg-surface-2);
+  color: var(--text-muted);
+}
+
+.commandSpacer {
+  flex: 1;
+  min-width: var(--space-m);
+}
+
+.saveState {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-subtle);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.saveStateDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--success) 45%, transparent);
+}
+
+.saveState[data-dirty="true"] .saveStateDot {
+  background: var(--warning);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--warning) 45%, transparent);
+}
+
+.commandActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.commandActions button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.stage {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  place-items: start center;
+  padding: 56px clamp(24px, 5vw, 80px) 88px;
+  background:
+    radial-gradient(circle at 50% 12%, color-mix(in srgb, var(--accent-2) 11%, transparent), transparent 34%),
+    linear-gradient(var(--react-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--react-grid) 1px, transparent 1px),
+    var(--bg-surface-2);
+  background-size: auto, 24px 24px, 24px 24px, auto;
+  scrollbar-gutter: stable;
+}
+
+.stage::before,
+.stage::after {
+  position: fixed;
+  z-index: 0;
+  content: "";
+  pointer-events: none;
+}
+
+.stage::before {
+  top: 52px;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: linear-gradient(transparent, color-mix(in srgb, var(--react-accent) 18%, transparent), transparent);
+}
+
+.stage::after {
+  top: 112px;
+  left: 42px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--react-accent);
+  box-shadow: 0 0 16px var(--react-accent);
+}
+
+.stageLabel {
+  position: absolute;
+  z-index: 1;
+  top: 18px;
+  left: 22px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-subtle);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.stageLabel::before {
+  width: 16px;
+  height: 1px;
+  background: var(--react-accent);
+  content: "";
+}
+
+.artboardShell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: min(100%, 1120px);
+  min-width: 320px;
+  min-height: min(72vh, 780px);
+  grid-template-rows: 34px minmax(0, 1fr);
+  border: 1px solid color-mix(in srgb, var(--overlay) 14%, var(--border));
+  border-radius: 11px 11px 4px 4px;
+  background: var(--bg-surface);
+  box-shadow: 0 30px 80px var(--scrim-60), 0 0 0 1px var(--scrim-30);
+}
+
+.artboardChrome {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-s);
+  padding: 0 var(--space-m);
+  border-bottom: 1px solid var(--border-muted);
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(180deg, var(--bg-surface-3), var(--bg-surface));
+  color: var(--text-subtle);
+  font-size: 10px;
+}
+
+.artboardLights {
+  display: flex;
+  gap: 5px;
+}
+
+.artboardLights span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+
+.artboardLights span:first-child {
+  background: var(--react-accent);
+  box-shadow: 0 0 7px color-mix(in srgb, var(--react-accent) 55%, transparent);
+}
+
+.artboardTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artboardViewport {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border-radius: 0 0 3px 3px;
+  background: #fafaf7;
+  color: #18181b;
+  scrollbar-gutter: stable;
+}
+
+.artboardViewport > [data-node-id] {
+  min-height: 100%;
+}
+
+.artboardViewport :global([data-node-id]) {
+  position: relative;
+  cursor: default;
+  outline: 1px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color 100ms ease, box-shadow 100ms ease;
+}
+
+.artboardViewport :global([data-node-id]:hover) {
+  outline-color: color-mix(in srgb, var(--accent-5) 65%, transparent);
+}
+
+.artboardViewport :global([data-canvas-selected="true"]) {
+  outline: 2px solid var(--react-accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--react-accent) 14%, transparent);
+}
+
+.artboardViewport :global([data-component-symbol]:empty)::after,
+.artboardViewport :global([data-outlet])::after,
+.artboardViewport :global([data-opaque])::after {
+  display: grid;
+  min-height: 72px;
+  place-items: center;
+  border: 1px dashed color-mix(in srgb, var(--react-accent) 45%, #18181b);
+  background: color-mix(in srgb, var(--react-accent) 8%, transparent);
+  color: #3f3f46;
+  font: 600 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  content: attr(data-component-symbol);
+}
+
+.artboardViewport :global([data-outlet])::after {
+  content: "Page outlet";
+}
+
+.artboardViewport :global([data-opaque])::after {
+  content: "Code: " attr(data-opaque);
+}
+
+.emptyCanvas,
+.mismatch {
+  display: grid;
+  min-height: 360px;
+  place-content: center;
+  gap: var(--space-s);
+  padding: var(--space-7xl);
+  text-align: center;
+}
+
+.emptyCanvas strong {
+  color: #18181b;
+  font-size: var(--text-l);
+}
+
+.emptyCanvas p {
+  max-width: 34rem;
+  margin: 0;
+  color: #71717a;
+  font-size: var(--text-s);
+  line-height: 1.55;
+}
+
+.mismatch {
+  color: var(--danger-text);
+}
+
+.problemTray {
+  position: absolute;
+  z-index: 3;
+  right: 24px;
+  bottom: 22px;
+  left: 24px;
+  display: grid;
+  max-height: 160px;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: var(--space-m);
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
+  box-shadow: var(--shadow-panel-drop);
+  color: var(--danger-text);
+  font-size: var(--text-xs);
+  list-style: none;
+  backdrop-filter: blur(18px);
+}
+
+.inspector {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+  border-left: 1px solid var(--border-muted);
+  background: var(--bg-surface);
+  box-shadow: -18px 0 42px var(--scrim-20);
+}
+
+.inspectorHeader {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 3px var(--space-s);
+  padding: var(--space-m) var(--space-l);
+  border-bottom: 1px solid var(--border-muted);
+}
+
+.nodeKind,
+.eyebrow {
+  color: var(--react-accent);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.nodeName {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-bright);
+  font-size: var(--text-s);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nodeId {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: var(--text-subtle);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inspectorTabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: var(--space-xs);
+  border-bottom: 1px solid var(--border-muted);
+  background: var(--bg-surface-2);
+}
+
+.inspectorTab {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-subtle);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.inspectorTab svg {
+  width: 13px;
+  height: 13px;
+}
+
+.inspectorTab:hover {
+  color: var(--text);
+}
+
+.inspectorTab[aria-pressed="true"] {
+  background: var(--bg-surface-4);
+  color: var(--text-bright);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--react-accent) 55%, transparent);
+}
+
+.inspectorTab:focus-visible,
+.tokenList button:focus-visible {
+  outline: 2px solid var(--react-accent);
+  outline-offset: 1px;
+}
+
+.inspectorBody {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.inspectorEmpty {
+  display: grid;
+  min-height: 100%;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-s);
+  padding: var(--space-6xl);
+  color: var(--text-subtle);
+  text-align: center;
+}
+
+.inspectorEmpty strong {
+  color: var(--text);
+  font-size: var(--text-s);
+}
+
+.inspectorEmpty p {
+  max-width: 230px;
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.55;
+}
+
+.inspectorEmptyIcon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--react-accent) 30%, var(--border));
+  border-radius: 50%;
+  background: var(--react-accent-soft);
+  color: var(--react-accent);
+}
+
+.inspectorEmptyIcon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.controlSection {
+  display: grid;
+  gap: var(--space-l);
+  padding: var(--space-l);
+}
+
+.controlHeading,
+.motionIntro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-l);
+}
+
+.controlHeading h3,
+.motionIntro h3 {
+  margin: 2px 0 0;
+  color: var(--text-bright);
+  font-size: var(--text-m);
+  font-weight: 680;
+}
+
+.tokenCount {
+  display: inline-grid;
+  min-width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--react-accent-soft);
+  color: var(--react-accent);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.controlHelp,
+.emptyTokens,
+.inspectorNotice p {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.classField {
+  display: grid;
+  gap: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.classField textarea {
+  width: 100%;
+  min-height: 112px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-m);
+  background: var(--bg-body);
+  color: var(--text);
+  font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  outline: none;
+}
+
+.classField textarea:focus {
+  border-color: color-mix(in srgb, var(--react-accent) 65%, var(--border));
+  box-shadow: 0 0 0 3px var(--react-accent-soft);
+}
+
+.classActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.tokenList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tokenList li {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  border: 1px solid color-mix(in srgb, var(--react-accent) 22%, var(--border));
+  border-radius: 5px;
+  background: var(--react-accent-soft);
+  color: var(--text-muted);
+}
+
+.tokenList code {
+  min-width: 0;
+  overflow: hidden;
+  padding: 4px 0 4px 7px;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tokenList button {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--text-subtle);
+  cursor: pointer;
+}
+
+.tokenList button:hover {
+  color: var(--danger-lighter);
+}
+
+.tokenList svg {
+  width: 11px;
+  height: 11px;
+}
+
+.motionIntro {
+  padding: var(--space-l) var(--space-l) 0;
+}
+
+.inspectorNotice {
+  display: grid;
+  gap: var(--space-xs);
+  margin: var(--space-l);
+  padding: var(--space-m);
+  border-left: 2px solid var(--react-accent);
+  background: var(--react-accent-soft);
+}
+
+.inspectorNotice strong {
+  color: var(--text);
+  font-size: var(--text-s);
+}
+
+@media (max-width: 1120px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+
+  .technologyPill:nth-of-type(2) {
+    display: none;
+  }
+}
+
+@media (max-width: 820px) {
+  .commandBar {
+    flex-wrap: wrap;
+  }
+
+  .documentIdentity {
+    flex: 1 1 calc(100% - 180px);
+  }
+
+  .saveState {
+    display: none;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(360px, 1fr) minmax(260px, 42vh);
+  }
+
+  .stage {
+    padding: 46px 18px 48px;
+  }
+
+  .inspector {
+    border-top: 1px solid var(--border-muted);
+    border-left: 0;
+    box-shadow: 0 -18px 42px var(--scrim-20);
+  }
+
+  .inspectorHeader {
+    padding-block: var(--space-s);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artboardViewport :global([data-node-id]) {
+    transition: none;
+  }
+}

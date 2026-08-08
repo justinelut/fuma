@@ -8,7 +8,9 @@ import {
   moveNode,
   parentOf,
   reorderChild,
+  replaceClassTokens,
   setClassTokens,
+  setNodeAnimation,
   verifyTree,
 } from '@core/react-ir/edit'
 import { generateModule } from '@core/react-ir/generate'
@@ -251,6 +253,39 @@ describe('class tokens', () => {
   it('refuses a locked node', () => {
     const locked = tree({ root: element('root', [], { locked: true }) })
     expect(setClassTokens(locked, 'root', ['p-4']).problems[0]?.code).toBe('locked-node')
+  })
+})
+
+describe('source-like class replacement and Motion', () => {
+  it('replaces the complete class list instead of retaining an omitted token', () => {
+    const module = tree({ root: element('root', [], { classTokens: ['grid', 'gap-6', 'p-8'] }) })
+    const result = replaceClassTokens(module, 'root', ['grid', 'gap-4'])
+    expect(result.ok).toBe(true)
+    expect(result.module.nodes['root']?.classTokens).toEqual(['grid', 'gap-4'])
+  })
+
+  it('clears every class when the source-like field is empty', () => {
+    const module = tree({ root: element('root', [], { classTokens: ['grid', 'p-8'] }) })
+    expect(replaceClassTokens(module, 'root', []).module.nodes['root']?.classTokens).toEqual([])
+  })
+
+  it('attaches and removes serialisable Motion data', () => {
+    const module = tree({ root: element('root') })
+    const animation = { initial: { opacity: 0 }, animate: { opacity: 1 } }
+    const attached = setNodeAnimation(module, 'root', animation)
+    expect(attached.ok).toBe(true)
+    expect(attached.module.nodes['root']?.animation).toEqual(animation)
+    expect(setNodeAnimation(attached.module, 'root', null).module.nodes['root']?.animation)
+      .toBeUndefined()
+  })
+
+  it('refuses Motion on a node that has no element to animate', () => {
+    const module = tree({
+      root: element('root', ['copy']),
+      copy: { kind: 'text', id: 'copy', value: 'Hello', children: [] } as unknown as ReactIrNode,
+    })
+    expect(setNodeAnimation(module, 'copy', { animate: { opacity: 1 } }).problems[0]?.code)
+      .toBe('children-not-allowed')
   })
 })
 

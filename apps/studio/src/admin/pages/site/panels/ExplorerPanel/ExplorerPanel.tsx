@@ -17,6 +17,7 @@ import { Panel } from '@admin/shared/Panel'
 import { SegmentedControl } from '@ui/components/SegmentedControl'
 import { DomPanel } from '@site/panels/DomPanel'
 import { SiteExplorerPanel } from '@site/panels/SiteExplorerPanel'
+import { ReactSiteExplorerPanel } from '@site/panels/SiteExplorerPanel/ReactSiteExplorerPanel'
 import { MediaExplorerPanel } from '@site/panels/MediaExplorerPanel'
 import type { ExplorerPanelTab } from '@site/store/slices/uiSlice'
 import styles from './ExplorerPanel.module.css'
@@ -37,6 +38,11 @@ export function ExplorerPanel({ editable = true }: ExplorerPanelProps) {
   const tab = useEditorStore((s) => s.explorerPanelTab)
   const setTab = useEditorStore((s) => s.setExplorerPanelTab)
   const setOpen = useEditorStore((s) => s.setExplorerPanelOpen)
+  const reactMode = useEditorStore((s) => s.activeDocument?.kind === 'reactModule')
+  const visibleTab = reactMode ? 'site' : tab
+  const visibleTabs = reactMode
+    ? TABS.filter((entry) => entry.value === 'site')
+    : TABS
 
   return (
     <Panel
@@ -48,29 +54,37 @@ export function ExplorerPanel({ editable = true }: ExplorerPanelProps) {
     >
       <div className={styles.tabsRow}>
         <SegmentedControl<ExplorerPanelTab>
-          value={tab}
-          options={TABS}
-          onChange={setTab}
+          value={visibleTab}
+          options={visibleTabs}
+          onChange={reactMode ? () => {} : setTab}
           size="sm"
           activeSurface="recessed"
           fullWidth
         />
       </div>
       <div className={styles.tabBody}>
-        <div className={styles.tabMount} hidden={tab !== 'layers'}>
-          <DomPanel editable={editable} />
-        </div>
-        {/* Single SiteExplorerPanel serves both the Site and Code tabs; the
-            `sectionGroup` prop picks which sections render. */}
-        <div className={styles.tabMount} hidden={tab !== 'site' && tab !== 'code'}>
-          <SiteExplorerPanel
-            sectionGroup={tab === 'code' ? 'code' : 'site'}
-            organizationDndEnabled={editable}
-          />
-        </div>
-        <div className={styles.tabMount} hidden={tab !== 'media'}>
-          <MediaExplorerPanel variant="tab" />
-        </div>
+        {reactMode ? (
+          <div className={styles.tabMount}>
+            <ReactSiteExplorerPanel editable={editable} />
+          </div>
+        ) : (
+          <>
+            <div className={styles.tabMount} hidden={tab !== 'layers'}>
+              <DomPanel editable={editable} />
+            </div>
+            {/* Single SiteExplorerPanel serves both the Site and Code tabs; the
+                `sectionGroup` prop picks which sections render. */}
+            <div className={styles.tabMount} hidden={tab !== 'site' && tab !== 'code'}>
+              <SiteExplorerPanel
+                sectionGroup={tab === 'code' ? 'code' : 'site'}
+                organizationDndEnabled={editable}
+              />
+            </div>
+            <div className={styles.tabMount} hidden={tab !== 'media'}>
+              <MediaExplorerPanel variant="tab" />
+            </div>
+          </>
+        )}
       </div>
     </Panel>
   )

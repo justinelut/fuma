@@ -12,9 +12,11 @@ import {
   redo,
   remove,
   reorder,
+  replaceStyle,
   restyle,
   save,
   selectNode,
+  setAnimation,
   toggleSelection,
   undo,
 } from '@core/react-ir/editorState'
@@ -275,6 +277,34 @@ describe('restyling a selection', () => {
   it('does nothing with an empty selection', () => {
     const state = start()
     expect(restyle(state, ['p-4'])).toBe(state)
+  })
+})
+
+describe('exact Tailwind and Motion inspector edits', () => {
+  it('replaces and clears the selected node class list as undoable edits', () => {
+    let state = selectNode(start(), 'a')
+    state = replaceStyle(state, ['grid', 'gap-4'])
+    expect(state.module.nodes['a']?.classTokens).toEqual(['grid', 'gap-4'])
+    state = replaceStyle(state, [])
+    expect(state.module.nodes['a']?.classTokens).toEqual([])
+    expect(undo(state).module.nodes['a']?.classTokens).toEqual(['grid', 'gap-4'])
+  })
+
+  it('writes, removes, and undoes Motion as one edit per change', () => {
+    const animation = { initial: { opacity: 0 }, animate: { opacity: 1 } }
+    let state = setAnimation(selectNode(start(), 'a'), animation)
+    expect(state.module.nodes['a']?.animation).toEqual(animation)
+    state = setAnimation(state, null)
+    expect(state.module.nodes['a']?.animation).toBeUndefined()
+    expect(undo(state).module.nodes['a']?.animation).toEqual(animation)
+  })
+
+  it('refuses an exact edit when multiple layers are selected', () => {
+    let state = toggleSelection(start(), 'a')
+    state = toggleSelection(state, 'b')
+    state = replaceStyle(state, ['grid'])
+    expect(state.problems[0]?.message).toMatch(/single element/)
+    expect(isDirty(state)).toBe(false)
   })
 })
 

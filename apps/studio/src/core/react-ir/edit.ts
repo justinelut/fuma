@@ -31,6 +31,7 @@ import {
   type ReactIrModule,
   type ReactIrNode,
 } from './nodes'
+import type { MotionAnimation } from './motion'
 import { mergeClassTokens, removeClassFamily, conflictKeyOf, parseClassToken } from './classTokens'
 
 export type EditProblem = Readonly<{
@@ -311,6 +312,52 @@ export function setClassTokens(
 
   const merged = mergeClassTokens(classTokensOf(node), tokens)
   return succeed(withNode(module, { ...node, classTokens: [...merged] } as ReactIrNode))
+}
+
+/**
+ * Replace a node's complete Tailwind token list.
+ *
+ * `setClassTokens` is intentionally additive and conflict-aware, which is right for a one-click
+ * style control. A source-style field is different: removing a token from the field must remove it
+ * from the module too, or the canvas says one thing while generated TSX keeps another.
+ */
+export function replaceClassTokens(
+  module: ReactIrModule,
+  nodeId: string,
+  tokens: readonly string[],
+): EditResult {
+  const node = module.nodes[nodeId]
+  if (!node) return fail(module, 'unknown-node', `No node "${nodeId}".`)
+  if (isLocked(node)) return fail(module, 'locked-node', `"${nodeId}" is locked.`)
+  if (!('classTokens' in node)) {
+    return fail(module, 'children-not-allowed',
+      `A ${node.kind} node carries no classes; it renders no element of its own.`)
+  }
+
+  return succeed(withNode(module, { ...node, classTokens: [...tokens] } as ReactIrNode))
+}
+
+/**
+ * Set or clear Motion data on one renderable node.
+ *
+ * Only elements and component calls can become Motion elements. Refusing every other kind keeps the
+ * panel from appearing to animate a text/expression node that has no element of its own.
+ */
+export function setNodeAnimation(
+  module: ReactIrModule,
+  nodeId: string,
+  animation: MotionAnimation | null,
+): EditResult {
+  const node = module.nodes[nodeId]
+  if (!node) return fail(module, 'unknown-node', `No node "${nodeId}".`)
+  if (isLocked(node)) return fail(module, 'locked-node', `"${nodeId}" is locked.`)
+  if (node.kind !== 'element' && node.kind !== 'component') {
+    return fail(module, 'children-not-allowed',
+      `A ${node.kind} node has no element for Motion to animate.`)
+  }
+
+  const next = { ...node, animation: animation ?? undefined } as ReactIrNode
+  return succeed(withNode(module, next))
 }
 
 /**

@@ -47,9 +47,18 @@ export type RenderContext = Readonly<{
   sampleRows?: Readonly<Record<string, readonly Record<string, unknown>[]>>
   /** Props in effect, for resolving prop expressions. */
   props?: Readonly<Record<string, unknown>>
+  /** Selected nodes, rendered as editor-only markers that never reach generated source. */
+  selectedNodeIds?: ReadonlySet<string>
   /** How many sample rows to show. Kept small: the canvas is for judging design. */
   sampleLimit?: number
 }>
+
+function canvasAttributes(nodeId: string, context: RenderContext): Record<string, string> {
+  return {
+    [CANVAS_NODE_ATTRIBUTE]: nodeId,
+    ...(context.selectedNodeIds?.has(nodeId) ? { 'data-canvas-selected': 'true' } : {}),
+  }
+}
 
 /**
  * Resolve an expression to something displayable.
@@ -166,7 +175,7 @@ function renderNode(
         element.tag,
         {
           key,
-          [CANVAS_NODE_ATTRIBUTE]: nodeId,
+          ...canvasAttributes(nodeId, context),
           className: classTokensOf(element).join(' ') || undefined,
           ...(element.style ? { style: element.style } : {}),
           ...domAttributes(element, context, row),
@@ -190,7 +199,7 @@ function renderNode(
         'div',
         {
           key,
-          [CANVAS_NODE_ATTRIBUTE]: nodeId,
+          ...canvasAttributes(nodeId, context),
           'data-component-symbol': call.component.symbol,
           className: classTokensOf(call).join(' ') || undefined,
         },
@@ -209,14 +218,14 @@ function renderNode(
         // visible and editable — an empty region would look like a broken loop.
         return createElement(
           'div',
-          { key, [CANVAS_NODE_ATTRIBUTE]: nodeId, 'data-repeat-unbound': '' },
+          { key, ...canvasAttributes(nodeId, context), 'data-repeat-unbound': '' },
           renderNode(variants[0] ?? '', context, undefined, `${keySuffix}-unbound`),
         )
       }
 
       return createElement(
         'div',
-        { key, [CANVAS_NODE_ATTRIBUTE]: nodeId, 'data-repeat': '' },
+        { key, ...canvasAttributes(nodeId, context), 'data-repeat': '' },
         rows.slice(0, limit).map((sampleRow, index) =>
           // Variants cycle across rows, matching what the generator emits, so the
           // canvas shows the same alternation the page will.
@@ -234,14 +243,14 @@ function renderNode(
       // module, so the canvas marks the slot rather than inventing content.
       return createElement('div', {
         key,
-        [CANVAS_NODE_ATTRIBUTE]: nodeId,
+        ...canvasAttributes(nodeId, context),
         'data-outlet': '',
       })
 
     case 'slot':
       return createElement(
         'div',
-        { key, [CANVAS_NODE_ATTRIBUTE]: nodeId, 'data-slot': '' },
+        { key, ...canvasAttributes(nodeId, context), 'data-slot': '' },
         childIdsOf(node)
           .map((childId) => renderNode(childId, context, row, keySuffix))
           .filter((child) => child !== null && child !== undefined),
@@ -254,7 +263,7 @@ function renderNode(
       // from being silently dropped on the next generate.
       return createElement('div', {
         key,
-        [CANVAS_NODE_ATTRIBUTE]: nodeId,
+        ...canvasAttributes(nodeId, context),
         'data-opaque': opaque.symbol,
       })
     }
@@ -270,7 +279,7 @@ export function renderModuleForCanvas(context: RenderContext): ReactElement | nu
   // A string root cannot carry the selection attribute, so it is wrapped. This
   // happens when a module's root is a text or expression node.
   if (typeof root === 'string') {
-    return createElement('div', { [CANVAS_NODE_ATTRIBUTE]: context.module.rootNodeId }, root)
+    return createElement('div', canvasAttributes(context.module.rootNodeId, context), root)
   }
   return (root as ReactElement | null) ?? null
 }

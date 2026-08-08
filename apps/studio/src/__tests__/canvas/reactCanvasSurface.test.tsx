@@ -12,7 +12,8 @@ import { userEvent } from '@testing-library/user-event'
 import { BLOCK_CATALOGUE } from '@core/react-ir/blockCatalogue'
 import { ReactIrModuleSchema, REACT_IR_VERSION, type ReactIrModule } from '@core/react-ir/nodes'
 import { Value } from '@sinclair/typebox/value'
-import { ReactCanvasSurface } from '@admin/pages/site/canvas/ReactCanvasSurface'
+import { ReactCanvasSurface, type ReactCanvasSurfaceProps } from '@admin/pages/site/canvas/ReactCanvasSurface'
+import { ReactBlocksMount } from '@admin/pages/site/panels/BlocksPanel/ReactBlocksMount'
 import { useReactEditorStore } from '@admin/pages/site/canvas/reactEditorStore'
 import { initialState } from '@core/react-ir/editorState'
 
@@ -30,7 +31,10 @@ function pageModule(): ReactIrModule {
     boundary: 'server',
     nodes: {
       root: { kind: 'element', id: 'root', tag: 'main', attributes: {}, children: ['title'] },
-      title: { kind: 'element', id: 'title', tag: 'h1', attributes: {}, children: ['title-text'] },
+      title: {
+        kind: 'element', id: 'title', tag: 'h1', attributes: {},
+        classTokens: ['text-4xl', 'font-bold'], children: ['title-text'],
+      },
       'title-text': { kind: 'text', id: 'title-text', value: 'Existing heading', children: [] },
     },
   } as ReactIrModule
@@ -48,6 +52,16 @@ function reset(): void {
   useReactEditorStore.setState({ editor: null, workspace: null, problems: [], saving: false })
 }
 
+/** Mirrors the shipping composition: the canvas owns selection, while Blocks lives in the left rail. */
+function ReactCanvasWithRail(props: ReactCanvasSurfaceProps) {
+  return (
+    <>
+      <ReactCanvasSurface {...props} />
+      <ReactBlocksMount />
+    </>
+  )
+}
+
 describe('the React canvas surface composes the engine rather than re-deriving it', () => {
   it('uses a fixture the shipped schema accepts, so the test cannot pass on an impossible module', () => {
     // My first fixture omitted `children` on a text node. It typechecked through the cast and made
@@ -59,14 +73,14 @@ describe('the React canvas surface composes the engine rather than re-deriving i
   beforeEach(() => { cleanup(); reset() })
 
   it('renders an empty state rather than a blank frame when no module is open', () => {
-    render(<ReactCanvasSurface />)
+    render(<ReactCanvasWithRail />)
     expect(screen.getByText('Open a page to start editing.')).toBeTruthy()
     expect(document.querySelector('[data-testid="react-canvas-frame"]')).toBeNull()
   })
 
   it('draws the open module through the real renderer', () => {
     openModuleInStore(pageModule())
-    render(<ReactCanvasSurface />)
+    render(<ReactCanvasWithRail />)
     const frame = document.querySelector('[data-testid="react-canvas-frame"]')
     expect(frame).not.toBeNull()
     expect(frame!.textContent).toContain('Existing heading')
@@ -76,7 +90,7 @@ describe('the React canvas surface composes the engine rather than re-deriving i
 
   it('states WHY a block cannot be inserted rather than only disabling the button', () => {
     openModuleInStore(pageModule())
-    render(<ReactCanvasSurface />)
+    render(<ReactCanvasWithRail />)
     // Nothing is selected, so there is no parent. A block placed at the root would be a placement
     // nobody chose, so the surface refuses and says what to do.
     expect(screen.getByText(/Select an element on the canvas first/)).toBeTruthy()
@@ -84,15 +98,52 @@ describe('the React canvas surface composes the engine rather than re-deriving i
 
   it('selects the nearest marked ancestor when the canvas is clicked, not the exact target', async () => {
     openModuleInStore(pageModule())
-    render(<ReactCanvasSurface />)
+    render(<ReactCanvasWithRail />)
     const heading = document.querySelector('[data-node-id="title"]')!
     await userEvent.click(heading)
     expect(useReactEditorStore.getState().editor?.selection).toEqual(['title'])
+    expect(heading.getAttribute('data-canvas-selected')).toBe('true')
+  })
+
+  it('edits the exact Tailwind class list and removes omitted tokens', async () => {
+    openModuleInStore(pageModule())
+    render(<ReactCanvasWithRail />)
+    await userEvent.click(document.querySelector('[data-node-id="title"]')!)
+    const field = screen.getByLabelText('Classes')
+    expect((field as HTMLTextAreaElement).value).toBe('text-4xl font-bold')
+    await userEvent.clear(field)
+    await userEvent.type(field, 'text-5xl tracking-tight')
+    await userEvent.click(screen.getByRole('button', { name: 'Apply classes' }))
+    expect(useReactEditorStore.getState().editor?.module.nodes['title']?.classTokens)
+      .toEqual(['text-5xl', 'tracking-tight'])
+    expect(document.querySelector('[data-node-id="title"]')?.className)
+      .toBe('text-5xl tracking-tight')
+  })
+
+  it('applies and removes a Motion preset through the focused React inspector', async () => {
+    openModuleInStore({ ...pageModule(), boundary: 'client' })
+    render(<ReactCanvasWithRail />)
+    await userEvent.click(document.querySelector('[data-node-id="title"]')!)
+    await userEvent.click(screen.getByRole('button', { name: 'Motion' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Fade in' }))
+    expect(useReactEditorStore.getState().editor?.module.nodes['title']?.animation?.animate)
+      .toEqual({ opacity: 1 })
+    await userEvent.click(screen.getByRole('button', { name: 'Remove' }))
+    expect(useReactEditorStore.getState().editor?.module.nodes['title']?.animation).toBeUndefined()
+  })
+
+  it('does not silently clientize a server route for Motion', async () => {
+    openModuleInStore(pageModule())
+    render(<ReactCanvasWithRail />)
+    await userEvent.click(document.querySelector('[data-node-id="title"]')!)
+    await userEvent.click(screen.getByRole('button', { name: 'Motion' }))
+    expect(screen.getByText('Keep the route on the server')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Fade in' })).toBeNull()
   })
 
   it('inserts a real block into the open module and renders it', async () => {
     openModuleInStore(pageModule())
-    render(<ReactCanvasSurface />)
+    render(<ReactCanvasWithRail />)
     await userEvent.click(document.querySelector('[data-node-id="root"]')!)
 
     const before = Object.keys(useReactEditorStore.getState().editor!.module.nodes).length
@@ -108,7 +159,7 @@ describe('the React canvas surface composes the engine rather than re-deriving i
 
   it('inserts the same block twice without an id collision', async () => {
     openModuleInStore(pageModule())
-    render(<ReactCanvasSurface />)
+    render(<ReactCanvasWithRail />)
     await userEvent.click(document.querySelector('[data-node-id="root"]')!)
     const cta = BLOCK_CATALOGUE.find((block) => block.id === 'cta.banner')!
     const button = screen.getByRole('button', { name: `Insert ${cta.name}` })
@@ -126,7 +177,7 @@ describe('the React canvas surface composes the engine rather than re-deriving i
 
   it('reports unsaved state as a fact rather than only as an enabled button', async () => {
     openModuleInStore(pageModule())
-    render(<ReactCanvasSurface />)
+    render(<ReactCanvasWithRail />)
     expect(screen.queryByText('Unsaved changes')).toBeNull()
     await userEvent.click(document.querySelector('[data-node-id="root"]')!)
     const cta = BLOCK_CATALOGUE.find((block) => block.id === 'cta.banner')!
@@ -136,7 +187,7 @@ describe('the React canvas surface composes the engine rather than re-deriving i
 
   it('undo is offered only once there is something to undo', async () => {
     openModuleInStore(pageModule())
-    render(<ReactCanvasSurface />)
+    render(<ReactCanvasWithRail />)
     expect(screen.getByRole('button', { name: 'Undo' }).hasAttribute('disabled')).toBe(true)
     await userEvent.click(document.querySelector('[data-node-id="root"]')!)
     const cta = BLOCK_CATALOGUE.find((block) => block.id === 'cta.banner')!
@@ -146,7 +197,7 @@ describe('the React canvas surface composes the engine rather than re-deriving i
 
   it('pulls an inserted block back out in ONE undo, not one per node', async () => {
     openModuleInStore(pageModule())
-    render(<ReactCanvasSurface />)
+    render(<ReactCanvasWithRail />)
     await userEvent.click(document.querySelector('[data-node-id="root"]')!)
     const before = Object.keys(useReactEditorStore.getState().editor!.module.nodes).length
     const cta = BLOCK_CATALOGUE.find((block) => block.id === 'cta.banner')!
@@ -160,7 +211,7 @@ describe('the React canvas surface composes the engine rather than re-deriving i
 describe('the surface refuses to render a module the caller did not ask for', () => {
   it('reports the disagreement instead of showing the wrong tree', () => {
     openModuleInStore(pageModule())
-    render(<ReactCanvasSurface expectedPath="app/about/page.tsx" />)
+    render(<ReactCanvasWithRail expectedPath="app/about/page.tsx" />)
     // Both documents are valid modules, so rendering the one the store happens to hold would look
     // completely normal while every edit landed in a file the author did not open.
     const alert = screen.getByRole('alert')
@@ -172,7 +223,7 @@ describe('the surface refuses to render a module the caller did not ask for', ()
 
   it('renders normally when the paths agree', () => {
     openModuleInStore(pageModule())
-    render(<ReactCanvasSurface expectedPath="app/page.tsx" />)
+    render(<ReactCanvasWithRail expectedPath="app/page.tsx" />)
     expect(screen.queryByRole('alert')).toBeNull()
     expect(screen.getByLabelText('React canvas')).not.toBeNull()
   })
@@ -181,7 +232,7 @@ describe('the surface refuses to render a module the caller did not ask for', ()
     // A caller that does not track a path separately has nothing to disagree with, so the guard must
     // not turn an unsupplied prop into a refusal.
     openModuleInStore(pageModule())
-    render(<ReactCanvasSurface />)
+    render(<ReactCanvasWithRail />)
     expect(screen.queryByRole('alert')).toBeNull()
     expect(screen.getByLabelText('React canvas')).not.toBeNull()
   })
@@ -190,7 +241,7 @@ describe('the surface refuses to render a module the caller did not ask for', ()
 describe('saving the selection as a block', () => {
   it('offers no control when the caller supplies nowhere to put one', () => {
     openModuleInStore(pageModule())
-    render(<ReactCanvasSurface />)
+    render(<ReactCanvasWithRail />)
     // This surface has no storage; a button that appeared to save while nothing persisted would be
     // worse than no button.
     expect(screen.queryByRole('button', { name: /Save as block/ })).toBeNull()
@@ -198,7 +249,7 @@ describe('saving the selection as a block', () => {
 
   it('is disabled until something is selected', () => {
     openModuleInStore(pageModule())
-    render(<ReactCanvasSurface onSaveBlock={() => {}} />)
+    render(<ReactCanvasWithRail onSaveBlock={() => {}} />)
     const button = screen.getByRole('button', { name: /Save as block/ })
     // A block is saved FROM a selection, so with nothing selected there is nothing to save.
     expect(button.hasAttribute('disabled')).toBe(true)
@@ -207,7 +258,7 @@ describe('saving the selection as a block', () => {
   it('REPORTS a refusal rather than saving a block that would be multiplied', async () => {
     openModuleInStore(pageModule())
     const saved: unknown[] = []
-    render(<ReactCanvasSurface onSaveBlock={(block) => saved.push(block)} />)
+    render(<ReactCanvasWithRail onSaveBlock={(block) => saved.push(block)} />)
     // Select the root, which is plain markup composing no component - exactly what task 82 refuses,
     // because such a block gives whoever inserts it no fields at all.
     useReactEditorStore.getState().select(['root'])

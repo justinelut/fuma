@@ -56,8 +56,9 @@ export function AdminCanvasEditorBody({
 
   const propertiesPanelMode = useEditorStore((s) => s.propertiesPanelMode)
   const rightSidebarExpanded = useEditorStore(selectRightSidebarExpanded)
+  const reactMode = useEditorStore((s) => s.activeDocument?.kind === 'reactModule')
   const importHtmlModalOpen = useEditorStore((s) => s.importHtmlModalOpen)
-  const hasRightSidebar = rightSidebarExpanded
+  const hasRightSidebar = !reactMode && rightSidebarExpanded
   const narrowChrome = useNarrowEditorChrome()
 
   // Site Explorer organization hooks into this outer DndContext. DomPanel has
@@ -107,7 +108,7 @@ export function AdminCanvasEditorBody({
                   <CanvasRoot editable={canEditDraftSite} />
                 )}
                 {/* Properties can be unpinned into the floating draggable overlay. */}
-                {canSaveSite && propertiesPanelMode === 'floating' && <PropertiesPanel variant="floating" />}
+                {canSaveSite && !reactMode && propertiesPanelMode === 'floating' && <PropertiesPanel variant="floating" />}
               </div>
             </div>
             {/* `mode` tells the RightSidebar which expansion model to use:
@@ -115,10 +116,12 @@ export function AdminCanvasEditorBody({
                   gated `sitePropertiesExpanded` selector.
                 - `'hidden'`:    Site viewer with no `pages.draft.save`
                   capability. */}
-            <RightSidebar
-              key="site"
-              mode={canSaveSite ? 'site' : 'hidden'}
-            />
+            {!reactMode && (
+              <RightSidebar
+                key="site"
+                mode={canSaveSite ? 'site' : 'hidden'}
+              />
+            )}
           </div>
         </ConfirmDeleteProvider>
       </DndContext>

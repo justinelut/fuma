@@ -25,7 +25,9 @@ import {
   redo,
   remove,
   reorder,
+  replaceStyle,
   restyle,
+  setAnimation,
   setProp,
   save,
   selectNode,
@@ -37,6 +39,7 @@ import {
 import type { ModuleWorkspace } from '@core/react-ir/workspace'
 import { loadModule } from '@core/react-ir/session'
 import type { ReactIrModule, ReactIrNode } from '@core/react-ir/nodes'
+import type { MotionAnimation } from '@core/react-ir/motion'
 
 type Store = {
   /** Null until a module is opened, so the canvas can render an empty state. */
@@ -65,6 +68,8 @@ type Store = {
   reorderNode: (parentId: string, nodeId: string, toIndex: number) => void
   duplicateNode: (nodeId: string) => void
   applyClasses: (tokens: readonly string[]) => void
+  replaceClasses: (tokens: readonly string[]) => void
+  setAnimation: (animation: MotionAnimation | null) => void
   setProp: (name: string, value: string | number | boolean | null) => void
 
   undoEdit: () => void
@@ -122,6 +127,8 @@ export const useReactEditorStore = create<Store>((set, get) => ({
     (original) => `${original}-copy-${(duplicateCounter += 1)}`,
   )),
   applyClasses: (tokens) => mutate(set, get, (state) => restyle(state, tokens)),
+  replaceClasses: (tokens) => mutate(set, get, (state) => replaceStyle(state, tokens)),
+  setAnimation: (animation) => mutate(set, get, (state) => setAnimation(state, animation)),
   /** What a properties panel calls. Null clears the prop rather than writing an empty value. */
   setProp: (name, value) => mutate(set, get, (state) => setProp(state, name, value)),
 

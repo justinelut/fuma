@@ -94,8 +94,10 @@ export function PanelRail({
   const frameworkOpen = useEditorStore((s) => s.frameworkPanelOpen)
   const dependenciesOpen = useEditorStore((s) => s.dependenciesPanelOpen)
   const modulesOpen = useEditorStore((s) => s.modulesPanelOpen)
+  const blocksOpen = useEditorStore((s) => s.blocksPanelOpen)
   const agentOpen = useEditorStore((s) => s.isAgentOpen)
   const activePluginPanelId = useEditorStore((s) => s.activePluginPanelId)
+  const reactMode = useEditorStore((s) => s.activeDocument?.kind === 'reactModule')
 
   const toggleLeftSidebarPanel = useEditorStore((s) => s.toggleLeftSidebarPanel)
   const setLeftSidebarPanel = useEditorStore((s) => s.setLeftSidebarPanel)
@@ -119,6 +121,7 @@ export function PanelRail({
     framework: frameworkOpen,
     dependencies: dependenciesOpen,
     modules: modulesOpen,
+    blocks: blocksOpen,
   } satisfies Record<LeftSidebarPanelId, boolean>
 
   // Read-only callers (Viewer / Client) see only the Explorer panel (the
@@ -126,9 +129,12 @@ export function PanelRail({
   // only appear when the user can edit structure. The AI assistant follows
   // `ai.chat`, independent of editability.
   const READ_ONLY_RAIL_IDS = new Set<LeftSidebarPanelId>(['explorer'])
-  const visiblePrimaryItems = editable
-    ? PRIMARY_RAIL_ITEMS
-    : PRIMARY_RAIL_ITEMS.filter((item) => READ_ONLY_RAIL_IDS.has(item.id))
+  const REACT_RAIL_IDS = new Set<LeftSidebarPanelId>(['explorer'])
+  const visiblePrimaryItems = reactMode
+    ? PRIMARY_RAIL_ITEMS.filter((item) => REACT_RAIL_IDS.has(item.id))
+    : editable
+      ? PRIMARY_RAIL_ITEMS
+      : PRIMARY_RAIL_ITEMS.filter((item) => READ_ONLY_RAIL_IDS.has(item.id))
   const visibleGlobalItems = canUseAiChat ? GLOBAL_RAIL_ITEMS : []
 
   function railIdentity(item: PrimaryRailItem) {
@@ -188,7 +194,7 @@ export function PanelRail({
     (panel) => `plugin:${panel.id}:${panel.label}`,
     (panel) => panel.accent,
   )
-  const pluginItems: RailItem[] = editable
+  const pluginItems: RailItem[] = editable && !reactMode
     ? pluginPanels.map((panel, index) => ({
         id: `plugin:${panel.id}`,
         label: panel.label,

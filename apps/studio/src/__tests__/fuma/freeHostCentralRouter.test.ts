@@ -2,9 +2,9 @@ import { describe, expect, it } from 'bun:test'
 import { handleServerRequest } from '../../../server/router'
 import type { FreeHostPublicBoundary } from '../../../server/fuma/freeHosts'
 
-function request(host: string, path: string): Request {
+function request(host: string, path: string, method = 'GET'): Request {
   return {
-    method: 'GET',
+    method,
     url: `http://internal${path}`,
     headers: { get: (name: string) => name.toLowerCase() === 'host' ? host : null },
   } as unknown as Request
@@ -39,6 +39,39 @@ describe('FUMA-050 central server Host composition', () => {
     expect(response.status).toBe(404)
     expect(await response.json()).toEqual({ error: 'Not found' })
     expect(calls).toBe(1)
+  })
+
+  it('redirects the exact hosted product root to admin before tenant public routing', async () => {
+    let publicRouteCalls = 0
+    let authorityChecks = 0
+    const runtime = {
+      db: new Proxy({}, {
+        get() { throw new Error('database should not be queried for the product root') },
+      }) as never,
+      hostedStaffAuth: {
+        origin: 'https://app.trimly.co.ke',
+        handlesProductRequest(input: Request) {
+          authorityChecks += 1
+          return input.headers.get('host') === 'app.trimly.co.ke'
+        },
+        async handle() { return new Response('not reached', { status: 500 }) },
+      } as never,
+      freeHostPublic: {
+        async route() {
+          publicRouteCalls += 1
+          return new Response('tenant route should not own the product root', { status: 500 })
+        },
+      },
+    }
+
+    for (const method of ['GET', 'HEAD']) {
+      const response = await handleServerRequest(request('app.trimly.co.ke', '/', method), runtime)
+      expect(response.status).toBe(302)
+      expect(response.headers.get('location')).toBe('/admin')
+      expect(response.headers.get('cache-control')).toBe('no-store')
+    }
+    expect(authorityChecks).toBe(2)
+    expect(publicRouteCalls).toBe(0)
   })
 
   it('keeps process health independent without selecting a default tenant', async () => {

@@ -93,29 +93,70 @@ export function ModuleListPanel({ store, onOpen, openPath = null }: ModuleListPa
       ) : matches.length === 0 ? (
         <p className="text-sm text-muted-foreground">No modules match that search.</p>
       ) : (
-        <ul className="grid gap-1" aria-label="React modules">
-          {matches.map((path) => {
-            const isOpen = path === openPath
-            return (
-              <li key={path}>
-                <Button
-                  variant={isOpen ? 'secondary' : 'ghost'}
-                  size="sm"
-                  type="button"
-                  className="w-full justify-start font-mono text-xs"
-                  // Announced rather than only shaded, because colour alone is not a label.
-                  aria-current={isOpen ? 'true' : undefined}
-                  onClick={() => { if (!isOpen) onOpen(path) }}
-                  disabled={isOpen}
-                >
-                  <FileCode aria-hidden="true" />
-                  {path}
-                </Button>
-              </li>
-            )
-          })}
-        </ul>
+        <div className="grid gap-4" aria-label="React modules">
+          {groupedPaths(matches).map((group) => (
+            <section key={group.label} className="grid gap-1.5">
+              <div className="flex items-center justify-between gap-3 px-1">
+                <h3 className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  {group.label}
+                </h3>
+                <span className="text-[0.6875rem] tabular-nums text-muted-foreground">{group.paths.length}</span>
+              </div>
+              <ul className="grid gap-1">
+                {group.paths.map((path) => {
+                  const isOpen = path === openPath
+                  return (
+                    <li key={path}>
+                      <Button
+                        variant={isOpen ? 'secondary' : 'ghost'}
+                        size="sm"
+                        type="button"
+                        className="w-full justify-start font-mono text-xs"
+                        aria-current={isOpen ? 'true' : undefined}
+                        onClick={() => { if (!isOpen) onOpen(path) }}
+                        disabled={isOpen}
+                      >
+                        <FileCode aria-hidden="true" />
+                        {path}
+                      </Button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
     </div>
   )
+}
+
+type ModulePathGroup = Readonly<{ label: 'Pages' | 'Layouts' | 'Components' | 'Source', paths: readonly string[] }>
+
+/**
+ * Groups source by the vocabulary an author sees in the builder, not by filesystem trivia.
+ * Components includes the shadcn files scaffolded under components/ui, so the library is visibly
+ * present rather than hidden inside one flat source list.
+ */
+function groupedPaths(paths: readonly string[]): readonly ModulePathGroup[] {
+  const buckets: Record<ModulePathGroup['label'], string[]> = {
+    Pages: [],
+    Layouts: [],
+    Components: [],
+    Source: [],
+  }
+  for (const path of paths) {
+    if (path.startsWith('components/') || path.startsWith('src/components/')) {
+      buckets.Components.push(path)
+    } else if (/(^|\/)layout\.tsx$/.test(path)) {
+      buckets.Layouts.push(path)
+    } else if (/(^|\/)page\.tsx$/.test(path)) {
+      buckets.Pages.push(path)
+    } else {
+      buckets.Source.push(path)
+    }
+  }
+  return (Object.keys(buckets) as ModulePathGroup['label'][])
+    .map((label) => ({ label, paths: buckets[label] }))
+    .filter((group) => group.paths.length > 0)
 }

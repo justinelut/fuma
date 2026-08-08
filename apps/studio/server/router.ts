@@ -135,6 +135,19 @@ export async function handleServerRequest(
 ): Promise<Response> {
   const url = new URL(req.url)
   const { pathname } = url
+  if (
+    pathname === '/'
+    && (req.method === 'GET' || req.method === 'HEAD')
+    && runtime.hostedStaffAuth?.handlesProductRequest(req)
+  ) {
+    return new Response(null, {
+      status: 302,
+      headers: {
+        location: '/admin',
+        'cache-control': 'no-store',
+      },
+    })
+  }
   if (runtime.freeHostPublic && pathname !== '/health') {
     const publicHostResponse = await runtime.freeHostPublic.route(req)
     if (publicHostResponse) return publicHostResponse

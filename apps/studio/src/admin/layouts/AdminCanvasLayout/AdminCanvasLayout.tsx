@@ -117,6 +117,7 @@ export function AdminCanvasLayout() {
   const faviconUrl = useEditorStore((s) => s.site?.settings.faviconUrl ?? null)
   // Editor-only toolbar surface — gate its lazy chunk on store state.
   const previewOpen = useEditorStore((s) => s.previewOpen)
+  const reactMode = useEditorStore((s) => s.activeDocument?.kind === 'reactModule')
   // Settings modal mount gate. adminUi is the canonical source — the
   // editor's `settingsSlice.openSettings` mirrors into it, and the admin
   // shell reads from it too.
@@ -229,14 +230,20 @@ export function AdminCanvasLayout() {
             </Suspense>
           )}
           rightSlot={(
-            <>
-              <ZoomControls />
-              <PublishButton
-                enabled={canPublishPages}
-                onSave={canSaveSite ? persistence.saveSite : undefined}
-                saveStatus={persistence.saveStatus}
-              />
-            </>
+            reactMode ? (
+              <span className={styles.reactWorkspaceIndicator} data-testid="react-workspace-indicator">
+                React source workspace
+              </span>
+            ) : (
+              <>
+                <ZoomControls />
+                <PublishButton
+                  enabled={canPublishPages}
+                  onSave={canSaveSite ? persistence.saveSite : undefined}
+                  saveStatus={persistence.saveStatus}
+                />
+              </>
+            )
           )}
         />
 

@@ -1,31 +1,11 @@
-/**
- * The React-engine editing surface — the piece task 51 exists to build.
- *
- * Everything it composes was built and tested separately and, until now, was not joined to anything:
- * `reactEditorStore` (state + undo), `reactIrRenderer` (IR -> live DOM), `blockLibrary.insertBlock`
- * (fresh ids + remapped references), `BlocksPanel` and `AnimationPanel`. A foundation that is never
- * composed is a foundation nobody has shown to work, which is the state the previous iterations left
- * it in and the reason this file is the last structural blocker rather than another model.
- *
- * WHY THIS IS A SEPARATE SURFACE RATHER THAN AN EDIT TO THE EXISTING CANVAS. The shipping canvas is
- * 11,701 lines across 69 files and holds a module+props `PageNode` tree; this holds a `ReactIrModule`.
- * They are different documents, so there is no incremental edit that leaves both working - a partial
- * conversion would leave a canvas that renders one model and saves the other. Standing this up beside
- * the old one means the React engine is reachable and provably editable before anything is deleted,
- * and the deletion becomes a removal of something already replaced rather than a leap.
- *
- * The selection rule is the one thing the panels cannot decide for themselves: a block needs a parent,
- * and only the canvas knows what is selected. So `BlocksPanel` is handed a reason when nothing is
- * selected rather than a disabled button with no explanation.
- */
-import { useCallback, useMemo, useState } from 'react'
-import { idSourceFor, insertBlock } from '@core/react-ir/blockLibrary'
+import { useMemo, useState } from 'react'
+import { Braces, Redo2, Save, Undo2 } from 'lucide-react'
 import { Button } from '@admin/fuma/ui/button'
 import { blockFromSubtree } from '@core/react-ir/blockAuthoring'
 import type { BlockDefinition } from '@core/react-ir/blockLibrary'
 import { TENANT_SHADCN_COMPONENTS } from '@core/generatedSite/shadcnBaseline'
-import { BlocksPanel } from '../panels/BlocksPanel/BlocksPanel'
-import { ReactPropertiesMount } from '../panels/ReactPropertiesPanel/ReactPropertiesMount'
+import { renderModuleForCanvas } from './reactIrRenderer'
+import { ReactInspector } from './ReactInspector'
 import {
   useCanRedo,
   useCanUndo,
@@ -36,32 +16,18 @@ import {
   useReactEditorStore,
   useSelection,
 } from './reactEditorStore'
-import { nodeIdFromElement, renderModuleForCanvas } from './reactIrRenderer'
+import styles from './ReactCanvasSurface.module.css'
 
-export type ReactCanvasSurfaceProps = Readonly<{
-  /** Rendered instead of the canvas when no module is open, so the empty state is the caller's words. */
-  emptyLabel?: string
-  /**
-   * The path the CALLER believes is open, checked against the module this store actually holds.
-   *
-   * Two pieces of state can name a module - the canvas document and this editor store - and if they
-   * disagree the canvas would render module B while the author believes they opened A, so every edit
-   * would land somewhere they are not looking. Optional, because a caller that does not track a path
-   * separately has nothing to disagree with.
-   */
+const TENANT_COMPONENT_NAMES = TENANT_SHADCN_COMPONENTS.map((component) => component.name)
+
+export interface ReactCanvasSurfaceProps {
+  /** Refuse to draw if the React store and the shell name different files. */
   expectedPath?: string
-  /**
-   * Receives a block built from the current selection.
-   *
-   * The CALLER owns where it goes, because this surface has no storage and inventing one here would
-   * make a saved block look persisted when it lives only until the tab closes.
-   */
+  /** Optional persistence seam for saving a selected subtree to the Blocks library. */
   onSaveBlock?: (block: BlockDefinition) => void
-}>
+}
 
-export function ReactCanvasSurface(
-  { emptyLabel = 'Open a page to start editing.', expectedPath, onSaveBlock: handleSaveBlock }: ReactCanvasSurfaceProps,
-) {
+export function ReactCanvasSurface({ expectedPath, onSaveBlock }: ReactCanvasSurfaceProps = {}) {
   const module = useOpenModule()
   const selection = useSelection()
   const problems = useEditorProblems()
@@ -69,164 +35,177 @@ export function ReactCanvasSurface(
   const saving = useIsSaving()
   const canUndo = useCanUndo()
   const canRedo = useCanRedo()
-  const select = useReactEditorStore((s) => s.select)
-  const insertSubtree = useReactEditorStore((s) => s.insertSubtree)
-  const undoEdit = useReactEditorStore((s) => s.undoEdit)
-  const redoEdit = useReactEditorStore((s) => s.redoEdit)
-  const saveModule = useReactEditorStore((s) => s.saveModule)
-  const [insertProblem, setInsertProblem] = useState<string | null>(null)
-  const [blockProblem, setBlockProblem] = useState<string | null>(null)
+  const select = useReactEditorStore((state) => state.select)
+  const undo = useReactEditorStore((state) => state.undoEdit)
+  const redo = useReactEditorStore((state) => state.redoEdit)
+  const save = useReactEditorStore((state) => state.saveModule)
+  const [surfaceProblems, setSurfaceProblems] = useState<readonly string[]>([])
 
-  const selectedId = selection.length === 1 ? selection[0]! : null
+  const selectedNodeIds = useMemo(() => new Set(selection), [selection])
+  const rendered = useMemo(
+    () => module
+      ? renderModuleForCanvas({ module, selectedNodeIds })
+      : null,
+    [module, selectedNodeIds],
+  )
 
-  /**
-   * A block goes INSIDE the selection, so with nothing selected there is no parent and the panel is
-   * told why. Falling back to the root instead would put a hero wherever the page happens to begin,
-   * which is a placement nobody chose and one they then have to undo.
-   */
-  const unavailableReason = module === null
-    ? 'Open a page before inserting a block.'
-    : selectedId === null
-      ? selection.length > 1
-        ? 'Select a single element — a block goes inside one parent.'
-        : 'Select an element on the canvas first. A block is inserted inside it.'
-      : null
-
-  const onInsert = useCallback((block: BlockDefinition) => {
-    if (module === null || selectedId === null) return
-    const result = insertBlock(module, selectedId, block, idSourceFor(module))
-    if (!result.ok || result.instance === undefined) {
-      // The refusal is shown rather than dropped: a button that does nothing reads as a broken
-      // product, and `insertNodes` refuses for reasons an author can act on (a childless parent).
-      setInsertProblem(result.problems[0]?.message ?? 'The block could not be inserted here.')
-      return
-    }
-    setInsertProblem(null)
-    insertSubtree(result.instance.subtree, result.instance.rootId)
-  }, [insertSubtree, module, selectedId])
-
-  /**
-   * Selection reads the nearest marked ancestor rather than the exact click target, because a click
-   * usually lands on a text node inside the element somebody meant to select.
-   */
-  const onCanvasClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    const nodeId = nodeIdFromElement(event.target as Element)
-    if (nodeId !== null) select(nodeId)
-  }, [select])
-
-  // The renderer returns a React element, so it is rendered as children rather than appended to a
-  // ref - going through the DOM would put the canvas outside React's reconciliation and lose the
-  // element on the next state change.
-  /**
-   * Turns the selected section into a reusable block.
-   *
-   * REFUSALS ARE SHOWN. A block is inserted many times across many pages, so a defect saved here is
-   * multiplied - and because task 89 made blocks copies rather than references, every copy has to be
-   * found and fixed by hand. Reporting the reason is what lets the author fix it once.
-   */
-  const onSaveBlock = useCallback(() => {
-    setBlockProblem(null)
-    if (module === null || selectedId === null || handleSaveBlock === undefined) return
-    const name = selectedId
-    const result = blockFromSubtree(
-      module,
-      selectedId,
-      {
-        id: `saved.${name}`,
-        name: `Saved ${name}`,
-        description: `Saved from ${module.path}.`,
-        category: 'hero',
-      },
-      TENANT_SHADCN_COMPONENTS.map((component) => component.name),
-    )
-    if (!result.ok) {
-      setBlockProblem(result.problems.map((problem) => problem.message).join(' '))
-      return
-    }
-    handleSaveBlock(result.block)
-  }, [module, selectedId, handleSaveBlock])
-
-  const rendered = useMemo(() => (module === null ? null : renderModuleForCanvas({ module })), [module])
-
-  /**
-   * REFUSES rather than renders when the caller's path and the open module disagree.
-   *
-   * Rendering the module the store happens to hold would show the author a tree they did not open and
-   * accept edits into it - and both documents are valid modules, so nothing would look wrong. Placed
-   * after every hook so the hook order does not depend on whether the two agree.
-   */
-  if (module !== null && expectedPath !== undefined && module.path !== expectedPath) {
+  if (module === null) {
     return (
-      <div className="grid min-h-0 gap-3 p-6" data-testid="react-canvas-surface">
-        <p role="alert" className="rounded-md border border-destructive/50 p-4 text-sm text-destructive">
-          This canvas was asked for {expectedPath} but {module.path} is open. Nothing is shown, because
-          editing the wrong file looks exactly like editing the right one.
-        </p>
-      </div>
+      <section className={styles.workbench} aria-label="React canvas surface">
+        <div className={styles.mismatch} role="status">
+          <Braces aria-hidden="true" />
+          <strong>Open a page to start editing.</strong>
+          <span>Choose a React page, layout, or component from Components.</span>
+        </div>
+      </section>
     )
   }
 
+  if (expectedPath !== undefined && module.path !== expectedPath) {
+    return (
+      <section className={styles.workbench} aria-label="React canvas surface">
+        <div className={styles.mismatch} role="alert">
+          <strong>The open React document does not match the canvas.</strong>
+          <span>Expected {expectedPath}, but the React editor holds {module.path}.</span>
+        </div>
+      </section>
+    )
+  }
+
+  const issueMessages = [
+    ...problems.map((problem) => problem.message),
+    ...surfaceProblems,
+  ]
+  const documentTitle = module.path.split('/').filter(Boolean).at(-1) ?? module.path
+  const canSaveBlock = selection.length === 1
+
+  function saveSelectionAsBlock(): void {
+    if (!onSaveBlock || selection.length !== 1) return
+    const node = module!.nodes[selection[0]!]
+    const name = node?.label?.trim() || `Saved ${node?.kind ?? 'section'}`
+    const result = blockFromSubtree(module!, selection[0]!, {
+      id: `saved.${selection[0]}`,
+      name,
+      category: 'features',
+      description: `Reusable section saved from ${module!.path}.`,
+    }, TENANT_COMPONENT_NAMES)
+    if (!result.ok) {
+      setSurfaceProblems(result.problems.map((problem) => problem.message))
+      return
+    }
+    setSurfaceProblems([])
+    onSaveBlock(result.block)
+  }
+
   return (
-    <div className="grid min-h-0 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]" data-testid="react-canvas-surface">
-      <section className="grid min-h-0 gap-3" aria-label="React canvas">
-        <header className="flex flex-wrap items-center gap-2">
-          <Button variant="secondary" size="sm" type="button" disabled={!canUndo} onClick={undoEdit}>Undo</Button>
-          <Button variant="secondary" size="sm" type="button" disabled={!canRedo} onClick={redoEdit}>Redo</Button>
-          <Button
-            size="sm"
-            type="button"
-            disabled={!dirty || saving}
-            onClick={() => { void saveModule() }}
-          >
-            {saving ? 'Saving…' : 'Save'}
-          </Button>
-          {/* Unsaved state is stated rather than implied by an enabled button, because a button is a
-              control and this is a fact about the document. */}
-          {handleSaveBlock === undefined ? null : (
+    <section
+      className={styles.workbench}
+      data-testid="react-canvas-surface"
+      aria-label="React canvas surface"
+    >
+      <header className={styles.commandBar}>
+        <div className={styles.documentIdentity}>
+          <div className={styles.documentIdentityTop}>
+            <span className={styles.documentKind}>{module.kind}</span>
+            <span className={styles.documentPath}>{module.path}</span>
+          </div>
+          <div className={styles.documentMeta}>
+            <span className={styles.technologyPill}>React IR</span>
+            <span className={styles.boundaryPill}>{module.boundary} boundary</span>
+          </div>
+        </div>
+
+        <div className={styles.commandSpacer} />
+
+        <span className={styles.saveState} data-dirty={dirty ? 'true' : 'false'} aria-live="polite">
+          <span className={styles.saveStateDot} aria-hidden="true" />
+          {saving ? 'Writing TSX…' : dirty ? 'Unsaved changes' : 'Source saved'}
+        </span>
+
+        <div className={styles.commandActions}>
+          {onSaveBlock && (
             <Button
-              variant="secondary"
-              size="sm"
               type="button"
-              disabled={selectedId === null}
-              onClick={onSaveBlock}
+              variant="ghost"
+              size="sm"
+              disabled={!canSaveBlock || saving}
+              onClick={saveSelectionAsBlock}
             >
               Save as block
             </Button>
           )}
-          {dirty ? <span className="text-sm text-muted-foreground" role="status">Unsaved changes</span> : null}
-          {blockProblem === null ? null : (
-            <span role="alert" className="text-sm text-destructive">{blockProblem}</span>
-          )}
-        </header>
-        {module === null
-          ? <p className="rounded-md border border-dashed border-border p-6 text-center text-muted-foreground">{emptyLabel}</p>
-          : (
-            <div
-              onClick={onCanvasClick}
-              className="min-h-0 overflow-auto rounded-md border border-border bg-card p-4"
-              data-testid="react-canvas-frame"
-            >
-              {rendered}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Undo"
+            title="Undo"
+            disabled={!canUndo || saving}
+            onClick={undo}
+          >
+            <Undo2 aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Redo"
+            title="Redo"
+            disabled={!canRedo || saving}
+            onClick={redo}
+          >
+            <Redo2 aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!dirty || saving}
+            onClick={() => { void save() }}
+          >
+            <Save aria-hidden="true" />
+            {saving ? 'Saving…' : 'Save module'}
+          </Button>
+        </div>
+      </header>
+
+      <div className={styles.workspace}>
+        <main className={styles.stage} aria-label="React canvas stage">
+          <span className={styles.stageLabel}>Live component canvas</span>
+          <div className={styles.artboardShell}>
+            <div className={styles.artboardChrome} aria-hidden="true">
+              <span className={styles.artboardLights}><span /><span /><span /></span>
+              <span className={styles.artboardTitle}>{documentTitle}</span>
             </div>
+            <div
+              className={styles.artboardViewport}
+              data-testid="react-canvas-frame"
+              aria-label="React canvas"
+              onClickCapture={(event) => {
+                const target = event.target
+                if (!(target instanceof Element)) return
+                if (target.closest('a')) event.preventDefault()
+                const layer = target.closest<HTMLElement>('[data-node-id]')
+                if (layer?.dataset.nodeId) select(layer.dataset.nodeId)
+              }}
+            >
+              {rendered ?? (
+                <div className={styles.emptyCanvas}>
+                  <strong>This module has no renderable root.</strong>
+                  <p>Insert a component or block from the left rail to begin composing the React tree.</p>
+                </div>
+              )}
+            </div>
+          </div>
+          {issueMessages.length > 0 && (
+            <ul className={styles.problemTray} aria-label="React module problems">
+              {issueMessages.map((problem, index) => (
+                <li role="alert" key={`${problem}-${index}`}>{problem}</li>
+              ))}
+            </ul>
           )}
-        {problems.length > 0 ? (
-          <ul className="m-0 grid list-none gap-1 p-0" aria-label="Editor problems">
-            {problems.map((problem) => (
-              <li key={`${problem.code}-${problem.message}`} className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">
-                {problem.message}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {insertProblem !== null ? (
-          <p className="rounded-md bg-destructive/10 p-2 text-sm text-destructive" role="alert">{insertProblem}</p>
-        ) : null}
-      </section>
-      <aside className="grid min-h-0 content-start gap-4" aria-label="Component properties and blocks">
-        {/* Where task 72's derived cva variant controls become editable. */}
-        <ReactPropertiesMount />
-        <BlocksPanel onInsert={onInsert} unavailableReason={unavailableReason} />
-      </aside>
-    </div>
+        </main>
+        <ReactInspector />
+      </div>
+    </section>
   )
 }

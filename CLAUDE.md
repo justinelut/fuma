@@ -30,6 +30,12 @@ Do not use `localhost`, `127.0.0.1`, or direct container addresses for browser/E
 
 Fuma production and deployment acceptance targets native Linux ARM64 only. Do not run or claim amd64, Docker/buildx, QEMU, or emulated compatibility evidence unless the user explicitly changes this scope. Repository-only image work must not be represented as protected publication, signing, scanning, deployment, or promotion evidence.
 
+## Production deployment authority
+
+The coding workspace is for implementation and local validation only. Do not assume it hosts a K3s cluster, do not probe it for production Kubernetes authority, and never deploy production with local `kubectl`, `k3s`, direct SSH, or a locally built image.
+
+After the affected tests, required typechecks, and production build pass locally, production changes must be committed and pushed through GitHub on a non-main branch, then deployed through one canonical end-to-end GitHub Actions workflow. For Studio, trigger only `.github/workflows/fuma-studio-release.yml`; it builds and publishes the native ARM64 runtime image, then automatically invokes `.github/workflows/fuma-studio-deploy.yml` as its deployment job. Never run the nested deploy workflow separately, never push directly to main/master, and verify the completed release workflow plus the public HTTPS hosts after deployment.
+
 ## Four-agent delegation policy
 
 When the user asks to spin four agents, every subagent invocation must start **exactly four stages in parallel**:

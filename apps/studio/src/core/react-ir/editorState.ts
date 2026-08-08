@@ -24,14 +24,17 @@ import {
   insertNodes,
   moveNode,
   reorderChild,
+  replaceClassTokens,
   setClassTokens,
   setComponentProp,
+  setNodeAnimation,
   verifyTree,
   type EditResult,
 } from './edit'
 import { commitEdit, loadModule } from './session'
 import type { ModuleWorkspace } from './workspace'
 import { childIdsOf, isHidden, type ReactIrModule, type ReactIrNode } from './nodes'
+import type { MotionAnimation } from './motion'
 
 /**
  * A problem shown to the author.
@@ -310,6 +313,41 @@ export function setProp(
     future: Object.freeze([]),
     problems: Object.freeze([]),
   })
+}
+
+/** Replace the complete class list on one selected element or component. */
+export function replaceStyle(state: EditorState, tokens: readonly string[]): EditorState {
+  if (state.selection.length !== 1) {
+    return Object.freeze({
+      ...state,
+      problems: Object.freeze([Object.freeze({
+        code: 'unknown-node' as const,
+        message: state.selection.length === 0
+          ? 'Select the element whose Tailwind classes you want to edit.'
+          : 'Select a single element — an exact class list cannot be applied to a mixed selection.',
+      })]),
+    })
+  }
+  return applyEdit(state, replaceClassTokens(state.module, state.selection[0]!, tokens))
+}
+
+/** Set or remove Motion data on one selected renderable node. */
+export function setAnimation(
+  state: EditorState,
+  animation: MotionAnimation | null,
+): EditorState {
+  if (state.selection.length !== 1) {
+    return Object.freeze({
+      ...state,
+      problems: Object.freeze([Object.freeze({
+        code: 'unknown-node' as const,
+        message: state.selection.length === 0
+          ? 'Select the element you want to animate.'
+          : 'Select a single element — Motion settings apply to one element at a time.',
+      })]),
+    })
+  }
+  return applyEdit(state, setNodeAnimation(state.module, state.selection[0]!, animation))
 }
 
 export function restyle(state: EditorState, tokens: readonly string[]): EditorState {

@@ -14,13 +14,21 @@ export type LeftSidebarPanelId =
   | 'dependencies'
   | 'agent'
   /**
-   * The React IR module list (task 51).
+   * Tenant React source: pages, layouts and shadcn-backed components.
    *
    * A LISTING panel is legitimate where an insertion panel was not: it switches the whole active
    * document rather than inserting React IR into the PageNode tree this store holds, so the two node
    * models never meet inside one document.
    */
   | 'modules'
+  /**
+   * The shadcn-composed Blocks catalogue.
+   *
+   * It is visible in the rail at all times, but insertion is enabled only while a React module is
+   * open and one parent is selected. The panel states that requirement instead of disappearing — a
+   * hidden feature is indistinguishable from one that was never shipped.
+   */
+  | 'blocks'
 /** Tabs inside the consolidated Framework panel. */
 export type FrameworkPanelTab = 'home' | 'colors' | 'typography' | 'spacing'
 /**
@@ -137,8 +145,10 @@ interface UiSlice {
   /** Whether the Manage Core Framework dialog is open. */
   frameworkManagerOpen: boolean
   dependenciesPanelOpen: boolean
-  /** The React module list. Follows the dependencies panel's own shape exactly. */
+  /** Tenant React source panel. */
   modulesPanelOpen: boolean
+  /** Shadcn-composed Blocks catalogue panel. */
+  blocksPanelOpen: boolean
 
   /**
    * Plugin-registered editor panel currently open in the left sidebar, or
@@ -189,6 +199,7 @@ interface UiSlice {
   setFrameworkManagerOpen: (open: boolean) => void
   setDependenciesPanelOpen: (open: boolean) => void
   setModulesPanelOpen: (open: boolean) => void
+  setBlocksPanelOpen: (open: boolean) => void
   setLeftSidebarPanel: (panel: LeftSidebarPanelId | null) => void
   toggleLeftSidebarPanel: (panel: LeftSidebarPanelId) => void
 
@@ -308,6 +319,7 @@ function getActiveLeftSidebarPanel(state: EditorStore): LeftSidebarPanelId | nul
   if (state.frameworkPanelOpen) return 'framework'
   if (state.dependenciesPanelOpen) return 'dependencies'
   if (state.modulesPanelOpen) return 'modules'
+  if (state.blocksPanelOpen) return 'blocks'
   if (state.isAgentOpen) return 'agent'
   return null
 }
@@ -338,6 +350,7 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
   frameworkManagerOpen: false,
   dependenciesPanelOpen: false,
   modulesPanelOpen: false,
+  blocksPanelOpen: false,
   activePluginPanelId: null,
   codeEditorPanelOpen: false,
   activeEditorFileId: null,
@@ -460,6 +473,7 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
 
   setDependenciesPanelOpen: (open) => set({ dependenciesPanelOpen: open }),
   setModulesPanelOpen: (open) => set({ modulesPanelOpen: open }),
+  setBlocksPanelOpen: (open) => set({ blocksPanelOpen: open }),
 
   setLeftSidebarPanel: (panel) =>
     set((state) => {
@@ -467,6 +481,8 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
       state.selectorsPanelOpen = panel === 'selectors'
       state.frameworkPanelOpen = panel === 'framework'
       state.dependenciesPanelOpen = panel === 'dependencies'
+      state.modulesPanelOpen = panel === 'modules'
+      state.blocksPanelOpen = panel === 'blocks'
       state.isAgentOpen = panel === 'agent'
       // Built-in panels are mutually exclusive with plugin panels.
       state.activePluginPanelId = null
@@ -490,6 +506,8 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
       state.selectorsPanelOpen = false
       state.frameworkPanelOpen = false
       state.dependenciesPanelOpen = false
+      state.modulesPanelOpen = false
+      state.blocksPanelOpen = false
       state.isAgentOpen = false
       state.activePluginPanelId = panelId
     }),

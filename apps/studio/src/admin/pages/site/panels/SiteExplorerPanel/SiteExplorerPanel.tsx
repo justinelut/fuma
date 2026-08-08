@@ -31,6 +31,7 @@ import { useSiteExplorerSelection, type SiteExplorerMenuSelection } from './site
 import { SiteExplorerContextMenu, type SiteExplorerContextMenuState } from './SiteExplorerContextMenu'
 import { SiteExplorerPathConfirmDialog } from './SiteExplorerPathConfirmDialog'
 import { SiteExplorerPanelSections } from './SiteExplorerPanelSections'
+import { ModuleListMount } from '@site/panels/ModuleListPanel/ModuleListMount'
 import type { SiteExplorerAnySectionModel, SiteExplorerContextTarget, SiteExplorerSectionGroup } from './siteExplorerPanelTypes'
 import styles from './SiteExplorerPanel.module.css'
 
@@ -645,6 +646,14 @@ export function SiteExplorerPanel({
             onContextMenuFolder={(sectionId, folder, event) => openContextMenu(folderTarget(sectionId, folder), event)}
             onKeyDownFolder={(sectionId, folder, event) => openKeyboardContextMenu(folderTarget(sectionId, folder), event)}
           />
+        )}
+        {site && sectionGroup === 'site' && (
+          <section className={styles.section} aria-labelledby="site-section-react-source">
+            <div className={styles.sectionHeader}>
+              <h2 id="site-section-react-source" className={styles.sectionTitle}>React source</h2>
+            </div>
+            <ModuleListMount />
+          </section>
         )}
         {limitNotice !== null && (
           // role="status" so the refusal is announced rather than only drawn - somebody using a

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, type CSSProperties } from 'react'
+import { lazy, Suspense, useEffect, useRef, type CSSProperties } from 'react'
 import { useEditorStore } from '@site/store/store'
 import type { LeftSidebarPanelId } from '@site/store/slices/uiSlice'
 import { AgentStoreProvider } from '@admin/ai/AgentStoreContext'
@@ -11,7 +11,6 @@ import { SelectorsPanel } from '@site/panels/SelectorsPanel'
 import { FrameworkChangeConfirmProvider } from '@admin/shared/dialogs/FrameworkChangeConfirmDialog'
 import { VCDeletionConfirmProvider } from '@admin/shared/dialogs/VCDeletionConfirmDialog'
 import { SidebarResizeHandle } from '@admin/shared/SidebarResizeHandle'
-import { ModuleListMount } from '@site/panels/ModuleListPanel/ModuleListMount'
 import styles from './LeftSidebar.module.css'
 
 // Image preparation and provider catalogue code belong to the AI surface, not
@@ -31,6 +30,8 @@ function selectActiveLeftSidebarPanel(state: ReturnType<typeof useEditorStore.ge
   if (state.selectorsPanelOpen) return 'selectors'
   if (state.frameworkPanelOpen) return 'framework'
   if (state.dependenciesPanelOpen) return 'dependencies'
+  if (state.modulesPanelOpen) return 'modules'
+  if (state.blocksPanelOpen) return 'blocks'
   if (state.isAgentOpen) return 'agent'
   return null
 }
@@ -71,18 +72,26 @@ export function LeftSidebar({
   const sidebarRef = useRef<HTMLElement | null>(null)
   const activePanel = useEditorStore(selectActiveLeftSidebarPanel)
   const activePluginPanelId = useEditorStore((s) => s.activePluginPanelId)
+  const reactMode = useEditorStore((s) => s.activeDocument?.kind === 'reactModule')
   const leftSidebarWidth = useEditorStore((s) => s.leftSidebarWidth)
   const setLeftSidebarWidth = useEditorStore((s) => s.setLeftSidebarWidth)
+  const setLeftSidebarPanel = useEditorStore((s) => s.setLeftSidebarPanel)
+
+  useEffect(() => {
+    if (reactMode && (activePanel === 'modules' || activePanel === 'blocks')) {
+      setLeftSidebarPanel('explorer')
+    }
+  }, [activePanel, reactMode, setLeftSidebarPanel])
   // When the user can't edit structure, drop them onto Layers if they had a
   // hidden-for-them panel active (selectors, colors, …). Plugin panels are
   // editing-only by definition.
   const effectiveActivePanel =
-    activePanel && canShowBuiltInPanel(activePanel, editable, canUseAiChat)
+    activePanel && canShowBuiltInPanel(activePanel, editable, canUseAiChat, reactMode)
       ? activePanel
-      : editable
+      : editable || reactMode
         ? null
         : 'explorer'
-  const effectivePluginPanelId = editable ? activePluginPanelId : null
+  const effectivePluginPanelId = editable && !reactMode ? activePluginPanelId : null
   // Sidebar is "expanded" whenever a built-in OR plugin panel is showing.
   const sidebarOpen = Boolean(effectiveActivePanel) || effectivePluginPanelId !== null
   const panelExpanded = sidebarOpen && !railOnly
@@ -119,18 +128,12 @@ export function LeftSidebar({
           data-testid="left-sidebar-panel-slot"
           inert={panelExpanded ? undefined : true}
         >
-          {/* Read-only-safe panels — always rendered for any role with
-              `site.read`. These are navigation/inspection surfaces, not
-              editing tools; each respects its own read-only state internally
-              (e.g. TreeNode disables drag + context menu via `editable`). */}
+          {/* Explorer preserves Instatic's established shell. In React mode its Site tab swaps only
+              the data view, so legacy PageNode sections never receive React mutations. */}
           <div className={styles.panelMount} hidden={effectiveActivePanel !== 'explorer'}>
             <ExplorerPanel editable={editable} />
           </div>
-          {/* Editor-only panels — only mounted when the caller can perform
-              structural edits. Mounting them for non-editors would expose
-              actions (style edits, framework token changes, plugin panels)
-              they have no capability to commit. */}
-          {editable && (
+          {editable && !reactMode && (
             <>
               <div className={styles.panelMount} hidden={effectiveActivePanel !== 'selectors'}>
                 <SelectorsPanel variant="docked" />
@@ -140,11 +143,6 @@ export function LeftSidebar({
               </div>
               <div className={styles.panelMount} hidden={effectiveActivePanel !== 'dependencies'}>
                 <DependenciesPanel variant="docked" />
-              </div>
-              {/* The React module list. Editor-only because opening one switches the active document,
-                  which is structural work rather than navigation. */}
-              <div className={styles.panelMount} hidden={effectiveActivePanel !== 'modules'}>
-                <ModuleListMount />
               </div>
               {effectivePluginPanelId !== null && (
                 <div
@@ -199,7 +197,9 @@ function canShowBuiltInPanel(
   panel: LeftSidebarPanelId,
   editable: boolean,
   canUseAiChat: boolean,
+  reactMode: boolean,
 ): boolean {
   if (panel === 'agent') return canUseAiChat
+  if (reactMode) return panel === 'explorer' && (editable || READ_ONLY_RAIL_IDS.has(panel))
   return editable || READ_ONLY_RAIL_IDS.has(panel)
 }
