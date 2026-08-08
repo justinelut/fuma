@@ -1,6 +1,0 @@
-export * from './contracts'
-export * from './postgresReadModel'
-export * from './service'
-export * from './routes'
-export * from './runtime'
-export * from './consoleContribution'

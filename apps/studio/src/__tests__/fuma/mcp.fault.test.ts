@@ -1,9 +1,0 @@
-import { describe, expect, it } from 'bun:test'
-import { hashConnectorToken } from '../../../server/ai/mcp/connectors/token'
-import { hashMcpValue } from '../../../server/fuma/mcp'
-import { createMcpFixture, mcpScope } from './mcpTestFixture'
-
-describe('FUMA-066 MCP faults', () => {
-  it('does not reserve credits when receipt persistence fails', async () => { const h = await createMcpFixture(); const { token } = await h.connector('a'); await h.service.authenticate({ tokenHash: await hashConnectorToken(token), sessionId: 'session-a', expectedScope: mcpScope('a') }); h.repository.failNext('claimReceipt'); await expect(h.service.beginOperation({ sessionId: 'session-a', operationId: 'fault-a', toolName: 'site_read_styles', capability: 'read', inputHashSha256: await hashMcpValue({}), estimatedInputTokens: 1, estimatedOutputTokens: 10, confirmation: null })).rejects.toThrow('Injected'); expect(h.creditEvents).toHaveLength(0); })
-  it('serializes concurrent publish admission to the exact configured limit', async () => { const h = await createMcpFixture(); const { token } = await h.connector('b', ['site.publish']); await h.service.authenticate({ tokenHash: await hashConnectorToken(token), sessionId: 'session-b', expectedScope: mcpScope('b') }); const attempts = await Promise.allSettled(Array.from({ length: 8 }, async (_, index) => h.service.beginOperation({ sessionId: 'session-b', operationId: `concurrent-${index}`, toolName: 'site_publish', capability: 'publish', inputHashSha256: await hashMcpValue({ index }), estimatedInputTokens: 1, estimatedOutputTokens: 1, confirmation: { confirmationId: `confirm-${index}`, stepUpReceiptId: 'step-up-b', confirmedAt: '2026-07-28T12:00:00.000Z' } }))); expect(attempts.filter((value) => value.status === 'fulfilled')).toHaveLength(2); expect(h.creditEvents.filter((event) => event.kind === 'reserve')).toHaveLength(2); })
-})

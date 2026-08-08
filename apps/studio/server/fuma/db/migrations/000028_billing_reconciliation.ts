@@ -1,6 +1,0 @@
-import type { HostedMigration } from '../migrationPolicy'
-export const billingReconciliationMigration:HostedMigration={id:'000028_billing_reconciliation',description:'Add platform billing reduction contracts and paid handoff outbox',sql:`
-create table fuma_billing_events (event_id text primary key, provider_sequence numeric(39,0) not null, event_type text not null, reference text null, raw_sha256 text not null, state text not null check(state in ('stored','reduced','unknown')), received_at timestamptz not null, reduced_at timestamptz null);
-create table fuma_organization_contracts (contract_id text primary key, candidate_id text not null unique references fuma_contract_candidates(candidate_id) on delete restrict, organization_id text not null, workspace_id text not null, site_id text not null, state text not null check(state in ('active','paid-transfer-pending','cancelled')), activated_at timestamptz not null);
-create table fuma_paid_handoff_outbox (command_id text primary key, contract_id text not null unique references fuma_organization_contracts(contract_id) on delete restrict, state text not null check(state in ('pending','delivered','failed')), created_at timestamptz not null, delivered_at timestamptz null);
-`}

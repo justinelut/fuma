@@ -9,35 +9,14 @@ lerna-debug.log*
 
 node_modules
 dist
-!vendor/pixel-art-icons/dist/
-!vendor/pixel-art-icons/dist/**
 dist-ssr
-.worktrees/
-.superpowers/
-.claude/
-.tmp/
-.tmp-lint/
-.coverage/
-coverage/
-.matrix/
+dist-electron
+release
 *.local
 
-# Generated audit reports
-/instatic-audit-report.html
-/instatic-audit-report.json
-
-# Environment variable files — never commit secrets
-# *.local already covers .env.local / .env.development.local etc.
-# These explicit entries cover bare .env and non-local variants.
-.env
-.env.*
-!.env.example
-!.env.production.example
-!.env.fuma.example
-
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
+.vscode/.debug.env
+.vscode/settings.json
 .idea
 .DS_Store
 *.suo
@@ -45,46 +24,26 @@ coverage/
 *.njsproj
 *.sln
 *.sw?
-.agents/*
-!.agents/skills/
-.agents/skills/*
-!.agents/skills/agent-browser/
-!.agents/skills/agent-browser/**
-!.agents/skills/skill-creator/
-!.agents/skills/skill-creator/**
-!.agents/skills/instatic-user-e2e/
-!.agents/skills/instatic-user-e2e/**
-.skills/
 
-# User uploads — runtime data, never commit
-# (real user media has PII risk; plugin/font runtime artifacts are not source)
-uploads/*
-!uploads/.gitkeep
+#lockfile
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+/test-results/
+/playwright-report/
+/playwright/.cache/
 
-# E2E test run artifacts — generated, not source
-docs/e2e/runs
+# Env variables
+.env
+.env.production
+.env.development
+.env.test
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# Agent implementation plans — local planning artifacts, never source
-docs/plans/
-docs/superpowers/
+mise.toml
 
-# Plugin build artifacts — generated from source plugin directories
-*.plugin.zip
-
-# Loose smoke-test screenshots dropped at the repo root by agent-browser runs.
-# Persisted captures belong under docs/ or marketing/assets/, not the root.
-/*.png
-
-# AI coding-tool scratch/config dirs — local tooling, never source
-.factory/
-.trae/
-.windsurf/
-
-# Next.js public application outputs
-.next/
-apps/web/playwright-report/
-apps/web/test-results/
-
-# Cross-workspace test runner and incremental compiler artifacts
-**/test-results/
-*.tsbuildinfo
+# Temporary files
+.tmp/

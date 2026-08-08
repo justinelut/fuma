@@ -1,22 +1,17 @@
-# Local-development Postgres service.
-#
-# `bun run dev` brings this service up automatically when the canonical local
-# PostgreSQL URL is used. Set DATABASE_URL to use an existing PostgreSQL server.
-#
-# For a fully-containerized stack (closer to production), use:
-#   docker compose -f compose.prod.yml -f compose.build.yml up --build
+name: onlook
 
 services:
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: instatic
-      POSTGRES_USER: instatic
-      POSTGRES_PASSWORD: instatic
+  web-client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - apps/web/client/.env
     ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - "3000:3000"
+    restart: unless-stopped
+    network_mode: host
 
-volumes:
-  postgres_data:
+networks:
+  supabase_network_onlook-web:
+    external: true

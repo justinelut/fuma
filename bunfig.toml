@@ -1,8 +1,2 @@
-[test]
-preload = ["./apps/studio/src/__tests__/setup.ts"]
-pathIgnorePatterns = [
-  "apps/studio/tests/e2e/**",
-  "apps/web/tests/**",
-  "apps/control-surfaces/tests/**",
-  "packages/fuma-governance-launch/tests/**",
-]
+[install]
+linker = "hoisted"

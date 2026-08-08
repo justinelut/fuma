@@ -1,45 +1,146 @@
-# Agent execution rules
+## Onlook Agents Guide
 
-Read `CLAUDE.md` before changing code. Its repository, architecture, data-safety, and validation rules remain authoritative.
+Actionable rules for repo agents—keep diffs minimal, safe, token‑efficient.
 
-## Browser and E2E host policy
+### Purpose & Scope
 
-Browser tests, Playwright tests, hydration checks, screenshots, and any claimed user-facing acceptance **must use the public Blyss HTTPS endpoint for the service port**:
+- Audience: automated coding agents working within this repository.
+- Goal: small, correct diffs aligned with the project’s architecture.
+- Non-goals: editing generated artifacts, lockfiles, or `node_modules`.
 
-```text
-https://<port>.blyss.co.ke
-```
+### Repo Map
 
-Current required Fuma endpoints:
+- Monorepo managed by Bun workspaces (see root `package.json`).
+- App: `apps/web/client` (Next.js App Router + TailwindCSS).
+- API routes: `apps/web/client/src/server/api/routers/*`, aggregated in
+  `apps/web/client/src/server/api/root.ts`.
+- Shared utilities: `packages/*` (e.g., `packages/utility`).
 
-```text
-Studio/admin (Vite preview): https://5174.blyss.co.ke
-Public Next.js Web:          https://3002.blyss.co.ke
-```
+### Stack & Runtimes
 
-For Studio E2E, use:
+- UI: Next.js App Router, TailwindCSS.
+- API: tRPC + Zod (`apps/web/client/src/server/api/*`).
+- Package manager: Bun only — use Bun for all installs and scripts; do not use
+  npm, yarn, or pnpm.
 
-```sh
-E2E_ADMIN_BASE_URL=https://5174.blyss.co.ke
-E2E_PUBLIC_BASE_URL=https://3002.blyss.co.ke
-```
+### Agent Priorities
 
-Do not use `localhost`, `127.0.0.1`, or direct container addresses for browser/E2E acceptance. A loopback request may be used only as a low-level process or container liveness diagnostic; it must never be reported as browser, routing, hydration, TLS, proxy, or public-host acceptance evidence. Final acceptance evidence must come from the matching `https://<port>.blyss.co.ke` host.
+- Correctness first: minimal scope and targeted edits.
+- Respect client/server boundaries in App Router.
+- Prefer local patterns and existing abstractions; avoid one-off frameworks.
+- Do not modify build outputs, generated files, or lockfiles.
+- Use Bun for all scripts; do not introduce npm/yarn.
+- Avoid running the local dev server in automation contexts.
+- Respect type safety and
 
-## Production architecture policy
+### Next.js App Router
 
-Fuma production and deployment acceptance targets native Linux ARM64 only. Do not run or claim amd64, Docker/buildx, QEMU, or emulated compatibility evidence unless the user explicitly changes this scope. Repository-only image work must not be represented as protected publication, signing, scanning, deployment, or promotion evidence.
+- Default to Server Components. Add `use client` when using events,
+  state/effects, browser APIs, or client-only libs.
+- App structure: `apps/web/client/src/app/**` (`page.tsx`, `layout.tsx`,
+  `route.ts`).
+- Client providers live behind a client boundary (e.g.,
+  `apps/web/client/src/trpc/react.tsx`).
+- Example roots: `apps/web/client/src/app/layout.tsx` (RSC shell, providers
+  wired, scripts gated by env).
+- Components using `mobx-react-lite`'s `observer` must be client components
+  (include `use client`).
 
-## Four-agent delegation policy
+### tRPC API
 
-When the user asks to spin four agents, every subagent invocation must start **exactly four stages in parallel**:
+- Routers live in `apps/web/client/src/server/api/routers/**` and must be
+  exported from `apps/web/client/src/server/api/root.ts`.
+- Use `publicProcedure`/`protectedProcedure` from
+  `apps/web/client/src/server/api/trpc.ts`; validate inputs with Zod.
+- Serialization handled by SuperJSON; return plain objects/arrays.
+- Client usage via `apps/web/client/src/trpc/react.tsx` (React Query + tRPC
+  links).
 
-- all four stages have no `depends_on` edges;
-- each stage owns at least one complete backlog ticket or a complete multi-ticket phase, including implementation, focused tests, architecture gates, and documentation;
-- never split one ticket into four planning, research, audit, frontend/backend, or other subtasks;
-- select four dependency-ready tickets with non-overlapping primary file ownership so parallel edits are safe;
-- route heavy backend, data, migration, compatibility, and concurrency coding stages to `claude-opus-5`; route content-heavy, public-web, visual, accessibility, and design stages to `gpt-5.6-sol`, unless the user explicitly changes that routing;
-- subagents do not run unfiltered `bun test`, the root full build, or the root full lint; the primary agent owns aggregate validation and tracker closure;
-- browser/E2E evidence from every stage still follows the Blyss HTTPS host policy above.
+### Auth & Supabase
 
-A batch is not considered a four-agent batch if dependency edges cause only one stage to start. If four sequential tickets depend on one another, choose other dependency-ready full tickets for the remaining parallel stages rather than serializing the agents or reducing them to subtasks.
+- Server-side client: `apps/web/client/src/utils/supabase/server.ts` (uses Next
+  headers/cookies). Use in server components, actions, and routes.
+- Browser client: `apps/web/client/src/utils/supabase/client/index.ts` for
+  client components.
+- Never pass server-only clients into client code.
+
+### Env & Config
+
+- Define/validate env vars in `apps/web/client/src/env.ts` via
+  `@t3-oss/env-nextjs`.
+- Expose browser vars with `NEXT_PUBLIC_*` and declare in the `client` schema.
+- Prefer `env` from `@/env`. In server-only helpers (e.g., base URL in
+  `src/trpc/helpers.ts`), read `process.env` only for deployment vars like
+  `VERCEL_URL`/`PORT`. Never use `process.env` in client code; in shared
+  modules, guard with `typeof window === 'undefined'`.
+- Import `./src/env` in `apps/web/client/next.config.ts` to enforce validation.
+
+### Imports & Paths
+
+- Use path aliases: `@/*` and `~/*` map to `apps/web/client/src/*` (see
+  `apps/web/client/tsconfig.json`).
+- Do not import server-only modules into client components. Limited exception:
+  editor modules that already use `path`; reuse only there. Never import
+  `process` in client code.
+- Split code by environment if needed (server file vs client file).
+
+### MobX + React Stores
+
+- Create store instances with `useState(() => new Store())` for stability across
+  renders.
+- Keep active store in `useRef`; clean up async with
+  `setTimeout(() => storeRef.current?.clear(), 0)` to avoid route-change races.
+- Avoid `useMemo` for store instances; React may drop memoized values leading to
+  data loss.
+- Avoid putting the store instance in effect deps if it loops; split concerns
+  (e.g., project vs branch).
+- `observer` components are client-only. Place one client boundary at the
+  feature entry; child observers need not include `use client` (e.g.,
+  `apps/web/client/src/app/project/[id]/_components/main.tsx`).
+- Example store: `apps/web/client/src/components/store/editor/engine.ts:1` (uses
+  `makeAutoObservable`).
+
+### Styling & UI
+
+- TailwindCSS-first styling; global styles are already imported in
+  `apps/web/client/src/app/layout.tsx`.
+- Prefer existing UI components from `@onlook/ui` and local patterns.
+- Preserve dark theme defaults via `ThemeProvider` usage in layout.
+
+### Internationalization
+
+- `next-intl` is configured; provider lives in
+  `apps/web/client/src/app/layout.tsx`.
+- Strings live in `apps/web/client/messages/*`. Add/modify keys there; avoid
+  hardcoded user-facing text.
+- Keep keys stable; prefer additions over breaking renames.
+
+### Common Pitfalls
+
+- Missing `use client` where needed (events/browser APIs) causes unbound events;
+  a single boundary at the feature root is sufficient.
+- New tRPC routers not exported in `src/server/api/root.ts` (endpoints
+  unreachable).
+- Env vars not typed/exposed in `src/env.ts` cause runtime/edge failures. Prefer
+  `env`; avoid new `process.env` reads in client code.
+- Importing server-only code into client components (bundling/runtime errors).
+  Note: `path` is already used in specific client code-editor modules; avoid
+  expanding Node API usage beyond those areas.
+- Bypassing i18n by hardcoding strings instead of using message files/hooks.
+- Avoid `useMemo` to create MobX stores (risk of lost references); avoid
+  synchronous cleanup on route change (race conditions).
+
+### Context Discipline (for Agents)
+
+- Search narrowly with ripgrep; open only files you need.
+- Read small sections; avoid `node_modules`, `.next`, large assets.
+- Propose minimal diffs aligned with existing conventions; avoid wide refactors.
+
+### Notes
+
+- Unit tests can be run with `bun test`
+- Run type checking with `bun run typecheck`
+- Apply database updates to local dev with `bun run db:push`
+- Refrain from running the dev server
+- DO NOT run `db:gen`. This is reserved for the maintainer.
+- DO NOT use any type unless necessary

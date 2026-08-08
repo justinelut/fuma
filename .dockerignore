@@ -1,31 +1,26 @@
-.git
-.worktrees
-.DS_Store
 node_modules
-dist
-.tmp
-uploads
-data
-backups
+.git
+.gitignore
+README.md
 .env
-.env.*
-!.env.example
-!.env.production.example
-docs/superpowers
-
-# Test sources are verified in CI but are not needed in production images.
-**/__tests__
-**/*.test.ts
-**/*.test.tsx
-# These exact tests are hashed into the native email compatibility receipt read by migrations.
-!apps/studio/server/fuma/email/compatibility/compatibility.test.ts
-!apps/studio/src/__tests__/architecture/fuma-email-boundaries.test.ts
-!apps/studio/src/__tests__/fuma/emailDocumentRenderer.test.ts
-# The E2E TypeScript project imports this canonical non-test fixture during tsc.
-!apps/studio/src/__tests__/helpers/fuma/fixtures.ts
-
-# Next.js public application outputs
+.env.local
+.env.*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 .next
-**/.next
-apps/web/playwright-report
-apps/web/test-results
+.vercel
+*.tsbuildinfo
+.DS_Store
+coverage
+.nyc_output
+dist
+build
+.vscode
+.idea
+*.log
+.next
+
+# Parts of the app that does not need to be deployed
+apps/web/backend
+assets

@@ -1,4 +1,0 @@
-.root { padding: var(--space-l); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-surface-1); }
-.status, .error { margin: 0; padding: var(--space-l); }
-.status { color: var(--text-muted); }
-.error { color: var(--danger-text); }

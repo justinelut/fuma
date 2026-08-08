@@ -1,3 +1,0 @@
-import type { Route } from 'next'
-import Link from 'next/link'
-export function CursorPagination({basePath,nextCursor,filters}:{basePath:string;nextCursor:string|null;filters:Readonly<Record<string,string|undefined>>}){if(!nextCursor)return null;const query=new URLSearchParams();for(const [key,value] of Object.entries(filters).sort(([a],[b])=>a.localeCompare(b)))if(value)query.set(key,value);query.set('cursor',nextCursor);return <nav aria-label="Pagination" className="mt-10 flex justify-end"><Link rel="next" className="rounded-md border px-4 py-2" href={`${basePath}?${query}` as Route}>Next page</Link></nav>}

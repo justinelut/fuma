@@ -1,7 +1,0 @@
-[
-  { "id": "clean-output", "statement": "Published Fuma pages use semantic HTML and compact CSS without the editor interface.", "owner": "Publishing Engineering", "reviewAt": "2026-10-26T00:00:00Z", "evidence": "docs/features/publisher.md" },
-  { "id": "draft-isolation", "statement": "Unpublished edits remain private until an author explicitly publishes them.", "owner": "Content Platform", "reviewAt": "2026-10-26T00:00:00Z", "evidence": "docs/features/content-workspace.md" },
-  { "id": "single-workflow", "statement": "Fuma combines visual building, content, media, forms and publishing in one product workflow.", "owner": "Product", "reviewAt": "2026-10-26T00:00:00Z", "evidence": "README.md" },
-  { "id": "owned-form-data", "statement": "Form submissions are retained in site-owned data tables rather than a required third-party form embed.", "owner": "Data Platform", "reviewAt": "2026-10-26T00:00:00Z", "evidence": "docs/features/cms-native-forms.md" },
-  { "id": "kenya-context", "statement": "Fuma’s configured launch defaults are en-KE, Africa/Nairobi and KES; prices appear only when approved pricing authority is available.", "owner": "Product Operations", "reviewAt": "2026-10-26T00:00:00Z", "evidence": "packages/brand/src/index.ts" }
-]
