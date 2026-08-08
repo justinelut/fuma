@@ -445,6 +445,17 @@
     list-style: none;
 }
 
+.limitNotice {
+    margin: var(--space-xs) 0 0;
+    padding: var(--space-s) var(--space-m);
+    border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+    border-radius: 6px;
+    background: var(--danger-10);
+    color: var(--danger-light);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+}
+
 .insertRow {
     display: grid;
     min-height: 34px;

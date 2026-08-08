@@ -121,7 +121,11 @@ import { pageAllowanceForSlug } from './fuma/entitlements/planSeed'
 import { reviewChargingReadiness } from './fuma/entitlements/subscription'
 import { persistScaffold, scaffoldTenantWorkspace } from './fuma/editor/tenantScaffold'
 import { createScopedModuleStore } from './fuma/editor/moduleStore'
+import { createHostedModuleStoreResolver } from './fuma/editor/hostedModuleStoreResolver'
 import { PostgresEditorScopedStorage } from './fuma/editor/postgresStorage'
+import { FumaRepositoryScopeSchema } from './fuma/tenancy'
+import { setModuleStoreResolver } from './handlers/cms/editorModules'
+import { safeParseValue } from '@core/utils/typeboxHelpers'
 import { hashSource } from '@core/react-ir/workspace'
 import { dirname as scaffoldDirname } from 'node:path'
 import {
@@ -919,9 +923,11 @@ function scaffoldStudioRoot(): string {
 }
 
 if (hostedFumaConfig) {
+  const editorStorage = new PostgresEditorScopedStorage(db)
+
   setSiteScaffolder(async (target) => {
     const scaffold = await scaffoldTenantWorkspace(scaffoldStudioRoot(), target.siteName)
-    const store = createScopedModuleStore(new PostgresEditorScopedStorage(db), Object.freeze({
+    const store = createScopedModuleStore(editorStorage, Object.freeze({
       platformId: target.platformId,
       organizationId: target.organizationId,
       workspaceId: target.workspaceId,
@@ -938,6 +944,85 @@ if (hostedFumaConfig) {
       new Date().toISOString(),
     )
   })
+
+  // The browser module routes are inert until this bridge is registered. Resolve the complete store
+  // scope only after the same exact hosted-site authorization used by the document bridge succeeds;
+  // query parameters select a candidate site but never become storage authority themselves.
+  setModuleStoreResolver(createHostedModuleStoreResolver({
+    authorize: async (request) => {
+      const authorizationResult: { value: unknown | null } = { value: null }
+      const resolution = await createSiteDocumentResolver({
+        mode: 'hosted',
+        authorizer: {
+          authorizeScope: async (scopedRequest, untrustedScope) => {
+            const session = await hostedStaffAuthRuntime?.resolveSession(scopedRequest.headers)
+            if (!session) return null
+            const raw = await new PostgresFumaSiteAuthorizationAuthority(db)
+              .loadExactSiteAuthorization({
+                actor: Object.freeze({
+                  kind: 'staff' as const,
+                  userId: session.userId,
+                  sessionId: session.sessionId,
+                  impersonator: session.impersonatedBy === null
+                    ? null
+                    : Object.freeze({ userId: session.impersonatedBy }),
+                }),
+                routeScope: untrustedScope,
+              })
+            if (raw === null) return null
+            const authorized = readAuthorization(raw)
+            authorizationResult.value = raw
+            return Object.freeze({
+              organizationId: authorized.organization.id,
+              workspaceId: authorized.workspace.id,
+              siteId: authorized.site.id,
+            })
+          },
+        },
+      }).resolve(request)
+      if (!resolution.ok || authorizationResult.value === null) return null
+      const authorized = readAuthorization(authorizationResult.value)
+
+      // Resolve owner key + generation from locked server persistence after authorization. These
+      // values are never accepted from the URL, which prevents cross-tenant generation probing.
+      const rawRepositoryScope = await editorStorage.transaction(async (transaction) => (
+        await transaction.loadScopeAuthorityForUpdate(Object.freeze({
+          platformId: authorized!.platform.id,
+          organizationId: authorized!.organization.id,
+          workspaceId: authorized!.workspace.id,
+          siteId: authorized!.site.id,
+        }))
+      ))
+      const repositoryScope = safeParseValue(FumaRepositoryScopeSchema, rawRepositoryScope)
+      if (!repositoryScope.ok || repositoryScope.value.state !== 'active') return null
+
+      const site = await db<{ name: string }>`
+        select name from fuma_sites
+        where organization_id=${authorized.organization.id}
+          and workspace_id=${authorized.workspace.id}
+          and id=${authorized.site.id}
+        limit 1`
+      const siteName = site.rows[0]?.name.trim() || 'Untitled Site'
+      return Object.freeze({ scope: repositoryScope.value, siteName })
+    },
+    createStore: (scope) => createScopedModuleStore(editorStorage, scope),
+    ensureScaffold: async (target, store) => {
+      const scaffold = await scaffoldTenantWorkspace(scaffoldStudioRoot(), target.siteName)
+      const outcome = await persistScaffold(
+        store,
+        scaffold,
+        async (source) => await hashSource(source),
+        new Date().toISOString(),
+      )
+      // A partial shadcn copy can still leave the starter usable, but a missing home page preserves
+      // the exact Explorer catch-22 this repair exists to remove. Throwing keeps the retry live and
+      // produces an operational error instead of caching an empty workspace forever.
+      if (await store.get('app/page.tsx') === null) {
+        const details = outcome.problems.map(({ message }) => message).join(' ')
+        throw new Error(`Existing-site React workspace initialization produced no app/page.tsx. ${details}`.trim())
+      }
+    },
+  }))
 }
 const paystackRuntime = hostedFumaConfig
   ? createHostedPaystackRuntime({ db, config: hostedFumaConfig })

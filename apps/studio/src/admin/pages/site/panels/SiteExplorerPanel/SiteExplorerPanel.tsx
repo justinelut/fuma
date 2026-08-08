@@ -658,7 +658,7 @@ export function SiteExplorerPanel({
         {limitNotice !== null && (
           // role="status" so the refusal is announced rather than only drawn - somebody using a
           // screen reader pressed a button and needs to know why nothing happened.
-          <p role="status" className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-foreground">
+          <p role="status" className={styles.limitNotice}>
             {limitNotice}
           </p>
         )}

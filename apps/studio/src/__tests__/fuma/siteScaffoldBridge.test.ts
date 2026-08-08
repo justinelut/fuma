@@ -92,9 +92,12 @@ describe('the bridge is genuinely reached, not merely built', () => {
     const index = readFileSync(join(STUDIO, 'server/index.ts'), 'utf8')
     expect(index).toContain('setSiteScaffolder(')
     expect(index).toContain('createScopedModuleStore(')
-    // Gated on hosted config, so a self-hosted server never registers one.
-    const guard = index.indexOf('if (hostedFumaConfig) {\n  setSiteScaffolder(')
+    // Gated on hosted config, so a self-hosted server never registers one. Shared storage may be
+    // constructed first because the module resolver and provisioning scaffolder use the same adapter.
+    const guard = index.indexOf('if (hostedFumaConfig) {\n  const editorStorage')
+    const registration = index.indexOf('setSiteScaffolder(', guard)
     expect(guard).toBeGreaterThan(-1)
+    expect(registration).toBeGreaterThan(guard)
   })
 
   it('constructs the module store rather than a second persistence path', () => {
