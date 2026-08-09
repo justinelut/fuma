@@ -1,0 +1,2 @@
+-- Supabase Storage bucket setup intentionally omitted.
+-- Preview objects are stored in the configured S3-compatible MinIO bucket.

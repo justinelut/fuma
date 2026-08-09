@@ -5,7 +5,7 @@ description: Overview of Onlook's architecture
 
 # Onlook Architecture
 
-Onlook is structured as a monorepo with several interconnected apps and packages, primarily built using Next.js, Supabase, TailwindCSS, and Drizzle.
+Onlook is a Bun monorepo built around a Next.js web application, Better Auth, PostgreSQL accessed through Drizzle, S3-compatible object storage, TailwindCSS, and isolated project sandboxes.
 
 <div className="relative h-[500px] overflow-hidden">
   <iframe
@@ -25,20 +25,17 @@ Onlook is structured as a monorepo with several interconnected apps and packages
 onlook/
 |
 ├── apps/
-│   ├── web/                       # Web application components
-│   │   ├── client/                # Client-side application (Next.js)
-│   │   ├── preload/               # Preload scripts (TypeScript)
-│   │   └── server/                # Server-side code (Fastify.js - unused for now)
-│   │
-│   └── backend/                   # Backend (Supabase)
-│   
+│   └── web/
+│       └── client/                # Next.js application and tRPC API
+│
 ├── packages/
+│   ├── db/                        # Drizzle schema, migrations, and seed data
 │   ├── models/                    # Shared data models and types
-│   ├── ui/                        # Reusable UI components and theming (ShadCN + TailwindCSS)
-│   ├── ai/                        # AI integration utilities (AI SDK)
-│   └── schema/                    # Shared schema for the application (Drizzle ORM)
-│   
-└── docs/                          # Documentation (Fumadocs + Nextjs)
+│   ├── ui/                        # Reusable UI components and theming
+│   ├── ai/                        # AI integration utilities
+│   └── code-provider/             # Sandbox provider abstraction
+│
+└── docs/                          # Documentation (Fumadocs + Next.js)
 ```
 
 ## High-level overview

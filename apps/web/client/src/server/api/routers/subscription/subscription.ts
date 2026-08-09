@@ -1,8 +1,8 @@
+import { env } from '@/env';
 import { Routes } from '@/utils/constants';
 import { legacySubscriptions, prices, subscriptions, fromDbSubscription, users } from '@onlook/db';
 import { createBillingPortalSession, createCheckoutSession, createCustomer, isTierUpgrade, PriceKey, releaseSubscriptionSchedule, SubscriptionStatus, updateSubscription, updateSubscriptionNextPeriod } from '@onlook/stripe';
 import { and, eq, isNull } from 'drizzle-orm';
-import { headers } from 'next/headers';
 import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '../../trpc';
 
@@ -61,7 +61,7 @@ export const subscriptionRouter = createTRPCRouter({
     checkout: protectedProcedure.input(z.object({
         priceId: z.string(),
     })).mutation(async ({ ctx, input }) => {
-        const originUrl = (await headers()).get('origin');
+        const originUrl = env.NEXT_PUBLIC_SITE_URL;
         const user = ctx.user;
         const userData = await ctx.db.query.users.findFirst({
             where: eq(users.id, user.id),
@@ -69,6 +69,12 @@ export const subscriptionRouter = createTRPCRouter({
 
         if (!userData) {
             throw new Error('User not found');
+        }
+        const checkoutPrice = await ctx.db.query.prices.findFirst({
+            where: eq(prices.stripePriceId, input.priceId),
+        });
+        if (!checkoutPrice) {
+            throw new Error('Price not found');
         }
 
         let stripeCustomerId = userData?.stripeCustomerId;
@@ -92,7 +98,7 @@ export const subscriptionRouter = createTRPCRouter({
         }
 
         const session = await createCheckoutSession({
-            priceId: input.priceId,
+            priceId: checkoutPrice.stripePriceId,
             userId: user.id,
             stripeCustomerId,
             successUrl: `${originUrl}${Routes.CALLBACK_STRIPE_SUCCESS}`,
@@ -114,7 +120,7 @@ export const subscriptionRouter = createTRPCRouter({
             throw new Error('No active subscription found for user');
         }
 
-        const originUrl = (await headers()).get('origin');
+        const originUrl = env.NEXT_PUBLIC_SITE_URL;
 
         const session = await createBillingPortalSession({
             customerId: subscription.stripeCustomerId,

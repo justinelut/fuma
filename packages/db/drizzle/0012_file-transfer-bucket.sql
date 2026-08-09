@@ -1,0 +1,2 @@
+-- Supabase Storage bucket setup intentionally omitted.
+-- File-transfer objects use the configured S3-compatible MinIO bucket.

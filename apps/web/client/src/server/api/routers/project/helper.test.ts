@@ -6,6 +6,7 @@ import {
     verifyDeploymentAccess,
     verifyDomainVerificationAccess,
     verifyFrameAccess,
+    verifyFrameParentAccess,
     verifyMessagesAccess,
     verifyProjectAccess,
     verifySandboxAccess,
@@ -150,6 +151,37 @@ describe('verifyBranchAccess / verifyFrameAccess', () => {
     });
 });
 
+describe('verifyFrameParentAccess', () => {
+    it('allows a canvas and branch from the same accessible project', async () => {
+        const db = makeDb({
+            canvases: { findFirst: async () => ({ id: 'cv1', projectId: 'p1' }) },
+            branches: { findFirst: async () => ({ id: 'b1', projectId: 'p1' }) },
+            projects: { findFirst: async () => ({ id: 'p1', userProjects: [{ userId: MEMBER }] }) },
+        });
+        await expect(verifyFrameParentAccess(db, MEMBER, 'cv1', 'b1')).resolves.toBeUndefined();
+    });
+
+    it('rejects a branch from a different project', async () => {
+        const db = makeDb({
+            canvases: { findFirst: async () => ({ id: 'cv1', projectId: 'p1' }) },
+            branches: { findFirst: async () => ({ id: 'b2', projectId: 'p2' }) },
+        });
+        await expect(verifyFrameParentAccess(db, MEMBER, 'cv1', 'b2')).rejects.toThrow(
+            'Unauthorized or not found',
+        );
+    });
+
+    it('rejects a missing branch instead of creating a dangling frame', async () => {
+        const db = makeDb({
+            canvases: { findFirst: async () => ({ id: 'cv1', projectId: 'p1' }) },
+            branches: { findFirst: async () => undefined },
+        });
+        await expect(verifyFrameParentAccess(db, MEMBER, 'cv1', 'missing')).rejects.toThrow(
+            'Unauthorized or not found',
+        );
+    });
+});
+
 describe('verifySandboxAccess', () => {
     it('passes when the sandbox belongs to a project the user is a member of (via branch)', async () => {
         const db = makeDb({
@@ -179,12 +211,26 @@ describe('verifySandboxAccess', () => {
         await expect(verifySandboxAccess(db, MEMBER, 's1')).resolves.toBeUndefined();
     });
 
-    it('allows an unowned/transient sandbox (fresh create/fork/import, no project yet)', async () => {
+    it('allows a transient sandbox only when the caller has an active claim', async () => {
         const db = makeDb({
             branches: { findFirst: async () => undefined },
             projects: { findFirst: async () => undefined },
+            sandboxClaims: {
+                findFirst: async () => ({ sandboxId: 'fresh', userId: MEMBER, expiresAt: new Date(Date.now() + 60_000) }),
+            },
         });
         await expect(verifySandboxAccess(db, MEMBER, 'fresh')).resolves.toBeUndefined();
+    });
+
+    it('rejects an unclaimed provider sandbox id', async () => {
+        const db = makeDb({
+            branches: { findFirst: async () => undefined },
+            projects: { findFirst: async () => undefined },
+            sandboxClaims: { findFirst: async () => undefined },
+        });
+        await expect(verifySandboxAccess(db, MEMBER, 'unclaimed')).rejects.toThrow(
+            'Unauthorized or not found',
+        );
     });
 });
 
@@ -232,7 +278,16 @@ describe('listAccessibleSandboxIds', () => {
         expect([...ids].sort()).toEqual(['branch-sb-1', 'branch-sb-2', 'proj-sb-1']);
     });
 
-    it('returns an empty set when the user has no memberships', async () => {
+    it('returns active claimed sandboxes before they are attached to a project', async () => {
+        const db = makeDb({
+            userProjects: { findMany: async () => [] },
+            sandboxClaims: { findMany: async () => [{ sandboxId: 'claimed-sb' }] },
+        });
+        const ids = await listAccessibleSandboxIds(db, MEMBER);
+        expect([...ids]).toEqual(['claimed-sb']);
+    });
+
+    it('returns an empty set when the user has no memberships or claims', async () => {
         const db = makeDb({ userProjects: { findMany: async () => [] } });
         const ids = await listAccessibleSandboxIds(db, MEMBER);
         expect(ids.size).toBe(0);

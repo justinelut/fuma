@@ -21,7 +21,7 @@ export const feedbacks = pgTable('feedbacks', {
     }>>().default([]).notNull(),
     metadata: jsonb('metadata').$type<Record<string, any>>().default({}).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-}).enableRLS();
+});
 
 export const feedbacksRelations = relations(feedbacks, ({ one }) => ({
     user: one(users, {

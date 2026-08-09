@@ -40,13 +40,15 @@ export async function getProjectUrls(db: DrizzleDb, projectId: string, type: Dep
 
 export async function updateDeployment(db: DrizzleDb, deployment: z.infer<typeof deploymentUpdateSchema>): Promise<Deployment | null> {
     try {
+        const { id, type, status, ...updates } = deployment;
         const [result] = await db.update(deployments).set({
-            ...deployment,
-            type: deployment.type as DeploymentType,
-            status: deployment.status as DeploymentStatus
+            ...updates,
+            ...(type ? { type: type as DeploymentType } : {}),
+            ...(status ? { status: status as DeploymentStatus } : {}),
+            updatedAt: new Date(),
         }).where(
             and(
-                eq(deployments.id, deployment.id),
+                eq(deployments.id, id),
                 ne(deployments.status, DeploymentStatus.CANCELLED)
             )
         ).returning();

@@ -37,7 +37,10 @@ export const settingsRouter = createTRPCRouter({
             await verifyProjectAccess(ctx.db, ctx.user.id, input.projectId);
             const [updatedSettings] = await ctx.db
                 .insert(projectSettings)
-                .values(input)
+                .values({
+                    ...input.settings,
+                    projectId: input.projectId,
+                })
                 .onConflictDoUpdate({
                     target: [projectSettings.projectId],
                     set: input.settings,

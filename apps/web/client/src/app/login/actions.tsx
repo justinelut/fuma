@@ -1,62 +1,48 @@
 'use server';
 
 import { env } from '@/env';
+import { auth } from '@/lib/auth/server';
+import { getAuthSession } from '@/lib/auth/session';
 import { Routes } from '@/utils/constants';
-import { createClient } from '@/utils/supabase/server';
 import { SEED_USER } from '@onlook/db';
 import { SignInMethod } from '@onlook/models';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 export async function login(provider: SignInMethod.GITHUB | SignInMethod.GOOGLE) {
-    const supabase = await createClient();
-    const origin = (await headers()).get('origin') ?? env.NEXT_PUBLIC_SITE_URL;
-    const redirectTo = `${origin}${Routes.AUTH_CALLBACK}`;
+    if (await getAuthSession()) redirect(Routes.AUTH_REDIRECT);
 
-    // If already session, redirect
-    const {
-        data: { session },
-    } = await supabase.auth.getSession();
-    if (session) {
-        redirect(Routes.AUTH_REDIRECT);
-    }
-
-    // Start OAuth flow
-    // Note: User object will be created in the auth callback route if it doesn't exist
-    const { data, error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-            redirectTo,
+    const result = await auth.api.signInSocial({
+        body: {
+            provider,
+            callbackURL: `${env.NEXT_PUBLIC_SITE_URL}${Routes.AUTH_REDIRECT}`,
         },
     });
 
-    if (error) {
-        redirect('/error');
-    }
-
-    redirect(data.url);
+    if (!result.url) throw new Error(`Could not start ${provider} sign-in`);
+    redirect(result.url);
 }
 
 export async function devLogin() {
-    if (env.NODE_ENV !== 'development') {
-        throw new Error('Dev login is only available in development mode');
+    if (env.NODE_ENV !== 'development') throw new Error('Dev login is only available in development mode');
+    if (await getAuthSession()) redirect(Routes.AUTH_REDIRECT);
+
+    try {
+        await auth.api.signInEmail({
+            body: { email: SEED_USER.EMAIL, password: SEED_USER.PASSWORD },
+            headers: await headers(),
+        });
+    } catch {
+        await auth.api.signUpEmail({
+            body: {
+                name: SEED_USER.DISPLAY_NAME,
+                email: SEED_USER.EMAIL,
+                password: SEED_USER.PASSWORD,
+                image: SEED_USER.AVATAR_URL,
+            },
+            headers: await headers(),
+        });
     }
 
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (session) {
-        redirect(Routes.AUTH_REDIRECT);
-    }
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-        email: SEED_USER.EMAIL,
-        password: SEED_USER.PASSWORD,
-    });
-
-    if (error) {
-        console.error('Error signing in with password:', error);
-        throw new Error(error.message);
-    }
     redirect(Routes.AUTH_REDIRECT);
 }

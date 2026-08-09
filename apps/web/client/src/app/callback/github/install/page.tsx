@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardTitle } from '@onlook/ui/card';
 import { Icons } from '@onlook/ui/icons';
 import { AnimatePresence, motion } from 'motion/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type CallbackState = 'loading' | 'success' | 'error';
 
@@ -16,15 +16,17 @@ export default function GitHubInstallCallbackPage() {
     const searchParams = useSearchParams();
     const [state, setState] = useState<CallbackState>('loading');
     const [message, setMessage] = useState<string>('');
+    const callbackStarted = useRef(false);
 
     const handleInstallationCallback = api.github.handleInstallationCallbackUrl.useMutation();
 
     useEffect(() => {
+        if (callbackStarted.current) return;
+        callbackStarted.current = true;
+
         const installationId = searchParams.get('installation_id');
         const setupAction = searchParams.get('setup_action');
         const stateParam = searchParams.get('state');
-
-        console.log('GitHub installation callback:', { installationId, setupAction, state: stateParam });
 
         if (!installationId) {
             setState('error');
@@ -32,9 +34,9 @@ export default function GitHubInstallCallbackPage() {
             return;
         }
 
-        if (!setupAction) {
+        if (setupAction !== 'install' && setupAction !== 'update') {
             setState('error');
-            setMessage('Missing setup_action parameter');
+            setMessage('Invalid setup_action parameter');
             return;
         }
 

@@ -10,7 +10,7 @@ import { useEffect } from "react";
 // TelemetryProvider
 // Unified initialization and identity management for analytics/feedback tools.
 // - Initializes PostHog (analytics) and Gleap (feedback) when configured via env.
-// - Identifies users once from a single source: Supabase user.id via TRPC.
+// - Identifies users once from a single source: Better Auth user.id via tRPC.
 // - Clears identities on user sign-out (see utils/telemetry/resetTelemetry).
 // - Keeps PostHog React context so existing `usePostHog()` calls continue to work.
 

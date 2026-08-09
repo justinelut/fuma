@@ -15,7 +15,7 @@ export const userSettings = pgTable("user_settings", {
     showSuggestions: boolean("show_suggestions").notNull().default(true),
     showMiniChat: boolean("show_mini_chat").notNull().default(false),
     shouldWarnDelete: boolean("should_warn_delete").notNull().default(true),
-}).enableRLS();
+});
 
 export const userSettingsRelations = relations(userSettings, ({ one }) => ({
     user: one(users, {

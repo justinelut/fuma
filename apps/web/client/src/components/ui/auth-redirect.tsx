@@ -1,27 +1,24 @@
 'use client';
 
+import { useSession } from '@/lib/auth/client';
 import { LocalForageKeys, Routes } from '@/utils/constants';
-import { createClient } from '@/utils/supabase/client';
 import localforage from 'localforage';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export const AuthRedirect = ({ children }: { children: React.ReactNode }) => {
-    const supabase = createClient();
+    const { data: session, isPending } = useSession();
     const router = useRouter();
 
     useEffect(() => {
-        const getSession = async () => {
-            const {
-                data: { session },
-            } = await supabase.auth.getSession();
-            if (!session) {
-                const pathname = window.location.pathname;
-                await localforage.setItem(LocalForageKeys.RETURN_URL, pathname);
-                router.push(Routes.LOGIN);
-            }
+        if (isPending || session) return;
+        const redirectToLogin = async () => {
+            await localforage.setItem(LocalForageKeys.RETURN_URL, window.location.pathname);
+            router.push(Routes.LOGIN);
         };
-        getSession();
-    }, [router]);
+        void redirectToLogin();
+    }, [isPending, router, session]);
+
+    if (isPending) return null;
     return <>{children}</>;
 };

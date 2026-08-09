@@ -1,4 +1,5 @@
 import { env } from '@/env';
+import { putObject } from '@/lib/storage/server';
 import { createTRPCRouter, protectedProcedure } from '@/server/api/trpc';
 import { trackEvent } from '@/utils/analytics/server';
 import { TRPCError } from '@trpc/server';
@@ -38,7 +39,7 @@ import { and, eq, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { projectCreateRequestRouter } from './createRequest';
 import { fork } from './fork';
-import { extractCsbPort, verifyProjectAccess } from './helper';
+import { consumeSandboxClaim, extractCsbPort, verifyProjectAccess, verifyProjectRole } from './helper';
 
 export const projectRouter = createTRPCRouter({
     hasAccess: protectedProcedure
@@ -130,19 +131,12 @@ export const projectRouter = createTRPCRouter({
 
                 const path = getScreenshotPath(input.projectId, finalMimeType);
 
-                const { data, error } = await ctx.supabase.storage
-                    .from(STORAGE_BUCKETS.PREVIEW_IMAGES)
-                    .upload(path, finalBuffer, {
-                        contentType: finalMimeType,
-                    });
-
-                if (error) {
-                    throw new Error(`Supabase upload error: ${error.message}`);
-                }
-
-                if (!data) {
-                    throw new Error('No data returned from storage upload');
-                }
+                const data = await putObject({
+                    bucket: STORAGE_BUCKETS.PREVIEW_IMAGES,
+                    path,
+                    body: finalBuffer,
+                    contentType: finalMimeType,
+                });
 
                 const {
                     previewImgUrl,
@@ -237,10 +231,14 @@ export const projectRouter = createTRPCRouter({
         }),
     create: protectedProcedure
         .input(z.object({
-            project: projectInsertSchema,
+            project: projectInsertSchema.pick({
+                name: true,
+                description: true,
+                tags: true,
+            }),
             userId: z.string(),
             sandboxId: z.string(),
-            sandboxUrl: z.string(),
+            sandboxUrl: z.string().url(),
             creationData: projectCreateRequestInsertSchema
                 .omit({
                     projectId: true,
@@ -248,7 +246,20 @@ export const projectRouter = createTRPCRouter({
                 .optional(),
         }))
         .mutation(async ({ ctx, input }) => {
+            if (input.userId !== ctx.user.id) {
+                throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Unauthorized' });
+            }
+            const previewUrl = new URL(input.sandboxUrl);
+            const expectedHostPrefix = `${input.sandboxId}-`;
+            if (
+                previewUrl.protocol !== 'https:' ||
+                !previewUrl.hostname.startsWith(expectedHostPrefix) ||
+                !previewUrl.hostname.endsWith('.csb.app')
+            ) {
+                throw new TRPCError({ code: 'BAD_REQUEST', message: 'Sandbox preview URL does not match sandbox' });
+            }
             return await ctx.db.transaction(async (tx) => {
+                await consumeSandboxClaim(tx, ctx.user.id, input.sandboxId);
                 // 1. Insert the new project
                 const [newProject] = await tx.insert(projects).values(input.project).returning();
                 if (!newProject) {
@@ -264,7 +275,7 @@ export const projectRouter = createTRPCRouter({
 
                 // 3. Create the association in the junction table
                 await tx.insert(userProjects).values({
-                    userId: input.userId,
+                    userId: ctx.user.id,
                     projectId: newProject.id,
                     role: ProjectRole.OWNER,
                 });
@@ -273,7 +284,7 @@ export const projectRouter = createTRPCRouter({
                 const newCanvas = createDefaultCanvas(newProject.id);
                 await tx.insert(canvases).values(newCanvas);
 
-                const newUserCanvas = createDefaultUserCanvas(input.userId, newCanvas.id, {
+                const newUserCanvas = createDefaultUserCanvas(ctx.user.id, newCanvas.id, {
                     x: '120',
                     y: '120',
                     scale: '0.56',
@@ -302,7 +313,7 @@ export const projectRouter = createTRPCRouter({
                 }
 
                 trackEvent({
-                    distinctId: input.userId,
+                    distinctId: ctx.user.id,
                     event: 'user_create_project',
                     properties: {
                         projectId: newProject.id,
@@ -353,7 +364,7 @@ export const projectRouter = createTRPCRouter({
         .input(z.object({ id: z.string() }))
         .mutation(async ({ ctx, input }) => {
             await ctx.db.transaction(async (tx) => {
-                await verifyProjectAccess(tx, ctx.user.id, input.id);
+                await verifyProjectRole(tx, ctx.user.id, input.id, [ProjectRole.OWNER]);
                 await tx.delete(userProjects).where(eq(userProjects.projectId, input.id));
                 await tx.delete(projects).where(eq(projects.id, input.id));
             });
@@ -375,13 +386,21 @@ export const projectRouter = createTRPCRouter({
             });
             return projects.map((project) => fromDbProject(project.project));
         }),
-    update: protectedProcedure.input(projectUpdateSchema).mutation(async ({ ctx, input }) => {
+    update: protectedProcedure
+        .input(projectUpdateSchema.pick({
+            id: true,
+            name: true,
+            description: true,
+            tags: true,
+        }))
+        .mutation(async ({ ctx, input }) => {
         await verifyProjectAccess(ctx.db, ctx.user.id, input.id);
+        const { id, ...updates } = input;
         const [updatedProject] = await ctx.db.update(projects).set({
-            ...input,
+            ...updates,
             updatedAt: new Date(),
         }).where(
-            eq(projects.id, input.id)
+            eq(projects.id, id)
         ).returning();
         if (!updatedProject) {
             throw new Error('Project not found');

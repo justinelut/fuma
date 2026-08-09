@@ -3,7 +3,7 @@
 import { useStateManager } from '@/components/store/state';
 import { api } from '@/trpc/react';
 import { Routes } from '@/utils/constants';
-import { createClient } from '@/utils/supabase/client';
+import { authClient } from '@/lib/auth/client';
 import { openFeedbackWidget, resetTelemetry } from '@/utils/telemetry';
 import { getReturnUrlQueryParam } from '@/utils/url';
 import { Avatar, AvatarFallback, AvatarImage } from '@onlook/ui/avatar';
@@ -23,7 +23,6 @@ import { SettingsTabValue } from '../settings-modal/helpers';
 
 export const CurrentUserAvatar = ({ className }: { className?: string }) => {
     const stateManager = useStateManager();
-    const supabase = createClient();
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -35,7 +34,7 @@ export const CurrentUserAvatar = ({ className }: { className?: string }) => {
     const handleSignOut = async () => {
         // Clear analytics/feedback identities before signing out
         void resetTelemetry();
-        await supabase.auth.signOut();
+        await authClient.signOut();
         const returnUrl = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
         router.push(`${Routes.LOGIN}?${getReturnUrlQueryParam(returnUrl)}`);
     };

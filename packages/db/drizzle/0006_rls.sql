@@ -1,0 +1,2 @@
+-- Supabase auth.uid()-based policies intentionally omitted.
+-- Tenant authorization is enforced by Better Auth-backed server procedures.

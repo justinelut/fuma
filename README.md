@@ -171,10 +171,13 @@ For a full walkthrough, check out our
 - [TailwindCSS](https://tailwindcss.com/) - Styling
 - [tRPC](https://trpc.io/) - Server interface
 
-#### Database
+#### Data and identity
 
-- [Supabase](https://supabase.com/) - Auth, Database, Storage
-- [Drizzle](https://orm.drizzle.team/) - ORM
+- [PostgreSQL](https://www.postgresql.org/) - Hosted application database
+- [Drizzle](https://orm.drizzle.team/) - Schema, queries, and migrations
+- [Better Auth](https://www.better-auth.com/) - Credentials, OAuth, and sessions
+- [MinIO](https://min.io/) - S3-compatible object storage
+- [Redis](https://redis.io/) - Hosted coordination transport
 
 #### AI
 

@@ -35,7 +35,7 @@ export const subscriptions = pgTable('subscriptions', {
     scheduledAction: scheduledSubscriptionAction('scheduled_action'),
     scheduledPriceId: uuid('scheduled_price_id').references(() => prices.id),
     scheduledChangeAt: timestamp('scheduled_change_at', { withTimezone: true }),
-}).enableRLS();
+});
 
 export const subscriptionRelations = relations(subscriptions, ({ one, many }) => ({
     product: one(products, {

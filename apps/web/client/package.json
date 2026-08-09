@@ -34,6 +34,8 @@
   "dependencies": {
     "@ai-sdk/provider-utils": "^3.0.10",
     "@ai-sdk/react": "2.0.60",
+    "@aws-sdk/client-s3": "3.1106.0",
+    "@better-auth/drizzle-adapter": "1.6.25",
     "@codemirror/lang-css": "^6.2.0",
     "@codemirror/lang-html": "^6.4.7",
     "@codemirror/lang-javascript": "^6.2.3",
@@ -58,7 +60,6 @@
     "@opentelemetry/instrumentation": "0.57.2",
     "@opentelemetry/sdk-logs": "0.57.2",
     "@storybook/test": "^8.6.14",
-    "@supabase/ssr": "^0.6.1",
     "@t3-oss/env-nextjs": "^0.12.0",
     "@tanstack/react-query": "^5.69.0",
     "@trpc/client": "^11.0.0",
@@ -72,6 +73,8 @@
     "@zenfs/core": "2.4.0",
     "@zenfs/dom": "1.2.5",
     "ai": "5.0.26",
+    "bcryptjs": "3.0.3",
+    "better-auth": "1.6.25",
     "blob-util": "^2.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -145,6 +148,9 @@
     "type-fest": "^4.41.0",
     "typescript": "^5.5.4",
     "vitest": "^4.0.7"
+  },
+  "peerDependencies": {
+    "drizzle-orm": "0.45.2"
   },
   "ct3aMetadata": {
     "initVersion": "7.39.2"

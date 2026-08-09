@@ -19,7 +19,7 @@ export const projectCreateRequests = pgTable(
         updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
         status: projectCreateStatus('status').notNull().default(ProjectCreateRequestStatus.PENDING),
     },
-).enableRLS();
+);
 
 export const projectCreateRequestInsertSchema = createInsertSchema(projectCreateRequests);
 export const projectCreateRequestUpdateSchema = createUpdateSchema(projectCreateRequests);

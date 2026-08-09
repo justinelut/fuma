@@ -18,7 +18,7 @@ export const usageRecords = pgTable('usage_records', {
 }, (table) => [
     index('usage_records_user_time_idx').on(table.userId, table.timestamp),
     unique('usage_records_user_trace_idx').on(table.userId, table.traceId)
-]).enableRLS();
+]);
 
 export const usageRelations = relations(usageRecords, ({ one }) => ({
     user: one(users, {

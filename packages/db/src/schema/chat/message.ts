@@ -26,7 +26,7 @@ export const messages = pgTable("messages", {
     applied: boolean("applied"),
     commitOid: text("commit_oid"),
     snapshots: jsonb("snapshots").$type<any>(),
-}).enableRLS();
+});
 
 export const messageInsertSchema = createInsertSchema(messages);
 export const messageUpdateSchema = createUpdateSchema(messages);

@@ -20,7 +20,7 @@ export const conversations = pgTable("conversations", {
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     suggestions: jsonb("suggestions").$type<ChatSuggestion[]>().default([]),
-}).enableRLS();
+});
 
 export const conversationInsertSchema = createInsertSchema(conversations, {
     agentType: z.enum(AgentType).optional(),

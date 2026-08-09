@@ -1,147 +1,51 @@
 ---
 title: OAuth Setup
-description: Set up social login with GitHub, Google, and other providers
+description: Configure Better Auth social login with GitHub and Google
 ---
 
 # OAuth Setup
 
-Enable users to sign in with their favorite social accounts like GitHub, Google, and more.
+Better Auth owns OAuth state, callbacks, user linking, and sessions under `/api/auth`.
 
-## What is OAuth?
+## GitHub
 
-OAuth lets users log in using accounts they already have (like GitHub or Google) instead of creating new passwords. It's faster and more secure.
+1. Create an OAuth App in [GitHub Developer Settings](https://github.com/settings/developers).
+2. Set the homepage to your application origin.
+3. Set the callback URL to:
+   - Local: `http://localhost:3000/api/auth/callback/github`
+   - Production: `https://onlook.example.com/api/auth/callback/github`
+4. Configure:
 
-## GitHub OAuth Setup
-
-> For detailed instructions, see the [Supabase GitHub OAuth documentation](https://supabase.com/docs/guides/auth/social-login/auth-github).
-
-### 1. Create GitHub OAuth App
-
-1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
-2. Click **"New OAuth App"**
-3. Fill in the details:
-   - **Application name**: `Your Onlook App`
-   - **Homepage URL**: `http://localhost:3000` (or your production domain)
-   - **Authorization callback URL**: 
-     - **Local development**: `http://localhost:54321/auth/v1/callback`
-     - **Production**: `https://your-production-domain/auth/v1/callback`
-4. Click **"Register application"**
-5. Copy your **Client ID** and **Client Secret**
-
-### 2. Configure Supabase
-
-1. Open your Supabase dashboard
-2. Go to **Authentication** → **Providers**
-3. Find **GitHub** and click **Enable**
-4. Paste your:
-   - **Client ID**
-   - **Client Secret**
-5. Click **Save**
-
-### 3. Update Your App
-
-Add the GitHub provider to your login page:
-
-```tsx
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(supabaseUrl, supabaseKey)
-
-// Add GitHub login button
-const signInWithGitHub = async () => {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'github'
-  })
-  if (error) console.error('Error:', error)
-}
+```properties
+GITHUB_CLIENT_ID=<client-id>
+GITHUB_CLIENT_SECRET=<client-secret>
 ```
 
-## Google OAuth Setup
+## Google
 
-> For detailed instructions, see the [Supabase Google OAuth documentation](https://supabase.com/docs/guides/auth/social-login/auth-google).
+1. Create a Web OAuth client in [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+2. Add these authorized redirect URIs:
+   - Local: `http://localhost:3000/api/auth/callback/google`
+   - Production: `https://onlook.example.com/api/auth/callback/google`
+3. Configure:
 
-### 1. Create Google OAuth App
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing one
-3. Go to **APIs & Services** → **Credentials**
-4. Click **"Create Credentials"** → **"OAuth client ID"**
-5. Choose **"Web application"**
-6. Add authorized redirect URIs:
-   - **Local development**: `http://localhost:54321/auth/v1/callback`
-   - **Production**: `https://your-production-domain/auth/v1/callback`
-7. Copy your **Client ID** and **Client Secret**
-
-### 2. Configure Supabase
-
-1. In Supabase dashboard, go to **Authentication** → **Providers**
-2. Find **Google** and click **Enable**
-3. Paste your **Client ID** and **Client Secret**
-4. Click **Save**
-
-### 3. Add to Your App
-
-```tsx
-const signInWithGoogle = async () => {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google'
-  })
-  if (error) console.error('Error:', error)
-}
+```properties
+GOOGLE_CLIENT_ID=<client-id>
+GOOGLE_CLIENT_SECRET=<client-secret>
 ```
 
-## Other Providers
+## Required Better Auth values
 
-Supabase supports many OAuth providers. For comprehensive setup instructions for all providers, see the [Supabase Social Login documentation](https://supabase.com/docs/guides/auth/social-login).
-
-Popular providers include:
-
-- **Discord**: Follow similar steps at [Discord Developer Portal](https://discord.com/developers/applications)
-- **Twitter**: Set up at [Twitter Developer Portal](https://developer.twitter.com/)
-- **Facebook**: Configure at [Facebook Developers](https://developers.facebook.com/)
-- **Apple**: Set up at [Apple Developer](https://developer.apple.com/)
-
-> **Note**: For each provider, remember to add both local (`http://localhost:54321/auth/v1/callback`) and production (`https://your-production-domain/auth/v1/callback`) redirect URIs to avoid redirect_uri_mismatch errors.
-
-## Important Notes
-
-### Environment Variables
-
-Make sure your `.env.local` has:
-
-```bash
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+```properties
+BETTER_AUTH_SECRET=<unique-random-secret-at-least-32-characters>
+BETTER_AUTH_URL=https://onlook.example.com
+NEXT_PUBLIC_SITE_URL=https://onlook.example.com
 ```
 
-### Testing
-
-1. Start your Onlook app
-2. Click the OAuth login button
-3. You should be redirected to the provider (GitHub/Google)
-4. After authorizing, you'll be redirected back to your app
-5. Check if the user is logged in
+`BETTER_AUTH_URL` and `NEXT_PUBLIC_SITE_URL` must share the exact public origin. Production cookies are host-only, secure, HTTP-only, and SameSite=Lax.
 
 ## Troubleshooting
 
-**"Invalid redirect URI"**
-- Double-check your callback URL in the OAuth app settings
-- Make sure it matches exactly: `http://localhost:54321/auth/v1/callback`
-
-**"Client ID not found"**
-- Verify you copied the Client ID and Client Secret correctly
-- Check that the OAuth provider is enabled in Supabase
-
-**"Access denied"**
-- Ensure your OAuth app is public (not in development mode)
-- For GitHub: Check that users have access to your organization (if applicable)
-
-## Next Steps
-
-Once OAuth is working:
-- Customize the login UI
-- Add user profile information
-- Set up role-based access
-- Configure email notifications
-
-That's it! Your users can now sign in with their social accounts. 🎉
+- A redirect mismatch means the provider callback does not exactly match `/api/auth/callback/<provider>`.
+- A provider button is enabled only when both its client ID and secret are configured.
+- OAuth users are linked by provider account ID and normalized email in the hosted PostgreSQL Better Auth tables.

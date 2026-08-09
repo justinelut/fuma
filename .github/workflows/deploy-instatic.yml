@@ -1,0 +1,373 @@
+name: Deploy Instatic to K3s
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Git ref containing the Instatic application and K3s manifests
+        required: true
+        default: deploy/instatic-hosted
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: instatic-production-deploy
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/instatic
+  DEPLOYMENT_ROOT_DOMAIN: ${{ vars.FUMA_DEPLOYMENT_ROOT_DOMAIN }}
+  INSTATIC_HOST: app.${{ vars.FUMA_DEPLOYMENT_ROOT_DOMAIN }}
+
+jobs:
+  build:
+    name: Build and publish ARM64 image
+    runs-on: ubuntu-latest
+    outputs:
+      image_ref: ${{ steps.identity.outputs.image_ref }}
+      image_tag: ${{ steps.identity.outputs.image_tag }}
+      source_sha: ${{ steps.identity.outputs.source_sha }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+
+      - name: Resolve immutable release identity
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          image_tag="${source_sha:0:7}"
+          printf '%s' "$image_tag" | grep -Eq '^[a-f0-9]{7}$'
+          {
+            echo "source_sha=$source_sha"
+            echo "image_tag=$image_tag"
+            echo "image_ref=$IMAGE_NAME:$image_tag"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish
+        id: build
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.identity.outputs.image_ref }}
+          build-args: |
+            NEXT_PUBLIC_SITE_URL=https://${{ env.INSTATIC_HOST }}
+          cache-from: type=gha,scope=instatic-arm64
+          cache-to: type=gha,mode=max,scope=instatic-arm64
+          provenance: true
+          sbom: true
+
+  deploy:
+    name: Migrate and deploy to K3s
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+
+      - name: Verify checked-out source
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "${{ needs.build.outputs.source_sha }}"
+
+      - name: Stage isolated runtime configuration
+        shell: bash
+        env:
+          FUMA_ENV_SECRET: ${{ secrets.FUMA_ENV_SECRET }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          OPENROUTER_API_KEY_SECRET: ${{ secrets.OPENROUTER_API_KEY }}
+          CSB_API_KEY_SECRET: ${{ secrets.CSB_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$FUMA_ENV_SECRET"
+          test "${#BETTER_AUTH_SECRET}" -ge 32
+          mkdir -p k8s/_staged
+          aggregate="$(mktemp)"
+          trap 'rm -f "$aggregate"' EXIT
+          printf '%s\n' "$FUMA_ENV_SECRET" | tr -d '\r' > "$aggregate"
+
+          value_from_aggregate() {
+            local key="$1" raw
+            raw="$(sed -n "s/^${key}=//p" "$aggregate" | head -n 1)"
+            if [[ "$raw" == \"*\" && "$raw" == *\" ]]; then
+              raw="${raw#\"}"
+              raw="${raw%\"}"
+            fi
+            printf '%s' "$raw"
+          }
+
+          pg_user="$(value_from_aggregate POSTGRES_USER)"
+          pg_password="$(value_from_aggregate POSTGRES_PASSWORD)"
+          minio_access_key="$(value_from_aggregate FUMA_MINIO_ACCESS_KEY_ID)"
+          minio_secret_key="$(value_from_aggregate FUMA_MINIO_SECRET_ACCESS_KEY)"
+          test -n "$pg_user"
+          test -n "$pg_password"
+          test -n "$minio_access_key"
+          test -n "$minio_secret_key"
+
+          database_url="$(PG_USER="$pg_user" PG_PASSWORD="$pg_password" python3 - <<'PY'
+          import os
+          from urllib.parse import quote
+          user = quote(os.environ['PG_USER'], safe='')
+          password = quote(os.environ['PG_PASSWORD'], safe='')
+          print(f'postgresql://{user}:{password}@postgres.fuma.svc.cluster.local:5432/instatic')
+          PY
+          )"
+
+          openrouter_key="$OPENROUTER_API_KEY_SECRET"
+          [ -n "$openrouter_key" ] || openrouter_key="$(value_from_aggregate OPENROUTER_API_KEY)"
+          if [ -z "$openrouter_key" ]; then
+            openrouter_key=not-configured
+            echo '::warning::OPENROUTER_API_KEY is not configured; AI chat will remain unavailable.'
+          fi
+
+          csb_key="$CSB_API_KEY_SECRET"
+          [ -n "$csb_key" ] || csb_key="$(value_from_aggregate CSB_API_KEY)"
+          if [ -z "$csb_key" ]; then
+            csb_key=not-configured
+            echo '::warning::CSB_API_KEY is not configured; sandbox creation will remain unavailable.'
+          fi
+
+          env_file=k8s/_staged/instatic.env
+          umask 077
+          {
+            printf 'NODE_ENV=production\n'
+            printf 'DATABASE_URL=%s\n' "$database_url"
+            printf 'POSTGRES_USER=%s\n' "$pg_user"
+            printf 'BETTER_AUTH_SECRET=%s\n' "$BETTER_AUTH_SECRET"
+            printf 'BETTER_AUTH_URL=https://%s\n' "$INSTATIC_HOST"
+            printf 'NEXT_PUBLIC_SITE_URL=https://%s\n' "$INSTATIC_HOST"
+            printf 'NEXT_PUBLIC_FEATURE_COLLABORATION=false\n'
+            printf 'OBJECT_STORAGE_ENDPOINT=http://minio.fuma.svc.cluster.local:9000\n'
+            printf 'OBJECT_STORAGE_REGION=us-east-1\n'
+            printf 'OBJECT_STORAGE_ACCESS_KEY_ID=%s\n' "$minio_access_key"
+            printf 'OBJECT_STORAGE_SECRET_ACCESS_KEY=%s\n' "$minio_secret_key"
+            printf 'OBJECT_STORAGE_BUCKET=instatic\n'
+            printf 'REDIS_URL=redis://redis.fuma.svc.cluster.local:6379\n'
+            printf 'OPENROUTER_API_KEY=%s\n' "$openrouter_key"
+            printf 'CSB_API_KEY=%s\n' "$csb_key"
+            [ -z "$GOOGLE_CLIENT_ID" ] || printf 'GOOGLE_CLIENT_ID=%s\n' "$GOOGLE_CLIENT_ID"
+            [ -z "$GOOGLE_CLIENT_SECRET" ] || printf 'GOOGLE_CLIENT_SECRET=%s\n' "$GOOGLE_CLIENT_SECRET"
+          } > "$env_file"
+          chmod 600 "$env_file"
+          echo "staged $(wc -l < "$env_file") runtime keys without exposing values"
+
+      - name: Render immutable manifests
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+          IMAGE_DIGEST: ${{ needs.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          test -n "$IMAGE_DIGEST"
+          image="$IMAGE_NAME@$IMAGE_DIGEST"
+          cp k8s/namespace.yaml k8s/_staged/namespace.yaml
+          for source in migration web; do
+            sed \
+              -e "s|__INSTATIC_IMAGE__|$image|g" \
+              -e "s|__DEPLOYMENT_ROOT_DOMAIN__|$DEPLOYMENT_ROOT_DOMAIN|g" \
+              -e "s|__SOURCE_SHA__|$SOURCE_SHA|g" \
+              "k8s/$source.yaml" > "k8s/_staged/$source.yaml"
+          done
+          if grep -R '__INSTATIC_\|__DEPLOYMENT_ROOT_DOMAIN__\|__SOURCE_SHA__' k8s/_staged/*.yaml; then
+            echo '::error::Rendered manifests retain unresolved placeholders.'
+            exit 1
+          fi
+          grep -Fq 'command: ["bun", "db:migrate"]' k8s/_staged/migration.yaml
+          for host in app auth admin; do
+            grep -Fq "Host(\`$host.$DEPLOYMENT_ROOT_DOMAIN\`)" k8s/_staged/web.yaml
+          done
+          chmod 644 k8s/_staged/*.yaml
+
+      - name: Prepare remote deployment directory
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ vars.SSH_USER }}
+          port: ${{ vars.SSH_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          command_timeout: 2m
+          script: |
+            sudo install -d -o ubuntu -g ubuntu -m 0700 /opt/instatic
+
+      - name: Copy manifests and environment
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ vars.SSH_USER }}
+          port: ${{ vars.SSH_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          source: k8s/_staged/namespace.yaml,k8s/_staged/migration.yaml,k8s/_staged/web.yaml,k8s/_staged/instatic.env
+          target: /opt/instatic/
+          strip_components: 2
+
+      - name: Apply, migrate, roll out, and run live auth smoke
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_PULL_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INSTATIC_HOST: ${{ env.INSTATIC_HOST }}
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ vars.SSH_USER }}
+          port: ${{ vars.SSH_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          envs: GHCR_USERNAME,GHCR_PULL_TOKEN,INSTATIC_HOST
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+            NS=instatic
+            ENV_FILE=/opt/instatic/instatic.env
+
+            previous_image="$(sudo kubectl -n "$NS" get deployment instatic-web -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true)"
+            if [ -n "$previous_image" ]; then echo "previous_image=$previous_image"; else echo 'previous_image=<first-deployment>'; fi
+
+            sudo kubectl apply -f /opt/instatic/namespace.yaml
+            sudo kubectl create secret docker-registry ghcr-secret -n "$NS" \
+              --docker-server=ghcr.io \
+              --docker-username="$GHCR_USERNAME" \
+              --docker-password="$GHCR_PULL_TOKEN" \
+              --dry-run=client -o yaml | sudo kubectl apply -f -
+            sudo kubectl create secret generic instatic-secrets -n "$NS" \
+              --from-env-file="$ENV_FILE" \
+              --dry-run=client -o yaml | sudo kubectl apply -f -
+            sudo rm -f "$ENV_FILE"
+
+            echo 'verifying shared datastore health'
+            sudo kubectl rollout status statefulset/postgres -n fuma --timeout=3m
+            sudo kubectl rollout status deployment/minio -n fuma --timeout=3m
+            sudo kubectl rollout status deployment/redis -n fuma --timeout=3m
+
+            pg_pod="$(sudo kubectl -n fuma get pod -l app=postgres -o jsonpath='{.items[0].metadata.name}')"
+            pg_user="$(sudo kubectl -n "$NS" get secret instatic-secrets -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)"
+            test -n "$pg_pod"
+            test -n "$pg_user"
+            database_exists="$(sudo kubectl -n fuma exec "$pg_pod" -- psql -U "$pg_user" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='instatic'")"
+            if [ "$database_exists" != 1 ]; then
+              sudo kubectl -n fuma exec "$pg_pod" -- createdb -U "$pg_user" -O "$pg_user" instatic
+              echo 'created isolated PostgreSQL database instatic'
+            else
+              echo 'isolated PostgreSQL database instatic already exists'
+            fi
+
+            sudo kubectl -n "$NS" delete job instatic-migrate --ignore-not-found
+            sudo kubectl apply -f /opt/instatic/migration.yaml
+            if ! sudo kubectl -n "$NS" wait --for=condition=complete job/instatic-migrate --timeout=10m; then
+              echo '════════ migration failed ════════'
+              sudo kubectl -n "$NS" describe job/instatic-migrate | tail -60 || true
+              sudo kubectl -n "$NS" logs job/instatic-migrate --all-containers=true --tail=240 || true
+              sudo kubectl -n "$NS" get events --sort-by=.lastTimestamp | tail -40 || true
+              exit 1
+            fi
+            sudo kubectl -n "$NS" logs job/instatic-migrate --tail=80
+
+            sudo kubectl apply -f /opt/instatic/web.yaml
+            if ! sudo kubectl -n "$NS" rollout status deployment/instatic-web --timeout=10m; then
+              echo '════════ rollout failed ════════'
+              sudo kubectl -n "$NS" get pods -o wide
+              sudo kubectl -n "$NS" describe deployment/instatic-web | tail -80
+              sudo kubectl -n "$NS" get events --sort-by=.lastTimestamp | tail -50
+              for pod in $(sudo kubectl -n "$NS" get pods -l app.kubernetes.io/name=instatic -o name); do
+                sudo kubectl -n "$NS" logs "$pod" --all-containers=true --tail=240 || true
+                sudo kubectl -n "$NS" logs "$pod" --all-containers=true --previous --tail=240 || true
+              done
+              exit 1
+            fi
+
+            web_pod="$(sudo kubectl -n "$NS" get pod -l app.kubernetes.io/component=web -o jsonpath='{.items[0].metadata.name}')"
+            sudo kubectl -n "$NS" exec "$web_pod" -- bun -e \
+              "const r=await fetch('http://127.0.0.1:3000/api/health'); console.log('in-cluster /api/health ->',r.status); if(!r.ok) process.exit(1)"
+
+            smoke_dir="$(mktemp -d)"
+            smoke_email="deploy-smoke-$(date +%s)-$RANDOM@example.com"
+            smoke_password="$(openssl rand -hex 16)Aa1!"
+            cleanup_smoke() {
+              sudo kubectl -n fuma exec "$pg_pod" -- psql -U "$pg_user" -d instatic \
+                -v ON_ERROR_STOP=1 -v "smoke_email=$smoke_email" \
+                -c "DELETE FROM auth_users WHERE email = :'smoke_email';" >/dev/null 2>&1 || true
+              rm -rf "$smoke_dir"
+            }
+            trap cleanup_smoke EXIT
+
+            health_code="$(curl -sS -o "$smoke_dir/health" -w '%{http_code}' --max-time 20 "https://$INSTATIC_HOST/api/health")"
+            login_code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "https://$INSTATIC_HOST/login")"
+            signup_code="$(curl -sS -c "$smoke_dir/cookies" -o "$smoke_dir/signup" -w '%{http_code}' \
+              --max-time 30 -H 'content-type: application/json' \
+              --data "{\"email\":\"$smoke_email\",\"password\":\"$smoke_password\",\"name\":\"Deployment Smoke\"}" \
+              "https://$INSTATIC_HOST/api/auth/sign-up/email")"
+            session_code="$(curl -sS -b "$smoke_dir/cookies" -o "$smoke_dir/session" -w '%{http_code}' \
+              --max-time 20 "https://$INSTATIC_HOST/api/auth/get-session")"
+            grep -Fq '"status":"ok"' "$smoke_dir/health"
+            grep -Fq "$smoke_email" "$smoke_dir/session"
+            test "$health_code" = 200
+            test "$login_code" = 200
+            test "$signup_code" = 200
+            test "$session_code" = 200
+            printf 'public smoke health=%s login=%s signup=%s session=%s restored=true\n' \
+              "$health_code" "$login_code" "$signup_code" "$session_code"
+            cleanup_smoke
+            trap - EXIT
+
+            echo '════════ final isolated deployment state ════════'
+            sudo kubectl -n "$NS" get deployment,pods,service,job,ingressroute -o wide
+            sudo kubectl -n "$NS" logs deployment/instatic-web --all-containers=true --tail=100 || true
+
+      - name: Verify public HTTPS from GitHub runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          for host in app auth admin; do
+            code=000
+            for _ in $(seq 1 12); do
+              code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "https://$host.$DEPLOYMENT_ROOT_DOMAIN/api/health" || true)"
+              [ "$code" = 200 ] && break
+              sleep 5
+            done
+            echo "https://$host.$DEPLOYMENT_ROOT_DOMAIN/api/health -> $code"
+            test "$code" = 200
+          done
+          login_code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "https://$INSTATIC_HOST/login")"
+          echo "https://$INSTATIC_HOST/login -> $login_code"
+          test "$login_code" = 200
+
+      - name: Record release and rollback
+        shell: bash
+        run: |
+          {
+            echo '## Instatic K3s deployment'
+            echo
+            echo "- Source: \`${{ needs.build.outputs.source_sha }}\`"
+            echo "- Image tag: \`${{ needs.build.outputs.image_tag }}\`"
+            echo "- Image digest: \`${{ needs.build.outputs.digest }}\`"
+            echo "- Host: \`https://$INSTATIC_HOST\`"
+            echo "- Namespace: \`instatic\`"
+            echo "- Image rollback: \`sudo kubectl -n instatic rollout undo deployment/instatic-web\`"
+            echo "- Route fallback to preserved Fuma: \`sudo kubectl -n instatic delete ingressroute instatic-web\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -11,7 +11,7 @@ export const projectSettings = pgTable('project_settings', {
     runCommand: text('run_command').notNull().default(''),
     buildCommand: text('build_command').notNull().default(''),
     installCommand: text('install_command').notNull().default(''),
-}).enableRLS();
+});
 
 export const projectSettingsInsertSchema = createInsertSchema(projectSettings);
 export const projectSettingsUpdateSchema = createUpdateSchema(projectSettings);

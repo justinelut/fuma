@@ -44,10 +44,13 @@ Deploy Onlook to cloud infrastructure with proper scaling, monitoring, and enter
 
 ## Architecture Overview
 
-Onlook consists of several components:
+Onlook consists of:
 
-- **Web Client**: Next.js application 
-- **Backend**: Supabase for database, auth, and storage
+- **Web application**: Next.js, tRPC, and Better Auth
+- **Database**: PostgreSQL accessed through Drizzle
+- **Object storage**: MinIO or another S3-compatible service
+- **Coordination**: Redis for consumers that require cross-replica state
+- **Sandbox provider**: CodeSandbox for editable project environments
 
 ## Support
 

@@ -40,7 +40,7 @@ export const rateLimits = pgTable('rate_limits', {
     stripeSubscriptionItemId: text('stripe_subscription_item_id').notNull(),
 }, (table) => [
     index('rate_limits_user_time_idx').on(table.userId, table.startedAt, table.endedAt)
-]).enableRLS();
+]);
 
 export const rateLimitRelations = relations(rateLimits, ({ one, many }) => ({
     user: one(users, {

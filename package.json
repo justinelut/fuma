@@ -24,12 +24,11 @@
         "test": "bun --filter '*' test",
         "docs": "bun --filter @onlook/docs dev",
         "dev:admin": "bun --filter @onlook/admin dev",
-        "backend:start": "bun --filter @onlook/backend start",
         "db:gen": "bun --filter @onlook/db db:gen",
         "db:push": "cd packages/db && bun db:push",
         "db:seed": "cd packages/db && bun db:seed",
         "db:migrate": "cd packages/db && bun db:migrate",
-        "db:reset": "cd apps/backend && bun run reset",
+        "db:reset": "cd packages/db && bun db:reset",
         "format": "bun --filter '*' format",
         "lint": "bun --filter '*' lint",
         "typecheck": "bun --filter @onlook/web-client typecheck",
@@ -48,6 +47,9 @@
     },
     "bugs": {
         "url": "https://github.com/onlook-dev/onlook/issues"
+    },
+    "dependencies": {
+        "drizzle-orm": "0.45.2"
     },
     "devDependencies": {
         "@onlook/eslint": "*"

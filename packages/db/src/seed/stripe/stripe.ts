@@ -51,12 +51,8 @@ export const seedStripe = async () => {
 
 (async () => {
     try {
-        if (!process.env.SUPABASE_DATABASE_URL || !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-            const missingVars: string[] = [];
-            if (!process.env.SUPABASE_DATABASE_URL) missingVars.push('SUPABASE_DATABASE_URL');
-            if (!process.env.SUPABASE_URL) missingVars.push('SUPABASE_URL');
-            if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missingVars.push('SUPABASE_SERVICE_ROLE_KEY');
-            throw new Error(`Missing environment variables: ${missingVars.join(', ')}`);
+        if (!process.env.DATABASE_URL) {
+            throw new Error('Missing environment variable: DATABASE_URL');
         }
 
         console.log('Seeding stripe...');

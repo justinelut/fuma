@@ -24,7 +24,7 @@ export const projectInvitations = pgTable(
     (table) => [
         index('project_invitations_invitee_email_project_id_idx').on(table.inviteeEmail, table.projectId),
     ],
-).enableRLS();
+);
 
 export const projectInvitationInsertSchema = createInsertSchema(projectInvitations);
 export const projectInvitationUpdateSchema = createUpdateSchema(projectInvitations);

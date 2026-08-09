@@ -1,6 +1,6 @@
 import { VerificationRequestStatus, type AVerificationRecord, type TxtVerificationRecord } from '@onlook/models';
 import { relations } from 'drizzle-orm';
-import { jsonb, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { foreignKey, jsonb, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { projects } from '../../project';
 import { customDomains } from './domain';
 
@@ -8,7 +8,7 @@ export const verificationRequestStatus = pgEnum('verification_request_status', V
 
 export const customDomainVerification = pgTable('custom_domain_verification', {
     id: uuid('id').primaryKey().defaultRandom(),
-    customDomainId: uuid('custom_domain_id').references(() => customDomains.id).notNull(),
+    customDomainId: uuid('custom_domain_id').notNull(),
     projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade', onUpdate: 'cascade' }).notNull(),
 
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -19,7 +19,13 @@ export const customDomainVerification = pgTable('custom_domain_verification', {
     txtRecord: jsonb('txt_record').notNull().$type<TxtVerificationRecord>(),
     aRecords: jsonb('a_records').notNull().$type<AVerificationRecord[]>().default([]),
     status: verificationRequestStatus('status').default(VerificationRequestStatus.PENDING).notNull(),
-}).enableRLS();
+}, (table) => [
+    foreignKey({
+        name: 'custom_domain_verification_domain_fk',
+        columns: [table.customDomainId],
+        foreignColumns: [customDomains.id],
+    }),
+]);
 
 export const customDomainVerificationRelations = relations(customDomainVerification, ({ one }) => ({
     customDomain: one(customDomains, {

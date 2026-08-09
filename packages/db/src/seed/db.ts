@@ -31,6 +31,7 @@ import {
 } from '@onlook/db';
 import { db } from '@onlook/db/src/client';
 import {
+    AgentType,
     MessageContextType,
     ProjectRole,
     type MessageContext,
@@ -131,6 +132,7 @@ const userCanvas1 = createDefaultUserCanvas(user0.id, canvas1.id);
 
 const conversation0 = {
     id: uuidv4(),
+    agentType: AgentType.ROOT,
     projectId: project0.id,
     displayName: 'Test Conversation',
     createdAt: new Date(),

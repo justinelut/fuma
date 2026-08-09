@@ -1,8 +1,9 @@
 import { fromDbUser, userProjects } from '@onlook/db';
+import { ProjectRole } from '@onlook/models';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '../../trpc';
-import { verifyProjectAccess } from './helper';
+import { verifyProjectAccess, verifyProjectRole } from './helper';
 
 export const memberRouter = createTRPCRouter({
     list: protectedProcedure
@@ -28,40 +29,59 @@ export const memberRouter = createTRPCRouter({
                     createdAt: new Date(),
                     updatedAt: new Date(),
 
-                    // @ts-expect-error - TODO: Fix this later
                     firstName: member.user.firstName ?? '',
-                    // @ts-expect-error - TODO: Fix this later
                     lastName: member.user.lastName ?? '',
-                    // @ts-expect-error - TODO: Fix this later
                     displayName: member.user.displayName ?? '',
-                    // @ts-expect-error - TODO: Fix this later
                     avatarUrl: member.user.avatarUrl ?? '',
-                    // @ts-expect-error - TODO: Fix this later
-                    stripeCustomerId: member.user.stripeCustomerId ?? null,
-                    // @ts-expect-error - TODO: Fix this later
-                    githubInstallationId: member.user.githubInstallationId ?? null,
+                    stripeCustomerId: null,
+                    githubInstallationId: null,
                 }),
             }));
         }),
     remove: protectedProcedure
         .input(z.object({ userId: z.string(), projectId: z.string() }))
         .mutation(async ({ ctx, input }) => {
-            // Removing yourself (leaving a project) or removing another member
-            // both require the caller to already be a project member. This
-            // does not yet distinguish by role (e.g. only owners removing
-            // others) -- ProjectRole exists as data but no role-gated
-            // authorization exists anywhere else in this router either, so
-            // that's a separate product decision left to a follow-up.
-            await verifyProjectAccess(ctx.db, ctx.user.id, input.projectId);
-            await ctx.db
-                .delete(userProjects)
-                .where(
-                    and(
+            return await ctx.db.transaction(async (tx) => {
+                const membership = await tx.query.userProjects.findFirst({
+                    where: and(
                         eq(userProjects.userId, input.userId),
                         eq(userProjects.projectId, input.projectId),
                     ),
-                );
+                });
+                if (!membership) {
+                    throw new Error('Unauthorized or not found');
+                }
 
-            return true;
+                if (input.userId === ctx.user.id) {
+                    await verifyProjectAccess(tx, ctx.user.id, input.projectId);
+                } else {
+                    await verifyProjectRole(tx, ctx.user.id, input.projectId, [ProjectRole.OWNER]);
+                }
+
+                if (membership.role === ProjectRole.OWNER) {
+                    const owners = await tx
+                        .select({ userId: userProjects.userId })
+                        .from(userProjects)
+                        .where(and(
+                            eq(userProjects.projectId, input.projectId),
+                            eq(userProjects.role, ProjectRole.OWNER),
+                        ))
+                        .for('update');
+                    if (owners.length <= 1) {
+                        throw new Error('A project must retain at least one owner');
+                    }
+                }
+
+                await tx
+                    .delete(userProjects)
+                    .where(
+                        and(
+                            eq(userProjects.userId, input.userId),
+                            eq(userProjects.projectId, input.projectId),
+                        ),
+                    );
+
+                return true;
+            });
         }),
 });

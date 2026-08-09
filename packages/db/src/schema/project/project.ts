@@ -16,7 +16,7 @@ export const projects = pgTable('projects', {
     // metadata
     name: varchar('name').notNull(),
     description: text('description'),
-    tags: varchar('tags').array().default([]),
+    tags: varchar('tags').array(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 
@@ -29,7 +29,7 @@ export const projects = pgTable('projects', {
     // deprecated
     sandboxId: varchar('sandbox_id'),
     sandboxUrl: varchar('sandbox_url'),
-}).enableRLS();
+});
 
 export const projectInsertSchema = createInsertSchema(projects);
 export const projectUpdateSchema = createUpdateSchema(projects, {

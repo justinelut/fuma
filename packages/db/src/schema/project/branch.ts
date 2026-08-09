@@ -33,7 +33,7 @@ export const branches = pgTable('branches', {
     uniqueIndex('branches_default_per_project_ux')
         .on(table.projectId)
         .where(sql`${table.isDefault} = true`),
-]).enableRLS();
+]);
 export const branchInsertSchema = createInsertSchema(branches);
 export const branchUpdateSchema = createUpdateSchema(branches, {
     id: z.string().uuid(),

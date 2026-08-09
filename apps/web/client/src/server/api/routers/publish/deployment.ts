@@ -1,4 +1,4 @@
-import { deployments, deploymentUpdateSchema } from '@onlook/db';
+import { branches, deployments, deploymentUpdateSchema } from '@onlook/db';
 import {
     DeploymentStatus,
     DeploymentType
@@ -27,7 +27,13 @@ export const deploymentRouter = createTRPCRouter({
         });
         return deployment ?? null;
     }),
-    update: protectedProcedure.input(deploymentUpdateSchema).mutation(async ({ ctx, input }) => {
+    update: protectedProcedure
+        .input(deploymentUpdateSchema.pick({
+            id: true,
+            status: true,
+            error: true,
+        }))
+        .mutation(async ({ ctx, input }) => {
         if (!input.id) {
             throw new TRPCError({ code: 'BAD_REQUEST', message: 'Deployment id is required' });
         }
@@ -53,6 +59,13 @@ export const deploymentRouter = createTRPCRouter({
 
         const userId = ctx.user.id;
         await verifyProjectAccess(ctx.db, userId, projectId);
+        const sandboxBranch = await ctx.db.query.branches.findFirst({
+            where: and(eq(branches.projectId, projectId), eq(branches.sandboxId, sandboxId)),
+            columns: { id: true },
+        });
+        if (!sandboxBranch) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: 'Sandbox does not belong to project' });
+        }
 
         const existingDeployment = await ctx.db.query.deployments.findFirst({
             where: and(eq(

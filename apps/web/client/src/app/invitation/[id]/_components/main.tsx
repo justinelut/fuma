@@ -3,7 +3,7 @@
 import { api } from '@/trpc/react';
 import { Routes } from '@/utils/constants';
 import { resetTelemetry } from '@/utils/telemetry';
-import { createClient } from '@/utils/supabase/client';
+import { authClient } from '@/lib/auth/client';
 import { getReturnUrlQueryParam } from '@/utils/url';
 import { Button } from '@onlook/ui/button';
 import { Icons } from '@onlook/ui/icons';
@@ -31,10 +31,9 @@ export function Main({ invitationId }: { invitationId: string }) {
     });
 
     const handleReAuthenticate = async () => {
-        const supabase = createClient();
         // Clear analytics/feedback identities before signing out
         void resetTelemetry();
-        await supabase.auth.signOut();
+        await authClient.signOut();
         const currentUrl = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
         router.push(`${Routes.LOGIN}?${getReturnUrlQueryParam(currentUrl)}`);
     }

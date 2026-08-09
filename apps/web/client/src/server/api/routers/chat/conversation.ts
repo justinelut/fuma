@@ -47,17 +47,21 @@ export const conversationRouter = createTRPCRouter({
             return fromDbConversation(conversation);
         }),
     update: protectedProcedure
-        .input(conversationUpdateSchema)
+        .input(conversationUpdateSchema.omit({
+            projectId: true,
+            createdAt: true,
+            updatedAt: true,
+        }))
         .mutation(async ({ ctx, input }) => {
             if (!input.id) {
                 throw new Error('Conversation id is required');
             }
             await verifyConversationAccess(ctx.db, ctx.user.id, input.id);
-            const [conversation] = await ctx.db.update({
-                ...conversations,
-                updatedAt: new Date(),
-            }).set(input)
-                .where(eq(conversations.id, input.id)).returning();
+            const { id, ...updates } = input;
+            const [conversation] = await ctx.db
+                .update(conversations)
+                .set({ ...updates, updatedAt: new Date() })
+                .where(eq(conversations.id, id)).returning();
             if (!conversation) {
                 throw new Error('Conversation not updated');
             }

@@ -62,9 +62,6 @@ const config: StorybookConfig = {
       },
       resolve: {
         alias: {
-          '@/utils/supabase/client': fileURLToPath(
-            new URL('./mocks/supabase-client.ts', import.meta.url)
-          ),
           '@/trpc/react': fileURLToPath(
             new URL('./mocks/trpc-react.tsx', import.meta.url)
           ),

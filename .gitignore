@@ -47,3 +47,6 @@ mise.toml
 
 # Temporary files
 .tmp/
+
+# Rendered Kubernetes deployment files (may contain staged secrets)
+k8s/_staged/

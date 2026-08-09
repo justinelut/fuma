@@ -7,4 +7,4 @@ export const legacySubscriptions = pgTable('legacy_subscriptions', {
     stripePromotionCode: text('stripe_promotion_code').notNull(),
     redeemAt: timestamp('redeem_at', { withTimezone: true }),
     redeemBy: timestamp('redeem_by', { withTimezone: true }),
-}).enableRLS();
+});

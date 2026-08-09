@@ -18,7 +18,7 @@ export const userCanvases = pgTable(
         y: numeric('y').notNull(),
     },
     (table) => [primaryKey({ columns: [table.userId, table.canvasId] })],
-).enableRLS();
+);
 
 export const userCanvasInsertSchema = createInsertSchema(userCanvases);
 export const userCanvasUpdateSchema = createUpdateSchema(userCanvases);

@@ -30,18 +30,16 @@ export const messageRouter = createTRPCRouter({
         }))
         .mutation(async ({ ctx, input }) => {
             const conversationId = input.message.conversationId;
-            if (conversationId) {
-                await verifyConversationAccess(ctx.db, ctx.user.id, conversationId);
-            }
+            await verifyConversationAccess(ctx.db, ctx.user.id, conversationId);
             const normalizedMessage = normalizeMessage(input.message);
+            const { conversationId: _conversationId, ...messageUpdates } = normalizedMessage;
             return await ctx.db
                 .insert(messages)
                 .values(normalizedMessage)
                 .onConflictDoUpdate({
                     target: [messages.id],
-                    set: {
-                        ...normalizedMessage,
-                    },
+                    set: messageUpdates,
+                    setWhere: eq(messages.conversationId, conversationId),
                 });
         }),
     upsertMany: protectedProcedure
@@ -61,7 +59,11 @@ export const messageRouter = createTRPCRouter({
     update: protectedProcedure
         .input(z.object({
             messageId: z.string(),
-            message: messageUpdateSchema
+            message: messageUpdateSchema.omit({
+                id: true,
+                conversationId: true,
+                createdAt: true,
+            })
         }))
         .mutation(async ({ ctx, input }) => {
             await verifyMessagesAccess(ctx.db, ctx.user.id, [input.messageId]);

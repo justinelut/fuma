@@ -10,7 +10,9 @@ export const userSettingsRouter = createTRPCRouter({
         });
         return fromDbUserSettings(settings ?? createDefaultUserSettings(user.id));
     }),
-    upsert: protectedProcedure.input(userSettingsUpdateSchema).mutation(async ({ ctx, input }) => {
+    upsert: protectedProcedure
+        .input(userSettingsUpdateSchema.omit({ userId: true }))
+        .mutation(async ({ ctx, input }) => {
         const user = ctx.user
 
         const existingSettings = await ctx.db.query.userSettings.findFirst({

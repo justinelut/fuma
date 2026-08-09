@@ -1,37 +1,31 @@
 ---
 title: Appendix
-description: Appendix for developer setup
+description: Manual environment setup
 ---
 
-## Set up environment variables manually (optional)
+## Configure environment variables manually
 
-##### 1. In `apps/web/client`
-Create a copy of the `.env.example` file under the `apps/web/client` directory and name it `.env`. Fill in the values with your own API keys.
-
-It should look like this:
+Copy `apps/web/client/.env.example` to `apps/web/client/.env` and configure at least:
 
 ```properties
-# ------------- Required Keys -------------
-
-# Supabase - Enables our backend such as database and auth
-NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-NEXT_PUBLIC_SUPABASE_ANON_KEY="<Fill in from content after running supabase start>"
-SUPABASE_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
-SUPABASE_SERVICE_ROLE_KEY="<Your Supabase service role key>"
-
-# OpenRouter - Enables AI chat. Other providers are optional below
-OPENROUTER_API_KEY="<Your api key from https://openrouter.ai/settings/keys>"
-
-# Codesandbox - Used to host user apps. Other providers may be supported in the future. May be optional in the future.
-CSB_API_KEY="<Your api key from https://codesandbox.io/t/api>"
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/onlook
+BETTER_AUTH_SECRET=<unique-random-secret-at-least-32-characters>
+BETTER_AUTH_URL=http://localhost:3000
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+OBJECT_STORAGE_ENDPOINT=http://127.0.0.1:9000
+OBJECT_STORAGE_REGION=us-east-1
+OBJECT_STORAGE_ACCESS_KEY_ID=minioadmin
+OBJECT_STORAGE_SECRET_ACCESS_KEY=minioadmin
+OBJECT_STORAGE_BUCKET=onlook
+REDIS_URL=redis://127.0.0.1:6379
+OPENROUTER_API_KEY=<openrouter-key>
+CSB_API_KEY=<codesandbox-key>
 ```
 
-##### 2. In `packages/db`
-
-Create a copy of the `.env.example` file under the `packages/db` directory and name it `.env`. Fill in the values with the values from the output of the `bun backend:start` command.
+Create `packages/db/.env` with the same `DATABASE_URL`:
 
 ```properties
-SUPABASE_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
-SUPABASE_URL=http://localhost:54321
-SUPABASE_SERVICE_ROLE_KEY=<Your service role key from Supabase>
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/onlook
 ```
+
+Then run `bun db:migrate` and optionally `bun db:seed`.

@@ -1,15 +1,15 @@
-import { api } from '@/trpc/server';
+import { createClient as createTRPCClient } from '@/trpc/request-server';
 import { trackEvent } from '@/utils/analytics/server';
 import { createRootAgentStream } from '@onlook/ai';
 import { toDbMessage } from '@onlook/db';
 import { ChatType, type ChatMessage, type ChatMetadata } from '@onlook/models';
 import { type NextRequest } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { checkMessageLimit, decrementUsage, errorHandler, getSupabaseUser, incrementUsage } from './helpers';
+import { checkMessageLimit, decrementUsage, errorHandler, getAuthUser, incrementUsage } from './helpers';
 
 export async function POST(req: NextRequest) {
     try {
-        const user = await getSupabaseUser(req);
+        const user = await getAuthUser(req);
         if (!user) {
             return new Response(JSON.stringify({
                 error: 'Unauthorized, no user found. Please login again.',
@@ -59,6 +59,11 @@ export const streamResponse = async (req: NextRequest, userId: string) => {
         conversationId: string,
         projectId: string,
     };
+    const { api } = await createTRPCClient(req);
+    const conversation = await api.chat.conversation.get({ conversationId });
+    if (conversation.projectId !== projectId) {
+        throw new Error('Unauthorized or not found');
+    }
     // Updating the usage record and rate limit is done here to avoid
     // abuse in the case where a single user sends many concurrent requests.
     // If the call below fails, the user will not be penalized.

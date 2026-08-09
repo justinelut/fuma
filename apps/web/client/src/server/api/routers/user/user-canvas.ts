@@ -21,14 +21,18 @@ export const userCanvasRouter = createTRPCRouter({
             }),
         )
         .query(async ({ ctx, input }) => {
+            await verifyProjectAccess(ctx.db, ctx.user.id, input.projectId);
+            const canvas = await ctx.db.query.canvases.findFirst({
+                where: eq(canvases.projectId, input.projectId),
+            });
+            if (!canvas) {
+                throw new Error('User canvas not found');
+            }
             const userCanvas = await ctx.db.query.userCanvases.findFirst({
                 where: and(
-                    eq(canvases.projectId, input.projectId),
+                    eq(userCanvases.canvasId, canvas.id),
                     eq(userCanvases.userId, ctx.user.id),
                 ),
-                with: {
-                    canvas: true,
-                },
             });
 
             if (!userCanvas) {
@@ -66,9 +70,19 @@ export const userCanvasRouter = createTRPCRouter({
         z.object({
             projectId: z.string(),
             canvasId: z.string(),
-            canvas: userCanvasUpdateSchema,
+            canvas: userCanvasUpdateSchema.omit({ userId: true, canvasId: true }),
         })).mutation(async ({ ctx, input }) => {
             await verifyProjectAccess(ctx.db, ctx.user.id, input.projectId);
+            const canvas = await ctx.db.query.canvases.findFirst({
+                where: and(
+                    eq(canvases.id, input.canvasId),
+                    eq(canvases.projectId, input.projectId),
+                ),
+                columns: { id: true },
+            });
+            if (!canvas) {
+                throw new Error('Unauthorized or not found');
+            }
             try {
                 await ctx.db
                     .update(userCanvases)

@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import path from 'node:path';
 import { promptAndWriteApiKeys } from './api-keys';
-import { promptAndWriteBackendKeys } from './backend';
+import { promptAndWriteHostedConfig } from './backend';
 
 const program = new Command();
 
@@ -25,7 +25,7 @@ program
         );
         try {
             // First handle backend keys and write to both client and db files
-            await promptAndWriteBackendKeys(clientEnvPath, dbEnvPath);
+            await promptAndWriteHostedConfig(clientEnvPath, dbEnvPath);
 
             // Then handle API keys and append to the existing client file
             await promptAndWriteApiKeys(clientEnvPath);

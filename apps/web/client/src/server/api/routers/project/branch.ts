@@ -8,7 +8,7 @@ import { and, eq } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '../../trpc';
-import { extractCsbPort, verifyBranchAccess, verifyProjectAccess } from './helper';
+import { consumeSandboxClaim, extractCsbPort, verifyBranchAccess, verifyProjectAccess } from './helper';
 
 // Helper function to get existing frames in a canvas
 async function getExistingFrames(tx: any, canvasId: string): Promise<Frame[]> {
@@ -48,22 +48,30 @@ export const branchRouter = createTRPCRouter({
         .mutation(async ({ ctx, input }) => {
             await verifyProjectAccess(ctx.db, ctx.user.id, input.projectId);
             try {
-                await ctx.db.insert(branches).values(input);
+                await ctx.db.transaction(async (tx) => {
+                    await consumeSandboxClaim(tx, ctx.user.id, input.sandboxId);
+                    await tx.insert(branches).values(input);
+                });
                 return true;
             } catch (error) {
                 console.error('Error creating branch', error);
                 return false;
             }
         }),
-    update: protectedProcedure.input(branchUpdateSchema).mutation(async ({ ctx, input }) => {
+    update: protectedProcedure
+        .input(branchUpdateSchema.pick({
+            id: true,
+            name: true,
+            description: true,
+        }))
+        .mutation(async ({ ctx, input }) => {
         await verifyBranchAccess(ctx.db, ctx.user.id, input.id);
+        const { id, ...updates } = input;
         try {
             await ctx.db
                 .update(branches)
-                .set({ ...input, updatedAt: new Date() })
-                .where(
-                    eq(branches.id, input.id)
-                );
+                .set({ ...updates, updatedAt: new Date() })
+                .where(eq(branches.id, id));
             return true;
         } catch (error) {
             console.error('Error updating branch', error);

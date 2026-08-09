@@ -1,6 +1,6 @@
 import { env } from '@/env';
 import {
-    authUsers,
+    auth_users,
     createDefaultUserCanvas,
     projectInvitationInsertSchema,
     projectInvitations,
@@ -18,10 +18,11 @@ import { and, eq, ilike, isNull } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '../../trpc';
-import { verifyInvitationAccess, verifyProjectAccess } from './helper';
+import { verifyInvitationAccess, verifyInvitationReadAccess, verifyProjectAccess, verifyProjectRole } from './helper';
 
 export const invitationRouter = createTRPCRouter({
     get: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+        await verifyInvitationReadAccess(ctx.db, ctx.user.id, ctx.user.email, input.id);
         const invitation = await ctx.db.query.projectInvitations.findFirst({
             where: eq(projectInvitations.id, input.id),
             with: {
@@ -45,11 +46,11 @@ export const invitationRouter = createTRPCRouter({
 
         return {
             ...invitation,
-            // @ts-expect-error - Drizzle is not typed correctly
             inviter: fromDbUser(invitation.inviter),
         };
     }),
     getWithoutToken: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+        await verifyInvitationReadAccess(ctx.db, ctx.user.id, ctx.user.email, input.id);
         const invitation = await ctx.db.query.projectInvitations.findFirst({
             where: eq(projectInvitations.id, input.id),
             with: {
@@ -74,7 +75,6 @@ export const invitationRouter = createTRPCRouter({
         return {
             ...invitation,
             token: null,
-            // @ts-expect-error - Drizzle is not typed correctly
             inviter: fromDbUser(invitation.inviter),
         };
     }),
@@ -101,13 +101,17 @@ export const invitationRouter = createTRPCRouter({
             }),
         )
         .mutation(async ({ ctx, input }) => {
+            const inviteeEmail = input.inviteeEmail.trim().toLowerCase();
             if (!ctx.user.id) {
                 throw new TRPCError({
                     code: 'UNAUTHORIZED',
                     message: 'You must be logged in to invite a user',
                 });
             }
-            await verifyProjectAccess(ctx.db, ctx.user.id, input.projectId);
+            const allowedInviterRoles = input.role === ProjectRole.OWNER
+                ? [ProjectRole.OWNER]
+                : [ProjectRole.OWNER, ProjectRole.ADMIN];
+            await verifyProjectRole(ctx.db, ctx.user.id, input.projectId, allowedInviterRoles);
             const inviter = await ctx.db.query.users.findFirst({
                 where: eq(users.id, ctx.user.id),
             });
@@ -124,11 +128,11 @@ export const invitationRouter = createTRPCRouter({
                     const existingUser = await tx
                         .select()
                         .from(userProjects)
-                        .innerJoin(authUsers, eq(authUsers.id, userProjects.userId))
+                        .innerJoin(auth_users, eq(auth_users.id, userProjects.userId))
                         .where(
                             and(
                                 eq(userProjects.projectId, input.projectId),
-                                eq(authUsers.email, input.inviteeEmail),
+                                eq(auth_users.email, inviteeEmail),
                             ),
                         )
                         .limit(1);
@@ -145,6 +149,7 @@ export const invitationRouter = createTRPCRouter({
                         .values([
                             {
                                 ...input,
+                                inviteeEmail,
                                 role: input.role as ProjectRole,
                                 token: uuidv4(),
                                 inviterId: ctx.user.id,
@@ -154,21 +159,15 @@ export const invitationRouter = createTRPCRouter({
                         .returning();
                 })
 
-            if (invitation) {
-                if (!env.RESEND_API_KEY) {
-                    throw new TRPCError({
-                        code: 'INTERNAL_SERVER_ERROR',
-                        message: 'RESEND_API_KEY is not set, cannot send email',
-                    });
-                }
+            if (invitation && env.RESEND_API_KEY) {
                 const emailClient = getResendClient({
                     apiKey: env.RESEND_API_KEY,
                 });
 
-                const result = await sendInvitationEmail(
+                await sendInvitationEmail(
                     emailClient,
                     {
-                        inviteeEmail: input.inviteeEmail,
+                        inviteeEmail,
                         invitedByName: inviter.firstName ?? inviter.displayName ?? undefined,
                         invitedByEmail: ctx.user.email,
                         inviteLink: constructInvitationLink(
@@ -189,6 +188,16 @@ export const invitationRouter = createTRPCRouter({
         .input(z.object({ id: z.string() }))
         .mutation(async ({ ctx, input }) => {
             await verifyInvitationAccess(ctx.db, ctx.user.id, input.id);
+            const invitation = await ctx.db.query.projectInvitations.findFirst({
+                where: eq(projectInvitations.id, input.id),
+                columns: { projectId: true, role: true },
+            });
+            if (!invitation) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Invitation not found' });
+            }
+            if (invitation.role === ProjectRole.OWNER) {
+                await verifyProjectRole(ctx.db, ctx.user.id, invitation.projectId, [ProjectRole.OWNER]);
+            }
             await ctx.db.delete(projectInvitations).where(eq(projectInvitations.id, input.id));
 
             return true;
@@ -224,11 +233,20 @@ export const invitationRouter = createTRPCRouter({
                 });
             }
 
-            if (invitation.inviteeEmail !== ctx.user.email) {
+            if (invitation.inviteeEmail.trim().toLowerCase() !== ctx.user.email.trim().toLowerCase()) {
                 throw new TRPCError({
                     code: 'BAD_REQUEST',
                     message: `This invitation was sent to ${invitation.inviteeEmail}. Please sign in with that email address.`,
                 });
+            }
+
+            if (invitation.role === ProjectRole.OWNER) {
+                await verifyProjectRole(
+                    ctx.db,
+                    invitation.inviterId,
+                    invitation.projectId,
+                    [ProjectRole.OWNER],
+                );
             }
 
             if (isAfter(new Date(), invitation.expiresAt)) {
@@ -265,6 +283,7 @@ export const invitationRouter = createTRPCRouter({
     suggested: protectedProcedure
         .input(z.object({ projectId: z.string() }))
         .query(async ({ ctx, input }) => {
+            await verifyProjectAccess(ctx.db, ctx.user.id, input.projectId);
             if (isFreeEmail(ctx.user.email)) {
                 return [];
             }
@@ -272,30 +291,30 @@ export const invitationRouter = createTRPCRouter({
 
             const suggestedUsers = await ctx.db
                 .select()
-                .from(authUsers)
+                .from(auth_users)
                 .leftJoin(
                     userProjects,
                     and(
-                        eq(userProjects.userId, authUsers.id),
+                        eq(userProjects.userId, auth_users.id),
                         eq(userProjects.projectId, input.projectId),
                     ),
                 )
                 .leftJoin(
                     projectInvitations,
                     and(
-                        eq(projectInvitations.inviteeEmail, authUsers.email),
+                        eq(projectInvitations.inviteeEmail, auth_users.email),
                         eq(projectInvitations.projectId, input.projectId),
                     ),
                 )
                 .where(
                     and(
-                        ilike(authUsers.email, `%@${domain}`),
+                        ilike(auth_users.email, `%@${domain}`),
                         isNull(userProjects.userId), // Not in the project
                         isNull(projectInvitations.id), // Not invited
                     ),
                 )
                 .limit(5);
 
-            return suggestedUsers.map((user) => user.users.email);
+            return suggestedUsers.map((user) => user.auth_users.email);
         }),
 });

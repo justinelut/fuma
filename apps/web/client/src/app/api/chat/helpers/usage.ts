@@ -1,5 +1,5 @@
+import { auth } from '@/lib/auth/server';
 import { createClient as createTRPCClient } from '@/trpc/request-server';
-import { createClient as createSupabaseClient } from '@/utils/supabase/request-server';
 import { UsageType, type Usage } from '@onlook/models';
 import { type NextRequest } from 'next/server';
 
@@ -34,18 +34,17 @@ export const checkMessageLimit = async (req: NextRequest): Promise<{
     };
 }
 
-export const getSupabaseUser = async (request: NextRequest) => {
-    const supabase = await createSupabaseClient(request);
-    const { data: { user } } = await supabase.auth.getUser();
-    return user;
-}
+export const getAuthUser = async (request: NextRequest) => {
+    const session = await auth.api.getSession({ headers: request.headers });
+    return session?.user ?? null;
+};
 
 export const incrementUsage = async (req: NextRequest, traceId?: string): Promise<{
     usageRecordId: string | undefined,
     rateLimitId: string | undefined,
 } | null> => {
     try {
-        const user = await getSupabaseUser(req);
+        const user = await getAuthUser(req);
         if (!user) {
             throw new Error('User not found');
         }

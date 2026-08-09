@@ -431,8 +431,8 @@ export async function migrateToBranching() {
 if (require.main === module) {
     (async () => {
         try {
-            if (!process.env.SUPABASE_DATABASE_URL) {
-                throw new Error('SUPABASE_DATABASE_URL environment variable is required');
+            if (!process.env.DATABASE_URL) {
+                throw new Error('DATABASE_URL environment variable is required');
             }
 
             console.log('🚀 Starting branching migration...');

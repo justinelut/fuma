@@ -32,7 +32,7 @@ The `migrate-to-branching.ts` script migrates existing projects from the legacy 
 ### Running the Migration
 
 #### Prerequisites
-- Database URL must be set in `SUPABASE_DATABASE_URL` environment variable (should be in root .env file)
+- Database URL must be set in the `DATABASE_URL` environment variable (should be in the root `.env` file)
 - Database should be backed up before running
 
 #### From packages/db directory:

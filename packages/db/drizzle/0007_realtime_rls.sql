@@ -1,0 +1,2 @@
+-- Supabase Realtime triggers intentionally omitted.
+-- Collaboration coordination is provided by the hosted Redis transport.

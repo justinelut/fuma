@@ -35,8 +35,7 @@ export function RenameProject({ project, refetch }: { project: Project; refetch:
         await updateProject(
             {
                 id: project.id,
-                name: projectName,
-                updatedAt: new Date()
+                name: projectName
             },
         );
         // Invalidate queries to refresh UI

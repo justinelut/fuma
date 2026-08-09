@@ -2,7 +2,7 @@ import { frameInsertSchema, frames, frameUpdateSchema, fromDbFrame } from '@onlo
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '../../trpc';
-import { verifyCanvasAccess, verifyFrameAccess } from './helper';
+import { verifyCanvasAccess, verifyFrameAccess, verifyFrameParentAccess } from './helper';
 
 export const frameRouter = createTRPCRouter({
     get: protectedProcedure
@@ -38,7 +38,12 @@ export const frameRouter = createTRPCRouter({
     create: protectedProcedure
         .input(frameInsertSchema)
         .mutation(async ({ ctx, input }) => {
-            await verifyCanvasAccess(ctx.db, ctx.user.id, input.canvasId);
+            await verifyFrameParentAccess(
+                ctx.db,
+                ctx.user.id,
+                input.canvasId,
+                input.branchId,
+            );
             try {
                 await ctx.db.insert(frames).values(input);
                 return true;
@@ -48,16 +53,15 @@ export const frameRouter = createTRPCRouter({
             }
         }),
     update: protectedProcedure
-        .input(frameUpdateSchema)
+        .input(frameUpdateSchema.omit({ canvasId: true, branchId: true }))
         .mutation(async ({ ctx, input }) => {
             await verifyFrameAccess(ctx.db, ctx.user.id, input.id);
+            const { id, ...updates } = input;
             try {
                 await ctx.db
                     .update(frames)
-                    .set(input)
-                    .where(
-                        eq(frames.id, input.id)
-                    );
+                    .set(updates)
+                    .where(eq(frames.id, id));
                 return true;
             } catch (error) {
                 console.error('Error updating frame', error);

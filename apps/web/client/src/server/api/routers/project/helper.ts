@@ -1,4 +1,5 @@
-import { eq, inArray } from "drizzle-orm";
+import { ProjectRole } from '@onlook/models';
+import { and, eq, gt, inArray, lt, or } from "drizzle-orm";
 import {
     branches,
     canvases,
@@ -9,6 +10,7 @@ import {
     messages,
     projectInvitations,
     projects,
+    sandboxClaims,
     userProjects,
     type DrizzleDb,
     type Frame,
@@ -16,6 +18,9 @@ import {
 
 /** Type representing a db instance or transaction that has query capabilities */
 type DbOrTx = Pick<DrizzleDb, 'query'>;
+type SandboxClaimDb = Pick<DrizzleDb, 'query' | 'insert' | 'delete'>;
+
+const SANDBOX_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
 
 export function extractCsbPort(frames: Frame[]): number | null {
     if (!frames || frames.length === 0) return null;
@@ -60,6 +65,20 @@ export async function verifyProjectAccess(
     });
 
     if (!project || project.userProjects.length === 0) {
+        throw new Error('Unauthorized or not found');
+    }
+}
+
+export async function verifyProjectRole(
+    db: DbOrTx,
+    userId: string,
+    projectId: string,
+    allowedRoles: readonly ProjectRole[],
+): Promise<void> {
+    const membership = await db.query.userProjects.findFirst({
+        where: and(eq(userProjects.userId, userId), eq(userProjects.projectId, projectId)),
+    });
+    if (!membership || !allowedRoles.includes(membership.role)) {
         throw new Error('Unauthorized or not found');
     }
 }
@@ -151,6 +170,36 @@ export async function verifyCanvasAccess(
 }
 
 /**
+ * Verifies that a frame's canvas and optional branch belong to the same
+ * accessible project. This prevents callers from linking resources across
+ * tenants while still supporting historical frames without a branch.
+ */
+export async function verifyFrameParentAccess(
+    db: DbOrTx,
+    userId: string,
+    canvasId: string,
+    branchId?: string | null,
+): Promise<void> {
+    const canvas = await db.query.canvases.findFirst({
+        where: eq(canvases.id, canvasId),
+    });
+    if (!canvas) {
+        throw new Error('Unauthorized or not found');
+    }
+
+    if (branchId) {
+        const branch = await db.query.branches.findFirst({
+            where: eq(branches.id, branchId),
+        });
+        if (!branch || branch.projectId !== canvas.projectId) {
+            throw new Error('Unauthorized or not found');
+        }
+    }
+
+    await verifyProjectAccess(db, userId, canvas.projectId);
+}
+
+/**
  * Verifies that a user has access to a frame via its parent canvas -> project.
  * @throws Error if the frame doesn't exist or the user lacks project access
  */
@@ -186,20 +235,101 @@ export async function verifyInvitationAccess(
     await verifyProjectAccess(db, userId, invitation.projectId);
 }
 
+export async function verifyInvitationReadAccess(
+    db: DbOrTx,
+    userId: string,
+    userEmail: string,
+    invitationId: string,
+): Promise<void> {
+    const invitation = await db.query.projectInvitations.findFirst({
+        where: eq(projectInvitations.id, invitationId),
+    });
+    if (!invitation) {
+        throw new Error('Unauthorized or not found');
+    }
+    if (invitation.inviteeEmail.trim().toLowerCase() === userEmail.trim().toLowerCase()) {
+        return;
+    }
+    await verifyProjectAccess(db, userId, invitation.projectId);
+}
+
+/** Create or refresh a short-lived claim for a newly created sandbox. */
+export async function claimSandbox(
+    db: SandboxClaimDb,
+    userId: string,
+    sandboxId: string,
+): Promise<void> {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + SANDBOX_CLAIM_TTL_MS);
+    const [claim] = await db
+        .insert(sandboxClaims)
+        .values({ sandboxId, userId, expiresAt })
+        .onConflictDoUpdate({
+            target: sandboxClaims.sandboxId,
+            set: { userId, expiresAt, createdAt: now },
+            setWhere: or(
+                eq(sandboxClaims.userId, userId),
+                lt(sandboxClaims.expiresAt, now),
+            ),
+        })
+        .returning({ sandboxId: sandboxClaims.sandboxId });
+    if (!claim) {
+        throw new Error('Unauthorized or not found');
+    }
+}
+
+/** Verify an active transient sandbox claim without accepting arbitrary IDs. */
+export async function verifySandboxClaim(
+    db: DbOrTx,
+    userId: string,
+    sandboxId: string,
+): Promise<void> {
+    const claim = await db.query.sandboxClaims.findFirst({
+        where: and(
+            eq(sandboxClaims.sandboxId, sandboxId),
+            eq(sandboxClaims.userId, userId),
+            gt(sandboxClaims.expiresAt, new Date()),
+        ),
+    });
+    if (!claim) {
+        throw new Error('Unauthorized or not found');
+    }
+}
+
+/** Atomically consume a claim when its sandbox is attached to a project. */
+export async function consumeSandboxClaim(
+    db: SandboxClaimDb,
+    userId: string,
+    sandboxId: string,
+): Promise<void> {
+    const [claim] = await db
+        .delete(sandboxClaims)
+        .where(and(
+            eq(sandboxClaims.sandboxId, sandboxId),
+            eq(sandboxClaims.userId, userId),
+            gt(sandboxClaims.expiresAt, new Date()),
+        ))
+        .returning({ sandboxId: sandboxClaims.sandboxId });
+    if (!claim) {
+        throw new Error('Unauthorized or not found');
+    }
+}
+
+/** Remove a caller-owned transient claim after explicit sandbox cleanup. */
+export async function releaseSandboxClaim(
+    db: SandboxClaimDb,
+    userId: string,
+    sandboxId: string,
+): Promise<void> {
+    await db.delete(sandboxClaims).where(and(
+        eq(sandboxClaims.sandboxId, sandboxId),
+        eq(sandboxClaims.userId, userId),
+    ));
+}
+
 /**
- * Verifies that a user may operate on a sandbox.
- *
- * A sandbox is owned once it is tied to a project — via a `branches.sandboxId`
- * row (primary link) or the project's own `projects.sandboxId` (fallback). When
- * it is, the caller must be a member of that project. A sandbox that resolves to
- * NO project is a transient/unclaimed one (a freshly created, forked-from-
- * template, or just-imported sandbox that has not been persisted to a branch
- * yet) — there is no owner to violate, so it is allowed. This is deliberate: the
- * blank-project / local-import / fork flows create a brand-new sandbox and call
- * `start`/`fork` on it BEFORE any branch row exists, so a strict "deny when no
- * branch" check would break legitimate project creation. The IDOR this closes is
- * acting on ANOTHER user's *persisted* project sandbox by id.
- * @throws Error if the sandbox belongs to a project the user is not a member of
+ * Verifies access through a persisted project binding or an active transient
+ * claim. Unknown provider sandbox IDs are denied.
  */
 export async function verifySandboxAccess(
     db: DbOrTx,
@@ -220,16 +350,10 @@ export async function verifySandboxAccess(
         await verifyProjectAccess(db, userId, project.id);
         return;
     }
-    // No owning project — transient/unclaimed sandbox, nothing to authorize.
+    await verifySandboxClaim(db, userId, sandboxId);
 }
 
-/**
- * Returns the set of sandbox ids the user may see — every sandbox tied to a
- * project they're a member of, via `branches.sandboxId` plus the project's own
- * `projects.sandboxId`. Used to scope `sandbox.list`, whose underlying provider
- * call returns the whole account's sandboxes (a cross-tenant inventory leak) and
- * cannot be narrowed by the input id alone.
- */
+/** Return persisted and actively claimed sandbox IDs visible to the user. */
 export async function listAccessibleSandboxIds(
     db: DbOrTx,
     userId: string,
@@ -238,15 +362,18 @@ export async function listAccessibleSandboxIds(
         where: eq(userProjects.userId, userId),
     });
     const projectIds = memberships.map((m) => m.projectId);
-    if (projectIds.length === 0) {
-        return new Set();
-    }
-    const [projectRows, branchRows] = await Promise.all([
-        db.query.projects.findMany({
-            where: inArray(projects.id, projectIds),
-        }),
-        db.query.branches.findMany({
-            where: inArray(branches.projectId, projectIds),
+    const [projectRows, branchRows, claimRows] = await Promise.all([
+        projectIds.length > 0
+            ? db.query.projects.findMany({ where: inArray(projects.id, projectIds) })
+            : Promise.resolve([]),
+        projectIds.length > 0
+            ? db.query.branches.findMany({ where: inArray(branches.projectId, projectIds) })
+            : Promise.resolve([]),
+        db.query.sandboxClaims.findMany({
+            where: and(
+                eq(sandboxClaims.userId, userId),
+                gt(sandboxClaims.expiresAt, new Date()),
+            ),
         }),
     ]);
     const ids = new Set<string>();
@@ -255,6 +382,9 @@ export async function listAccessibleSandboxIds(
     }
     for (const b of branchRows) {
         if (b.sandboxId) ids.add(b.sandboxId);
+    }
+    for (const claim of claimRows) {
+        ids.add(claim.sandboxId);
     }
     return ids;
 }

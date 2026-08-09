@@ -47,9 +47,9 @@ Because Electron is a served Node server with filesystem access, we previously u
 
 ### Extra stuff
 ```
-Local memory 	->	Supabase + Caching
+Local memory 	->	Hosted PostgreSQL + caching
 ```
-Previously, we were storing most user/project information on the users machine as serialized JSON. Now, we store them in Postgres tables in Supabase. We maintain a caching layer on top of Postgres on the browser for ease of access and better loading. 
+Previously, we stored most user and project information on the user's machine as serialized JSON. The web application persists it in hosted PostgreSQL tables accessed through Drizzle, with a browser caching layer for responsive loading.
 
 ## Before Architecture
 

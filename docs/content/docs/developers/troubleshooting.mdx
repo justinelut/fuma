@@ -32,7 +32,7 @@ You may have to delete cookies to clear the authentication state.
 
 If you encounter issues such as "Column not found" error, your database may be out of sync with the schema. There are 2 things to try to get it back in sync:
 
-1. Run `bun db:push` to push the schema to the database. If there are conflicts, you can try step 2.
+1. Run `bun db:migrate` to apply the checked-in Drizzle migrations. If the migration fails, inspect the reported PostgreSQL error before retrying.
 2. Run `bun db:reset` to fully reset the database and re-run the migrations. WARNING: This will delete all data in the database.
 
 ### Testing the Preload Script

@@ -1,9 +1,9 @@
 import { trackEvent } from '@/utils/analytics/server';
 import { callUserWebhook } from '@/utils/n8n/webhook';
-import { authUsers, fromDbUser, userInsertSchema, users, type User } from '@onlook/db';
+import { auth_users, fromDbUser, projects, userInsertSchema, userProjects, users, type User } from '@onlook/db';
+import { ProjectRole } from '@onlook/models';
 import { extractNames } from '@onlook/utility';
-import type { User as SupabaseUser } from "@supabase/supabase-js";
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '../../trpc';
 import { userSettingsRouter } from './user-settings';
@@ -22,7 +22,7 @@ export const userRouter = createTRPCRouter({
             lastName: user.lastName ?? lastName,
             displayName: user.displayName ?? displayName,
             email: user.email ?? authUser.email,
-            avatarUrl: user.avatarUrl ?? authUser.user_metadata.avatarUrl,
+            avatarUrl: user.avatarUrl ?? authUser.image ?? null,
         }) : null;
         return userData;
     }),
@@ -63,8 +63,8 @@ export const userRouter = createTRPCRouter({
                 firstName: input.firstName ?? firstName,
                 lastName: input.lastName ?? lastName,
                 displayName: input.displayName ?? displayName,
-                email: input.email ?? authUser.email,
-                avatarUrl: input.avatarUrl ?? authUser.user_metadata.avatarUrl,
+                email: authUser.email,
+                avatarUrl: input.avatarUrl ?? authUser.image,
             };
 
             const [user] = await ctx.db
@@ -80,7 +80,7 @@ export const userRouter = createTRPCRouter({
 
             if (!existingUser) {
                 await trackEvent({
-                    distinctId: input.id,
+                    distinctId: authUser.id,
                     event: 'user_first_signup',
                     properties: {
                         email: userData.email,
@@ -104,12 +104,36 @@ export const userRouter = createTRPCRouter({
         }),
     settings: userSettingsRouter,
     delete: protectedProcedure.mutation(async ({ ctx }) => {
-        await ctx.db.delete(authUsers).where(eq(authUsers.id, ctx.user.id));
+        await ctx.db.transaction(async (tx) => {
+            const ownedMemberships = await tx.query.userProjects.findMany({
+                where: and(
+                    eq(userProjects.userId, ctx.user.id),
+                    eq(userProjects.role, ProjectRole.OWNER),
+                ),
+                columns: { projectId: true },
+            });
+
+            for (const membership of ownedMemberships) {
+                const owners = await tx
+                    .select({ userId: userProjects.userId })
+                    .from(userProjects)
+                    .where(and(
+                        eq(userProjects.projectId, membership.projectId),
+                        eq(userProjects.role, ProjectRole.OWNER),
+                    ))
+                    .for('update');
+                if (owners.length === 1 && owners[0]?.userId === ctx.user.id) {
+                    await tx.delete(projects).where(eq(projects.id, membership.projectId));
+                }
+            }
+
+            await tx.delete(auth_users).where(eq(auth_users.id, ctx.user.id));
+        });
     }),
 });
 
-function getUserName(authUser: SupabaseUser) {
-    const displayName: string | undefined = authUser.user_metadata.name ?? authUser.user_metadata.display_name ?? authUser.user_metadata.full_name ?? authUser.user_metadata.first_name ?? authUser.user_metadata.last_name ?? authUser.user_metadata.given_name ?? authUser.user_metadata.family_name;
+function getUserName(authUser: { name: string }) {
+    const displayName = authUser.name;
     const { firstName, lastName } = extractNames(displayName ?? '');
     return {
         displayName: displayName ?? '',

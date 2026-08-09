@@ -13,7 +13,7 @@ import { Icons } from '@onlook/ui/icons';
 
 import { api } from '@/trpc/react';
 import { useCreateBlankProject } from '@/hooks/use-create-blank-project';
-import { getFileUrlFromStorage } from '@/utils/supabase/client';
+import { getFileUrlFromStorage } from '@/lib/storage/path';
 import { Templates } from '../templates';
 import { TemplateModal } from '../templates/template-modal';
 import { HighlightText } from './highlight-text';

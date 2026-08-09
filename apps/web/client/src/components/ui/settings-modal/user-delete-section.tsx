@@ -2,7 +2,8 @@
 
 import { api } from '@/trpc/react';
 import { Routes } from '@/utils/constants';
-import { createClient } from '@/utils/supabase/client';
+import { authClient } from '@/lib/auth/client';
+import { resetTelemetry } from '@/utils/telemetry';
 import { Button } from '@onlook/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@onlook/ui/dialog';
 import { Input } from '@onlook/ui/input';
@@ -48,10 +49,10 @@ export const UserDeleteSection = observer(() => {
         setDeleteEmail('');
         setDeleteConfirmText('');
 
-        // Sign out
-        const supabase = createClient();
-        await supabase.auth.signOut();
-        router.push(Routes.LOGIN);
+        void resetTelemetry();
+        await authClient.signOut().catch(() => undefined);
+        router.replace(Routes.LOGIN);
+        router.refresh();
     };
 
     const canProceedWithDelete = deleteEmail === user?.email && deleteConfirmText === 'DELETE';
@@ -91,11 +92,11 @@ export const UserDeleteSection = observer(() => {
                                     </div>
                                     <div className="flex items-start gap-2">
                                         <span className="mt-0.5">•</span>
-                                        <span>Delete all of your projects from Onlook's servers.</span>
+                                        <span>Delete projects for which you are the sole owner and remove you from shared projects.</span>
                                     </div>
                                     <div className="flex items-start gap-2">
                                         <span className="mt-0.5">•</span>
-                                        <span>You cannot create a new account using the same email address.</span>
+                                        <span>You may create a new account later, but deleted data cannot be restored.</span>
                                     </div>
                                     <div className="flex items-start gap-2">
                                         <span className="mt-0.5">•</span>

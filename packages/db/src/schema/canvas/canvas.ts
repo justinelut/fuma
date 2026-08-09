@@ -10,7 +10,7 @@ export const canvases = pgTable('canvas', {
     projectId: uuid('project_id')
         .notNull()
         .references(() => projects.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-}).enableRLS();
+});
 
 export const canvasUpdateSchema = createUpdateSchema(canvases);
 

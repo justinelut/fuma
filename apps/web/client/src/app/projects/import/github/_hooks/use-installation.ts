@@ -8,7 +8,7 @@ export interface GitHubAppInstallation {
     installationId: string | null;
     isChecking: boolean;
     error: string | null;
-    redirectToInstallation: (redirectUrl?: string) => Promise<void>;
+    redirectToInstallation: () => Promise<void>;
     refetch: () => void;
     clearError: () => void;
 }
@@ -29,12 +29,9 @@ export const useGitHubAppInstallation: () => GitHubAppInstallation = () => {
         setError(null);
     };
 
-    const redirectToInstallation = async (redirectUrl?: string) => {
+    const redirectToInstallation = async () => {
         try {
-            const finalRedirectUrl = redirectUrl;
-            const result = await generateInstallationUrl.mutateAsync({
-                redirectUrl: finalRedirectUrl,
-            });
+            const result = await generateInstallationUrl.mutateAsync();
 
             if (result?.url) {
                 window.open(result.url, '_blank');

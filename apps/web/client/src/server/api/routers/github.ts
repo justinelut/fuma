@@ -1,10 +1,12 @@
-import { users, type DrizzleDb } from '@onlook/db';
+import { hashSessionToken } from '@/lib/auth/token-hash';
+import { auth_verifications, users, type DrizzleDb } from '@onlook/db';
 import {
     createInstallationOctokit,
     generateInstallationUrl
 } from '@onlook/github';
 import { TRPCError } from '@trpc/server';
-import { eq } from 'drizzle-orm';
+import { and, eq, gt } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
 
@@ -108,18 +110,21 @@ export const githubRouter = createTRPCRouter({
             return data;
         }),
     generateInstallationUrl: protectedProcedure
-        .input(
-            z.object({
-                redirectUrl: z.string().optional(),
-            }).optional()
-        )
-        .mutation(async ({ input, ctx }) => {
-            const { url, state } = generateInstallationUrl({
-                redirectUrl: input?.redirectUrl,
-                state: ctx.user.id, // Use user ID as state for CSRF protection
+        .mutation(async ({ ctx }) => {
+            const state = randomUUID();
+            const identifier = `github-install:${ctx.user.id}`;
+            const value = await hashSessionToken(state);
+            await ctx.db.transaction(async (tx) => {
+                await tx.delete(auth_verifications).where(eq(auth_verifications.identifier, identifier));
+                await tx.insert(auth_verifications).values({
+                    identifier,
+                    value,
+                    expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+                });
             });
 
-            return { url, state };
+            const { url } = generateInstallationUrl({ state });
+            return { url };
         }),
 
     checkGitHubAppInstallation: protectedProcedure
@@ -184,36 +189,51 @@ export const githubRouter = createTRPCRouter({
     handleInstallationCallbackUrl: protectedProcedure
         .input(
             z.object({
-                installationId: z.string(),
-                setupAction: z.string(),
-                state: z.string(),
+                installationId: z.string().regex(/^\d+$/),
+                setupAction: z.enum(['install', 'update']),
+                state: z.string().uuid(),
             })
         )
         .mutation(async ({ input, ctx }) => {
-            // Validate state parameter matches current user ID for CSRF protection
-            if (input.state && input.state !== ctx.user.id) {
-                console.error('State mismatch:', { expected: ctx.user.id, received: input.state });
-                throw new TRPCError({
-                    code: 'BAD_REQUEST',
-                    message: 'Invalid state parameter',
-                });
-            }
+            const identifier = `github-install:${ctx.user.id}`;
+            const value = await hashSessionToken(input.state);
 
-            // Update user's GitHub installation ID
             try {
-                await ctx.db.update(users)
-                    .set({ githubInstallationId: input.installationId })
-                    .where(eq(users.id, ctx.user.id));
+                const result = await ctx.db.transaction(async (tx) => {
+                    const [consumedState] = await tx
+                        .delete(auth_verifications)
+                        .where(and(
+                            eq(auth_verifications.identifier, identifier),
+                            eq(auth_verifications.value, value),
+                            gt(auth_verifications.expiresAt, new Date()),
+                        ))
+                        .returning({ id: auth_verifications.id });
+                    if (!consumedState) {
+                        throw new TRPCError({
+                            code: 'BAD_REQUEST',
+                            message: 'Invalid or expired state parameter',
+                        });
+                    }
 
-                console.log(`Updated installation ID for user: ${ctx.user.id}`);
+                    const [updatedUser] = await tx
+                        .update(users)
+                        .set({ githubInstallationId: input.installationId })
+                        .where(eq(users.id, ctx.user.id))
+                        .returning({ id: users.id });
+                    if (!updatedUser) {
+                        throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found' });
+                    }
+                    return updatedUser;
+                });
 
                 return {
                     success: true,
                     message: 'GitHub App installation completed successfully',
                     installationId: input.installationId,
+                    userId: result.id,
                 };
-
             } catch (error) {
+                if (error instanceof TRPCError) throw error;
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Failed to update GitHub installation',

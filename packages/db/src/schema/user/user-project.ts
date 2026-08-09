@@ -20,7 +20,7 @@ export const userProjects = pgTable(
         role: projectRole('role').notNull(),
     },
     (table) => [primaryKey({ columns: [table.userId, table.projectId] })],
-).enableRLS();
+);
 
 export const userProjectsRelations = relations(userProjects, ({ one }) => ({
     user: one(users, {

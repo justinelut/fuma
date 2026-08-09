@@ -9,8 +9,19 @@ export const env = createEnv({
     server: {
         NODE_ENV: z.enum(['development', 'test', 'production']),
         CSB_API_KEY: z.string(),
-        SUPABASE_DATABASE_URL: z.url(),
-        SUPABASE_SERVICE_ROLE_KEY: z.string(),
+        DATABASE_URL: z.string().min(1),
+        BETTER_AUTH_SECRET: z.string().min(32),
+        BETTER_AUTH_URL: z.url().optional(),
+        GITHUB_CLIENT_ID: z.string().optional(),
+        GITHUB_CLIENT_SECRET: z.string().optional(),
+        GOOGLE_CLIENT_ID: z.string().optional(),
+        GOOGLE_CLIENT_SECRET: z.string().optional(),
+        OBJECT_STORAGE_ENDPOINT: z.url().optional(),
+        OBJECT_STORAGE_REGION: z.string().default('us-east-1'),
+        OBJECT_STORAGE_ACCESS_KEY_ID: z.string().optional(),
+        OBJECT_STORAGE_SECRET_ACCESS_KEY: z.string().optional(),
+        OBJECT_STORAGE_BUCKET: z.string().default('onlook'),
+        REDIS_URL: z.string().optional(),
         RESEND_API_KEY: z.string().optional(),
         FREESTYLE_API_KEY: z.string().optional(),
 
@@ -68,8 +79,6 @@ export const env = createEnv({
      */
     client: {
         NEXT_PUBLIC_SITE_URL: z.url().default('http://localhost:3000'),
-        NEXT_PUBLIC_SUPABASE_URL: z.string(),
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string(),
         NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
         NEXT_PUBLIC_POSTHOG_HOST: z.string().optional(),
         NEXT_PUBLIC_GLEAP_API_KEY: z.string().optional(),
@@ -88,12 +97,21 @@ export const env = createEnv({
         RESEND_API_KEY: process.env.RESEND_API_KEY,
         NEXT_PUBLIC_FEATURE_COLLABORATION: process.env.NEXT_PUBLIC_FEATURE_COLLABORATION,
 
-        // Supabase
-        SUPABASE_DATABASE_URL: process.env.SUPABASE_DATABASE_URL,
-        SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        // Hosted PostgreSQL, Better Auth, object storage, and coordination
+        DATABASE_URL: process.env.DATABASE_URL,
+        BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+        BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+        GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID,
+        GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET,
+        GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+        GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+        OBJECT_STORAGE_ENDPOINT: process.env.OBJECT_STORAGE_ENDPOINT,
+        OBJECT_STORAGE_REGION: process.env.OBJECT_STORAGE_REGION,
+        OBJECT_STORAGE_ACCESS_KEY_ID: process.env.OBJECT_STORAGE_ACCESS_KEY_ID,
+        OBJECT_STORAGE_SECRET_ACCESS_KEY: process.env.OBJECT_STORAGE_SECRET_ACCESS_KEY,
+        OBJECT_STORAGE_BUCKET: process.env.OBJECT_STORAGE_BUCKET,
+        REDIS_URL: process.env.REDIS_URL,
         NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
-        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
 
         // Posthog
         NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,

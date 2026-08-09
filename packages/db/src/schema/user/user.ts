@@ -4,7 +4,7 @@ import { createInsertSchema } from 'drizzle-zod';
 import { projectInvitations } from '../project';
 import { usageRecords } from '../subscription';
 import { subscriptions } from '../subscription/subscription';
-import { authUsers } from '../supabase';
+import { auth_users } from '../auth';
 import { userSettings } from './settings';
 import { userCanvases } from './user-canvas';
 import { userProjects } from './user-project';
@@ -12,7 +12,7 @@ import { userProjects } from './user-project';
 export const users = pgTable('users', {
     id: uuid('id')
         .primaryKey()
-        .references(() => authUsers.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+        .references(() => auth_users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
     firstName: text('first_name'),
     lastName: text('last_name'),
     displayName: text('display_name'),
@@ -22,13 +22,13 @@ export const users = pgTable('users', {
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
     stripeCustomerId: text('stripe_customer_id'),
     githubInstallationId: text('github_installation_id'),
-}).enableRLS();
+});
 
 export const usersRelations = relations(users, ({ many, one }) => ({
     userCanvases: many(userCanvases),
     userProjects: many(userProjects),
     userSettings: one(userSettings),
-    authUser: one(authUsers),
+    authUser: one(auth_users),
     subscriptions: many(subscriptions),
     usageRecords: many(usageRecords),
     projectInvitations: many(projectInvitations),

@@ -1,6 +1,6 @@
 'use client';
 
-import { getFileUrlFromStorage } from '@/utils/supabase/client';
+import { getFileUrlFromStorage } from '@/lib/storage/path';
 import { STORAGE_BUCKETS } from '@onlook/constants';
 import type { Project } from '@onlook/models';
 import { Icons } from '@onlook/ui/icons';

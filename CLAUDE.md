@@ -56,13 +56,13 @@ Actionable rules for repo agents—keep diffs minimal, safe, token‑efficient.
 - Client usage via `apps/web/client/src/trpc/react.tsx` (React Query + tRPC
   links).
 
-### Auth & Supabase
+### Auth & Database
 
-- Server-side client: `apps/web/client/src/utils/supabase/server.ts` (uses Next
-  headers/cookies). Use in server components, actions, and routes.
-- Browser client: `apps/web/client/src/utils/supabase/client/index.ts` for
-  client components.
-- Never pass server-only clients into client code.
+- Better Auth server configuration: `apps/web/client/src/lib/auth/server.ts`.
+- Better Auth browser client: `apps/web/client/src/lib/auth/client.ts`.
+- Hosted database access uses Drizzle through `packages/db/src/client.ts` and `DATABASE_URL`.
+- Server routes must use `protectedProcedure` and explicit project/membership checks; never trust client-supplied user IDs.
+- Object storage uses `apps/web/client/src/lib/storage/server.ts`; never expose MinIO credentials to client code.
 
 ### Env & Config
 
@@ -140,7 +140,7 @@ Actionable rules for repo agents—keep diffs minimal, safe, token‑efficient.
 
 - Unit tests can be run with `bun test`
 - Run type checking with `bun run typecheck`
-- Apply database updates to local dev with `bun run db:push`
+- Apply database updates to local dev with `bun run db:migrate`
 - Refrain from running the dev server
 - DO NOT run `db:gen`. This is reserved for the maintainer.
 - DO NOT use any type unless necessary

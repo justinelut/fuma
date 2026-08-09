@@ -1,7 +1,7 @@
 'use client';
 
 import { ExternalRoutes, Routes } from '@/utils/constants';
-import { createClient } from '@/utils/supabase/client';
+import { authClient } from '@/lib/auth/client';
 import { openFeedbackWidget, resetTelemetry } from '@/utils/telemetry';
 import { Button } from '@onlook/ui/button';
 import { Icons } from '@onlook/ui/icons';
@@ -15,9 +15,8 @@ export default function DemoOnlyPage() {
     };
 
     const handleSignOut = async () => {
-        const supabase = createClient();
         void resetTelemetry();
-        await supabase.auth.signOut();
+        await authClient.signOut();
         router.push(Routes.HOME);
     };
 

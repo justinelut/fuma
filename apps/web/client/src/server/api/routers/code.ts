@@ -5,6 +5,7 @@ import type { WebSearchResult } from '@onlook/models';
 import Exa from 'exa-js';
 import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
+import { verifyConversationAccess, verifyProjectAccess } from './project/helper';
 
 export const utilsRouter = createTRPCRouter({
     applyDiff: protectedProcedure
@@ -20,6 +21,12 @@ export const utilsRouter = createTRPCRouter({
         .mutation(async ({ input, ctx }): Promise<{ result: string | null, error: string | null }> => {
             try {
                 const user = ctx.user;
+                if (input.metadata?.projectId) {
+                    await verifyProjectAccess(ctx.db, user.id, input.metadata.projectId);
+                }
+                if (input.metadata?.conversationId) {
+                    await verifyConversationAccess(ctx.db, user.id, input.metadata.conversationId);
+                }
                 const metadata = {
                     ...input.metadata,
                     userId: user.id,

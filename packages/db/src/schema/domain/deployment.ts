@@ -31,7 +31,7 @@ export const deployments = pgTable('deployments', {
 
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}).enableRLS();
+});
 
 export const deploymentRelations = relations(deployments, ({ one }) => ({
     project: one(projects, {

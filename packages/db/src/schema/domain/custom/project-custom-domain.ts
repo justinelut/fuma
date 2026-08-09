@@ -20,7 +20,7 @@ export const projectCustomDomains = pgTable('project_custom_domains', {
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
     status: projectCustomDomainStatusEnum('status').notNull().default(ProjectCustomDomainStatus.ACTIVE),
 }, (table) => [primaryKey({ columns: [table.customDomainId, table.projectId] })],
-).enableRLS();
+);
 
 export const projectCustomDomainRelation = relations(projectCustomDomains, ({ one }) => ({
     customDomain: one(customDomains, {
