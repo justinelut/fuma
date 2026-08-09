@@ -14,6 +14,8 @@ interface PointerPanState {
 
 interface PointerPanOptions {
   spaceHeld: boolean
+  /** Persistent hand-tool mode selected from the Studio surface. */
+  panMode?: boolean
 }
 
 type CanvasSpacePanSource = 'parentDocument' | 'iframe'
@@ -41,18 +43,21 @@ export function panDeltaFromWheel(event: WheelPanEvent): { dx: number; dy: numbe
 
 export function shouldStartCanvasPointerPan(
   event: PointerPanEvent,
-  { spaceHeld }: PointerPanOptions,
+  { spaceHeld, panMode = false }: PointerPanOptions,
 ): boolean {
-  return event.button === MIDDLE_MOUSE_BUTTON || (spaceHeld && event.button === PRIMARY_MOUSE_BUTTON)
+  return (
+    event.button === MIDDLE_MOUSE_BUTTON ||
+    ((spaceHeld || panMode) && event.button === PRIMARY_MOUSE_BUTTON)
+  )
 }
 
 export function isCanvasPointerPanActive(
   event: PointerPanState,
-  { spaceHeld }: PointerPanOptions,
+  { spaceHeld, panMode = false }: PointerPanOptions,
 ): boolean {
   return (
     (event.buttons & MIDDLE_MOUSE_BUTTON_MASK) !== 0 ||
-    (spaceHeld && (event.buttons & PRIMARY_MOUSE_BUTTON_MASK) !== 0)
+    ((spaceHeld || panMode) && (event.buttons & PRIMARY_MOUSE_BUTTON_MASK) !== 0)
   )
 }
 

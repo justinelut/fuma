@@ -1,0 +1,81 @@
+/*
+ * Onlook-derived Studio presentation adapter.
+ *
+ * This file intentionally styles only descendants of the visual-editor root.
+ * Admin, auth, content, tenancy, publishing and public runtime surfaces remain
+ * outside this scope. Onlook is Apache-2.0; see THIRD_PARTY_NOTICES.md.
+ */
+.surface {
+    --onlook-panel-border: color-mix(in srgb, var(--border) 72%, transparent);
+    --onlook-panel-bg: color-mix(in srgb, var(--bg-body) 94%, transparent);
+    --onlook-panel-shadow:
+        0 12px 36px color-mix(in srgb, var(--scrim-40) 66%, transparent),
+        inset 0 1px 0 color-mix(in srgb, var(--text) 4%, transparent);
+    background: var(--bg-body);
+}
+
+.surface :global([data-testid="toolbar"]) {
+    height: 40px;
+    border-bottom: 1px solid var(--onlook-panel-border);
+    background: color-mix(in srgb, var(--bg-body) 78%, transparent);
+    box-shadow: 0 1px 12px color-mix(in srgb, var(--scrim-40) 32%, transparent);
+    backdrop-filter: blur(20px) saturate(1.15);
+}
+
+.surface :global([data-testid="left-sidebar"]),
+.surface :global([data-testid="right-sidebar"]) {
+    margin: var(--space-3xs);
+    border: 1px solid var(--onlook-panel-border);
+    border-radius: 12px;
+    background: var(--onlook-panel-bg);
+    box-shadow: var(--onlook-panel-shadow);
+    backdrop-filter: blur(20px) saturate(1.08);
+}
+
+.surface :global([data-testid="left-sidebar"]) {
+    margin-right: 0;
+}
+
+.surface :global([data-testid="right-sidebar"]) {
+    margin-left: 0;
+}
+
+.surface :global([data-testid="canvas-root"]) {
+    margin: var(--space-3xs);
+    border: 1px solid color-mix(in srgb, var(--border) 52%, transparent);
+    border-radius: 12px;
+    background:
+        radial-gradient(
+            circle at 50% 22%,
+            color-mix(in srgb, var(--bg-surface-3) 58%, transparent),
+            transparent 46%
+        ),
+        var(--bg-surface-2);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 3%, transparent);
+}
+
+.surface :global([data-testid="canvas-root"][data-canvas-mode="pan"]) {
+    cursor: grab;
+}
+
+.surface :global([data-testid="canvas-root"][data-canvas-mode="pan"]:active) {
+    cursor: grabbing;
+}
+
+@media (max-width: 760px) {
+    .surface :global([data-testid="left-sidebar"]),
+    .surface :global([data-testid="right-sidebar"]),
+    .surface :global([data-testid="canvas-root"]) {
+        margin: var(--space-4xs);
+        border-radius: 9px;
+    }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    .surface :global([data-testid="toolbar"]),
+    .surface :global([data-testid="left-sidebar"]),
+    .surface :global([data-testid="right-sidebar"]) {
+        background: var(--bg-body);
+        backdrop-filter: none;
+    }
+}

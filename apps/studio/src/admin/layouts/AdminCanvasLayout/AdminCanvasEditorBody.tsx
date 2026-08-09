@@ -14,6 +14,7 @@ import { LayoutNameDialog } from '@admin/pages/site/dialogs/LayoutNameDialog'
 import { PropertiesPanel } from '@admin/pages/site/panels/PropertiesPanel'
 import { LeftSidebar } from '@admin/pages/site/sidebars/LeftSidebar'
 import { RightSidebar } from '@admin/pages/site/sidebars/RightSidebar'
+import { OnlookStudioToolDock } from '@admin/onlook/OnlookStudioToolDock'
 import { selectRightSidebarExpanded, useEditorStore } from '@admin/pages/site/store/store'
 import { useNarrowEditorChrome } from '@site/layout/responsiveChrome'
 import { ConfirmDeleteProvider } from '@admin/shared/dialogs/ConfirmDeleteDialog'
@@ -119,6 +120,7 @@ export function AdminCanvasEditorBody({
               key="site"
               mode={canSaveSite ? 'site' : 'hidden'}
             />
+            <OnlookStudioToolDock />
           </div>
         </ConfirmDeleteProvider>
       </DndContext>

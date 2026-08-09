@@ -57,6 +57,7 @@ import {
 import { LazyChunkBoundary } from '@admin/lib/LazyChunkBoundary'
 import { prewarmedLazy } from '@admin/lib/prewarmedLazy'
 import styles from './AdminCanvasLayout.module.css'
+import onlookStyles from '@admin/onlook/OnlookStudioSurface.module.css'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useCurrentAdminUser } from '@admin/sessionContext'
 import {
@@ -201,7 +202,9 @@ export function AdminCanvasLayout() {
   return (
     <EditorPermissionsProvider value={permissions}>
       <div
-        className={styles.shell}
+        className={`${styles.shell} ${onlookStyles.surface}`}
+        data-studio-surface="onlook"
+        data-editor-authority="fuma"
         data-editor-density={appearance.density}
         data-editor-theme={appearance.theme}
         data-editor-text-scale={appearance.textScale}

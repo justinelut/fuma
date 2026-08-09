@@ -89,6 +89,7 @@ export function CanvasRoot({ editable = true }: CanvasRootProps) {
   const breakpoints = useEditorStore((s) => s.site?.breakpoints ?? EMPTY_BREAKPOINTS)
   const activeBreakpointId = useEditorStore((s) => s.activeBreakpointId)
   const canvasView = useEditorStore((s) => s.canvasView)
+  const canvasMode = useEditorStore((s) => s.canvasMode)
   const agentSnapshotCaptureRequest = useEditorStore((s) => s.agentSnapshotCaptureRequest)
   const rightSidebarExpanded = useEditorStore(selectRightSidebarExpanded)
   const isLive = canvasView === 'live'
@@ -393,6 +394,7 @@ export function CanvasRoot({ editable = true }: CanvasRootProps) {
   // ─── Canvas background click → deselect ───────────────────────────────────
 
   const handleCanvasClick = () => {
+    if (canvasMode === 'pan') return
     contextMenu.close()
     clearSelection()
   }
@@ -456,6 +458,7 @@ export function CanvasRoot({ editable = true }: CanvasRootProps) {
           data-instatic-canvas-root="true"
           data-canvas-state={canvasPage ? 'canvas-ready' : 'canvas-empty'}
           data-canvas-view={canvasView}
+          data-canvas-mode={canvasMode}
           data-vc-mode={activeDocument?.kind === 'visualComponent' ? 'true' : undefined}
           onKeyDown={onCanvasKeyDown}
           onClick={onCanvasClick}
