@@ -46,6 +46,7 @@
     "test": "bun test && bun run test:web && bun run test:control && bun run test:governance",
     "test:web": "bun --cwd=apps/web run test",
     "test:web:e2e": "bun --cwd=apps/web run test:e2e",
+    "test:onlook-preservation": "bun tooling/onlook/verify-preservation.ts",
     "tokens:web:sync": "bun --cwd=apps/web run tokens:sync",
     "tokens:web:check": "bun --cwd=apps/web run tokens:check",
     "test:e2e": "bun --cwd=apps/studio run test:e2e",

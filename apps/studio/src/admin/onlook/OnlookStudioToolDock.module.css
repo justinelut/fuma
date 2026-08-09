@@ -1,0 +1,32 @@
+/* Onlook-inspired compact canvas dock; behavior is supplied by Fuma's store. */
+.dock {
+    position: absolute;
+    left: 50%;
+    bottom: 16px;
+    z-index: 84;
+    display: flex;
+    align-items: center;
+    gap: var(--space-4xs);
+    padding: var(--space-3xs);
+    transform: translateX(-50%);
+    border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg-body) 88%, transparent);
+    box-shadow:
+        0 10px 30px color-mix(in srgb, var(--scrim-40) 72%, transparent),
+        inset 0 1px 0 color-mix(in srgb, var(--text) 5%, transparent);
+    backdrop-filter: blur(20px) saturate(1.15);
+}
+
+@media (max-width: 760px) {
+    .dock {
+        bottom: 10px;
+    }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    .dock {
+        background: var(--bg-body);
+        backdrop-filter: none;
+    }
+}

@@ -101,6 +101,8 @@ export function useCanvas({ canvasRootRef, transformLayerRef, enabled }: UseCanv
   const zoomIn = useEditorStore((s) => s.zoomIn)
   const zoomOut = useEditorStore((s) => s.zoomOut)
   const resetView = useEditorStore((s) => s.resetView)
+  const canvasMode = useEditorStore((s) => s.canvasMode)
+  const persistentPanMode = canvasMode === 'pan'
 
   // ─── DOM write helper ─────────────────────────────────────────────────────
 
@@ -255,6 +257,19 @@ export function useCanvas({ canvasRootRef, transformLayerRef, enabled }: UseCanv
   // ─── Spacebar tracking (for Space+drag pan) ───────────────────────────────
 
   useEffect(() => {
+    function syncPanSignal(spaceHeld: boolean): void {
+      setCanvasSpacePanActive(
+        document,
+        'parentDocument',
+        persistentPanMode || spaceHeld,
+      )
+    }
+
+    // IframeFrameSurface reads this shared document signal. Publishing the
+    // persistent mode here makes the hand tool work identically when a drag
+    // starts over an editable iframe or over the parent canvas background.
+    syncPanSignal(spaceActiveRef.current)
+
     function onKeyDown(e: KeyboardEvent) {
       if (e.code === 'Space' && !e.repeat) {
         const target = e.target as HTMLElement
@@ -268,13 +283,13 @@ export function useCanvas({ canvasRootRef, transformLayerRef, enabled }: UseCanv
         ) return
         e.preventDefault()
         spaceActiveRef.current = true
-        setCanvasSpacePanActive(document, 'parentDocument', true)
+        syncPanSignal(true)
       }
     }
     function onKeyUp(e: KeyboardEvent) {
       if (e.code === 'Space') {
         spaceActiveRef.current = false
-        setCanvasSpacePanActive(document, 'parentDocument', false)
+        syncPanSignal(false)
       }
     }
     document.addEventListener('keydown', onKeyDown)
@@ -284,7 +299,7 @@ export function useCanvas({ canvasRootRef, transformLayerRef, enabled }: UseCanv
       document.removeEventListener('keydown', onKeyDown)
       document.removeEventListener('keyup', onKeyUp)
     }
-  }, [])
+  }, [persistentPanMode])
 
   // ─── Browser-style reset shortcut ─────────────────────────────────────────
 
@@ -442,7 +457,7 @@ export function useCanvas({ canvasRootRef, transformLayerRef, enabled }: UseCanv
         if (first) {
           isDraggingRef.current = isCanvasPointerPanActive(
             { buttons },
-            { spaceHeld: spaceActiveRef.current },
+            { spaceHeld: spaceActiveRef.current, panMode: persistentPanMode },
           )
           if (isDraggingRef.current && isMiddleMousePointerPan({ buttons }) && event.cancelable) {
             event.preventDefault()
